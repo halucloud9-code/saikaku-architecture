@@ -276,7 +276,7 @@ function CategorySection({ title, type, axes }) {
 
         {/* ドーナツチャート */}
         <div style={{ background: VENN_COLORS[type].bg, borderRadius: 12, padding: '24px 16px', marginBottom: 12 }}>
-          <div style={{ position: 'relative', width: 280, margin: '0 auto', height: 320 }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: 280, margin: '0 auto', height: 320 }}>
             {axesArray[0] && (
               <div style={{ position: 'absolute', top: 0, left: 0, textAlign: 'left' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
@@ -693,7 +693,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
               })}
             </div>
             <div style={{ height: 1, background: '#FDFCFA10', margin: '0 0 5px' }} />
-            <div style={{ fontSize: 12, fontWeight: 800, color: '#FF4444', letterSpacing: '0.12em', marginBottom: 3 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#FFD700', letterSpacing: '0.12em', marginBottom: 3 }}>
               Narrative
             </div>
             <p style={{ fontSize: 11, color: '#D4C9B0', lineHeight: 1.55, margin: '0 0 5px', fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif' }}>
@@ -727,7 +727,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
             {result.reward?.model && (
               <>
                 <div style={{ height: 1, background: '#FDFCFA10', margin: '5px 0 4px' }} />
-                <p style={{ fontSize: 12, fontWeight: 900, color: '#3ECFBE', letterSpacing: '0.12em', margin: '0 0 2px' }}>
+                <p style={{ fontSize: 20, fontWeight: 900, color: '#3ECFBE', letterSpacing: '0.12em', margin: '0 0 2px' }}>
                   ▶ Reward Model
                 </p>
                 <p style={{ fontSize: 11, color: '#F0EAE0', margin: 0, lineHeight: 1.55, fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif', fontWeight: 600 }}>
