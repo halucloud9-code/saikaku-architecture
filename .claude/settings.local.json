@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(xargs ls -lt)",
+      "Bash(ls /Users/halu/グリフォンアプリ/.env*)",
+      "Bash(firebase --version)",
+      "Bash(npx firebase --version)",
+      "Bash(curl --version)",
+      "Bash(python3 -c \"import google.oauth2.service_account; print\\(''ok''\\)\")",
+      "Bash(python3 -c \"import jwt; print\\(''jwt ok''\\)\")",
+      "Bash(python3 -c \"import cryptography; print\\(''crypto ok''\\)\")",
+      "Bash(python3 -c \"import ssl, base64, json, hashlib, hmac, time, urllib.request; print\\(''stdlib ok''\\)\")",
+      "Bash(openssl version)",
+      "Bash(python3 -c \"import subprocess; print\\(''subprocess ok''\\)\")",
+      "Bash(git --version)",
+      "Bash(python3:*)",
+      "Bash(vercel --version)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(\"/Applications/Amical.app/Contents/Resources/node\" --version)",
+      "Bash(mdfind -name \"npm\")",
+      "Bash(/Applications/Amical.app/Contents/Resources/node/bin/vercel --version)",
+      "Bash(env)",
+      "Bash(npx vercel --version)",
+      "Bash(git add src/screens/ResultScreen.jsx)",
+      "Bash(git commit -m \"darken axis card colors more\")",
+      "Bash(git push)"
+    ]
+  }
+}

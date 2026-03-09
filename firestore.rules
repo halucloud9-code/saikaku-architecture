@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // results コレクション：本人のみ読み書き可
+    // 管理者の読み取りは firebase-admin（バックエンド）経由のため
+    // フロントからの直接アクセスは本人分のみに制限する
+    match /results/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // その他のコレクションへのアクセスはすべて拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
