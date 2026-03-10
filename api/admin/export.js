@@ -23,9 +23,9 @@ export default async function handler(req, res) {
   const rows = [
     [
       '名前', 'メール', '才覚領域',
-      '才能軸1', '才能軸2', '才能軸3',
-      '価値観軸1', '価値観軸2', '価値観軸3',
-      '情熱軸1', '情熱軸2', '情熱軸3',
+      '価値観軸1', '価値観軸2', '価値観軸3', '価値観入力',
+      '才能軸1', '才能軸2', '才能軸3', '才能入力',
+      '情熱軸1', '情熱軸2', '情熱軸3', '情熱入力',
       '解析日時',
     ],
   ];
@@ -39,15 +39,18 @@ export default async function handler(req, res) {
       d.name || '',
       d.email || '',
       d.selectedKakuchiiki || '',
-      t.axis1?.name || '',
-      t.axis2?.name || '',
-      t.axis3?.name || '',
       v.axis1?.name || '',
       v.axis2?.name || '',
       v.axis3?.name || '',
+      d.inputValueTop5  || d.inputValue  || '',
+      t.axis1?.name || '',
+      t.axis2?.name || '',
+      t.axis3?.name || '',
+      d.inputTalentTop5 || d.inputTalent || '',
       p.axis1?.name || '',
       p.axis2?.name || '',
       p.axis3?.name || '',
+      d.inputPassionTop5 || d.inputPassion || '',
       d.createdAt?._seconds
         ? new Date(d.createdAt._seconds * 1000).toLocaleString('ja-JP')
         : '',
