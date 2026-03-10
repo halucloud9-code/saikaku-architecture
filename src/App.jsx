@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, getRedirectResult, db } from './firebase';
 import LoginScreen from './screens/LoginScreen';
 import InputScreen from './screens/InputScreen';
 import LoadingScreen from './screens/LoadingScreen';
@@ -20,6 +20,19 @@ export default function App() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // リダイレクトログイン後の結果を処理
+    getRedirectResult(auth).then(async (result) => {
+      if (result && result.user) {
+        const { doc, setDoc, getDoc, serverTimestamp } = await import('firebase/firestore');
+        const user = result.user;
+        const docRef = doc(db, 'results', user.uid);
+        const snap = await getDoc(docRef);
+        if (!snap.data()?.consentAt) {
+          await setDoc(docRef, { consentAt: serverTimestamp() }, { merge: true });
+        }
+      }
+    }).catch(() => {});
+
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
