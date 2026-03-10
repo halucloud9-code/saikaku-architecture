@@ -32,6 +32,9 @@ export default async function handler(req, res) {
       valueAxes: d.result?.value,
       passionAxes: d.result?.passion,
       insight: d.result?.insight,
+      inputTalentTop5: d.inputTalentTop5 || '',
+      inputValueTop5:  d.inputValueTop5  || '',
+      inputPassionTop5: d.inputPassionTop5 || '',
       createdAt: d.createdAt?._seconds
         ? new Date(d.createdAt._seconds * 1000).toISOString()
         : null,

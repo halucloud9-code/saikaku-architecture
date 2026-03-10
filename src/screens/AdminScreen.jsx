@@ -541,11 +541,12 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                       </span>
                     </td>
                     {[
-                      { axes: u.talentAxes, color: '#C4922A' },
-                      { axes: u.valueAxes, color: '#4A6FA5' },
-                      { axes: u.passionAxes, color: '#A84432' },
-                    ].map(({ axes, color }, i) => (
+                      { axes: u.talentAxes, color: '#C4922A', top5: u.inputTalentTop5 },
+                      { axes: u.valueAxes,  color: '#4A6FA5', top5: u.inputValueTop5  },
+                      { axes: u.passionAxes, color: '#A84432', top5: u.inputPassionTop5 },
+                    ].map(({ axes, color, top5 }, i) => (
                       <td key={i} style={{ padding: '12px 16px' }}>
+                        {/* AIが生成した3軸タグ */}
                         {axes ? (
                           <div>
                             {['axis1', 'axis2', 'axis3'].map((k) => (
@@ -568,6 +569,28 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                           </div>
                         ) : (
                           <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
+                        )}
+                        {/* ユーザーが入力した5つ */}
+                        {top5 && (
+                          <div style={{ marginTop: 4 }}>
+                            {top5.split(/[,、，\n]/).map((s) => s.trim()).filter(Boolean).map((item, j) => (
+                              <span
+                                key={j}
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '1px 6px',
+                                  borderRadius: 100,
+                                  background: 'transparent',
+                                  border: `1px solid ${color}60`,
+                                  color: `${color}CC`,
+                                  fontSize: 10,
+                                  margin: '2px 2px',
+                                }}
+                              >
+                                {item}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </td>
                     ))}
