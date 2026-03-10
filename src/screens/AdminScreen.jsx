@@ -541,9 +541,9 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                       </span>
                     </td>
                     {[
-                      { axes: u.talentAxes, color: '#C4922A', top5: u.inputTalentTop5 },
-                      { axes: u.valueAxes,  color: '#4A6FA5', top5: u.inputValueTop5  },
-                      { axes: u.passionAxes, color: '#A84432', top5: u.inputPassionTop5 },
+                      { axes: u.talentAxes, color: '#C4922A', top5: u.inputTalentTop5 || u.inputTalent },
+                      { axes: u.valueAxes,  color: '#4A6FA5', top5: u.inputValueTop5  || u.inputValue  },
+                      { axes: u.passionAxes, color: '#A84432', top5: u.inputPassionTop5 || u.inputPassion },
                     ].map(({ axes, color, top5 }, i) => (
                       <td key={i} style={{ padding: '12px 16px' }}>
                         {/* AIが生成した3軸タグ */}
