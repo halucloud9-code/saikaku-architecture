@@ -283,7 +283,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
               question={<>お金も時間も制限が一切ない。<br />明日、何をしますか？<br /><span style={{fontSize:12, color:'#888'}}>できるだけ具体的に。</span></>}
               value={q2}
               onChange={setQ2}
-              placeholder="具体的なシーン・行動・場所・誰といるか..."}
+              placeholder="具体的なシーン・行動・場所・誰といるか..."
               color="#7B5EA7"
               bg="#F3EFF8"
             />
