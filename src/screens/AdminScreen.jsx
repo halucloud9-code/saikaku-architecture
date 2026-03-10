@@ -467,7 +467,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
-                  {['', '名前', '才覚領域', '才能', '価値観', '情熱', '解析日時'].map((h) => (
+                  {['', '名前', '才覚領域', '価値観', '才能', '情熱', '解析日時'].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -541,8 +541,8 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                       </span>
                     </td>
                     {[
-                      { axes: u.talentAxes, color: '#C4922A', top5: u.inputTalentTop5 || u.inputTalent },
-                      { axes: u.valueAxes,  color: '#4A6FA5', top5: u.inputValueTop5  || u.inputValue  },
+                      { axes: u.valueAxes,   color: '#4A6FA5', top5: u.inputValueTop5   || u.inputValue   },
+                      { axes: u.talentAxes,  color: '#C4922A', top5: u.inputTalentTop5  || u.inputTalent  },
                       { axes: u.passionAxes, color: '#A84432', top5: u.inputPassionTop5 || u.inputPassion },
                     ].map(({ axes, color, top5 }, i) => (
                       <td key={i} style={{ padding: '12px 16px' }}>
@@ -581,9 +581,10 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                                   padding: '1px 6px',
                                   borderRadius: 100,
                                   background: 'transparent',
-                                  border: `1px solid ${color}60`,
-                                  color: `${color}CC`,
+                                  border: `1px solid ${color}99`,
+                                  color: color,
                                   fontSize: 10,
+                                  fontWeight: 700,
                                   margin: '2px 2px',
                                 }}
                               >
