@@ -467,7 +467,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
-                  {['', '名前', '才覚領域', '価値観', '才能', '情熱', '解析日時'].map((h) => (
+                  {['', '名前', '才覚領域', '価値観', '才能', '情熱', 'Q1', 'Q2', 'Q3', '解析日時'].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -593,6 +593,18 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                             ))}
                           </div>
                         )}
+                      </td>
+                    ))}
+                    {[
+                      { val: u.inputQ1, color: '#7B5EA7' },
+                      { val: u.inputQ2, color: '#7B5EA7' },
+                      { val: u.inputQ3, color: '#7B5EA7' },
+                    ].map(({ val, color }, qi) => (
+                      <td key={`q${qi}`} style={{ padding: '12px 16px', maxWidth: 200 }}>
+                        {val
+                          ? <span style={{ fontSize: 12, color: '#2A2520', lineHeight: 1.6, display: 'block', whiteSpace: 'pre-wrap' }}>{val}</span>
+                          : <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
+                        }
                       </td>
                     ))}
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>

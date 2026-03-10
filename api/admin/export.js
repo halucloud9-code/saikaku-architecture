@@ -26,6 +26,7 @@ export default async function handler(req, res) {
       '価値観軸1', '価値観軸2', '価値観軸3', '価値観入力',
       '才能軸1', '才能軸2', '才能軸3', '才能入力',
       '情熱軸1', '情熱軸2', '情熱軸3', '情熱入力',
+      'Q1_心残り', 'Q2_明日やること', 'Q3_10年後の影響',
       '解析日時',
     ],
   ];
@@ -51,6 +52,9 @@ export default async function handler(req, res) {
       p.axis2?.name || '',
       p.axis3?.name || '',
       d.inputPassionTop5 || d.inputPassion || '',
+      d.inputQ1 || '',
+      d.inputQ2 || '',
+      d.inputQ3 || '',
       d.createdAt?._seconds
         ? new Date(d.createdAt._seconds * 1000).toLocaleString('ja-JP')
         : '',

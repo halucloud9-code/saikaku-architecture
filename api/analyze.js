@@ -218,6 +218,8 @@ export default async function handler(req, res) {
     talent_top5, talent_other,
     value_top5,  value_other,
     passion_top5, passion_other,
+    // 深化の3問
+    q1, q2, q3,
     // 旧フォーマット（後方互換）
     talent: talentLegacy,
     value:  valueLegacy,
@@ -246,6 +248,7 @@ export default async function handler(req, res) {
   const allInputs = [
     talent_top5, talent_other, value_top5, value_other,
     passion_top5, passion_other, talentLegacy, valueLegacy, passionLegacy,
+    q1, q2, q3,
   ].filter(Boolean);
   if (allInputs.some((s) => s.length > MAX_LEN)) {
     return res.status(400).json({ error: '各入力は2000文字以内にしてください' });
@@ -274,6 +277,13 @@ export default async function handler(req, res) {
       buildSection('価値観', value_top5, value_other),
       '',
       buildSection('情熱', passion_top5, passion_other),
+      '',
+      '━━━ 深化の問い ━━━',
+      `Q1. 明日死ぬとしたら、心残りなのは何ですか？\n${q1 || '（未入力）'}`,
+      '',
+      `Q2. お金も時間も制限が一切ない。明日、何をしますか？\n${q2 || '（未入力）'}`,
+      '',
+      `Q3. 才覚領域を全力で生き続けた10年後、周りにどんな影響や変化が生まれていますか？\n${q3 || '（未入力）'}`,
     ].join('\n');
   } else {
     // 旧フォーマット（後方互換）
@@ -337,6 +347,9 @@ export default async function handler(req, res) {
       inputValueOther:   value_other  || '',
       inputPassionTop5:  passion_top5  || '',
       inputPassionOther: passion_other || '',
+      inputQ1: q1 || '',
+      inputQ2: q2 || '',
+      inputQ3: q3 || '',
       result,
       selectedKakuchiiki: selectedKakuchiiki || result.kakuchiiki,
       updatedAt: FieldValue.serverTimestamp(),
