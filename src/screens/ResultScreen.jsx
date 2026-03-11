@@ -124,12 +124,13 @@ function DonutChart({ axes, colors, size = 240 }) {
   const radius = size * 0.38;
   const strokeWidth = size * 0.18;
   const circumference = 2 * Math.PI * radius;
-  const total = axes.reduce((s, a) => s + (a.percentage || 0), 0) || 1;
+  const counts = axes.map(a => a.items?.length || 0);
+  const total = counts.reduce((a, b) => a + b, 0) || 1;
   let offset = 0;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {axes.map((axis, i) => {
-        const pct = (axis.percentage || 0) / total;
+        const pct = counts[i] / total;
         const dash = pct * circumference;
         const gap = circumference - dash;
         const rotation = offset * 360 - 90;
@@ -283,7 +284,7 @@ function CategorySection({ title, type, axes }) {
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: donutColors[0], display: 'inline-block', flexShrink: 0 }} />
                   <span style={{ fontSize: 18, color: '#FDFCFA', fontWeight: 700 }}>{axesArray[0].name}</span>
                 </div>
-                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingLeft: 16, fontFamily: "'Inter', Arial, sans-serif" }}>{axesArray[0].percentage}%</div>
+                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingLeft: 16, fontFamily: "'Inter', Arial, sans-serif" }}>{pcts[0]}%</div>
               </div>
             )}
             {axesArray[1] && (
@@ -292,7 +293,7 @@ function CategorySection({ title, type, axes }) {
                   <span style={{ fontSize: 18, color: '#FDFCFA', fontWeight: 700 }}>{axesArray[1].name}</span>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: donutColors[1], display: 'inline-block', flexShrink: 0 }} />
                 </div>
-                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingRight: 16, fontFamily: "'Inter', Arial, sans-serif" }}>{axesArray[1].percentage}%</div>
+                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingRight: 16, fontFamily: "'Inter', Arial, sans-serif" }}>{pcts[1]}%</div>
               </div>
             )}
             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
@@ -300,7 +301,7 @@ function CategorySection({ title, type, axes }) {
             </div>
             {axesArray[2] && (
               <div style={{ position: 'absolute', bottom: 0, left: 0, textAlign: 'left' }}>
-                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingLeft: 16, marginBottom: 2, fontFamily: "'Inter', Arial, sans-serif" }}>{axesArray[2].percentage}%</div>
+                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingLeft: 16, marginBottom: 2, fontFamily: "'Inter', Arial, sans-serif" }}>{pcts[2]}%</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: donutColors[2], display: 'inline-block', flexShrink: 0 }} />
                   <span style={{ fontSize: 18, color: '#FDFCFA', fontWeight: 700 }}>{axesArray[2].name}</span>
@@ -675,6 +676,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
               ].map(({ tp, label, axesData }) => {
                 const arr = ['axis1', 'axis2', 'axis3'].map(k => axesData?.[k]).filter(Boolean);
                 const dotColor = DONUT_COLORS[tp];
+                const miniPcts = computePcts(axesData);
                 return (
                   <div key={tp} style={{ textAlign: 'center', flexShrink: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <DonutChart axes={arr} colors={dotColor} size={80} />
@@ -684,7 +686,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <span style={{ fontSize: 9, color: dotColor[i], flexShrink: 0 }}>☀︎</span>
                           <span style={{ fontSize: 9, color: '#ffffff', fontWeight: 500, lineHeight: 1.2, fontFamily: "'Inter', Arial, sans-serif" }}>{axis.name}</span>
-                          <span style={{ fontSize: 9, color: '#ffffff', fontWeight: 700, fontFamily: "'Inter', Arial, sans-serif" }}>{axis.percentage}%</span>
+                          <span style={{ fontSize: 9, color: '#ffffff', fontWeight: 700, fontFamily: "'Inter', Arial, sans-serif" }}>{miniPcts[i]}%</span>
                         </div>
                       ))}
                     </div>
