@@ -6,6 +6,8 @@ import InputScreen from './screens/InputScreen';
 import LoadingScreen from './screens/LoadingScreen';
 import ResultScreen from './screens/ResultScreen';
 import AdminScreen from './screens/AdminScreen';
+import UAAMScreen from './screens/uaam/UAAMScreen';
+import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
   .split(',')
@@ -18,6 +20,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [uaamResult, setUaamResult] = useState(null);
+  const [uaamError, setUaamError] = useState('');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -78,9 +82,48 @@ export default function App() {
     }
   };
 
+  const handleUaamSubmit = async (answers) => {
+    setUaamError('');
+    setUaamResult(null);
+    setScreen('uaam-loading');
+    try {
+      if (!auth.currentUser) {
+        throw new Error('ログインセッションが切れました。再度ログインしてください。');
+      }
+      const idToken = await auth.currentUser.getIdToken(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90_000);
+      let res;
+      try {
+        res = await fetch('/api/uaam', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken, answers }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '診断に失敗しました');
+      setUaamResult(data);
+      setScreen('uaam-result');
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        setUaamError('診断がタイムアウトしました。時間をおいて再度お試しください。');
+      } else if (!navigator.onLine) {
+        setUaamError('通信エラーが発生しました。インターネット接続を確認してください。');
+      } else {
+        setUaamError(e.message || '診断に失敗しました。もう一度お試しください。');
+      }
+      setScreen('uaam');
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
     setResult(null);
+    setUaamResult(null);
     setScreen('login');
   };
 
@@ -125,6 +168,37 @@ export default function App() {
     );
   }
 
+  if (screen === 'uaam') {
+    return (
+      <UAAMScreen
+        user={user}
+        isAdmin={isAdmin}
+        error={uaamError}
+        onSubmit={handleUaamSubmit}
+        onBack={() => setScreen('input')}
+        onAdmin={() => setScreen('admin')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (screen === 'uaam-loading') {
+    return <LoadingScreen />;
+  }
+
+  if (screen === 'uaam-result' && uaamResult) {
+    return (
+      <UAAMResultScreen
+        user={user}
+        result={uaamResult}
+        isAdmin={isAdmin}
+        onReset={() => { setUaamResult(null); setScreen('uaam'); }}
+        onAdmin={() => setScreen('admin')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (screen === 'loading') {
     return <LoadingScreen />;
   }
@@ -151,6 +225,7 @@ export default function App() {
       onSubmit={handleSubmit}
       onAdmin={() => setScreen('admin')}
       onLogout={handleLogout}
+      onUaam={() => setScreen('uaam')}
     />
   );
 }
