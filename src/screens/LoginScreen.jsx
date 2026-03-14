@@ -13,16 +13,17 @@ export default function LoginScreen({ onLogin }) {
     setError('');
     try {
       const result = await signInWithGoogle();
-      const user = result.user;
-
-      // consentAt を初回のみ Firestore に保存
-      const docRef = doc(db, 'results', user.uid);
-      const snap = await getDoc(docRef);
-      if (!snap.data()?.consentAt) {
-        await setDoc(docRef, { consentAt: serverTimestamp() }, { merge: true });
+      // signInWithRedirectの場合はresultがnull（リダイレクト後にApp.jsxで処理）
+      if (result && result.user) {
+        const user = result.user;
+        const docRef = doc(db, 'results', user.uid);
+        const snap = await getDoc(docRef);
+        if (!snap.data()?.consentAt) {
+          await setDoc(docRef, { consentAt: serverTimestamp() }, { merge: true });
+        }
+        onLogin(user);
       }
-
-      onLogin(user);
+      // リダイレクト方式の場合はここまで到達しない（ページ遷移が発生）
     } catch (e) {
       if (e.code !== 'auth/popup-closed-by-user') {
         setError('ログインに失敗しました。再度お試しください。');

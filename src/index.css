@@ -132,13 +132,16 @@ body {
     margin-bottom: 4px !important;
   }
 
-  /* ドーナツチャート */
-  canvas {
-    width: 80px !important;
-    height: 80px !important;
-    max-width: 80px !important;
-    max-height: 80px !important;
+  /* ドーナツチャート（SVG） - 3カラムレイアウト時は100px max */
+  .pdf-section svg[width="220"],
+  .pdf-section svg[width="240"] {
+    width: 100px !important;
+    height: 100px !important;
+    max-width: 100px !important;
+    max-height: 100px !important;
   }
+
+  /* サマリーカード内ドーナツ（size=80）はそのまま */
 
   /* サマリーカード内ドーナツ：PDF時は横一列表示 */
   .donut-summary-triangle {

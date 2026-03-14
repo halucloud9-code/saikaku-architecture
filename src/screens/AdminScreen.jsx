@@ -467,7 +467,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
-                  {['', '名前', '才覚領域', '才能', '価値観', '情熱', '解析日時'].map((h) => (
+                  {['', '名前', '才覚領域', '価値観', '才能', '情熱', 'Q1', 'Q2', 'Q3', '解析日時'].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -541,11 +541,12 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                       </span>
                     </td>
                     {[
-                      { axes: u.talentAxes, color: '#C4922A' },
-                      { axes: u.valueAxes, color: '#4A6FA5' },
-                      { axes: u.passionAxes, color: '#A84432' },
-                    ].map(({ axes, color }, i) => (
+                      { axes: u.valueAxes,   color: '#4A6FA5', top5: u.inputValueTop5   || u.inputValue   },
+                      { axes: u.talentAxes,  color: '#C4922A', top5: u.inputTalentTop5  || u.inputTalent  },
+                      { axes: u.passionAxes, color: '#A84432', top5: u.inputPassionTop5 || u.inputPassion },
+                    ].map(({ axes, color, top5 }, i) => (
                       <td key={i} style={{ padding: '12px 16px' }}>
+                        {/* AIが生成した3軸タグ */}
                         {axes ? (
                           <div>
                             {['axis1', 'axis2', 'axis3'].map((k) => (
@@ -569,6 +570,41 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                         ) : (
                           <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
                         )}
+                        {/* ユーザーが入力した5つ */}
+                        {top5 && (
+                          <div style={{ marginTop: 4 }}>
+                            {top5.split(/[,、，\n]/).map((s) => s.trim()).filter(Boolean).map((item, j) => (
+                              <span
+                                key={j}
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '1px 6px',
+                                  borderRadius: 100,
+                                  background: 'transparent',
+                                  border: `1px solid ${color}99`,
+                                  color: color,
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  margin: '2px 2px',
+                                }}
+                              >
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    ))}
+                    {[
+                      { val: u.inputQ1, color: '#7B5EA7' },
+                      { val: u.inputQ2, color: '#7B5EA7' },
+                      { val: u.inputQ3, color: '#7B5EA7' },
+                    ].map(({ val, color }, qi) => (
+                      <td key={`q${qi}`} style={{ padding: '12px 16px', maxWidth: 200 }}>
+                        {val
+                          ? <span style={{ fontSize: 12, color: '#2A2520', lineHeight: 1.6, display: 'block', whiteSpace: 'pre-wrap' }}>{val}</span>
+                          : <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
+                        }
                       </td>
                     ))}
                     <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>

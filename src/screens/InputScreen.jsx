@@ -87,6 +87,11 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
   const [passionTop5, setPassionTop5] = useState('');
   const [passionOthers, setPassionOthers] = useState('');
 
+  // 追加3問
+  const [q1, setQ1] = useState('');
+  const [q2, setQ2] = useState('');
+  const [q3, setQ3] = useState('');
+
   const [localError, setLocalError] = useState('');
 
   // 【修正1】全入力欄を完全クリアする関数
@@ -97,6 +102,9 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
     setTalentOthers('');
     setPassionTop5('');
     setPassionOthers('');
+    setQ1('');
+    setQ2('');
+    setQ3('');
     setLocalError('');
   };
 
@@ -120,6 +128,9 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
       value_other: valueOthers.trim(),
       passion_top5: passionTop5.trim(),
       passion_other: passionOthers.trim(),
+      q1: q1.trim(),
+      q2: q2.trim(),
+      q3: q3.trim(),
     };
     // 【修正2】分析開始時に入力欄を初期化
     resetForm();
@@ -239,6 +250,56 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
             hint="報酬がなくても続けられること、関わると元気になることは？"
             last
           />
+
+          {/* 追加の3問 */}
+          <div style={{ height: 1, background: '#D4C9B0', margin: '4px 0 28px' }} />
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+              <div style={{ width: 4, height: 20, background: '#6B5E4E', borderRadius: 2, flexShrink: 0 }} />
+              <div>
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#6B5E4E', fontFamily: 'Shippori Mincho, serif' }}>
+                  深化の問い
+                </span>
+                <span style={{ fontSize: 12, color: '#1A1208', fontWeight: 600, marginLeft: 8 }}>
+                  才覚領域をさらに深めるための3つの問い
+                </span>
+              </div>
+            </div>
+
+            {/* Q1 */}
+            <QuestionBlock
+              num="Q1"
+              question={<>明日死ぬとしたら<br />心残りなのは何ですか？</>}
+              value={q1}
+              onChange={setQ1}
+              placeholder="思いのままに書いてください"
+              color="#7B5EA7"
+              bg="#F3EFF8"
+            />
+
+            {/* Q2 */}
+            <QuestionBlock
+              num="Q2"
+              question={<>お金も時間も制限が一切ない。<br />明日、何をしますか？<br /><span style={{fontSize:12, color:'#888'}}>できるだけ具体的に。</span></>}
+              value={q2}
+              onChange={setQ2}
+              placeholder="具体的なシーン・行動・場所・誰といるか..."
+              color="#7B5EA7"
+              bg="#F3EFF8"
+            />
+
+            {/* Q3 */}
+            <QuestionBlock
+              num="Q3"
+              question={<>才覚領域を全力で生き続けた10年後<br />あなたの周りはどんな影響や変化を遂げていますか？</>}
+              value={q3}
+              onChange={setQ3}
+              placeholder="人・組織・社会・世界...どんな変化が起きているか"
+              color="#7B5EA7"
+              bg="#F3EFF8"
+              last
+            />
+          </div>
 
           {/* エラー */}
           {displayError && (
@@ -422,6 +483,70 @@ function FieldBlock({
         💡 {hint}
       </p>
       {!last && <div style={{ height: 1, background: '#D4C9B0', margin: '24px 0 0' }} />}
+    </div>
+  );
+}
+
+// ── 深化の問いブロック ──────────────────────────────────────────────────
+function QuestionBlock({ num, question, value, onChange, placeholder, color, bg, last }) {
+  return (
+    <div style={{ marginBottom: last ? 0 : 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            background: color,
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 700,
+            flexShrink: 0,
+            marginTop: 2,
+          }}
+        >
+          {num}
+        </span>
+        <p
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: '#2A2520',
+            margin: 0,
+            lineHeight: 1.8,
+            fontFamily: 'Shippori Mincho, serif',
+          }}
+        >
+          {question}
+        </p>
+      </div>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        style={{
+          width: '100%',
+          padding: '12px 14px',
+          borderRadius: 8,
+          border: `2px solid ${color}40`,
+          background: bg,
+          fontSize: 14,
+          color: '#2A2520',
+          fontFamily: 'Noto Sans JP, sans-serif',
+          outline: 'none',
+          resize: 'vertical',
+          lineHeight: 1.7,
+          boxSizing: 'border-box',
+          transition: 'border-color 0.2s ease',
+        }}
+        onFocus={(e) => (e.target.style.borderColor = color)}
+        onBlur={(e) => (e.target.style.borderColor = `${color}40`)}
+      />
+      {!last && <div style={{ height: 1, background: '#E8E0D4', margin: '20px 0 0' }} />}
     </div>
   );
 }
