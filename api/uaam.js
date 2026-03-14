@@ -28,13 +28,14 @@ function calculateScores(answers, questions) {
       let subTotal = 0;
       for (const q of subQuestions) {
         const raw = answers[String(q.id)] || 3;
-        subTotal += q.reverse ? 6 - raw : raw;
+        // 通常: 0〜4点、逆転: 4〜0点
+        subTotal += q.reverse ? 5 - raw : raw - 1;
       }
       subs[sub] = subTotal;
     }
 
     const total = Object.values(subs).reduce((a, b) => a + b, 0);
-    const maxScore = axisDef.subs.length * 3 * 5;
+    const maxScore = axisDef.subs.length * 3 * 4; // 3問 × 最大4点
     result[axisKey] = {
       total,
       max: maxScore,
@@ -162,6 +163,9 @@ const QUESTIONS = [
 ];
 
 export default async function handler(req, res) {
+  console.log('[UAAM] handler called, method:', req.method);
+  console.log('[UAAM] ANTHROPIC_API_KEY set:', !!process.env.ANTHROPIC_API_KEY);
+  console.log('[UAAM] FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID);
   if (req.method !== 'POST') return res.status(405).end();
 
   const { idToken, answers } = req.body;
@@ -197,26 +201,22 @@ export default async function handler(req, res) {
 
   // Claude API 呼び出し用のユーザーメッセージ
   const userMsg = `以下のUAAM診断結果を分析してください。
-
 ━━━ 志 -MindSet-（4M）━━━
 合計スコア: ${scores.mindset.total}/${scores.mindset.max} (${scores.mindset.percentage}%)
 サブ項目:
-${Object.entries(scores.mindset.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n')}
-
+${Object.entries(scores.mindset.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n')}
 ━━━ 知 -Literacy-（4L）━━━
 合計スコア: ${scores.literacy.total}/${scores.literacy.max} (${scores.literacy.percentage}%)
 サブ項目:
-${Object.entries(scores.literacy.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n')}
-
+${Object.entries(scores.literacy.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n')}
 ━━━ 技 -Competency-（4C）━━━
 合計スコア: ${scores.competency.total}/${scores.competency.max} (${scores.competency.percentage}%)
 サブ項目:
-${Object.entries(scores.competency.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n')}
-
+${Object.entries(scores.competency.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n')}
 ━━━ 衝 -Impact-（4I）━━━
 合計スコア: ${scores.impact.total}/${scores.impact.max} (${scores.impact.percentage}%)
 サブ項目:
-${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n')}`;
+${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n')}`;
 
   let analysis = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -242,8 +242,10 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n
       analysis = parsed;
       break;
     } catch (e) {
+      console.error(`[UAAM] attempt ${attempt + 1} failed:`, e.message || e);
+      if (e.status) console.error(`[UAAM] API status: ${e.status}`);
       if (attempt === 2)
-        return res.status(500).json({ error: '分析に失敗しました。もう一度お試しください。' });
+        return res.status(500).json({ error: `分析に失敗しました: ${e.message}` });
       await new Promise((r) => setTimeout(r, 1000));
     }
   }

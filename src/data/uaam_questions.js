@@ -177,23 +177,21 @@ export const LIKERT_LABELS = [
  */
 export function calculateScores(answers) {
   const result = {};
-
   for (const axis of UAAM_AXES) {
     const axisQuestions = UAAM_QUESTIONS.filter((q) => q.axis === axis.key);
     const subs = {};
-
     for (const sub of axis.subs) {
       const subQuestions = axisQuestions.filter((q) => q.sub === sub.key);
       let subTotal = 0;
       for (const q of subQuestions) {
         const raw = answers[q.id] || 3;
-        subTotal += q.reverse ? 6 - raw : raw;
+        // 通常: 0〜4点、逆転: 4〜0点
+        subTotal += q.reverse ? 5 - raw : raw - 1;
       }
       subs[sub.key] = subTotal;
     }
-
     const total = Object.values(subs).reduce((a, b) => a + b, 0);
-    const maxScore = axis.subs.length * 3 * 5;
+    const maxScore = axis.subs.length * 3 * 4; // 3問 × 最大4点
     result[axis.key] = {
       total,
       max: maxScore,
@@ -201,6 +199,5 @@ export function calculateScores(answers) {
       subs,
     };
   }
-
   return result;
 }

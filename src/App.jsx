@@ -7,6 +7,7 @@ import LoadingScreen from './screens/LoadingScreen';
 import ResultScreen from './screens/ResultScreen';
 import AdminScreen from './screens/AdminScreen';
 import UAAMScreen from './screens/uaam/UAAMScreen';
+import UAAMLoadingScreen from './screens/uaam/UAAMLoadingScreen';
 import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
@@ -196,7 +197,7 @@ export default function App() {
   }
 
   if (screen === 'uaam-loading') {
-    return <LoadingScreen />;
+    return <UAAMLoadingScreen />;
   }
 
   if (screen === 'uaam-result' && uaamResult) {

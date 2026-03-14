@@ -4,6 +4,9 @@
   "functions": {
     "api/analyze.js": {
       "maxDuration": 120
+    },
+    "api/uaam.js": {
+      "maxDuration": 120
     }
   },
   "rewrites": [
