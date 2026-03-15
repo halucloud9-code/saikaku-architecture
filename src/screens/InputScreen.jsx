@@ -72,7 +72,7 @@ const Header = ({ user, isAdmin, onAdmin, onLogout }) => (
   </div>
 );
 
-export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, onLogout, onUaam }) {
+export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, onLogout, onBack }) {
   const [name, setName] = useState(user.displayName || '');
 
   // 価値観
@@ -352,30 +352,20 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
             ※ 解析には約30秒かかります
           </p>
 
-          {/* UAAM診断リンク */}
-          {onUaam && (
+          {/* 戻るリンク */}
+          {onBack && (
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #D4C9B0', textAlign: 'center' }}>
               <button
-                onClick={onUaam}
+                onClick={onBack}
                 style={{
-                  width: '100%',
-                  padding: '14px 24px',
-                  borderRadius: 10,
-                  border: '2px solid #4A6FA5',
-                  background: 'transparent',
-                  color: '#4A6FA5',
-                  fontSize: 15,
-                  fontWeight: 700,
-                  fontFamily: 'Noto Sans JP, sans-serif',
+                  padding: '10px 24px', borderRadius: 10,
+                  border: '1px solid #D4C9B0', background: 'transparent',
+                  color: '#7A7060', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer',
-                  letterSpacing: '0.05em',
                 }}
               >
-                UAAM 診断を受ける →
+                ← 診断選択に戻る
               </button>
-              <p style={{ fontSize: 11, color: '#7A7060', marginTop: 8 }}>
-                48問の診断で志・知・技・衝の4軸を分析します
-              </p>
             </div>
           )}
         </div>

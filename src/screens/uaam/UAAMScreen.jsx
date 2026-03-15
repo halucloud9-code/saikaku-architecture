@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { UAAM_AXES, UAAM_QUESTIONS, LIKERT_LABELS } from '../../data/uaam_questions';
 import { signOutUser } from '../../firebase';
 
-export default function UAAMScreen({ user, isAdmin, onSubmit, onBack, onAdmin, onLogout, error }) {
+export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBack, onAdmin, onLogout, error }) {
   const [answers, setAnswers] = useState({});
   const [activeTab, setActiveTab] = useState(0);
 
@@ -157,6 +157,29 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onBack, onAdmin, o
           />
         </div>
       </div>
+
+      {/* 開発テスト用ボタン */}
+      {onTestResult && (
+        <div style={{ padding: '12px 24px 0', maxWidth: 800, margin: '0 auto' }}>
+          <button
+            onClick={onTestResult}
+            style={{
+              width: '100%',
+              padding: '12px 20px',
+              borderRadius: 10,
+              border: '2px dashed #A84432',
+              background: '#A8443215',
+              color: '#A84432',
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: 'pointer',
+              letterSpacing: '0.05em',
+            }}
+          >
+            🔧 テスト結果を見る（ダミーデータ）
+          </button>
+        </div>
+      )}
 
       {/* 4軸タブ */}
       <div style={{ padding: '16px 24px 0', maxWidth: 800, margin: '0 auto' }}>

@@ -6,9 +6,11 @@ import InputScreen from './screens/InputScreen';
 import LoadingScreen from './screens/LoadingScreen';
 import ResultScreen from './screens/ResultScreen';
 import AdminScreen from './screens/AdminScreen';
+import SelectScreen from './screens/SelectScreen';
 import UAAMScreen from './screens/uaam/UAAMScreen';
 import UAAMLoadingScreen from './screens/uaam/UAAMLoadingScreen';
 import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
+import { calculateScores } from './data/uaam_questions';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
   .split(',')
@@ -16,15 +18,43 @@ const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
   .filter(Boolean);
 
 export default function App() {
-  const [screen, setScreen] = useState('login');
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  // 開発用: ?dev=uaam でログインスキップ＆ダミー結果画面表示
+  const devMode = new URLSearchParams(window.location.search).get('dev');
+
+  const [screen, setScreen] = useState(devMode === 'uaam' ? 'uaam-result' : 'login');
+  const [user, setUser] = useState(devMode === 'uaam' ? { displayName: 'Dev User', photoURL: null, email: 'dev@test.com' } : null);
+  const [authLoading, setAuthLoading] = useState(devMode ? false : true);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
-  const [uaamResult, setUaamResult] = useState(null);
+  const [uaamResult, setUaamResult] = useState(() => {
+    if (devMode === 'uaam') {
+      const dummyAnswers = {};
+      for (let i = 1; i <= 48; i++) dummyAnswers[i] = Math.floor(Math.random() * 5) + 1;
+      const scores = calculateScores(dummyAnswers);
+      return {
+        scores,
+        analysis: {
+          type_name: 'テストタイプ', type_description: '開発テスト用ダミーデータ',
+          axis_analysis: {
+            mindset: '自己認識が高く、物事の本質を見極める力に優れています。意味を見出す能力と気づきの感度が特に発達しており、深い内省を通じて自己成長を続けるタイプです。',
+            literacy: '論理的思考力と学習意欲が高いレベルで両立しています。新しい知識を吸収し、体系的に整理して活用する能力に長けています。',
+            competency: '創造性とコミュニケーション能力のバランスが取れています。独自のアイデアを生み出し、それを効果的に伝える力があります。',
+            impact: '革新的なアイデアを実行に移す力があります。周囲への影響力も強く、変化を推進するリーダーシップを発揮します。',
+          },
+          quadrant_analysis: { vision_quadrant: 'テスト', execution_quadrant: 'テスト' },
+          strengths: ['物事の本質を見抜く洞察力が非常に高い', '論理と創造性を組み合わせた問題解決ができる', '周囲を巻き込むコミュニケーション力がある'],
+          growth_areas: ['行動に移すまでのスピードを上げる余地がある', '完璧主義を手放し、まず試す姿勢を強化できる', 'チームでの協働スキルをさらに伸ばせる'],
+          narrative: 'あなたは高い自己認識と論理的思考力を兼ね備えた、バランス型の人材です。物事の本質を見極め、それを体系的に整理して他者に伝える能力に優れています。特に、深い内省を通じて得た気づきを、具体的な行動やイノベーションに繋げる力は、組織や社会に大きな価値をもたらします。',
+          action_suggestions: ['毎日15分の振り返りジャーナルを始める', '異分野の人との対話の機会を月2回以上作る', '小さなプロジェクトで実験的な挑戦を行う'],
+        },
+      };
+    }
+    return null;
+  });
   const [uaamError, setUaamError] = useState('');
 
   useEffect(() => {
+    if (devMode) return; // デバッグモード時はAuth不要
     // リダイレクトログイン後の結果を処理
     getRedirectResult(auth).then(async (result) => {
       if (result && result.user) {
@@ -42,7 +72,7 @@ export default function App() {
       setUser(u);
       setAuthLoading(false);
       if (u) {
-        setScreen((prev) => (prev === 'login' ? 'input' : prev));
+        setScreen((prev) => (prev === 'login' ? 'select' : prev));
       }
     });
     return unsubscribe;
@@ -50,7 +80,7 @@ export default function App() {
 
   const handleLogin = (u) => {
     setUser(u);
-    setScreen('input');
+    setScreen('select');
   };
 
   const handleSubmit = async (formData) => {
@@ -134,6 +164,27 @@ export default function App() {
     }
   };
 
+  // 開発テスト用：ダミーデータで結果画面に直接遷移
+  const handleUaamTestResult = () => {
+    const dummyAnswers = {};
+    for (let i = 1; i <= 48; i++) {
+      dummyAnswers[i] = Math.floor(Math.random() * 5) + 1;
+    }
+    const scores = calculateScores(dummyAnswers);
+    const analysis = {
+      type_name: 'テストタイプ',
+      type_description: '開発テスト用ダミーデータ',
+      axis_analysis: { mindset: 'テスト', literacy: 'テスト', competency: 'テスト', impact: 'テスト' },
+      quadrant_analysis: { vision_quadrant: 'テスト', execution_quadrant: 'テスト' },
+      strengths: ['強み1', '強み2', '強み3'],
+      growth_areas: ['成長1', '成長2', '成長3'],
+      narrative: 'これはテスト用のダミーデータです。実際のAI分析は行われていません。ランダムに生成されたスコアで結果画面のレイアウトを確認するためのモードです。',
+      action_suggestions: ['アクション1', 'アクション2', 'アクション3'],
+    };
+    setUaamResult({ scores, analysis });
+    setScreen('uaam-result');
+  };
+
   const handleLogout = () => {
     setUser(null);
     setResult(null);
@@ -176,7 +227,7 @@ export default function App() {
     return (
       <AdminScreen
         user={user}
-        onBack={() => setScreen('input')}
+        onBack={() => setScreen('select')}
         onLogout={handleLogout}
       />
     );
@@ -189,7 +240,8 @@ export default function App() {
         isAdmin={isAdmin}
         error={uaamError}
         onSubmit={handleUaamSubmit}
-        onBack={() => setScreen('input')}
+        onTestResult={handleUaamTestResult}
+        onBack={() => setScreen('select')}
         onAdmin={() => setScreen('admin')}
         onLogout={handleLogout}
       />
@@ -224,22 +276,35 @@ export default function App() {
         user={user}
         result={result}
         isAdmin={isAdmin}
-        onReset={() => { setResult(null); setScreen('input'); }}
+        onReset={() => { setResult(null); setScreen('select'); }}
         onAdmin={() => setScreen('admin')}
         onLogout={handleLogout}
       />
     );
   }
 
+  if (screen === 'input') {
+    return (
+      <InputScreen
+        user={user}
+        error={error}
+        isAdmin={isAdmin}
+        onSubmit={handleSubmit}
+        onAdmin={() => setScreen('admin')}
+        onLogout={handleLogout}
+        onBack={() => setScreen('select')}
+      />
+    );
+  }
+
   return (
-    <InputScreen
+    <SelectScreen
       user={user}
-      error={error}
       isAdmin={isAdmin}
-      onSubmit={handleSubmit}
+      onSelectSaikaku={() => setScreen('input')}
+      onSelectUaam={() => setScreen('uaam')}
       onAdmin={() => setScreen('admin')}
       onLogout={handleLogout}
-      onUaam={() => setScreen('uaam')}
     />
   );
 }

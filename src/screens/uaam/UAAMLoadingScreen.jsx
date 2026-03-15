@@ -134,7 +134,7 @@ export default function UAAMLoadingScreen() {
             color: '#2A2520',
           }}
         >
-          AIがあなたの才覚パターンを解析しています
+          才覚を分析しています
         </div>
         <div style={{ fontSize: 12, marginTop: 8, color: '#9A9080' }}>
           4軸16項目の回答から、あなただけの能力特性を分析中です

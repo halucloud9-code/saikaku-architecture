@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=Noto+Serif+JP:wght@400;500;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=Noto+Serif+JP:wght@400;500;600;700;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -17,6 +17,18 @@
 svg text {
   font-family: 'Inter', Arial, sans-serif !important;
   fill: #ffffff !important;
+}
+
+/* UAAM チャート: グローバルSVGルールを上書き解除 */
+.uaam-chart text {
+  font-family: 'Outfit', sans-serif !important;
+  fill: inherit !important;
+}
+.uaam-chart text.jp {
+  font-family: 'Noto Serif JP', serif !important;
+}
+.uaam-chart text.sans {
+  font-family: 'Noto Sans JP', sans-serif !important;
 }
 
 .donut-pct {
@@ -60,8 +72,6 @@ body {
   /* 基本 */
   * {
     box-sizing: border-box;
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
 
   html, body {
@@ -81,23 +91,55 @@ body {
   /* コンテンツラッパー */
   .pdf-content-wrapper {
     max-width: 100% !important;
-    padding: 10px !important;
+    padding: 8px 12px !important;
   }
 
   /* セクションをコンパクトに */
   .pdf-section {
-    padding: 8px !important;
+    padding: 10px 12px !important;
     margin: 4px 0 !important;
     min-height: unset !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
-  /* ページブレーク無効化（コンパクトモード） */
-  .pdf-page-break {
-    page-break-before: avoid !important;
-    break-before: avoid !important;
-    padding: 8px !important;
-    margin: 4px 0 !important;
-    min-height: unset !important;
+  /* ===== UAAM PDF ページ構成 ===== */
+
+  /* サブレーダーペア: 2つずつ1ページに収める */
+  .pdf-sub-pair {
+    page-break-before: always !important;
+    break-before: always !important;
+  }
+
+  /* サブレーダー内のSVGをコンパクトに */
+  .pdf-sub-pair .pdf-section svg[viewBox] {
+    max-height: 220px !important;
+  }
+
+  /* 軸スコア数字をコンパクト */
+  .pdf-sub-pair .pdf-axis-score {
+    padding: 2px 0 !important;
+    margin-bottom: 4px !important;
+  }
+  .pdf-sub-pair .pdf-axis-score span:first-child {
+    font-size: 22px !important;
+  }
+
+  /* バロメーターグループを2列に */
+  .pdf-sub-pair .pdf-bar-group {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 4px 16px !important;
+    margin-top: 4px !important;
+  }
+  .pdf-sub-pair .pdf-bar-group > div {
+    margin-bottom: 4px !important;
+  }
+
+  /* ドメインマトリクスは新ページ開始 */
+  .pdf-matrix {
+    page-break-before: always !important;
+    break-before: always !important;
   }
 
   /* 3列グリッドをコンパクトな3列維持 */
@@ -141,8 +183,6 @@ body {
     max-height: 100px !important;
   }
 
-  /* サマリーカード内ドーナツ（size=80）はそのまま */
-
   /* サマリーカード内ドーナツ：PDF時は横一列表示 */
   .donut-summary-triangle {
     display: none !important;
@@ -160,12 +200,19 @@ body {
     font-size: 8px !important;
     padding: 2px 6px !important;
   }
+
+  /* 最後のページが切れないようにする */
+  .pdf-content-wrapper {
+    padding-bottom: 40px !important;
+  }
+  .pdf-content-wrapper > :last-child {
+    margin-bottom: 20px !important;
+  }
 }
 
-/* 数字用サンセリフフォント */
+/* 数字用サンセリフフォント（ドーナツチャート用のみ） */
 .donut-number,
-[class*="percentage"],
-text {
+[class*="percentage"] {
   font-family: 'Inter', 'Roboto', Arial, sans-serif !important;
 }
 
