@@ -70,10 +70,33 @@ const SUB_ADVICE = {
   influence:     '言葉だけでなく自分の行動で示すことを意識しましょう。約束を守り、一貫した姿勢を積み重ねることが周囲への影響力の基盤となります。',
 };
 
-const MAX_AXIS = 60;  // 軸スコア最大 = 5点 × 3問 × 4サブ = 60
-const MAX_SUB = 15;   // サブ項目最大 = 5点 × 3問 = 15
-const MAX_CROSS = MAX_AXIS * MAX_AXIS; // 領域スコア最大 = 60 × 60 = 3600
-const DISPLAY_CROSS = MAX_CROSS / 2;   // 表示用 = 3600 ÷ 2 = 1800
+/**
+ * スコアスケール自動検出
+ * クライアント計算: 1-5点×3問 = MAX_SUB=15, MAX_AXIS=60
+ * サーバー計算:     0-4点×3問 = MAX_SUB=12, MAX_AXIS=48
+ * 実データから動的に判定する
+ */
+function detectScale(scores) {
+  if (!scores) return { maxSub: 15, maxAxis: 60 };
+  let hasOver12 = false;
+  for (const axis of Object.values(scores)) {
+    if (axis?.subs) {
+      for (const v of Object.values(axis.subs)) {
+        if (v > 12) { hasOver12 = true; break; }
+      }
+    }
+    if (hasOver12) break;
+  }
+  return hasOver12
+    ? { maxSub: 15, maxAxis: 60 }
+    : { maxSub: 12, maxAxis: 48 };
+}
+
+// デフォルト値（コンポーネント外で使う箇所用）
+let MAX_AXIS = 60;
+let MAX_SUB = 15;
+let MAX_CROSS = MAX_AXIS * MAX_AXIS;
+let DISPLAY_CROSS = MAX_CROSS / 2;
 const displayDomain = (raw) => Math.round(raw / 2);
 const AXIS_COLORS = { mindset: '#2C5F8A', literacy: '#1E7A4A', competency: '#A07A18', impact: '#8B3A28' };
 
@@ -1261,6 +1284,14 @@ function RadarChart16({ scores }) {
  * ============================================================ */
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
   const { scores, analysis } = result;
+
+  // スケール自動検出（サーバー0-12 vs クライアント0-15）
+  const scale = detectScale(scores);
+  MAX_SUB = scale.maxSub;
+  MAX_AXIS = scale.maxAxis;
+  MAX_CROSS = MAX_AXIS * MAX_AXIS;
+  DISPLAY_CROSS = MAX_CROSS / 2;
+
   const topType = determineType(scores);
   const subRadars = UAAM_AXES.map(axis => {
     const subs = scores[axis.key]?.subs || {};
