@@ -154,14 +154,14 @@ function AxisCard({ axis, color, bg, borderColor, pct }) {
         breakInside: 'avoid',
       }}
     >
-      <div style={{ background: `${color}12`, padding: '14px 16px 12px', backdropFilter: 'blur(10px)' }}>
+      <div style={{ background: '#141414', padding: '14px 16px 12px' }}>
         {/* 軸名 + パーセント */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
           <div>
-            <span style={{ fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", fontSize: 18, fontWeight: 700, color: `${color}` }}>
+            <span style={{ fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", fontSize: 18, fontWeight: 700, color: '#FAFAFA' }}>
               {axis.name}
             </span>
-            <span style={{ fontSize: 11, color: `${color}90`, marginLeft: 6, fontStyle: 'italic', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: 11, color: '#71717A', marginLeft: 6, fontStyle: 'italic', letterSpacing: '0.05em' }}>
               {axis.english || axis.en}
             </span>
           </div>
@@ -169,13 +169,13 @@ function AxisCard({ axis, color, bg, borderColor, pct }) {
             <span style={{ display: 'block', fontSize: 26, fontWeight: 700, color, fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", lineHeight: 1 }}>
               {pct}%
             </span>
-            <span style={{ fontSize: 14, color: '#6A6050', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: 14, color: '#71717A', letterSpacing: '0.05em' }}>
               {allItems.length} 要素
             </span>
           </div>
         </div>
 
-        <p style={{ fontSize: 14, color: '#B0A890', margin: '0 0 10px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: 14, color: '#D4D4D8', margin: '0 0 10px', lineHeight: 1.6 }}>
           {axis.description || axis.desc}
         </p>
 
@@ -188,9 +188,9 @@ function AxisCard({ axis, color, bg, borderColor, pct }) {
               style={{
                 padding: '5px 11px',
                 borderRadius: 100,
-                background: `${color}15`,
-                border: `1px solid ${color}50`,
-                color: `${color}DD`,
+                background: '#1E1E1E',
+                border: '1px solid #3F3F46',
+                color: '#FAFAFA',
                 fontSize: 12,
                 fontWeight: 600,
                 wordBreak: 'break-word',
