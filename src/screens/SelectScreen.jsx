@@ -325,7 +325,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
           fontSize: 10, color: 'rgba(138,128,112,0.4)', textAlign: 'center',
           marginTop: 8, letterSpacing: '0.1em',
         }}>
-          Powered by Claude AI × Firebase
+          Powered by GRIFFON × Firebase
         </p>
       </div>
 

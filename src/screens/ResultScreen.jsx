@@ -136,14 +136,21 @@ function DonutChart({ axes, colors, size = 240 }) {
 }
 
 // ── 軸カード（全items フラット表示） ─────────────────────────────────────
-function AxisCard({ axis, color, bg, borderColor, pct }) {
+// パーセント数字用の明るい色（WHATゴールドレベル）
+const PCT_COLORS = {
+  value:   ['#BFDBFE', '#93C5FD', '#60A5FA'],
+  talent:  ['#FFD700', '#FDE68A', '#FBBF24'],
+  passion: ['#FECACA', '#FCA5A5', '#F87171'],
+};
+
+function AxisCard({ axis, color, pctColor, bg, borderColor, pct }) {
   const allItems = axis?.items || [];
 
   return (
     <div
       className="pdf-axis-card"
       style={{
-        borderLeft: `3px solid ${color}`,
+        borderLeft: `6px solid ${color}`,
         borderRadius: 8,
         marginBottom: 10,
         overflow: 'hidden',
@@ -164,7 +171,7 @@ function AxisCard({ axis, color, bg, borderColor, pct }) {
             </span>
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0, overflow: 'hidden' }}>
-            <span style={{ display: 'block', fontSize: 26, fontWeight: 700, color, fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", lineHeight: 1 }}>
+            <span style={{ display: 'block', fontSize: 26, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", lineHeight: 1 }}>
               {pct}%
             </span>
             <span style={{ fontSize: 14, color: '#71717A', letterSpacing: '0.05em' }}>
@@ -210,6 +217,7 @@ function CategorySection({ title, type, axes }) {
   const bg     = COLORS.bg[type];
   const border = COLORS.border[type];
   const pcts      = computePcts(axes);
+  const pctColors = PCT_COLORS[type];
   const axesArray  = ['axis1', 'axis2', 'axis3'].map(k => axes?.[k]).filter(Boolean);
   const donutColors = DONUT_COLORS[type];
   const LABELS    = { talent: '才能', value: '価値観', passion: '情熱' };
@@ -236,7 +244,7 @@ function CategorySection({ title, type, axes }) {
         </div>
 
         {/* ドーナツチャート */}
-        <div style={{ background: '#0A0A0C', borderRadius: 8, padding: '24px 16px', marginBottom: 12, border: '1px solid #18181B' }}>
+        <div style={{ background: '#0A0A0C', borderRadius: 12, padding: '24px 16px', marginBottom: 12, border: `2px solid ${main}`, boxShadow: `0 0 12px ${main}20` }}>
           <div style={{ position: 'relative', width: '100%', maxWidth: 280, margin: '0 auto', height: 320 }}>
             {axesArray[0] && (
               <div style={{ position: 'absolute', top: 0, left: 0, textAlign: 'left' }}>
@@ -278,6 +286,7 @@ function CategorySection({ title, type, axes }) {
           key={k}
           axis={axes[k]}
           color={colors[i]}
+          pctColor={pctColors[i]}
           bg={`${colors[i]}14`}
           borderColor={`${colors[i]}45`}
           pct={pcts[i]}
@@ -314,7 +323,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
     const text = `${result.name || user.displayName}の才覚領域：${selected}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: '才覚領域 Architecture', text });
+        await navigator.share({ title: 'Unique Ability Architecture', text });
       } else {
         await navigator.clipboard.writeText(text);
         setCopied(true);
@@ -347,7 +356,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
         }}
       >
         <span style={{ fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", fontSize: 16, fontWeight: 700, color: '#F5F0E8' }}>
-          才覚領域 <span style={{ color: 'rgba(196,146,42,0.6)', fontWeight: 400, fontSize: 13 }}>Architecture</span>
+          Unique Ability <span style={{ color: 'rgba(196,146,42,0.6)', fontWeight: 400, fontSize: 13 }}>Architecture</span>
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {isAdmin && (
@@ -484,7 +493,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                     style={{
                       padding: '20px 24px',
                       borderRadius: 14,
-                      border: isSelected ? '2px solid #C4922A' : '1px solid rgba(255,255,255,0.06)',
+                      border: isSelected ? '3px solid #FFD700' : '2.5px solid #C4922A',
                       background: isSelected
                         ? 'linear-gradient(135deg, rgba(196,146,42,0.12), rgba(196,146,42,0.06))'
                         : 'rgba(255,255,255,0.02)',
@@ -838,7 +847,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
       {/* フッター */}
       <div style={{ textAlign: 'center', padding: '20px 0 40px' }}>
         <p className="no-print" style={{ fontSize: 10, color: 'rgba(138,128,112,0.3)', letterSpacing: '0.1em' }}>
-          Powered by Claude AI × Firebase
+          Powered by GRIFFON × Firebase
         </p>
       </div>
     </div>
