@@ -62,7 +62,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               border: '2px solid rgba(196,146,42,0.3)',
             }} />
           )}
-          <span style={{ fontSize: 13, color: '#BFB5A0', fontWeight: 500 }}>{user?.displayName}</span>
+          <span style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600 }}>{user?.displayName}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {isAdmin && (
@@ -106,7 +106,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             letterSpacing: '0.08em',
           }}>診断プログラム</h1>
           <p style={{
-            fontSize: 13, color: '#8A8070', marginTop: 10,
+            fontSize: 13, color: '#FFFFFF', marginTop: 10,
             lineHeight: 1.7, letterSpacing: '0.02em',
           }}>
             あなたの才覚を解き明かすプログラムを選択してください
@@ -160,7 +160,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             {/* タイトル */}
             <div style={{ marginBottom: 6 }}>
               <span style={{
-                fontSize: 26, fontWeight: 900, color: '#F5F0E8',
+                fontSize: 26, fontWeight: 900, color: '#FFFFFF',
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 letterSpacing: '0.06em',
                 display: 'block',
@@ -180,10 +180,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
 
             {/* 説明文 */}
             <p style={{
-              fontSize: 14, color: '#BFB5A0', margin: 0, lineHeight: 2,
+              fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
               letterSpacing: '0.02em',
             }}>
-              才能 × 価値観 × 情熱<br />
+              価値観 × 才能 × 情熱<br />
               化学反応を起こす<br />
               あなただけの才覚領域を見つけだす
             </p>
@@ -251,19 +251,23 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               borderRadius: 100, padding: '4px 14px', marginBottom: 16,
             }}>
               <span style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', color: '#6B9AD4',
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: '#6B9AD4',
                 textTransform: 'uppercase',
-              }}>Activation Matrix</span>
+              }}>Unique Ability Activation Matrix</span>
             </div>
 
             {/* タイトル */}
             <div style={{ marginBottom: 6 }}>
               <span style={{
-                fontSize: 26, fontWeight: 900, color: '#F5F0E8',
+                fontSize: 26, fontWeight: 900, color: '#FFFFFF',
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 letterSpacing: '0.06em',
                 display: 'block',
-              }}>才覚発動領域</span>
+              }}>才覚発動領域<span style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                fontSize: 16, fontWeight: 700, color: '#6B9AD4',
+                marginLeft: 6, letterSpacing: '0.08em',
+              }}>MATRIX</span></span>
             </div>
             <div style={{
               fontSize: 12, fontWeight: 600, color: '#6B9AD4',
@@ -278,10 +282,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
 
             {/* 説明文 */}
             <p style={{
-              fontSize: 14, color: '#BFB5A0', margin: 0, lineHeight: 2,
+              fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
               letterSpacing: '0.02em',
             }}>
-              48問の診断で4軸16項目を分析し<br />
+              <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>48</span>問の診断で<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>4</span>軸<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>16</span>項目を分析し<br />
               才覚発動領域マトリクスを可視化します
             </p>
 
