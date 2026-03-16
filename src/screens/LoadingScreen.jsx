@@ -83,7 +83,7 @@ export default function LoadingScreen() {
             marginBottom: 56,
           }}
         >
-          Unique Ability Architecture
+          Saikaku Architecture
         </div>
 
         {/* リングスピナー */}
@@ -251,7 +251,7 @@ export default function LoadingScreen() {
             letterSpacing: '0.02em',
           }}
         >
-          GRIFFONがあなたの才覚領域を分析しています
+          Claude AIがあなたの才覚領域を分析しています
           <br />
           <span style={{ fontSize: 11, color: '#4A4030' }}>
             そのままお待ちください（約30秒）

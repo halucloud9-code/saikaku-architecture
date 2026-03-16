@@ -244,7 +244,7 @@ function CategorySection({ title, type, axes }) {
         </div>
 
         {/* ドーナツチャート */}
-        <div style={{ background: '#0A0A0C', borderRadius: 8, padding: '24px 16px', marginBottom: 12, border: '1px solid #18181B' }}>
+        <div style={{ background: '#0A0A0C', borderRadius: 12, padding: '24px 16px', marginBottom: 12, border: `2px solid ${main}`, boxShadow: `0 0 12px ${main}20` }}>
           <div style={{ position: 'relative', width: '100%', maxWidth: 280, margin: '0 auto', height: 320 }}>
             {axesArray[0] && (
               <div style={{ position: 'absolute', top: 0, left: 0, textAlign: 'left' }}>
