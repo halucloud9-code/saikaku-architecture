@@ -216,7 +216,7 @@ export default function LoginScreen({ onLogin }) {
             margin: 0,
             fontFamily: "'Noto Serif JP', serif",
           }}>
-            才能・価値観・情熱の交差点から<br />
+            価値観・才能・情熱の交差点から<br />
             あなただけの才覚領域を導き出す
           </p>
         </div>
