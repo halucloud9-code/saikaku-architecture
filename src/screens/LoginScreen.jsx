@@ -43,7 +43,7 @@ export default function LoginScreen({ onLogin }) {
           <p style={{
             fontSize: 11, fontWeight: 600, letterSpacing: '0.2em',
             color: '#71717A', textTransform: 'uppercase', margin: '0 0 16px',
-          }}>Saikaku Architecture</p>
+          }}>Unique Ability Architecture</p>
           <h1 style={{
             fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
             fontSize: 44, fontWeight: 900, color: '#FAFAFA',

@@ -314,7 +314,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
     const text = `${result.name || user.displayName}の才覚領域：${selected}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: '才覚領域 Architecture', text });
+        await navigator.share({ title: 'Unique Ability Architecture', text });
       } else {
         await navigator.clipboard.writeText(text);
         setCopied(true);
@@ -347,7 +347,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
         }}
       >
         <span style={{ fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", fontSize: 16, fontWeight: 700, color: '#F5F0E8' }}>
-          才覚領域 <span style={{ color: 'rgba(196,146,42,0.6)', fontWeight: 400, fontSize: 13 }}>Architecture</span>
+          Unique Ability <span style={{ color: 'rgba(196,146,42,0.6)', fontWeight: 400, fontSize: 13 }}>Architecture</span>
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {isAdmin && (
