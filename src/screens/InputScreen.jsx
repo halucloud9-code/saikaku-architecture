@@ -68,7 +68,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
     {
       key: 'value', label: '価値観', en: 'VALUES', color: '#60A5FA',
       sublabel: 'あなたが絶対に譲れないもの・大切にしていること',
-      labelTop5: '最も大切にしている5つ', top5: valueTop5, setTop5: setValueTop5,
+      labelTop5: <>最も大切にしている<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 18, fontWeight: 800 }}>5</span>つ</>, top5: valueTop5, setTop5: setValueTop5,
       placeholderTop5: '例：家族、誠実さ、自由、成長、貢献',
       labelOthers: 'その他の価値観', others: valueOthers, setOthers: setValueOthers,
       placeholderOthers: '例：挑戦、調和、美しさ...',
@@ -77,7 +77,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
     {
       key: 'talent', label: '才能', en: 'TALENT', color: '#FBBF24',
       sublabel: 'あなたが自然にできること・得意なこと',
-      labelTop5: '最も得意な5つ', top5: talentTop5, setTop5: setTalentTop5,
+      labelTop5: <>最も得意な<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 18, fontWeight: 800 }}>5</span>つ</>, top5: talentTop5, setTop5: setTalentTop5,
       placeholderTop5: '例：人の話を聞く、分かりやすく説明する、人の心を動かす...',
       labelOthers: 'その他の才能', others: talentOthers, setOthers: setTalentOthers,
       placeholderOthers: '例：データ分析、語学、デザイン...',
@@ -86,7 +86,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
     {
       key: 'passion', label: '情熱', en: 'PASSION', color: '#F87171',
       sublabel: 'あなたが夢中になれること・時間を忘れること',
-      labelTop5: '最も夢中になる5つ', top5: passionTop5, setTop5: setPassionTop5,
+      labelTop5: <>最も夢中になる<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 18, fontWeight: 800 }}>5</span>つ</>, top5: passionTop5, setTop5: setPassionTop5,
       placeholderTop5: '例：教育、コーチング、旅、音楽、起業...',
       labelOthers: 'その他の情熱', others: passionOthers, setOthers: setPassionOthers,
       placeholderOthers: '例：料理、読書、スポーツ...',
