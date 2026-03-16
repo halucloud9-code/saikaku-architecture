@@ -510,7 +510,7 @@ function MainFanChart({ scores }) {
 }
 
 /* ============================================================
- * 才覚活動領域チャート（Canvas 扇形）
+ * 才覚発動領域チャート（Canvas 扇形）
  * 参照: SaikkakuActivityDomain.jsx — GRIFFON_CODE_v5 準拠
  *
  * 軸配置: 上→志, 右→知, 下→技, 左→衝
@@ -645,7 +645,7 @@ function ActivityDomainChart({ scores }) {
   /* ---- JSX ---- */
   return (
     <Section>
-      <SectionHeader title="才覚活動領域マトリクス" subtitle="Unique Ability Activation Matrix" />
+      <SectionHeader title="才覚発動領域マトリクス" subtitle="Unique Ability Activation Matrix" />
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         {/* Canvas グラフ */}
@@ -982,7 +982,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           </Section>
         ))}
 
-        {/* ===== 才覚活動領域マトリクス ===== */}
+        {/* ===== 才覚発動領域マトリクス ===== */}
         <ActivityDomainChart scores={scores} />
 
         {/* ===== AI分析 ===== */}
