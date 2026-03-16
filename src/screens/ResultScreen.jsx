@@ -143,18 +143,16 @@ function AxisCard({ axis, color, bg, borderColor, pct }) {
     <div
       className="pdf-axis-card"
       style={{
-        border: `1px solid ${color}25`,
         borderLeft: `3px solid ${color}`,
-        borderRadius: 14,
+        borderRadius: 8,
         marginBottom: 10,
         overflow: 'hidden',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
-        background: 'rgba(255,255,255,0.02)',
+        background: '#1A1A1E',
         pageBreakInside: 'avoid',
         breakInside: 'avoid',
       }}
     >
-      <div style={{ background: '#141414', padding: '14px 16px 12px' }}>
+      <div style={{ padding: '14px 16px 12px' }}>
         {/* 軸名 + パーセント */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
           <div>
@@ -221,41 +219,24 @@ function CategorySection({ title, type, axes }) {
     <div
       className="pdf-section"
       style={{
-        background: bg,
-        borderRadius: 16,
-        border: `1px solid ${main}18`,
-        borderTop: `3px solid ${main}`,
+        background: '#111113',
+        borderRadius: 8,
+        borderTop: `2px solid ${main}`,
         padding: '24px 20px',
-        boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 ${main}10`,
         overflow: 'hidden',
         pageBreakInside: 'avoid',
         breakInside: 'avoid',
       }}
     >
       {/* セクションヘッダー */}
-      <div style={{ textAlign: 'center', marginBottom: 16 }}>
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '6px 20px',
-            borderRadius: 100,
-            background: `${main}12`,
-            border: `1px solid ${main}30`,
-            marginBottom: 12,
-          }}
-        >
-          <div>
-            <span style={{ fontSize: 16, fontWeight: 800, color: main, letterSpacing: '0.1em' }}>
-              {LABELS[type]}
-            </span>
-            <div style={{ fontSize: 11, opacity: 0.6, fontStyle: 'italic', color: main, marginTop: 2, letterSpacing: '0.15em' }}>
-              {EN_LABELS[type]}
-            </div>
-          </div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: 18, fontWeight: 800, color: '#FAFAFA' }}>{LABELS[type]}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: main, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{EN_LABELS[type]}</span>
         </div>
 
         {/* ドーナツチャート */}
-        <div style={{ background: VENN_COLORS[type].bg, borderRadius: 14, padding: '24px 16px', marginBottom: 12, border: `1px solid ${main}10` }}>
+        <div style={{ background: '#0A0A0C', borderRadius: 8, padding: '24px 16px', marginBottom: 12, border: '1px solid #18181B' }}>
           <div style={{ position: 'relative', width: '100%', maxWidth: 280, margin: '0 auto', height: 320 }}>
             {axesArray[0] && (
               <div style={{ position: 'absolute', top: 0, left: 0, textAlign: 'left' }}>
@@ -527,10 +508,10 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                         ★ 推奨
                       </div>
                     )}
-                    <div style={{ fontSize: 11, color: isSelected ? 'rgba(196,146,42,0.7)' : '#5A5040', fontWeight: 700, letterSpacing: '0.15em', marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: '#C4922A', fontWeight: 700, letterSpacing: '0.15em', marginBottom: 10 }}>
                       PATTERN {i + 1}
                     </div>
-                    <p style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 20, fontWeight: 700, color: isSelected ? '#F5F0E8' : '#8A8070', margin: 0, lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal', transition: 'color 0.3s ease' }}>
+                    <p style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 20, fontWeight: 700, color: isSelected ? '#FFFFFF' : '#D4D4D8', margin: 0, lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal', transition: 'color 0.3s ease' }}>
                       {option}
                     </p>
                   </button>
