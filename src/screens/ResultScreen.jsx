@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, signOutUser } from '../firebase';
 import { computePcts, CHART_COLORS } from '../utils/chartUtils';
@@ -222,36 +222,19 @@ function CategorySection({ title, type, axes }) {
       className="pdf-section"
       style={{
         background: bg,
-        borderRadius: 16,
-        border: `1px solid ${main}18`,
-        borderTop: `3px solid ${main}`,
+        borderRadius: 8,
+        borderTop: `2px solid ${main}`,
         padding: '24px 20px',
-        boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 ${main}10`,
         overflow: 'hidden',
         pageBreakInside: 'avoid',
         breakInside: 'avoid',
       }}
     >
       {/* セクションヘッダー */}
-      <div style={{ textAlign: 'center', marginBottom: 16 }}>
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '6px 20px',
-            borderRadius: 100,
-            background: `${main}12`,
-            border: `1px solid ${main}30`,
-            marginBottom: 12,
-          }}
-        >
-          <div>
-            <span style={{ fontSize: 16, fontWeight: 800, color: main, letterSpacing: '0.1em' }}>
-              {LABELS[type]}
-            </span>
-            <div style={{ fontSize: 11, opacity: 0.6, fontStyle: 'italic', color: main, marginTop: 2, letterSpacing: '0.15em' }}>
-              {EN_LABELS[type]}
-            </div>
-          </div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: 18, fontWeight: 800, color: '#FAFAFA' }}>{LABELS[type]}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: main, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{EN_LABELS[type]}</span>
         </div>
 
         {/* ドーナツチャート */}
@@ -311,8 +294,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
   const [selected, setSelected] = useState(result.kakuchiiki || result.kakuchiiki_options?.[0] || '');
   const [saving,   setSaving]   = useState(false);
   const [copied,   setCopied]   = useState(false);
-  const [hoverPdf, setHoverPdf] = useState(false);
-  const [hoverShare, setHoverShare] = useState(false);
+  // hover states removed for McKinsey simplicity
 
   const handleSelectKakuchiiki = async (option) => {
     if (option === selected) return;
@@ -343,20 +325,15 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(170deg, #0A0908 0%, #0F0D0A 20%, #14110D 50%, #0D0B09 100%)',
-    }}>
+    <div style={{ minHeight: '100vh', background: '#09090B' }}>
 
       {/* ── ヘッダー（no-print） ── */}
       <div
         className="no-print"
         style={{
-          background: 'rgba(10,9,8,0.85)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(196,146,42,0.1)',
-          padding: '12px 24px',
+          background: '#09090B',
+          borderBottom: '1px solid #18181B',
+          padding: '14px 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -365,21 +342,19 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
           zIndex: 100,
         }}
       >
-        <span style={{ fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", fontSize: 16, fontWeight: 700, color: '#F5F0E8' }}>
-          才覚領域 <span style={{ color: 'rgba(196,146,42,0.6)', fontWeight: 400, fontSize: 13 }}>Architecture</span>
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', color: '#52525B', textTransform: 'uppercase' }}>
+          Saikaku Architecture
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {isAdmin && (
-            <button onClick={onAdmin} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(196,146,42,0.2)', background: 'transparent', color: '#8A8070', fontSize: 13, cursor: 'pointer' }}>
-              管理画面
-            </button>
+            <button onClick={onAdmin} style={{ fontSize: 12, color: '#A1A1AA', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>管理</button>
           )}
           {user.photoURL && (
-            <img src={user.photoURL} alt={user.displayName} style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid rgba(196,146,42,0.3)' }} />
+            <img src={user.photoURL} alt={user.displayName} style={{ width: 24, height: 24, borderRadius: '50%' }} />
           )}
           <button
             onClick={async () => { await signOutUser(); onLogout(); }}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#8A8070', fontSize: 13, cursor: 'pointer' }}
+            style={{ fontSize: 12, color: '#52525B', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
             ログアウト
           </button>
@@ -388,109 +363,48 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
 
       {/* ── コンテンツ ── */}
       <div>
-        <div className="pdf-content-wrapper" style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 24px 16px' }}>
-
-          {/* グラデーションバー（スクリーンのみ） */}
-          <div
-            className="no-print"
-            style={{
-              height: 3,
-              borderRadius: 2,
-              background: 'linear-gradient(to right, #1a3a6b, #2e6bc4, #4A6FA5, #C4922A, #A84432, #c0392b)',
-              marginBottom: 40,
-              boxShadow: '0 0 20px rgba(196,146,42,0.15)',
-            }}
-          />
+        <div className="pdf-content-wrapper" style={{ maxWidth: 1100, margin: '0 auto', padding: '56px 24px 16px' }}>
 
           {/* メインタイトル（スクリーンのみ） */}
-          <div className="no-print" style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{
-              display: 'inline-flex',
-              background: 'linear-gradient(135deg, rgba(196,146,42,0.15), rgba(74,111,165,0.15), rgba(168,68,50,0.15))',
-              border: '1px solid rgba(196,146,42,0.2)',
-              borderRadius: 12,
-              padding: '10px 32px',
-              marginBottom: 20,
-              minWidth: 200,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <span style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#C4922A',
-                letterSpacing: '0.2em',
-                fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif",
-                textTransform: 'uppercase',
-              }}>Three Pattern Unique Ability</span>
-            </div>
+          <div className="no-print" style={{ marginBottom: 48 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', color: '#52525B', textTransform: 'uppercase', margin: '0 0 12px' }}>
+              Result
+            </p>
             <h1 style={{
-              fontFamily: "'Noto Serif JP', Georgia, serif",
-              fontSize: 32,
-              fontWeight: 800,
-              color: '#F5F0E8',
-              margin: '0 0 8px',
-              letterSpacing: '0.05em',
+              fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
+              fontSize: 36,
+              fontWeight: 900,
+              color: '#FAFAFA',
+              margin: '0 0 4px',
+              letterSpacing: '-0.01em',
             }}>
               {result.name || user.displayName}
             </h1>
-
-            {/* 装飾ライン */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, margin: '16px 0' }}>
-              <div style={{ width: 48, height: 1, background: 'linear-gradient(90deg, transparent, rgba(196,146,42,0.3))' }} />
-              <div style={{ width: 5, height: 5, borderRadius: '50%', border: '1px solid rgba(196,146,42,0.4)', background: 'rgba(196,146,42,0.15)' }} />
-              <div style={{ width: 48, height: 1, background: 'linear-gradient(90deg, rgba(196,146,42,0.3), transparent)' }} />
-            </div>
-
-            <div style={{
-              fontFamily: "'Noto Serif JP', Georgia, serif",
-              fontSize: 22,
-              fontWeight: 700,
-              color: '#F5F0E8',
-              letterSpacing: '0.1em',
-              marginBottom: 4,
-            }}>才覚領域</div>
-            <div style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'rgba(196,146,42,0.5)',
-              letterSpacing: '0.2em',
-              fontFamily: "'Playfair Display', Georgia, serif",
-            }}>Architecture</div>
+            <p style={{ fontSize: 15, color: '#52525B', margin: 0 }}>才覚領域 Architecture</p>
           </div>
 
           {/* 才覚領域 選択セクション（スクリーンのみ） */}
           <div
             className="no-print"
             style={{
-              background: 'rgba(20,17,13,0.8)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              borderRadius: 20,
-              border: '1px solid rgba(196,146,42,0.12)',
-              padding: '36px 32px',
-              marginBottom: 32,
-              boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+              background: '#111113',
+              borderRadius: 8,
+              padding: '32px 28px',
+              marginBottom: 24,
             }}
           >
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 36, fontWeight: 900, color: '#F5F0E8', letterSpacing: '0.1em', lineHeight: 1.2, fontFamily: "'Noto Serif JP', Georgia, serif" }}>
-                才覚領域
-              </div>
-              <div style={{
-                fontSize: 14, fontWeight: 600, color: '#C4922A', letterSpacing: '0.2em', marginTop: 12,
-                display: 'inline-block', background: 'linear-gradient(135deg, rgba(196,146,42,0.15), rgba(74,111,165,0.15), rgba(168,68,50,0.15))',
-                border: '1px solid rgba(196,146,42,0.2)', borderRadius: 10, padding: '8px 24px',
-                fontFamily: "'Playfair Display', Georgia, serif", lineHeight: 1.5, textAlign: 'center',
-              }}>
-                <div>Three Pattern</div>
-                <div>Unique Ability</div>
-              </div>
-            </div>
+            <h2 style={{
+              fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
+              fontSize: 28, fontWeight: 900, color: '#FAFAFA',
+              margin: '0 0 4px',
+            }}>才覚領域</h2>
+            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', color: '#52525B', textTransform: 'uppercase', margin: '0 0 24px' }}>
+              Three Pattern Unique Ability
+            </p>
 
             <div
               className="pdf-pattern-grid"
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8 }}
             >
               {(result.kakuchiiki_options || [result.kakuchiiki]).map((option, i) => {
                 const isSelected    = selected === option;
@@ -501,49 +415,49 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                     className="pdf-pattern-card"
                     onClick={() => handleSelectKakuchiiki(option)}
                     style={{
-                      padding: '20px 24px',
-                      borderRadius: 14,
-                      border: isSelected ? '2px solid #C4922A' : '1px solid rgba(255,255,255,0.06)',
-                      background: isSelected
-                        ? 'linear-gradient(135deg, rgba(196,146,42,0.12), rgba(196,146,42,0.06))'
-                        : 'rgba(255,255,255,0.02)',
-                      boxShadow: isSelected ? '0 4px 24px rgba(196,146,42,0.2), inset 0 1px 0 rgba(196,146,42,0.1)' : 'none',
+                      padding: '20px 22px',
+                      borderRadius: 6,
+                      border: isSelected ? '1px solid #FAFAFA' : '1px solid #27272A',
+                      background: isSelected ? '#18181B' : '#09090B',
                       cursor: 'pointer',
                       textAlign: 'left',
                       position: 'relative',
-                      transition: 'all 0.3s ease',
+                      transition: 'all 0.15s ease',
                       width: '100%',
                       boxSizing: 'border-box',
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      overflow: 'hidden',
                       WebkitAppearance: 'none',
                       appearance: 'none',
                       outline: 'none',
                     }}
                   >
                     {isRecommended && (
-                      <div style={{ position: 'absolute', top: -10, left: 16, background: 'linear-gradient(135deg, #C4922A, #A87A1E)', color: '#0D0B09', fontSize: 10, fontWeight: 700, padding: '3px 12px', borderRadius: 100, letterSpacing: '0.05em' }}>
-                        ★ 推奨
-                      </div>
+                      <span style={{
+                        position: 'absolute', top: -8, left: 16,
+                        background: '#FAFAFA', color: '#09090B',
+                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3,
+                      }}>推奨</span>
                     )}
-                    <div style={{ fontSize: 11, color: isSelected ? 'rgba(196,146,42,0.7)' : '#5A5040', fontWeight: 700, letterSpacing: '0.15em', marginBottom: 10 }}>
+                    <p style={{ fontSize: 11, color: '#52525B', fontWeight: 600, letterSpacing: '0.15em', margin: '0 0 8px' }}>
                       PATTERN {i + 1}
-                    </div>
-                    <p style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 20, fontWeight: 700, color: isSelected ? '#F5F0E8' : '#8A8070', margin: 0, lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal', transition: 'color 0.3s ease' }}>
-                      {option}
                     </p>
+                    <p style={{
+                      fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
+                      fontSize: 18, fontWeight: 700,
+                      color: isSelected ? '#FAFAFA' : '#71717A',
+                      margin: 0, lineHeight: 1.5, transition: 'color 0.15s ease',
+                      wordBreak: 'break-word',
+                    }}>{option}</p>
                   </button>
                 );
               })}
             </div>
-            {saving && <p style={{ textAlign: 'center', fontSize: 12, color: '#8A8070', marginTop: 12 }}>保存中...</p>}
+            {saving && <p style={{ fontSize: 12, color: '#52525B', marginTop: 8 }}>保存中...</p>}
           </div>
 
           {/* 3列グリッド：価値観・才能・情熱（スクリーンのみ） */}
           <div
             className="no-print"
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 32 }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 8, marginBottom: 24 }}
           >
             <CategorySection title="価値観" type="value"   axes={result.value}   />
             <CategorySection title="才能"   type="talent"  axes={result.talent}  />
@@ -555,49 +469,36 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
             <div
               className="no-print"
               style={{
-                background: 'rgba(20,17,13,0.9)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRadius: 20,
-                border: '1px solid rgba(240,201,110,0.12)',
-                borderTop: '3px solid rgba(240,201,110,0.4)',
-                padding: '28px 32px',
-                marginBottom: 20,
-                boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
-                overflow: 'hidden',
+                background: '#111113',
+                borderRadius: 8,
+                padding: '28px 24px',
+                marginBottom: 8,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                <div style={{ width: 3, height: 24, background: 'linear-gradient(to bottom, #F0C96E, #C4922A)', borderRadius: 2 }} />
-                <div>
-                  <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 22, fontWeight: 800, color: '#FFD700', letterSpacing: '0.15em' }}>What</span>
-                  <span style={{ fontSize: 13, color: '#6A6050', marginLeft: 10 }}>才覚領域から自然に生まれること</span>
-                </div>
-              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#FAFAFA', margin: '0 0 4px' }}>What</h3>
+              <p style={{ fontSize: 13, color: '#52525B', margin: '0 0 20px' }}>才覚領域から自然に生まれること</p>
               {result.what.products?.length > 0 && (
                 <div style={{ marginBottom: 20 }}>
-                  <p style={{ fontSize: 14, color: '#C8C0B0', margin: '0 0 10px', fontWeight: 700, letterSpacing: '0.05em' }}>具体的なサービス・活動</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: '#A1A1AA', margin: '0 0 8px' }}>具体的なサービス・活動</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {result.what.products.map((p, i) => (
-                      <span key={i} style={{ padding: '4px 14px', borderRadius: 100, background: 'rgba(196,146,42,0.1)', border: '1px solid rgba(196,146,42,0.3)', color: '#F5F0E8', fontSize: 12, fontWeight: 500 }}>
-                        {p}
-                      </span>
+                      <span key={i} style={{ padding: '4px 10px', borderRadius: 3, background: '#18181B', border: '1px solid #27272A', color: '#A1A1AA', fontSize: 12 }}>{p}</span>
                     ))}
                   </div>
                 </div>
               )}
-              <div style={{ height: 1, background: 'rgba(196,146,42,0.1)', margin: '0 0 16px' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+              <div style={{ height: 1, background: '#18181B', margin: '0 0 16px' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 8 }}>
                 {result.what.actions && (
-                  <div style={{ background: 'rgba(196,146,42,0.06)', border: '1px solid rgba(196,146,42,0.12)', borderLeft: '3px solid #FFD700', borderRadius: 12, padding: '14px 18px' }}>
-                    <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 15, fontWeight: 800, color: '#FFD700', letterSpacing: '0.1em', margin: '0 0 8px' }}>First Step</p>
-                    <p style={{ fontSize: 14, color: '#C8C0B0', margin: 0, lineHeight: 1.8 }}>{result.what.actions}</p>
+                  <div style={{ borderLeft: '2px solid #C4922A', padding: '12px 16px' }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: '#C4922A', margin: '0 0 6px' }}>First Step</p>
+                    <p style={{ fontSize: 13, color: '#A1A1AA', margin: 0, lineHeight: 1.7 }}>{result.what.actions}</p>
                   </div>
                 )}
                 {result.what.offer && (
-                  <div style={{ background: 'rgba(196,146,42,0.06)', border: '1px solid rgba(196,146,42,0.12)', borderLeft: '3px solid #FFD700', borderRadius: 12, padding: '14px 18px' }}>
-                    <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 15, fontWeight: 800, color: '#FFD700', letterSpacing: '0.1em', margin: '0 0 8px' }}>To the World</p>
-                    <p style={{ fontSize: 14, color: '#C8C0B0', margin: 0, lineHeight: 1.8 }}>{result.what.offer}</p>
+                  <div style={{ borderLeft: '2px solid #C4922A', padding: '12px 16px' }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: '#C4922A', margin: '0 0 6px' }}>To the World</p>
+                    <p style={{ fontSize: 13, color: '#A1A1AA', margin: 0, lineHeight: 1.7 }}>{result.what.offer}</p>
                   </div>
                 )}
               </div>
@@ -609,43 +510,32 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
             <div
               className="no-print"
               style={{
-                background: 'rgba(15,20,18,0.9)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRadius: 20,
-                border: '1px solid rgba(62,207,190,0.1)',
-                padding: '28px 32px',
-                marginBottom: 32,
-                boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+                background: '#111113',
+                borderRadius: 8,
+                padding: '28px 24px',
+                marginBottom: 24,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                <div style={{ width: 3, height: 24, background: 'linear-gradient(to bottom, #3ECFBE, #5275A8)', borderRadius: 2 }} />
-                <div>
-                  <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 18, fontWeight: 800, color: '#3ECFBE', letterSpacing: '0.15em' }}>Reward</span>
-                  <span style={{ fontSize: 13, color: '#4A7A70', marginLeft: 10 }}>あなたが得るもの</span>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 14 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#FAFAFA', margin: '0 0 4px' }}>Reward</h3>
+              <p style={{ fontSize: 13, color: '#52525B', margin: '0 0 20px' }}>あなたが得るもの</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 16 }}>
                 {[
-                  { key: 'economic',  label: '経済', icon: '💰', color: '#D4922A' },
-                  { key: 'social',    label: '社会', icon: '🌍', color: '#7AA8D0' },
-                  { key: 'intrinsic', label: '内的', icon: '✨', color: '#A090D8' },
-                ].map(({ key, label, icon, color }) =>
+                  { key: 'economic',  label: '経済', color: '#C4922A' },
+                  { key: 'social',    label: '社会', color: '#4A6FA5' },
+                  { key: 'intrinsic', label: '内的', color: '#A84432' },
+                ].map(({ key, label, color }) =>
                   result.reward[key] ? (
-                    <div key={key} style={{ background: `${color}0A`, border: `1px solid ${color}18`, borderLeft: `3px solid ${color}60`, borderRadius: 12, padding: '14px 16px', overflow: 'hidden', wordBreak: 'break-all', whiteSpace: 'normal' }}>
-                      <p style={{ fontSize: 18, fontWeight: 800, color, margin: '0 0 8px', letterSpacing: '0.08em' }}>{icon} {label}</p>
-                      <p style={{ fontSize: 13, color: '#A0988A', margin: 0, lineHeight: 1.8, overflow: 'hidden', wordBreak: 'break-all', whiteSpace: 'normal', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical' }}>{result.reward[key]}</p>
+                    <div key={key} style={{ borderLeft: `2px solid ${color}`, padding: '12px 16px' }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#FAFAFA', margin: '0 0 4px' }}>{label}</p>
+                      <p style={{ fontSize: 13, color: '#71717A', margin: 0, lineHeight: 1.7 }}>{result.reward[key]}</p>
                     </div>
                   ) : null
                 )}
               </div>
               {result.reward.model && (
-                <div style={{ background: 'rgba(62,207,190,0.06)', border: '1px solid rgba(62,207,190,0.15)', borderRadius: 14, padding: '18px 22px' }}>
-                  <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#3ECFBE', letterSpacing: '0.15em', margin: '0 0 10px' }}>Reward Model</p>
-                  <p style={{ fontSize: 15, color: '#D0C8B8', margin: 0, lineHeight: 1.9, fontFamily: "'Noto Serif JP', Georgia, serif", fontWeight: 600, overflow: 'hidden', wordBreak: 'break-all', whiteSpace: 'normal', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
-                    {result.reward.model}
-                  </p>
+                <div style={{ background: '#09090B', border: '1px solid #18181B', borderRadius: 6, padding: '16px 20px' }}>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#FAFAFA', margin: '0 0 8px' }}>Reward Model</p>
+                  <p style={{ fontSize: 14, color: '#A1A1AA', margin: 0, lineHeight: 1.8, fontWeight: 500 }}>{result.reward.model}</p>
                 </div>
               )}
             </div>
@@ -752,113 +642,21 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
       </div>
 
       {/* ── アクションボタン（no-print） ── */}
-      <div
-        className="no-print"
-        style={{
-          maxWidth: 1100,
-          margin: '0 auto',
-          padding: '24px 16px',
-          display: 'flex',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <button
-          onClick={handlePdfDownload}
-          onMouseEnter={() => setHoverPdf(true)}
-          onMouseLeave={() => setHoverPdf(false)}
-          style={{
-            width: 'calc(50% - 6px)',
-            height: 52,
-            boxSizing: 'border-box',
-            borderRadius: 12,
-            border: 'none',
-            background: hoverPdf
-              ? 'linear-gradient(135deg, #C4922A, #A87A1E)'
-              : 'rgba(196,146,42,0.12)',
-            color: hoverPdf ? '#0D0B09' : '#C4922A',
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            transition: 'all 0.3s ease',
-            border: '1px solid rgba(196,146,42,0.2)',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          印刷 / PDF保存
-        </button>
-
-        <button
-          onClick={handleShare}
-          onMouseEnter={() => setHoverShare(true)}
-          onMouseLeave={() => setHoverShare(false)}
-          style={{
-            width: 'calc(50% - 6px)',
-            height: 52,
-            boxSizing: 'border-box',
-            borderRadius: 12,
-            border: '1px solid rgba(255,255,255,0.08)',
-            background: hoverShare ? 'rgba(255,255,255,0.08)' : 'transparent',
-            color: '#B0A890',
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            transition: 'all 0.3s ease',
-          }}
-        >
-          {copied ? (
-            <>✓ コピーしました</>
-          ) : (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
-              結果をシェア
-            </>
-          )}
-        </button>
-
-        <button
-          onClick={onReset}
-          style={{
-            width: '100%',
-            height: 52,
-            boxSizing: 'border-box',
-            borderRadius: 12,
-            border: '1px solid rgba(255,255,255,0.06)',
-            background: 'transparent',
-            color: '#6A6050',
-            fontSize: 15,
-            fontWeight: 400,
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-          }}
-        >
-          もう一度解析する
-        </button>
-      </div>
-
-      {/* フッター */}
-      <div style={{ textAlign: 'center', padding: '20px 0 40px' }}>
-        <p className="no-print" style={{ fontSize: 10, color: 'rgba(138,128,112,0.3)', letterSpacing: '0.1em' }}>
-          Powered by Claude AI × Firebase
-        </p>
+      <div className="no-print" style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 24px 40px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={handlePdfDownload} style={{
+          flex: 1, minWidth: 140, height: 44, borderRadius: 6, border: 'none',
+          background: '#FAFAFA', color: '#09090B', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        }}>PDF保存</button>
+        <button onClick={handleShare} style={{
+          flex: 1, minWidth: 140, height: 44, borderRadius: 6,
+          border: '1px solid #27272A', background: 'none',
+          color: '#71717A', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        }}>{copied ? '✓ コピー済み' : 'シェア'}</button>
+        <button onClick={onReset} style={{
+          width: '100%', height: 44, borderRadius: 6,
+          border: '1px solid #18181B', background: 'none',
+          color: '#3F3F46', fontSize: 13, cursor: 'pointer',
+        }}>もう一度解析する</button>
       </div>
     </div>
   );
