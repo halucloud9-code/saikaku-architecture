@@ -847,7 +847,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
       {/* フッター */}
       <div style={{ textAlign: 'center', padding: '20px 0 40px' }}>
         <p className="no-print" style={{ fontSize: 10, color: 'rgba(138,128,112,0.3)', letterSpacing: '0.1em' }}>
-          Powered by Claude AI × Firebase
+          Powered by GRIFFON × Firebase
         </p>
       </div>
     </div>
