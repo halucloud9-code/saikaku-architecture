@@ -863,6 +863,7 @@ function ActivityDomainChart({ scores }) {
 
 /* ============================================================
  * 16軸レーダーチャート（才覚発動領域マトリクス連動）
+ * — 世界最高峰UI —
  * ============================================================ */
 function RadarChart16({ scores }) {
   const canvasRef = useRef(null);
@@ -870,38 +871,46 @@ function RadarChart16({ scores }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !scores) return;
+    const dpr = window.devicePixelRatio || 1;
+    const LOGICAL_W = 800;
+    const LOGICAL_H = 800;
+    canvas.width = LOGICAL_W * dpr;
+    canvas.height = LOGICAL_H * dpr;
+    canvas.style.width = '100%';
+    canvas.style.maxWidth = LOGICAL_W + 'px';
+    canvas.style.height = 'auto';
     const ctx = canvas.getContext('2d');
-    const W = canvas.width;
-    const H = canvas.height;
+    ctx.scale(dpr, dpr);
+    const W = LOGICAL_W;
+    const H = LOGICAL_H;
     const cx = W / 2;
     const cy = H / 2;
-    const R = Math.min(cx, cy) - 80;
+    const R = 260;
 
-    // 16軸データ抽出（48問の回答から算出されたスコア）
     const axes = [
-      { key: 'meaning',       jp: '意味',         en: 'Meaning',       group: 'mindset',    groupJp: '志' },
-      { key: 'mindfulness',   jp: '気づき',       en: 'Mindfulness',   group: 'mindset',    groupJp: '志' },
-      { key: 'mindshift',     jp: '意識転換',     en: 'Mindshift',     group: 'mindset',    groupJp: '志' },
-      { key: 'mastery',       jp: '熟達',         en: 'Mastery',       group: 'mindset',    groupJp: '志' },
-      { key: 'learning',      jp: '学習',         en: 'Learning',      group: 'literacy',   groupJp: '知' },
-      { key: 'logical',       jp: '論理',         en: 'Logical',       group: 'literacy',   groupJp: '知' },
-      { key: 'life',          jp: '社会実装',     en: 'Life',          group: 'literacy',   groupJp: '知' },
-      { key: 'leadership',    jp: 'リーダーシップ', en: 'Leadership',  group: 'literacy',   groupJp: '知' },
-      { key: 'critical',      jp: '批判的思考',   en: 'Critical',      group: 'competency', groupJp: '技' },
-      { key: 'creativity',    jp: '創造性',       en: 'Creativity',    group: 'competency', groupJp: '技' },
-      { key: 'communication', jp: '伝える力',     en: 'Communication', group: 'competency', groupJp: '技' },
-      { key: 'collaboration', jp: '協働',         en: 'Collaboration', group: 'competency', groupJp: '技' },
-      { key: 'idea',          jp: 'アイデア',     en: 'Idea',          group: 'impact',     groupJp: '衝' },
-      { key: 'innovation',    jp: '変革',         en: 'Innovation',    group: 'impact',     groupJp: '衝' },
-      { key: 'implementation',jp: '実装',         en: 'Implementation',group: 'impact',     groupJp: '衝' },
-      { key: 'influence',     jp: '影響',         en: 'Influence',     group: 'impact',     groupJp: '衝' },
+      { key: 'meaning',       jp: '意味',           en: 'Meaning',        group: 'mindset' },
+      { key: 'mindfulness',   jp: '気づき',         en: 'Mindfulness',    group: 'mindset' },
+      { key: 'mindshift',     jp: '意識転換',       en: 'Mindshift',      group: 'mindset' },
+      { key: 'mastery',       jp: '熟達',           en: 'Mastery',        group: 'mindset' },
+      { key: 'learning',      jp: '学習',           en: 'Learning',       group: 'literacy' },
+      { key: 'logical',       jp: '論理',           en: 'Logical',        group: 'literacy' },
+      { key: 'life',          jp: '社会実装',       en: 'Life',           group: 'literacy' },
+      { key: 'leadership',    jp: 'リーダーシップ', en: 'Leadership',     group: 'literacy' },
+      { key: 'critical',      jp: '批判的思考',     en: 'Critical',       group: 'competency' },
+      { key: 'creativity',    jp: '創造性',         en: 'Creativity',     group: 'competency' },
+      { key: 'communication', jp: '伝える力',       en: 'Communication',  group: 'competency' },
+      { key: 'collaboration', jp: '協働',           en: 'Collaboration',  group: 'competency' },
+      { key: 'idea',          jp: 'アイデア',       en: 'Idea',           group: 'impact' },
+      { key: 'innovation',    jp: '変革',           en: 'Innovation',     group: 'impact' },
+      { key: 'implementation',jp: '実装',           en: 'Implementation', group: 'impact' },
+      { key: 'influence',     jp: '影響',           en: 'Influence',      group: 'impact' },
     ];
 
-    const GROUP_COLORS = {
-      mindset:    { fill: 'rgba(44,95,138,0.25)',  stroke: '#5B9BD5', label: '#5B9BD5' },
-      literacy:   { fill: 'rgba(30,122,74,0.25)',  stroke: '#3DAA6D', label: '#3DAA6D' },
-      competency: { fill: 'rgba(160,122,24,0.25)', stroke: '#D4AA50', label: '#D4AA50' },
-      impact:     { fill: 'rgba(139,58,40,0.25)',  stroke: '#D46A50', label: '#D46A50' },
+    const GC = {
+      mindset:    { fill: 'rgba(91,155,213,0.35)',  stroke: '#5B9BD5', glow: 'rgba(91,155,213,0.6)' },
+      literacy:   { fill: 'rgba(61,170,109,0.35)',  stroke: '#3DAA6D', glow: 'rgba(61,170,109,0.6)' },
+      competency: { fill: 'rgba(212,170,80,0.35)',  stroke: '#D4AA50', glow: 'rgba(212,170,80,0.6)' },
+      impact:     { fill: 'rgba(212,106,80,0.35)',  stroke: '#D46A50', glow: 'rgba(212,106,80,0.6)' },
     };
 
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
@@ -915,9 +924,17 @@ function RadarChart16({ scores }) {
       return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
     };
 
+    // === 背景クリア ===
     ctx.clearRect(0, 0, W, H);
 
-    // グリッド線（3, 6, 9, 12, 15）
+    // === 背景放射グラデーション ===
+    const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R + 100);
+    bgGrad.addColorStop(0, 'rgba(20,20,30,0.6)');
+    bgGrad.addColorStop(1, 'rgba(5,5,10,0)');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // === グリッド（5段階 3,6,9,12,15）===
     [3, 6, 9, 12, 15].forEach((v, vi) => {
       ctx.beginPath();
       for (let i = 0; i <= n; i++) {
@@ -925,137 +942,314 @@ function RadarChart16({ scores }) {
         i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
       }
       ctx.closePath();
-      ctx.strokeStyle = vi === 4 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)';
-      ctx.lineWidth = vi === 4 ? 1.5 : 0.5;
+      if (vi === 4) {
+        ctx.strokeStyle = 'rgba(255,215,0,0.25)';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([]);
+      } else {
+        ctx.strokeStyle = `rgba(255,255,255,${0.04 + vi * 0.02})`;
+        ctx.lineWidth = 0.7;
+        ctx.setLineDash(vi % 2 === 0 ? [4, 6] : []);
+      }
       ctx.stroke();
+      ctx.setLineDash([]);
+
+      // グリッド数値（右上に小さく表示）
+      if (vi > 0) {
+        const gp = getPoint(1, v);
+        ctx.save();
+        ctx.font = '9px "SF Mono", monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.textAlign = 'left';
+        ctx.fillText(v + '', gp.x + 4, gp.y - 2);
+        ctx.restore();
+      }
     });
 
-    // 軸線
+    // === 軸線 ===
     for (let i = 0; i < n; i++) {
       const p = getPoint(i, MAX_SUB);
+      const grp = axes[i].group;
+      const grad = ctx.createLinearGradient(cx, cy, p.x, p.y);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.5, `${GC[grp].stroke}15`);
+      grad.addColorStop(1, `${GC[grp].stroke}40`);
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(p.x, p.y);
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 0.8;
       ctx.stroke();
     }
 
-    // データ塗りつぶし（4グループ別に描画）
-    const groups = ['mindset', 'literacy', 'competency', 'impact'];
-    groups.forEach((grp, gi) => {
+    // === セクション背景（薄いパイ）===
+    const groupOrder = ['mindset', 'literacy', 'competency', 'impact'];
+    groupOrder.forEach((grp, gi) => {
+      const a1 = startAngle + gi * 4 * step - step * 0.5;
+      const a2 = startAngle + (gi + 1) * 4 * step - step * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, a1, a2);
+      ctx.closePath();
+      ctx.fillStyle = `${GC[grp].stroke}08`;
+      ctx.fill();
+    });
+
+    // === データ塗りつぶし（全16軸をつなぐ一体型）===
+    // まず全体を一つのポリゴンで薄く描画
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const p = getPoint(i, data[i]);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    const allGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+    allGrad.addColorStop(0, 'rgba(255,255,255,0.05)');
+    allGrad.addColorStop(1, 'rgba(255,255,255,0.02)');
+    ctx.fillStyle = allGrad;
+    ctx.fill();
+
+    // グループ別カラー塗りつぶし（扇形マスクではなくグループ頂点を結ぶ）
+    groupOrder.forEach((grp, gi) => {
       const startIdx = gi * 4;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      for (let j = 0; j <= 4; j++) {
-        const idx = startIdx + (j % 4);
+      for (let j = 0; j < 4; j++) {
+        const idx = startIdx + j;
         const p = getPoint(idx, data[idx]);
         ctx.lineTo(p.x, p.y);
       }
       ctx.closePath();
-      ctx.fillStyle = GROUP_COLORS[grp].fill;
+
+      // グラデーション塗り
+      const gradFill = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      gradFill.addColorStop(0, `${GC[grp].stroke}10`);
+      gradFill.addColorStop(0.5, GC[grp].fill);
+      gradFill.addColorStop(1, `${GC[grp].stroke}50`);
+      ctx.fillStyle = gradFill;
       ctx.fill();
-      ctx.strokeStyle = GROUP_COLORS[grp].stroke;
+
+      // 輪郭線（グロー付き）
+      ctx.save();
+      ctx.shadowColor = GC[grp].glow;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      for (let j = 0; j < 4; j++) {
+        const idx = startIdx + j;
+        const p = getPoint(idx, data[idx]);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = GC[grp].stroke;
       ctx.lineWidth = 2.5;
       ctx.stroke();
+      ctx.restore();
     });
 
-    // データポイント
+    // === 全16頂点を結ぶ外周線 ===
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const p = getPoint(i, data[i]);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // === データポイント（グロー＋大きめ）===
     for (let i = 0; i < n; i++) {
       const p = getPoint(i, data[i]);
       const grp = axes[i].group;
+      // グロー
+      ctx.save();
+      ctx.shadowColor = GC[grp].glow;
+      ctx.shadowBlur = 14;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
-      ctx.fillStyle = GROUP_COLORS[grp].stroke;
+      ctx.arc(p.x, p.y, 5.5, 0, 2 * Math.PI);
+      ctx.fillStyle = GC[grp].stroke;
       ctx.fill();
+      ctx.restore();
+      // 白枠
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5.5, 0, 2 * Math.PI);
       ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
       ctx.stroke();
+      // 中心ハイライト
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2, 0, 2 * Math.PI);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
     }
 
-    // ラベル
+    // === ラベル ===
     for (let i = 0; i < n; i++) {
       const angle = startAngle + i * step;
-      const labelR = R + 48;
+      const grp = axes[i].group;
+      const score = data[i];
+
+      // ラベル位置を動的に計算（左右で textAlign を変える）
+      const labelR = R + 40;
       const lx = cx + labelR * Math.cos(angle);
       const ly = cy + labelR * Math.sin(angle);
-      const grp = axes[i].group;
+
+      // テキスト方向判定
+      const cos = Math.cos(angle);
+      const isRight = cos > 0.15;
+      const isLeft = cos < -0.15;
+      const align = isRight ? 'left' : isLeft ? 'right' : 'center';
+
+      // ラベルオフセット
+      const nudgeX = isRight ? 12 : isLeft ? -12 : 0;
 
       ctx.save();
-      ctx.textAlign = 'center';
+      ctx.textAlign = align;
       ctx.textBaseline = 'middle';
 
-      // 日本語
-      ctx.font = 'bold 11px "Noto Serif JP", serif';
+      // 日本語ラベル（太め、白）
+      ctx.font = 'bold 14px "Noto Serif JP", serif';
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(axes[i].jp, lx, ly - 8);
+      ctx.fillText(axes[i].jp, lx + nudgeX, ly - 11);
 
-      // 英語
-      ctx.font = '9px monospace';
-      ctx.fillStyle = GROUP_COLORS[grp].label;
-      ctx.fillText(axes[i].en, lx, ly + 6);
+      // 英語ラベル（グループカラー）
+      ctx.font = '600 10px "SF Mono", Consolas, monospace';
+      ctx.fillStyle = GC[grp].stroke;
+      ctx.fillText(axes[i].en, lx + nudgeX, ly + 4);
 
-      // スコア
-      ctx.font = 'bold 10px monospace';
+      // スコア数字（大きく、白、太字）
+      ctx.font = 'bold 16px "Playfair Display", Georgia, serif';
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(data[i] + '', lx, ly + 19);
+      ctx.fillText(score + '', lx + nudgeX, ly + 22);
 
       ctx.restore();
     }
 
-    // グループラベル（志・知・技・衝）
-    const groupPositions = [
-      { label: '志 Mindset',    angle: startAngle + 1.5 * step, color: GROUP_COLORS.mindset.stroke },
-      { label: '知 Literacy',   angle: startAngle + 5.5 * step, color: GROUP_COLORS.literacy.stroke },
-      { label: '技 Competency', angle: startAngle + 9.5 * step, color: GROUP_COLORS.competency.stroke },
-      { label: '衝 Impact',     angle: startAngle + 13.5 * step, color: GROUP_COLORS.impact.stroke },
+    // === グループラベル（志・知・技・衝）===
+    const groupLabels = [
+      { jp: '志', en: 'Mindset',    angle: startAngle + 1.5 * step, color: GC.mindset.stroke },
+      { jp: '知', en: 'Literacy',   angle: startAngle + 5.5 * step, color: GC.literacy.stroke },
+      { jp: '技', en: 'Competency', angle: startAngle + 9.5 * step, color: GC.competency.stroke },
+      { jp: '衝', en: 'Impact',     angle: startAngle + 13.5 * step,color: GC.impact.stroke },
     ];
-    groupPositions.forEach(({ label, angle, color }) => {
-      const gr = R + 72;
+    groupLabels.forEach(({ jp, en, angle, color }) => {
+      const gr = R + 80;
       const gx = cx + gr * Math.cos(angle);
       const gy = cy + gr * Math.sin(angle);
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = 'bold 12px "Noto Serif JP", serif';
+      // バッジ背景
+      ctx.fillStyle = `${color}18`;
+      ctx.strokeStyle = `${color}50`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(gx - 48, gy - 14, 96, 28, 6);
+      ctx.fill();
+      ctx.stroke();
+      // 漢字
+      ctx.font = 'bold 15px "Noto Serif JP", serif';
       ctx.fillStyle = color;
-      ctx.fillText(label, gx, gy);
+      ctx.fillText(jp, gx - 20, gy);
+      // 英語
+      ctx.font = '600 11px "SF Mono", Consolas, monospace';
+      ctx.fillStyle = color;
+      ctx.fillText(en, gx + 15, gy);
       ctx.restore();
     });
 
+    // === 中央ロゴ ===
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '600 9px "SF Mono", Consolas, monospace';
+    ctx.fillStyle = 'rgba(255,215,0,0.25)';
+    ctx.fillText('SAIKAKU', cx, cy - 6);
+    ctx.fillText('ARCHITECTURE', cx, cy + 6);
+    ctx.restore();
+
   }, [scores]);
+
+  // 合計スコア計算
+  const totalScore = (() => {
+    if (!scores) return 0;
+    let sum = 0;
+    ['mindset', 'literacy', 'competency', 'impact'].forEach(g => {
+      const subs = scores[g]?.subs || {};
+      Object.values(subs).forEach(v => { sum += (v || 0); });
+    });
+    return sum;
+  })();
 
   return (
     <Section>
       <SectionHeader title="才覚発動領域マトリクス — 16軸レーダー" subtitle="Unique Ability Activation Matrix — 16-Axis Radar" />
       <div style={{
-        background: '#0A0A0C',
-        borderRadius: 12,
-        padding: '20px 8px',
-        border: `2px solid ${ACCENT_GOLD}40`,
+        background: 'linear-gradient(180deg, #08080C 0%, #0C0C14 50%, #08080C 100%)',
+        borderRadius: 16,
+        padding: '28px 12px 20px',
+        border: `2px solid ${ACCENT_GOLD}30`,
+        boxShadow: `0 0 40px rgba(0,0,0,0.5), inset 0 0 60px rgba(0,0,0,0.3)`,
         textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
-        <canvas
-          ref={canvasRef}
-          width={640}
-          height={640}
-          style={{ maxWidth: '100%', height: 'auto' }}
-        />
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 12, flexWrap: 'wrap' }}>
+        {/* 装飾コーナー */}
+        {['top-left','top-right','bottom-left','bottom-right'].map(pos => (
+          <div key={pos} style={{
+            position: 'absolute',
+            width: 24, height: 24,
+            [pos.includes('top') ? 'top' : 'bottom']: 8,
+            [pos.includes('left') ? 'left' : 'right']: 8,
+            borderTop: pos.includes('top') ? `2px solid ${ACCENT_GOLD}40` : 'none',
+            borderBottom: pos.includes('bottom') ? `2px solid ${ACCENT_GOLD}40` : 'none',
+            borderLeft: pos.includes('left') ? `2px solid ${ACCENT_GOLD}40` : 'none',
+            borderRight: pos.includes('right') ? `2px solid ${ACCENT_GOLD}40` : 'none',
+          }} />
+        ))}
+
+        {/* 合計スコアバッジ */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 10,
+          background: 'rgba(255,215,0,0.08)',
+          border: '1px solid rgba(255,215,0,0.2)',
+          borderRadius: 20, padding: '6px 20px', marginBottom: 16,
+        }}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, letterSpacing: '0.08em' }}>TOTAL SCORE</span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: '#FFD700', fontFamily: "'Playfair Display', Georgia, serif" }}>{totalScore}</span>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>/ 240</span>
+        </div>
+
+        <canvas ref={canvasRef} style={{ display: 'block', margin: '0 auto' }} />
+
+        {/* 凡例 */}
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: 16, marginTop: 20, flexWrap: 'wrap',
+        }}>
           {[
-            { label: '志 Mindset', color: '#5B9BD5' },
-            { label: '知 Literacy', color: '#3DAA6D' },
-            { label: '技 Competency', color: '#D4AA50' },
-            { label: '衝 Impact', color: '#D46A50' },
+            { jp: '志', en: 'Mindset', color: '#5B9BD5' },
+            { jp: '知', en: 'Literacy', color: '#3DAA6D' },
+            { jp: '技', en: 'Competency', color: '#D4AA50' },
+            { jp: '衝', en: 'Impact', color: '#D46A50' },
           ].map(g => (
-            <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, background: g.color }} />
-              <span style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600 }}>{g.label}</span>
+            <div key={g.en} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: `${g.color}10`, border: `1px solid ${g.color}30`,
+              borderRadius: 8, padding: '5px 14px',
+            }}>
+              <div style={{
+                width: 10, height: 10, borderRadius: '50%', background: g.color,
+                boxShadow: `0 0 6px ${g.color}80`,
+              }} />
+              <span style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 700 }}>{g.jp}</span>
+              <span style={{ fontSize: 10, color: g.color, fontWeight: 600 }}>{g.en}</span>
             </div>
           ))}
         </div>
-        <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 8, opacity: 0.6 }}>
-          ※ 外周が15点満点。面積の欠落は改善ポイントを示します。
+
+        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 12, letterSpacing: '0.05em' }}>
+          ※ 外周が15点満点（各軸）・合計240点満点　面積の欠落は改善ポイントを示します
         </p>
       </div>
     </Section>
