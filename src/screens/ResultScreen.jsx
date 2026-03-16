@@ -493,7 +493,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                     style={{
                       padding: '20px 24px',
                       borderRadius: 14,
-                      border: isSelected ? '2px solid #C4922A' : '1px solid rgba(255,255,255,0.06)',
+                      border: isSelected ? '2px solid #FFD700' : '1.5px solid rgba(196,146,42,0.4)',
                       background: isSelected
                         ? 'linear-gradient(135deg, rgba(196,146,42,0.12), rgba(196,146,42,0.06))'
                         : 'rgba(255,255,255,0.02)',
