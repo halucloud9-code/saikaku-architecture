@@ -93,7 +93,7 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
               color: '#2A2520',
             }}
           >
-            UAAM 診断
+            才覚発動領域
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
