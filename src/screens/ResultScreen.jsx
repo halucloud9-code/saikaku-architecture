@@ -19,9 +19,9 @@ const VENN_COLORS = {
 
 // ドーナツチャート色
 const DONUT_COLORS = {
-  value:   ['#93C5FD', '#4A8FE7', '#1a3a6b'],
-  talent:  ['#FFD700', '#D4A030', '#8b5e00'],
-  passion: ['#FCA5A5', '#E05252', '#7a1a1a'],
+  value:   ['#2e6bc4', '#1a3a6b', '#7eb8f7'],
+  talent:  ['#c4922a', '#8b5e00', '#f0c96e'],
+  passion: ['#c0392b', '#7a1a1a', '#e8847a'],
 };
 
 // ── メインベン図 SVG（サマリーカード用）─────────────────────────────────
@@ -136,7 +136,14 @@ function DonutChart({ axes, colors, size = 240 }) {
 }
 
 // ── 軸カード（全items フラット表示） ─────────────────────────────────────
-function AxisCard({ axis, color, bg, borderColor, pct }) {
+// パーセント数字用の明るい色（WHATゴールドレベル）
+const PCT_COLORS = {
+  value:   ['#BFDBFE', '#93C5FD', '#60A5FA'],
+  talent:  ['#FFD700', '#FDE68A', '#FBBF24'],
+  passion: ['#FECACA', '#FCA5A5', '#F87171'],
+};
+
+function AxisCard({ axis, color, pctColor, bg, borderColor, pct }) {
   const allItems = axis?.items || [];
 
   return (
@@ -164,7 +171,7 @@ function AxisCard({ axis, color, bg, borderColor, pct }) {
             </span>
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0, overflow: 'hidden' }}>
-            <span style={{ display: 'block', fontSize: 26, fontWeight: 700, color, fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", lineHeight: 1 }}>
+            <span style={{ display: 'block', fontSize: 26, fontWeight: 700, color: pctColor || color, fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", lineHeight: 1 }}>
               {pct}%
             </span>
             <span style={{ fontSize: 14, color: '#71717A', letterSpacing: '0.05em' }}>
@@ -210,6 +217,7 @@ function CategorySection({ title, type, axes }) {
   const bg     = COLORS.bg[type];
   const border = COLORS.border[type];
   const pcts      = computePcts(axes);
+  const pctColors = PCT_COLORS[type];
   const axesArray  = ['axis1', 'axis2', 'axis3'].map(k => axes?.[k]).filter(Boolean);
   const donutColors = DONUT_COLORS[type];
   const LABELS    = { talent: '才能', value: '価値観', passion: '情熱' };
@@ -278,6 +286,7 @@ function CategorySection({ title, type, axes }) {
           key={k}
           axis={axes[k]}
           color={colors[i]}
+          pctColor={pctColors[i]}
           bg={`${colors[i]}14`}
           borderColor={`${colors[i]}45`}
           pct={pcts[i]}

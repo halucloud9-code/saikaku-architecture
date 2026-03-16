@@ -96,7 +96,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
 
   const QUESTIONS = [
     { num: 'Q1', q: <>明日死ぬとしたら<br />心残りなのは何ですか？</>, val: q1, set: setQ1, ph: '思いのままに書いてください' },
-    { num: 'Q2', q: <>お金も時間も制限が一切ない。<br />明日、何をしますか？<br /><span style={{ fontSize: 11, color: '#A09070' }}>できるだけ具体的に。</span></>, val: q2, set: setQ2, ph: '具体的なシーン・行動・場所・誰といるか...' },
+    { num: 'Q2', q: <>お金も時間も制限が一切ない。<br />明日、何をしますか？<br /><span style={{ fontSize: 11, color: '#B0A090' }}>できるだけ具体的に。</span></>, val: q2, set: setQ2, ph: '具体的なシーン・行動・場所・誰といるか...' },
     { num: 'Q3', q: <>才覚領域を全力で生き続けた10年後<br />あなたの周りはどんな影響や変化を遂げていますか？</>, val: q3, set: setQ3, ph: '人・組織・社会・世界...どんな変化が起きているか' },
   ];
 
@@ -139,17 +139,17 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
         {/* タイトル */}
         <div style={{ marginBottom: 40, textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 40, height: 1, background: 'linear-gradient(90deg, transparent, #D4AA50)' }} />
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.25em', color: '#D4AA50', textTransform: 'uppercase' }}>Discovery</span>
-            <div style={{ width: 40, height: 1, background: 'linear-gradient(90deg, #D4AA50, transparent)' }} />
+            <div style={{ width: 40, height: 1, background: 'linear-gradient(90deg, transparent, #FFD700)' }} />
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.25em', color: '#FFD700', textTransform: 'uppercase' }}>Discovery</span>
+            <div style={{ width: 40, height: 1, background: 'linear-gradient(90deg, #FFD700, transparent)' }} />
           </div>
           <h2 style={{
             fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
-            fontSize: 28, fontWeight: 900, color: '#FFF8EC',
+            fontSize: 28, fontWeight: 900, color: '#FFFFFF',
             margin: '0 0 8px',
           }}>才覚領域を発見する</h2>
-          <p style={{ fontSize: 13, color: '#C8B898', margin: 0, lineHeight: 1.8 }}>
-            3つの問いに答えるだけで、あなただけの才覚領域が明らかになります
+          <p style={{ fontSize: 13, color: '#FFFFFF', margin: 0, lineHeight: 1.8, opacity: 0.85 }}>
+            <span style={{ fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif", fontSize: 16, fontWeight: 700 }}>3</span>つの問いに答えるだけで、あなただけの才覚領域が明らかになります
           </p>
         </div>
 
@@ -163,7 +163,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
         }}>
           {/* 名前 */}
           <div style={{ marginBottom: 32 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#E8D8B8', marginBottom: 8 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 8 }}>
               お名前
             </label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
@@ -171,7 +171,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
               style={{
                 width: '100%', padding: '14px 0', borderRadius: 0,
                 border: 'none', borderBottom: '1.5px solid rgba(212,170,80,0.35)', background: 'transparent',
-                fontSize: 16, color: '#FFF8EC', outline: 'none', boxSizing: 'border-box',
+                fontSize: 16, color: '#FFFFFF', outline: 'none', boxSizing: 'border-box',
                 fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
               }}
             />
@@ -194,10 +194,10 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
                 boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontFamily: "'Noto Serif JP', 'Times New Roman', serif", fontSize: 20, fontWeight: 800, color: '#FFF8EC' }}>{cat.label}</span>
+                  <span style={{ fontFamily: "'Noto Serif JP', 'Times New Roman', serif", fontSize: 20, fontWeight: 800, color: '#FFFFFF' }}>{cat.label}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: cat.color, letterSpacing: '0.12em' }}>{cat.en}</span>
                 </div>
-                <p style={{ fontSize: 13, color: '#C8B898', margin: '0 0 20px', lineHeight: 1.6 }}>{cat.sublabel}</p>
+                <p style={{ fontSize: 13, color: '#F0E8D8', margin: '0 0 20px', lineHeight: 1.6 }}>{cat.sublabel}</p>
 
                 {/* TOP5 必須 */}
                 <div style={{ marginBottom: 16 }}>
@@ -213,7 +213,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
                     style={{
                       width: '100%', padding: '14px 16px', borderRadius: 8,
                       border: `1px solid ${cat.color}30`, background: 'rgba(20,18,14,0.5)',
-                      fontSize: 14, color: '#FFF8EC', outline: 'none', resize: 'vertical',
+                      fontSize: 14, color: '#FFFFFF', outline: 'none', resize: 'vertical',
                       lineHeight: 1.8, boxSizing: 'border-box',
                     }}
                   />
@@ -222,21 +222,21 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
                 {/* その他 任意 */}
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, color: '#B8A888', fontWeight: 600 }}>{cat.labelOthers}</span>
-                    <span style={{ fontSize: 11, color: '#887860' }}>（任意）</span>
+                    <span style={{ fontSize: 13, color: '#F0E8D8', fontWeight: 600 }}>{cat.labelOthers}</span>
+                    <span style={{ fontSize: 11, color: '#C8B898' }}>（任意）</span>
                   </div>
                   <textarea value={cat.others} onChange={(e) => cat.setOthers(e.target.value)}
                     placeholder={cat.placeholderOthers} rows={2}
                     style={{
                       width: '100%', padding: '12px 16px', borderRadius: 8,
                       border: '1px dashed rgba(212,170,80,0.2)', background: 'transparent',
-                      fontSize: 13, color: '#E0D0B0', outline: 'none', resize: 'vertical',
+                      fontSize: 13, color: '#FFFFFF', outline: 'none', resize: 'vertical',
                       lineHeight: 1.8, boxSizing: 'border-box',
                     }}
                   />
                 </div>
 
-                <p style={{ fontSize: 12, color: '#A09070', margin: '8px 0 0', lineHeight: 1.6 }}>
+                <p style={{ fontSize: 12, color: '#E0D0B0', margin: '8px 0 0', lineHeight: 1.6 }}>
                   {cat.hint}
                 </p>
               </div>
@@ -249,8 +249,8 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
               <div style={{ width: 3, height: 20, background: 'linear-gradient(to bottom, #C8B0E8, #9878C0)', borderRadius: 2 }} />
-              <span style={{ fontFamily: "'Noto Serif JP', 'Times New Roman', serif", fontSize: 18, fontWeight: 800, color: '#FFF8EC' }}>深化の問い</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#C8B0E8', letterSpacing: '0.1em' }}>DEEP QUESTIONS</span>
+              <span style={{ fontFamily: "'Noto Serif JP', 'Times New Roman', serif", fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>深化の問い</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#D8C8F0', letterSpacing: '0.1em' }}>DEEP QUESTIONS</span>
             </div>
 
             {QUESTIONS.map((item, qi) => (
@@ -260,10 +260,10 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     width: 30, height: 30, borderRadius: '50%',
                     background: 'rgba(168,150,200,0.2)', border: '1px solid rgba(168,150,200,0.4)',
-                    color: '#C8B0E8', fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2,
+                    color: '#E0D0F8', fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2,
                   }}>{item.num}</span>
                   <p style={{
-                    fontSize: 14, fontWeight: 700, color: '#EAD8B0', margin: 0, lineHeight: 1.9,
+                    fontSize: 14, fontWeight: 700, color: '#FFFFFF', margin: 0, lineHeight: 1.9,
                     fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
                   }}>{item.q}</p>
                 </div>
@@ -272,7 +272,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
                   style={{
                     width: '100%', padding: '14px 16px', borderRadius: 8,
                     border: '1px solid rgba(168,150,200,0.25)', background: 'rgba(168,150,200,0.06)',
-                    fontSize: 14, color: '#FFF8EC', outline: 'none', resize: 'vertical',
+                    fontSize: 14, color: '#FFFFFF', outline: 'none', resize: 'vertical',
                     lineHeight: 1.8, boxSizing: 'border-box',
                   }}
                 />
@@ -301,7 +301,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
             boxShadow: '0 6px 28px rgba(212,170,80,0.4), 0 2px 8px rgba(251,191,36,0.2)',
           }}>才覚領域を解析する →</button>
 
-          <p style={{ textAlign: 'center', fontSize: 12, color: '#A09070', marginTop: 14 }}>
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#E0D0B0', marginTop: 14 }}>
             ※ 解析には約30秒かかります
           </p>
 
@@ -311,7 +311,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
               <button onClick={onBack} style={{
                 padding: '10px 24px', borderRadius: 8,
                 border: '1px solid rgba(212,170,80,0.2)',
-                background: 'transparent', color: '#C8B898', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                background: 'transparent', color: '#F0E8D8', fontSize: 13, fontWeight: 600, cursor: 'pointer',
               }}>← 診断選択に戻る</button>
             </div>
           )}

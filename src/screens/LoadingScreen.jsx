@@ -83,7 +83,7 @@ export default function LoadingScreen() {
             marginBottom: 56,
           }}
         >
-          Unique Ability Architecture
+          Saikaku Architecture
         </div>
 
         {/* リングスピナー */}
