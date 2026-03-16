@@ -304,11 +304,11 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
           <button onClick={handleSubmit} style={{
             width: '100%', padding: '18px 24px', borderRadius: 12, marginTop: 32,
             border: '1px solid rgba(255,220,130,0.3)',
-            background: 'linear-gradient(135deg, #FBBF24 0%, #D4AA50 50%, #FBBF24 100%)',
-            color: '#1A1610', fontSize: 16, fontWeight: 700,
+            background: 'linear-gradient(135deg, #A87A1E 0%, #C4922A 30%, #8B6914 70%, #A87A1E 100%)',
+            color: '#FFFFFF', fontSize: 16, fontWeight: 700,
             fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
             cursor: 'pointer', letterSpacing: '0.06em',
-            boxShadow: '0 6px 28px rgba(212,170,80,0.4), 0 2px 8px rgba(251,191,36,0.2)',
+            boxShadow: '0 6px 28px rgba(140,100,20,0.5), inset 0 1px 0 rgba(255,215,0,0.3)',
           }}>才覚領域を解析する →</button>
 
           <p style={{ textAlign: 'center', fontSize: 12, color: '#FFFFFF', marginTop: 14 }}>
