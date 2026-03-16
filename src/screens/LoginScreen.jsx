@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { signInWithGoogle, db } from '../firebase';
+import griffonImg from '../assets/griffon.png';
 
 /* ============================================================
  * LoginScreen — System 1 を撃つ直感UI
@@ -152,38 +153,21 @@ export default function LoginScreen({ onLogin }) {
         {/* ── ブランドエリア ── */}
         <div style={{ textAlign: 'center', marginBottom: 48, ...fadeStyle(0.1) }}>
 
-          {/* ロゴマーク — 六角形＋Gシンボル */}
+          {/* グリフォンロゴ */}
           <div style={{
-            width: 80, height: 80, margin: '0 auto 28px',
+            width: 160, height: 160, margin: '0 auto 24px',
             position: 'relative',
             animation: 'loginFloat 4s ease-in-out infinite',
           }}>
-            {/* ゴールド六角形外枠 */}
-            <svg width="80" height="80" viewBox="0 0 80 80" style={{ position: 'absolute', top: 0, left: 0 }}>
-              <polygon
-                points="40,4 72,22 72,58 40,76 8,58 8,22"
-                fill="none"
-                stroke={GOLD}
-                strokeWidth="1.5"
-                opacity="0.5"
-              />
-              <polygon
-                points="40,12 64,26 64,54 40,68 16,54 16,26"
-                fill="rgba(255,215,0,0.05)"
-                stroke={GOLD}
-                strokeWidth="0.5"
-                opacity="0.3"
-              />
-            </svg>
-            {/* 中央 G */}
-            <div style={{
-              position: 'absolute', top: '50%', left: '50%',
-              transform: 'translate(-50%,-50%)',
-              fontFamily: "'Playfair Display', Georgia, serif",
-              fontSize: 28, fontWeight: 800,
-              color: GOLD,
-              textShadow: `0 0 20px rgba(255,215,0,0.4)`,
-            }}>G</div>
+            <img
+              src={griffonImg}
+              alt="GRIFFON"
+              style={{
+                width: '100%', height: '100%',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 0 24px rgba(255,215,0,0.3))',
+              }}
+            />
           </div>
 
           {/* タイトル */}
