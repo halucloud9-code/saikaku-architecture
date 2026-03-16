@@ -147,7 +147,7 @@ function AxisCard({ axis, color, bg, borderColor, pct }) {
         borderRadius: 8,
         marginBottom: 10,
         overflow: 'hidden',
-        background: '#1A1A1E',
+        background: '#27272A',
         pageBreakInside: 'avoid',
         breakInside: 'avoid',
       }}
@@ -186,9 +186,9 @@ function AxisCard({ axis, color, bg, borderColor, pct }) {
               style={{
                 padding: '5px 11px',
                 borderRadius: 100,
-                background: '#1E1E1E',
-                border: '1px solid #3F3F46',
-                color: '#FAFAFA',
+                background: '#3F3F46',
+                border: '1px solid #52525B',
+                color: '#FFFFFF',
                 fontSize: 12,
                 fontWeight: 600,
                 wordBreak: 'break-word',
