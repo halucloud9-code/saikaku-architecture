@@ -19,9 +19,9 @@ const VENN_COLORS = {
 
 // ドーナツチャート色
 const DONUT_COLORS = {
-  value:   ['#7eb8f7', '#2e6bc4', '#1a3a6b'],
-  talent:  ['#f0c96e', '#c4922a', '#8b5e00'],
-  passion: ['#e8847a', '#c0392b', '#7a1a1a'],
+  value:   ['#93C5FD', '#4A8FE7', '#1a3a6b'],
+  talent:  ['#FFD700', '#D4A030', '#8b5e00'],
+  passion: ['#FCA5A5', '#E05252', '#7a1a1a'],
 };
 
 // ── メインベン図 SVG（サマリーカード用）─────────────────────────────────
