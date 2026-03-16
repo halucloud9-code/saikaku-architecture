@@ -150,7 +150,7 @@ function AxisCard({ axis, color, pctColor, bg, borderColor, pct }) {
     <div
       className="pdf-axis-card"
       style={{
-        borderLeft: `3px solid ${color}`,
+        borderLeft: `6px solid ${color}`,
         borderRadius: 8,
         marginBottom: 10,
         overflow: 'hidden',
