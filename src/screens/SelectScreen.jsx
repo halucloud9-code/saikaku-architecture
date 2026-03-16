@@ -1,201 +1,191 @@
 import { useState } from 'react';
 import { signOutUser } from '../firebase';
 
+const LIGHT_BG = '#F5F0E8';
+const WHITE = '#FFFFFF';
+const BORDER = '#D4C9B0';
+const TEXT_PRIMARY = '#1A1A1A';
+const TEXT_MUTED = '#7A7060';
+const ACCENT_GOLD = '#C4922A';
 const UAAM_PASS = 'kokusogaku';
 
 export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectUaam, onAdmin, onLogout }) {
   const [showPassModal, setShowPassModal] = useState(false);
   const [pass, setPass] = useState('');
   const [passError, setPassError] = useState('');
-  const [hoverA, setHoverA] = useState(false);
-  const [hoverB, setHoverB] = useState(false);
 
-  const handleUaamClick = () => { setPass(''); setPassError(''); setShowPassModal(true); };
+  const handleUaamClick = () => {
+    setPass('');
+    setPassError('');
+    setShowPassModal(true);
+  };
+
   const handlePassSubmit = () => {
-    if (pass === UAAM_PASS) { setShowPassModal(false); onSelectUaam(); }
-    else { setPassError('パスワードが正しくありません'); }
+    if (pass === UAAM_PASS) {
+      setShowPassModal(false);
+      onSelectUaam();
+    } else {
+      setPassError('パスワードが正しくありません');
+    }
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#09090B' }}>
+    <div style={{ minHeight: '100vh', background: LIGHT_BG }}>
       {/* ヘッダー */}
       <div style={{
-        padding: '16px 24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid #18181B',
+        background: WHITE, borderBottom: `1px solid ${BORDER}`,
+        padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', color: '#52525B', textTransform: 'uppercase' }}>
-          Saikaku Architecture
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {user?.photoURL && (
+            <img src={user.photoURL} alt="" style={{ width: 32, height: 32, borderRadius: '50%' }} />
+          )}
+          <span style={{ fontSize: 13, color: TEXT_PRIMARY }}>{user?.displayName}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
           {isAdmin && (
             <button onClick={onAdmin} style={{
-              fontSize: 12, color: '#A1A1AA', background: 'none',
-              border: 'none', cursor: 'pointer', padding: 0,
+              fontSize: 12, color: TEXT_MUTED, background: 'none', border: `1px solid ${BORDER}`,
+              borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
             }}>管理</button>
           )}
-          <span style={{ fontSize: 12, color: '#52525B' }}>{user?.displayName}</span>
           <button onClick={async () => { await signOutUser(); onLogout(); }} style={{
-            fontSize: 12, color: '#52525B', background: 'none',
-            border: 'none', cursor: 'pointer', padding: 0,
+            fontSize: 12, color: TEXT_MUTED, background: 'none', border: `1px solid ${BORDER}`,
+            borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
           }}>ログアウト</button>
         </div>
       </div>
 
-      {/* メイン */}
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '80px 24px 60px' }}>
-        <p style={{
-          fontSize: 11, fontWeight: 600, letterSpacing: '0.2em',
-          color: '#52525B', textTransform: 'uppercase', margin: '0 0 12px',
-        }}>Select Program</p>
-        <h1 style={{
-          fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
-          fontSize: 36, fontWeight: 900, color: '#FAFAFA',
-          margin: '0 0 12px', lineHeight: 1.15, letterSpacing: '-0.01em',
-        }}>診断を選ぶ</h1>
-        <p style={{ fontSize: 15, color: '#71717A', margin: '0 0 48px', lineHeight: 1.7 }}>
-          あなたの才覚を解き明かすプログラムを選択してください
-        </p>
-
-        {/* カードグリッド */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {/* 才覚領域 */}
-          <button
-            onClick={onSelectSaikaku}
-            onMouseEnter={() => setHoverA(true)}
-            onMouseLeave={() => setHoverA(false)}
-            style={{
-              width: '100%', textAlign: 'left', cursor: 'pointer',
-              background: hoverA ? '#18181B' : '#111113',
-              border: 'none', padding: '32px 28px',
-              borderRadius: '8px 8px 0 0',
-              transition: 'background 0.2s ease',
-              position: 'relative',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <p style={{
-                  fontSize: 11, fontWeight: 600, letterSpacing: '0.15em',
-                  color: '#C4922A', textTransform: 'uppercase', margin: '0 0 12px',
-                }}>Unique Ability</p>
-                <h2 style={{
-                  fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
-                  fontSize: 24, fontWeight: 800, color: '#FAFAFA',
-                  margin: '0 0 8px', letterSpacing: '0.02em',
-                }}>才覚領域</h2>
-                <p style={{ fontSize: 13, color: '#71717A', margin: 0, lineHeight: 1.8 }}>
-                  才能 × 価値観 × 情熱の化学反応から<br />
-                  あなただけの才覚領域を導き出す
-                </p>
-              </div>
-              <span style={{
-                fontSize: 20, color: hoverA ? '#FAFAFA' : '#3F3F46',
-                transition: 'all 0.2s ease',
-                transform: hoverA ? 'translateX(4px)' : 'none',
-                display: 'inline-block', marginTop: 8,
-              }}>→</span>
-            </div>
-          </button>
-
-          {/* 才覚発動領域 */}
-          <button
-            onClick={handleUaamClick}
-            onMouseEnter={() => setHoverB(true)}
-            onMouseLeave={() => setHoverB(false)}
-            style={{
-              width: '100%', textAlign: 'left', cursor: 'pointer',
-              background: hoverB ? '#18181B' : '#111113',
-              border: 'none', padding: '32px 28px',
-              borderRadius: '0 0 8px 8px',
-              transition: 'background 0.2s ease',
-              position: 'relative',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <p style={{
-                  fontSize: 11, fontWeight: 600, letterSpacing: '0.15em',
-                  color: '#4A6FA5', textTransform: 'uppercase', margin: '0 0 12px',
-                }}>Activation Matrix</p>
-                <h2 style={{
-                  fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
-                  fontSize: 24, fontWeight: 800, color: '#FAFAFA',
-                  margin: '0 0 4px', letterSpacing: '0.02em',
-                }}>才覚発動領域</h2>
-                <p style={{
-                  fontSize: 11, color: '#4A6FA5', margin: '0 0 8px',
-                  fontWeight: 500, letterSpacing: '0.1em',
-                }}>志 · 知 · 技 · 衝</p>
-                <p style={{ fontSize: 13, color: '#71717A', margin: 0, lineHeight: 1.8 }}>
-                  48問で4軸16項目を分析し、才覚発動マトリクスを可視化
-                </p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                <span style={{ fontSize: 11, color: '#3F3F46', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </span>
-                <span style={{
-                  fontSize: 20, color: hoverB ? '#FAFAFA' : '#3F3F46',
-                  transition: 'all 0.2s ease',
-                  transform: hoverB ? 'translateX(4px)' : 'none',
-                  display: 'inline-block',
-                }}>→</span>
-              </div>
-            </div>
-          </button>
+      {/* メインコンテンツ */}
+      <div style={{
+        maxWidth: 480, margin: '0 auto', padding: '40px 20px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24,
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: 8 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', color: ACCENT_GOLD,
+            textTransform: 'uppercase', marginBottom: 8,
+          }}>Select Program</div>
+          <h1 style={{
+            fontSize: 24, fontWeight: 900, color: TEXT_PRIMARY, margin: 0,
+            fontFamily: "'Noto Serif JP', Georgia, serif",
+          }}>診断プログラム選択</h1>
+          <p style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 8 }}>
+            受けたい診断を選択してください
+          </p>
         </div>
+
+        {/* 才覚領域カード */}
+        <button onClick={onSelectSaikaku} style={{
+          width: '100%', background: WHITE, border: `2px solid ${BORDER}`,
+          borderRadius: 16, padding: '28px 24px', cursor: 'pointer',
+          textAlign: 'left', transition: 'all 0.2s',
+        }}>
+          <div style={{
+            background: `linear-gradient(135deg, ${ACCENT_GOLD}18, ${ACCENT_GOLD}08)`,
+            borderRadius: 10, padding: '20px 18px',
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: ACCENT_GOLD,
+              textTransform: 'uppercase', marginBottom: 6,
+            }}>Unique Ability</div>
+            <div style={{
+              fontSize: 22, fontWeight: 900, color: TEXT_PRIMARY,
+              fontFamily: "'Noto Serif JP', Georgia, serif", marginBottom: 4,
+            }}>才覚領域</div>
+            <div style={{
+              fontSize: 12, fontWeight: 600, color: TEXT_MUTED, marginBottom: 12,
+              letterSpacing: '0.04em',
+            }}>Architecture</div>
+            <p style={{ fontSize: 13, color: TEXT_MUTED, margin: 0, lineHeight: 1.8 }}>
+              才能 × 価値観 × 情熱<br />
+              化学反応を起こす<br />
+              あなただけの才覚領域を見つけだす
+            </p>
+          </div>
+        </button>
+
+        {/* UAAMカード */}
+        <button onClick={handleUaamClick} style={{
+          width: '100%', background: WHITE, border: `2px solid ${BORDER}`,
+          borderRadius: 16, padding: '28px 24px', cursor: 'pointer',
+          textAlign: 'left', transition: 'all 0.2s',
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #4A6FA518, #4A6FA508)',
+            borderRadius: 10, padding: '20px 18px',
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: '#4A6FA5',
+              textTransform: 'uppercase', marginBottom: 6,
+            }}>Unique Ability Activation Matrix</div>
+            <div style={{
+              fontSize: 22, fontWeight: 900, color: TEXT_PRIMARY,
+              fontFamily: "'Noto Serif JP', Georgia, serif", marginBottom: 4,
+            }}>UAAM 診断</div>
+            <div style={{
+              fontSize: 12, fontWeight: 600, color: TEXT_MUTED, marginBottom: 12,
+              letterSpacing: '0.04em',
+            }}>志 · 知 · 技 · 衝</div>
+            <p style={{ fontSize: 13, color: TEXT_MUTED, margin: 0, lineHeight: 1.8 }}>
+              48問の診断で4軸16項目を分析し<br />
+              才覚活動領域マトリクスを可視化します
+            </p>
+            <div style={{
+              marginTop: 12, fontSize: 11, color: '#4A6FA5', fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ fontSize: 14 }}>🔒</span> パスワードが必要です
+            </div>
+          </div>
+        </button>
       </div>
 
       {/* パスワードモーダル */}
       {showPassModal && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 1000, padding: 20,
         }} onClick={() => setShowPassModal(false)}>
           <div style={{
-            background: '#111113', border: '1px solid #27272A',
-            borderRadius: 8, padding: '32px 28px',
-            width: '100%', maxWidth: 360,
+            background: WHITE, borderRadius: 16, padding: '32px 28px',
+            width: '100%', maxWidth: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }} onClick={e => e.stopPropagation()}>
-            <p style={{
-              fontSize: 11, fontWeight: 600, letterSpacing: '0.15em',
-              color: '#4A6FA5', textTransform: 'uppercase', margin: '0 0 8px',
-            }}>Activation Matrix</p>
             <h2 style={{
-              fontFamily: "'Noto Serif JP', 'Times New Roman', serif",
-              fontSize: 20, fontWeight: 800, color: '#FAFAFA', margin: '0 0 20px',
-            }}>パスワードを入力</h2>
+              fontSize: 18, fontWeight: 800, color: TEXT_PRIMARY, margin: '0 0 8px',
+              fontFamily: "'Noto Serif JP', Georgia, serif",
+            }}>UAAM 診断</h2>
+            <p style={{ fontSize: 13, color: TEXT_MUTED, margin: '0 0 20px' }}>
+              パスワードを入力してください
+            </p>
             <input
-              type="password" value={pass}
+              type="password"
+              value={pass}
               onChange={e => { setPass(e.target.value); setPassError(''); }}
               onKeyDown={e => e.key === 'Enter' && handlePassSubmit()}
-              placeholder="パスワード" autoFocus
+              placeholder="パスワード"
+              autoFocus
               style={{
-                width: '100%', padding: '12px 14px', fontSize: 14,
-                border: `1px solid ${passError ? '#EF4444' : '#27272A'}`,
-                borderRadius: 6, outline: 'none', boxSizing: 'border-box',
-                background: '#09090B', color: '#FAFAFA',
+                width: '100%', padding: '12px 14px', fontSize: 15,
+                border: `2px solid ${passError ? '#D44' : BORDER}`,
+                borderRadius: 10, outline: 'none', boxSizing: 'border-box',
+                background: '#FAFAF8',
               }}
             />
             {passError && (
-              <p style={{ fontSize: 12, color: '#EF4444', margin: '8px 0 0' }}>{passError}</p>
+              <p style={{ fontSize: 12, color: '#D44', margin: '8px 0 0' }}>{passError}</p>
             )}
-            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button onClick={() => setShowPassModal(false)} style={{
-                flex: 1, padding: '10px', borderRadius: 6,
-                border: '1px solid #27272A', background: 'none',
-                color: '#71717A', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                flex: 1, padding: '12px', borderRadius: 10, border: `1px solid ${BORDER}`,
+                background: 'transparent', color: TEXT_MUTED, fontSize: 14,
+                fontWeight: 600, cursor: 'pointer',
               }}>キャンセル</button>
               <button onClick={handlePassSubmit} style={{
-                flex: 1, padding: '10px', borderRadius: 6, border: 'none',
-                background: '#FAFAFA', color: '#09090B',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                flex: 1, padding: '12px', borderRadius: 10, border: 'none',
+                background: '#4A6FA5', color: WHITE, fontSize: 14,
+                fontWeight: 700, cursor: 'pointer',
               }}>確認</button>
             </div>
           </div>
