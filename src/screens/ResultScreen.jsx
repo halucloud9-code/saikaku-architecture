@@ -6,7 +6,7 @@ import { computePcts, CHART_COLORS } from '../utils/chartUtils';
 const COLORS = {
   ...CHART_COLORS,
   bg:     { value: '#0D1118',   talent: '#14110D',   passion: '#140D0D'   },
-  main:   { value: '#4A6FA5',   talent: '#C4922A',   passion: '#A84432'   },
+  main:   { value: '#60A5FA',   talent: '#FBBF24',   passion: '#F87171'   },
   border: { value: '#4A6FA540', talent: '#C4922A40', passion: '#A8443240' },
 };
 

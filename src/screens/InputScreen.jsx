@@ -280,10 +280,11 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
           <button onClick={handleSubmit} style={{
             width: '100%', padding: '16px', borderRadius: 6, marginTop: 32,
             border: 'none',
-            background: '#FAFAFA', color: '#09090B',
+            background: 'linear-gradient(135deg, #FBBF24, #C4922A)', color: '#09090B',
             fontSize: 14, fontWeight: 700,
             cursor: 'pointer',
-          }}>才覚領域を解析する</button>
+            boxShadow: '0 4px 16px rgba(196,146,42,0.3)',
+          }}>才覚領域を解析する →</button>
 
           <p style={{ textAlign: 'center', fontSize: 12, color: '#3F3F46', marginTop: 12 }}>
             解析には約30秒かかります
