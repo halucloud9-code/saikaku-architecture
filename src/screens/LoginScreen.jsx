@@ -253,8 +253,8 @@ export default function LoginScreen({ onLogin }) {
             display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 28,
           }}>
             {[
-              { label: '才能', en: 'Talent', color: '#FBBF24' },
               { label: '価値観', en: 'Values', color: '#60A5FA' },
+              { label: '才能', en: 'Talent', color: '#FBBF24' },
               { label: '情熱', en: 'Passion', color: '#F87171' },
             ].map((item, i) => (
               <div key={item.en} style={{
