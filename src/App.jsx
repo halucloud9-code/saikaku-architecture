@@ -174,7 +174,7 @@ export default function App() {
     }
   };
 
-  const handleUaamSubmit = async (answers) => {
+  const handleUaamSubmit = async (answers, vAnswers = {}) => {
     setUaamError('');
     setUaamResult(null);
     setScreen('uaam-loading');
@@ -190,7 +190,7 @@ export default function App() {
         res = await fetch('/api/uaam', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken, answers }),
+          body: JSON.stringify({ idToken, answers, vAnswers }),
           signal: controller.signal,
         });
       } finally {
@@ -198,7 +198,8 @@ export default function App() {
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '診断に失敗しました');
-      setUaamResult(data);
+      // vAnswers と answers を結果に含める（結果画面でV問表示に使う）
+      setUaamResult({ ...data, vAnswers, answers });
       setScreen('uaam-result');
     } catch (e) {
       if (e.name === 'AbortError') {
@@ -218,6 +219,11 @@ export default function App() {
     for (let i = 1; i <= 48; i++) {
       dummyAnswers[i] = Math.floor(Math.random() * 5) + 1;
     }
+    const dummyVAnswers = {
+      V1: Math.floor(Math.random() * 5) + 1,
+      V2: Math.floor(Math.random() * 5) + 1,
+      V3: Math.floor(Math.random() * 5) + 1,
+    };
     const scores = calculateScores(dummyAnswers);
     const analysis = {
       type_name: 'テストタイプ',
@@ -229,7 +235,7 @@ export default function App() {
       narrative: 'これはテスト用のダミーデータです。実際のAI分析は行われていません。ランダムに生成されたスコアで結果画面のレイアウトを確認するためのモードです。',
       action_suggestions: ['アクション1', 'アクション2', 'アクション3'],
     };
-    setUaamResult({ scores, analysis });
+    setUaamResult({ scores, analysis, vAnswers: dummyVAnswers, answers: dummyAnswers });
     setScreen('uaam-result');
   };
 

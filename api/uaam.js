@@ -7,7 +7,8 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
  * スコア計算（サーバーサイド）
- * 逆転項目は 6 - score で反転
+ * クライアントと同じスケール: 1〜5点、逆転項目は 6 - raw
+ * サブカテゴリ最大15、軸最大60
  */
 function calculateScores(answers, questions) {
   const axes = {
@@ -28,14 +29,14 @@ function calculateScores(answers, questions) {
       let subTotal = 0;
       for (const q of subQuestions) {
         const raw = answers[String(q.id)] || 3;
-        // 通常: 0〜4点、逆転: 4〜0点
-        subTotal += q.reverse ? 5 - raw : raw - 1;
+        // 通常: そのまま1〜5、逆転: 6 - raw（5→1, 4→2, 3→3, 2→4, 1→5）
+        subTotal += q.reverse ? 6 - raw : raw;
       }
-      subs[sub] = subTotal;
+      subs[sub] = subTotal; // 最大15（3問 × 5点）
     }
 
     const total = Object.values(subs).reduce((a, b) => a + b, 0);
-    const maxScore = axisDef.subs.length * 3 * 4; // 3問 × 最大4点
+    const maxScore = 60; // 4サブ × 3問 × 5点
     result[axisKey] = {
       total,
       max: maxScore,
@@ -168,7 +169,7 @@ export default async function handler(req, res) {
   console.log('[UAAM] FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID);
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { idToken, answers } = req.body;
+  const { idToken, answers, vAnswers } = req.body;
 
   // 認証
   let decoded;
@@ -204,19 +205,19 @@ export default async function handler(req, res) {
 ━━━ 志 -MindSet-（4M）━━━
 合計スコア: ${scores.mindset.total}/${scores.mindset.max} (${scores.mindset.percentage}%)
 サブ項目:
-${Object.entries(scores.mindset.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n')}
+${Object.entries(scores.mindset.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n')}
 ━━━ 知 -Literacy-（4L）━━━
 合計スコア: ${scores.literacy.total}/${scores.literacy.max} (${scores.literacy.percentage}%)
 サブ項目:
-${Object.entries(scores.literacy.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n')}
+${Object.entries(scores.literacy.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n')}
 ━━━ 技 -Competency-（4C）━━━
 合計スコア: ${scores.competency.total}/${scores.competency.max} (${scores.competency.percentage}%)
 サブ項目:
-${Object.entries(scores.competency.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n')}
+${Object.entries(scores.competency.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n')}
 ━━━ 衝 -Impact-（4I）━━━
 合計スコア: ${scores.impact.total}/${scores.impact.max} (${scores.impact.percentage}%)
 サブ項目:
-${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n')}`;
+${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/15`).join('\n')}`;
 
   let analysis = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -262,6 +263,7 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/12`).join('\n
       email: decoded.email || '',
       photoURL: decoded.picture || '',
       answers,
+      vAnswers: vAnswers || {},
       scores,
       analysis,
       updatedAt: FieldValue.serverTimestamp(),

@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: '管理者権限が必要です' });
   }
 
+  // 才覚領域の結果
   const snapshot = await db.collection('results').orderBy('createdAt', 'desc').get();
 
   const users = snapshot.docs.map((doc) => {
@@ -47,5 +48,28 @@ export default async function handler(req, res) {
     };
   });
 
-  return res.status(200).json({ users, total: users.length });
+  // UAAM結果（vAnswers含む）
+  const uaamSnapshot = await db.collection('uaam_results').orderBy('updatedAt', 'desc').get();
+
+  const uaamUsers = uaamSnapshot.docs.map((doc) => {
+    const d = doc.data();
+    return {
+      uid: d.uid,
+      name: d.name || '',
+      email: d.email || '',
+      photoURL: d.photoURL || '',
+      scores: d.scores || null,
+      analysis: d.analysis || null,
+      answers: d.answers || null,
+      vAnswers: d.vAnswers || null,
+      uaamCreatedAt: d.createdAt?._seconds
+        ? new Date(d.createdAt._seconds * 1000).toISOString()
+        : null,
+      uaamUpdatedAt: d.updatedAt?._seconds
+        ? new Date(d.updatedAt._seconds * 1000).toISOString()
+        : null,
+    };
+  });
+
+  return res.status(200).json({ users, uaamUsers, total: users.length, uaamTotal: uaamUsers.length });
 }

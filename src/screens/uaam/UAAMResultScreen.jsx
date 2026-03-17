@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
-import { UAAM_AXES } from '../../data/uaam_questions';
+import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
 
 /* ============================================================
  * 定数
@@ -1283,7 +1283,7 @@ function RadarChart16({ scores }) {
  * メインコンポーネント
  * ============================================================ */
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
-  const { scores, analysis } = result;
+  const { scores, analysis, vAnswers, answers } = result;
 
   // スケール自動検出（サーバー0-12 vs クライアント0-15）
   const scale = detectScale(scores);
@@ -1291,6 +1291,9 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
   MAX_AXIS = scale.maxAxis;
   MAX_CROSS = MAX_AXIS * MAX_AXIS;
   DISPLAY_CROSS = MAX_CROSS / 2;
+
+  // 妥当性チェック（V問フラグ判定）
+  const validityResult = (vAnswers && answers) ? checkValidity(vAnswers, answers) : null;
 
   const topType = determineType(scores);
   const subRadars = UAAM_AXES.map(axis => {
@@ -1376,6 +1379,31 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         <Section>
           <SectionHeader title="志知技衝 総合スコア" subtitle="MLCI Total Score" />
           <MainFanChart scores={scores} />
+
+          {/* V問スコア（小さく数字のみ） */}
+          {vAnswers && (
+            <div style={{
+              display: 'flex', justifyContent: 'center', gap: 10, marginTop: 14,
+            }}>
+              {(() => {
+                const v3Diff = (vAnswers['V3'] != null && answers?.[46] != null)
+                  ? Math.abs(vAnswers['V3'] - answers[46])
+                  : null;
+                const items = [
+                  { label: 'V1', value: vAnswers['V1'] },
+                  { label: 'V2', value: vAnswers['V2'] },
+                  { label: 'V3', value: v3Diff },
+                ];
+                return items.map(({ label, value }) => (
+                  <span key={label} style={{
+                    fontSize: 10, color: TEXT_MUTED, fontFamily: NUM_FONT, letterSpacing: '0.02em',
+                  }}>
+                    {label}.{value ?? '-'}
+                  </span>
+                ));
+              })()}
+            </div>
+          )}
         </Section>
 
         {/* ===== サブ項目 扇形チャート x4 ===== */}
