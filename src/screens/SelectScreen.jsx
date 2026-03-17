@@ -339,7 +339,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 fontSize: 14, fontWeight: 800, color: '#FFFFFF',
                 letterSpacing: '0.08em',
-              }}>才覚発動　展開領域</div>
+              }}>才覚発動　領域展開</div>
             </div>
           </div>
         </button>
