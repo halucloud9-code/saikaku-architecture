@@ -280,14 +280,42 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               marginBottom: 18,
             }} />
 
-            {/* 説明文 */}
-            <p style={{
-              fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
-              letterSpacing: '0.02em',
-            }}>
-              <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>48</span>問の診断で<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>4</span>軸<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>16</span>項目を分析し<br />
-              才覚発動領域マトリクスを可視化します
-            </p>
+            {/* 左右レイアウト：説明文 + Coming Soon */}
+            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+              {/* 左：説明文 */}
+              <div style={{ flex: 1 }}>
+                <p style={{
+                  fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
+                  letterSpacing: '0.02em',
+                }}>
+                  <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>48</span>問の診断で<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>4</span>軸<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>16</span>項目を分析し<br />
+                  才覚発動領域マトリクスを可視化します
+                </p>
+              </div>
+
+              {/* 右：Coming Soon + 才覚発動 展開領域 */}
+              <div style={{
+                textAlign: 'center',
+                padding: '12px 16px',
+                borderRadius: 12,
+                border: '1px solid rgba(255,215,0,0.15)',
+                background: 'rgba(255,215,0,0.04)',
+                minWidth: 120,
+              }}>
+                <div style={{
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontSize: 12, fontWeight: 700, letterSpacing: '0.15em',
+                  color: '#FFD700',
+                  textTransform: 'uppercase',
+                  marginBottom: 8,
+                }}>Coming Soon</div>
+                <div style={{
+                  fontFamily: "'Noto Serif JP', Georgia, serif",
+                  fontSize: 13, fontWeight: 800, color: '#FFFFFF',
+                  lineHeight: 1.6, letterSpacing: '0.05em',
+                }}>才覚発動<br />展開領域</div>
+              </div>
+            </div>
 
             {/* CTA + ロック */}
             <div style={{
