@@ -288,7 +288,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                   fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
                   letterSpacing: '0.02em',
                 }}>
-                  <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>48</span>問の診断で<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>4</span>軸<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#FFD700' }}>16</span>項目を分析し<br />
+                  <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>48</span>問の診断で<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>4</span>軸<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>16</span>項目を分析し<br />
                   才覚発動領域マトリクスを可視化します
                 </p>
               </div>
