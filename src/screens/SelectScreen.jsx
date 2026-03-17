@@ -97,14 +97,14 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.3em', color: '#C4922A',
               textTransform: 'uppercase',
-            }}>Select Program</span>
+            }}>Ability Decoding Program</span>
             <div style={{ width: 32, height: 1, background: 'linear-gradient(90deg, #C4922A, transparent)' }} />
           </div>
           <h1 style={{
             fontSize: 28, fontWeight: 800, color: '#F5F0E8', margin: 0,
             fontFamily: "'Noto Serif JP', Georgia, serif",
             letterSpacing: '0.08em',
-          }}>診断プログラム</h1>
+          }}>才覚解読プログラム</h1>
           <p style={{
             fontSize: 13, color: '#FFFFFF', marginTop: 10,
             lineHeight: 1.7, letterSpacing: '0.02em',
