@@ -68,7 +68,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
     {
       key: 'value', label: '価値観', en: 'VALUES', color: '#60A5FA',
       sublabel: 'あなたが絶対に譲れないもの・大切にしていること',
-      labelTop5: <>最も大切にしている<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>5</span>つ</>, top5: valueTop5, setTop5: setValueTop5,
+      labelTop5: <>最も大切にしている<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>5</span>つ</>, top5: valueTop5, setTop5: setValueTop5,
       placeholderTop5: '例：家族、誠実さ、自由、成長、貢献',
       labelOthers: 'その他の価値観', others: valueOthers, setOthers: setValueOthers,
       placeholderOthers: '例：挑戦、調和、美しさ...',
@@ -77,7 +77,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
     {
       key: 'talent', label: '才能', en: 'TALENT', color: '#FBBF24',
       sublabel: 'あなたが自然にできること・得意なこと',
-      labelTop5: <>最も得意な<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>5</span>つ</>, top5: talentTop5, setTop5: setTalentTop5,
+      labelTop5: <>最も得意な<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>5</span>つ</>, top5: talentTop5, setTop5: setTalentTop5,
       placeholderTop5: '例：人の話を聞く、分かりやすく説明する、人の心を動かす...',
       labelOthers: 'その他の才能', others: talentOthers, setOthers: setTalentOthers,
       placeholderOthers: '例：データ分析、語学、デザイン...',
@@ -86,7 +86,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
     {
       key: 'passion', label: '情熱', en: 'PASSION', color: '#F87171',
       sublabel: 'あなたが夢中になれること・時間を忘れること',
-      labelTop5: <>最も夢中になる<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>5</span>つ</>, top5: passionTop5, setTop5: setPassionTop5,
+      labelTop5: <>最も夢中になる<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>5</span>つ</>, top5: passionTop5, setTop5: setPassionTop5,
       placeholderTop5: '例：教育、コーチング、旅、音楽、起業...',
       labelOthers: 'その他の情熱', others: passionOthers, setOthers: setPassionOthers,
       placeholderOthers: '例：料理、読書、スポーツ...',
@@ -97,7 +97,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
   const QUESTIONS = [
     { num: 'Q1', q: <>明日死ぬとしたら<br />心残りなのは何ですか？</>, val: q1, set: setQ1, ph: '思いのままに書いてください' },
     { num: 'Q2', q: <>お金も時間も制限が一切ない。<br />明日、何をしますか？<br /><span style={{ fontSize: 11, color: '#FFFFFF' }}>できるだけ具体的に。</span></>, val: q2, set: setQ2, ph: '具体的なシーン・行動・場所・誰といるか...' },
-    { num: 'Q3', q: <>才覚領域を全力で生き続けた<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>10</span>年後<br />あなたの周りはどんな影響や変化を遂げていますか？</>, val: q3, set: setQ3, ph: '人・組織・社会・世界...どんな変化が起きているか' },
+    { num: 'Q3', q: <>才覚領域を全力で生き続けた<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>10</span>年後<br />あなたの周りはどんな影響や変化を遂げていますか？</>, val: q3, set: setQ3, ph: '人・組織・社会・世界...どんな変化が起きているか' },
   ];
 
   return (
@@ -161,7 +161,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
             margin: '0 0 10px',
           }}>才覚領域を発見する</h2>
           <p style={{ fontSize: 13, color: '#FFFFFF', margin: 0, lineHeight: 1.8 }}>
-            <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>3</span>つの問いに答えるだけで、あなただけの才覚領域が明らかになります
+            <span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>3</span>つの問いに答えるだけで、あなただけの才覚領域が明らかになります
           </p>
         </div>
 
@@ -271,7 +271,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
                     width: 34, height: 34, borderRadius: '50%',
                     background: 'rgba(168,150,200,0.15)', border: '1.5px solid rgba(168,150,200,0.5)',
                     color: '#FFFFFF', fontSize: 13, fontWeight: 800, flexShrink: 0, marginTop: 2,
-                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
                     letterSpacing: '0.02em',
                   }}>{item.num}</span>
                   <p style={{
@@ -314,7 +314,7 @@ export default function InputScreen({ user, error, isAdmin, onSubmit, onAdmin, o
           }}>才覚領域を解析する →</button>
 
           <p style={{ textAlign: 'center', fontSize: 12, color: '#FFFFFF', marginTop: 14 }}>
-            ※ 解析には約<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>30</span>秒かかります
+            ※ 解析には約<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>30</span>秒かかります
           </p>
 
           {/* 戻る */}

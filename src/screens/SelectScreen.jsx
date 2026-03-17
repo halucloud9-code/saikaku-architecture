@@ -169,7 +169,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             <div style={{
               fontSize: 12, fontWeight: 600, color: '#C4922A',
               letterSpacing: '0.12em', marginBottom: 20,
-              fontFamily: "'Playfair Display', Georgia, serif",
+              fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
             }}>Architecture</div>
 
             {/* 区切り */}
@@ -264,7 +264,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 letterSpacing: '0.06em',
                 display: 'block',
               }}>才覚発動領域<span style={{
-                fontFamily: "'Playfair Display', Georgia, serif",
+                fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
                 fontSize: 16, fontWeight: 700, color: '#6B9AD4',
                 marginLeft: 6, letterSpacing: '0.08em',
               }}>MATRIX</span></span>
@@ -280,42 +280,14 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               marginBottom: 18,
             }} />
 
-            {/* 左右レイアウト：説明文 + Coming Soon */}
-            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-              {/* 左：説明文 */}
-              <div style={{ flex: 1 }}>
-                <p style={{
-                  fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
-                  letterSpacing: '0.02em',
-                }}>
-                  <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>48</span>問の診断で<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>4</span>軸<span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 }}>16</span>項目を分析し<br />
-                  才覚発動領域マトリクスを可視化します
-                </p>
-              </div>
-
-              {/* 右：Coming Soon + 才覚発動 展開領域 */}
-              <div style={{
-                textAlign: 'center',
-                padding: '12px 16px',
-                borderRadius: 12,
-                border: '1px solid rgba(255,215,0,0.15)',
-                background: 'rgba(255,215,0,0.04)',
-                minWidth: 120,
-              }}>
-                <div style={{
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  fontSize: 12, fontWeight: 700, letterSpacing: '0.15em',
-                  color: '#FFD700',
-                  textTransform: 'uppercase',
-                  marginBottom: 8,
-                }}>Coming Soon</div>
-                <div style={{
-                  fontFamily: "'Noto Serif JP', Georgia, serif",
-                  fontSize: 13, fontWeight: 800, color: '#FFFFFF',
-                  lineHeight: 1.6, letterSpacing: '0.05em',
-                }}>才覚発動<br />展開領域</div>
-              </div>
-            </div>
+            {/* 説明文 */}
+            <p style={{
+              fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
+              letterSpacing: '0.02em',
+            }}>
+              <span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>48</span>問の診断で<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>4</span>軸<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>16</span>項目を分析し<br />
+              才覚発動領域マトリクスを可視化します
+            </p>
 
             {/* CTA + ロック */}
             <div style={{
@@ -348,6 +320,26 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 </svg>
                 <span>パスワード</span>
               </div>
+            </div>
+
+            {/* Coming Soon — 枠なし、一番下 */}
+            <div style={{
+              marginTop: 24, paddingTop: 20,
+              borderTop: '1px solid rgba(74,111,165,0.12)',
+              textAlign: 'center',
+            }}>
+              <div style={{
+                fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
+                color: '#FFD700',
+                textTransform: 'uppercase',
+                marginBottom: 6,
+              }}>Coming Soon</div>
+              <div style={{
+                fontFamily: "'Noto Serif JP', Georgia, serif",
+                fontSize: 14, fontWeight: 800, color: '#FFFFFF',
+                letterSpacing: '0.08em',
+              }}>才覚発動　展開領域</div>
             </div>
           </div>
         </button>

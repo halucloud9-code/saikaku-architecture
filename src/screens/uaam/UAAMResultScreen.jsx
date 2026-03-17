@@ -1142,7 +1142,7 @@ function RadarChart16({ scores }) {
       ctx.fillText(axes[i].en, lx + nudgeX, ly + 4);
 
       // スコア数字（大きく、白、太字）
-      ctx.font = 'bold 16px "Playfair Display", Georgia, serif';
+      ctx.font = 'bold 16px "DM Sans", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = '#FFFFFF';
       ctx.fillText(score + '', lx + nudgeX, ly + 22);
 
@@ -1240,7 +1240,7 @@ function RadarChart16({ scores }) {
           borderRadius: 20, padding: '6px 20px', marginBottom: 16,
         }}>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, letterSpacing: '0.08em' }}>TOTAL SCORE</span>
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#FFD700', fontFamily: "'Playfair Display', Georgia, serif" }}>{totalScore}</span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: '#FFD700', fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif" }}>{totalScore}</span>
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>/ 240</span>
         </div>
 

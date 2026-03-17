@@ -87,7 +87,7 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
           </button>
           <span
             style={{
-              fontFamily: "'Playfair Display', 'Noto Serif JP', Georgia, serif",
+              fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
               fontSize: 16,
               fontWeight: 700,
               color: '#2A2520',

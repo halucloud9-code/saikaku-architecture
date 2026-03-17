@@ -17,7 +17,7 @@ const injectStyles = () => {
   const style = document.createElement('style');
   style.id = 'login-screen-styles';
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=Noto+Serif+JP:wght@400;600;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Playfair+Display:wght@400;600;700;800;900&family=Noto+Serif+JP:wght@400;600;700;900&display=swap');
 
     @keyframes loginSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
     @keyframes loginFloat {
