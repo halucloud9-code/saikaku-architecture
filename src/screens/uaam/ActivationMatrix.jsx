@@ -268,15 +268,19 @@ export default function ActivationMatrix({ scores, maxSub = 15 }) {
       const dp = getDataPoint(i);
       const c = points[i].color;
       const isActive = activeI === i;
-      const isTop = top3.some(t => t.idx === i);
-      const dotR = isActive ? 7 : isTop ? 5 : 3;
-      const pulseR = isTop ? (1 + Math.sin(st.time * 3 + i) * 0.15) : 1;
+      const topRank = top3.findIndex(t => t.idx === i);
+      const isTop = topRank >= 0;
+      const dotR = isActive ? 8 : topRank === 0 ? 7 : topRank === 1 ? 6 : isTop ? 5.5 : 3;
+      const pulseR = isTop ? (1 + Math.sin(st.time * 3 + i) * (topRank === 0 ? 0.2 : 0.12)) : 1;
 
-      // Outer glow
+      // Outer glow (Top3 = bigger, brighter)
       if (isActive || isTop) {
-        const glowR = (dotR + 8) * pulseR;
+        const glowSize = topRank === 0 ? 18 : topRank === 1 ? 14 : isTop ? 12 : 10;
+        const glowR = (dotR + glowSize) * pulseR;
+        const glowAlpha = isActive ? 0.5 : topRank === 0 ? 0.4 : topRank === 1 ? 0.3 : 0.2;
         const grad = ctx.createRadialGradient(dp.x, dp.y, 0, dp.x, dp.y, glowR);
-        grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${isActive ? 0.5 : 0.25})`);
+        grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${glowAlpha})`);
+        grad.addColorStop(0.5, `rgba(${c[0]},${c[1]},${c[2]},${glowAlpha * 0.3})`);
         grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
         ctx.beginPath();
         ctx.arc(dp.x, dp.y, glowR, 0, Math.PI * 2);
@@ -301,14 +305,15 @@ export default function ActivationMatrix({ scores, maxSub = 15 }) {
     }
 
     // === Labels ===
-    const labelR = R + 24;
+    const labelR = R + 26;
     for (let i = 0; i < N; i++) {
       const angle = getAngle(i);
       const lx = cx + Math.cos(angle) * labelR * ep;
       const ly = cy + Math.sin(angle) * labelR * ep;
       const c = points[i].color;
       const isActive = activeI === i;
-      const isTop = top3.some(t => t.idx === i);
+      const topRank = top3.findIndex(t => t.idx === i); // 0,1,2 or -1
+      const isTop = topRank >= 0;
       const cos = Math.cos(angle);
       const align = cos > 0.15 ? 'left' : cos < -0.15 ? 'right' : 'center';
       const nudge = cos > 0.15 ? 8 : cos < -0.15 ? -8 : 0;
@@ -316,23 +321,66 @@ export default function ActivationMatrix({ scores, maxSub = 15 }) {
       ctx.textAlign = align;
       ctx.textBaseline = 'middle';
 
-      // Score number
-      ctx.font = `${isActive || isTop ? '700' : '500'} ${isActive ? 15 : 13}px "DM Sans", sans-serif`;
-      ctx.fillStyle = isActive
-        ? `rgb(${c[0]},${c[1]},${c[2]})`
-        : isTop ? '#FFFFFF' : 'rgba(255,255,255,0.6)';
-      ctx.fillText(points[i].raw + '', lx + nudge, ly - 8);
+      if (isTop) {
+        // === TOP 3: デカい数字 + ランク + グロー ===
+        const fontSize = topRank === 0 ? 22 : topRank === 1 ? 18 : 16;
 
-      // Japanese label
-      ctx.font = `${isActive ? '700' : '400'} ${isActive ? 11 : 10}px sans-serif`;
-      ctx.fillStyle = isActive ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)';
-      ctx.fillText(points[i].jp, lx + nudge, ly + 6);
+        // 数字にグロー
+        ctx.save();
+        ctx.shadowColor = `rgba(${c[0]},${c[1]},${c[2]},0.6)`;
+        ctx.shadowBlur = topRank === 0 ? 12 : 6;
+        ctx.font = `800 ${fontSize}px "DM Sans", sans-serif`;
+        ctx.fillStyle = topRank === 0
+          ? '#FFFFFF'
+          : `rgba(255,255,255,${topRank === 1 ? 0.95 : 0.85})`;
+        ctx.fillText(points[i].raw + '', lx + nudge, ly - 10);
+        ctx.restore();
 
-      // Percentage on active
-      if (isActive) {
+        // ランクバッジ（#1, #2, #3）
+        const badgeX = align === 'left' ? lx + nudge - 2 : align === 'right' ? lx + nudge + 2 : lx + nudge;
+        ctx.font = `700 9px "DM Sans", sans-serif`;
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        const rankLabel = '#' + (topRank + 1);
+        const badgeOffsetX = align === 'left'
+          ? ctx.measureText(points[i].raw + '').width + 6
+          : align === 'right'
+          ? -(ctx.measureText(points[i].raw + '').width + 6)
+          : ctx.measureText(points[i].raw + '').width / 2 + 6;
+        ctx.fillText(rankLabel, lx + nudge + badgeOffsetX, ly - 14);
+
+        // 日本語ラベル
+        ctx.font = `700 ${topRank === 0 ? 12 : 11}px sans-serif`;
+        ctx.fillStyle = `rgba(255,255,255,${topRank === 0 ? 0.9 : 0.7})`;
+        ctx.fillText(points[i].jp, lx + nudge, ly + 6);
+
+        // パーセンテージ
+        ctx.font = `600 10px "DM Sans", sans-serif`;
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.8)`;
+        ctx.fillText(points[i].pct + '%', lx + nudge, ly + 20);
+
+      } else if (isActive) {
+        // === Active（ホバー/選択）===
+        ctx.font = '700 15px "DM Sans", sans-serif';
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillText(points[i].raw + '', lx + nudge, ly - 8);
+
+        ctx.font = '700 11px sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillText(points[i].jp, lx + nudge, ly + 6);
+
         ctx.font = '600 9px "DM Sans", sans-serif';
         ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.7)`;
         ctx.fillText(points[i].pct + '%', lx + nudge, ly + 19);
+
+      } else {
+        // === 通常 ===
+        ctx.font = '500 12px "DM Sans", sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillText(points[i].raw + '', lx + nudge, ly - 7);
+
+        ctx.font = '400 10px sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillText(points[i].jp, lx + nudge, ly + 6);
       }
     }
 
