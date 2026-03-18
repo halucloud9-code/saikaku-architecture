@@ -78,90 +78,90 @@ export const UAAM_QUESTIONS = [
   // ━━━ 志 -MindSet- (4M) ━━━
 
   // ① Meaning（意味）：行動の軸をつくる力
-  { id: 1,  axis: 'mindset', sub: 'meaning',     text: '今日の全ての行動の起点が、SPから来ていると言い切れる。', reverse: false },
-  { id: 2,  axis: 'mindset', sub: 'meaning',     text: '「とりあえず動いた」「なんとなく続けた」日が今週もあった。', reverse: true },
-  { id: 3,  axis: 'mindset', sub: 'meaning',     text: 'SPに反する選択肢を、損得を考えず今日も即座に手放した事実がある。', reverse: false },
+  { id: 1,  axis: 'mindset', sub: 'meaning',     text: '今日の行動の多くが、SPを起点に選べている。', reverse: false },
+  { id: 2,  axis: 'mindset', sub: 'meaning',     text: '目的（SP）より、いつもの癖や流れで動くことが多い。', reverse: true },
+  { id: 3,  axis: 'mindset', sub: 'meaning',     text: '損得や感情より先に目的（SP）を基準にして、とるべき選択を選んでいる。', reverse: false },
 
   // ② Mindfulness（気づき）：今に意識を向け、変化を受け入れる力
-  { id: 4,  axis: 'mindset', sub: 'mindfulness',  text: '防衛反応が出た瞬間に気づき、その場でStyleγに戻せている。', reverse: false },
-  { id: 5,  axis: 'mindset', sub: 'mindfulness',  text: '感情的に反応した後、修正できないままその日が終わった日がある。', reverse: true },
-  { id: 6,  axis: 'mindset', sub: 'mindfulness',  text: '自分にとって不都合な変化を、今日も抵抗なく受け入れて動いた事実がある。', reverse: false },
+  { id: 4,  axis: 'mindset', sub: 'mindfulness',  text: '防衛反応が出たときに気づき、本来の自分のあり方と行動に立ち戻ることが多い。', reverse: false },
+  { id: 5,  axis: 'mindset', sub: 'mindfulness',  text: '感情的に反応したまま、立て直せずに終わることがある。', reverse: true },
+  { id: 6,  axis: 'mindset', sub: 'mindfulness',  text: '急な変化があっても、文句や不安より先に「じゃあどうするか」に意識が向く。', reverse: false },
 
   // ③ Mindshift（意識転換）：固定観念を手放し、新しい可能性を見出す力
-  { id: 7,  axis: 'mindset', sub: 'mindshift',    text: '「自分はこういう人間だ」という思い込みを、今日も疑えている。', reverse: false },
-  { id: 8,  axis: 'mindset', sub: 'mindshift',    text: 'Styleγと頭でわかっていながら、αかβのパターンで動いた日が今週あった。', reverse: true },
-  { id: 9,  axis: 'mindset', sub: 'mindshift',    text: '新しいものを生み出すために、あえて今までやってきたことをやらないことを定期的にやっている。', reverse: false },
+  { id: 7,  axis: 'mindset', sub: 'mindshift',    text: '「自分にはどうせ無理」「自分はそういうタイプじゃない」という声が出たとき、それを事実として扱わずにいられる。', reverse: false },
+  { id: 8,  axis: 'mindset', sub: 'mindshift',    text: '望ましいあり方がわかっていても、つい防衛的な反応で動いてしまうことがある。', reverse: true },
+  { id: 9,  axis: 'mindset', sub: 'mindshift',    text: '新しいものを生み出すために、あえて今までのやり方を手放すことがある。', reverse: false },
 
-  // ④ Mastery（熟達）：実践と反復で学びを定着させる力 ★本丸：学び→行動化
-  { id: 10, axis: 'mindset', sub: 'mastery',      text: '学んだことが今日の行動に出ていると、具体的な場面で言い切れる。', reverse: false },
-  { id: 11, axis: 'mindset', sub: 'mastery',      text: '実践しようと決めたことが、気づけばやらなくなっている。', reverse: true },
-  { id: 12, axis: 'mindset', sub: 'mastery',      text: '意識せず自然に動いた結果が、今日も周囲から見える形で出ている。', reverse: false },
+  // ④ Mastery（熟達）：実践と反復で学びを定着させる力
+  { id: 10, axis: 'mindset', sub: 'mastery',      text: '学んだことを、夢（SD）に向けた日々の行動に落とし込み、成果につなげられている。', reverse: false },
+  { id: 11, axis: 'mindset', sub: 'mastery',      text: '実践しようと決めたことが、いつの間にか続かなくなっていることがある。', reverse: true },
+  { id: 12, axis: 'mindset', sub: 'mastery',      text: '意識せず自然にした行動であっても、誰かにプラスの影響を与えている。', reverse: false },
 
   // ━━━ 知 -Literacy- (4L) ━━━
 
   // ⑤ Learning（学習）：感情を捨てて事実だけを見る力
-  { id: 13, axis: 'literacy', sub: 'learning',    text: '新しい情報に触れたとき、感情や先入観を排除し、事実だけを正確に抽出することが習慣になっている。', reverse: false },
-  { id: 14, axis: 'literacy', sub: 'learning',    text: '「わかった気分」になるだけで満足し、事実の検証や裏取りを飛ばしていることがある。', reverse: true },
-  { id: 15, axis: 'literacy', sub: 'learning',    text: '自分が抽出した事実と、他者が同じ情報から得る結論に、明確な精度の差が出ている。', reverse: false },
+  { id: 13, axis: 'literacy', sub: 'learning',    text: '新しい情報に触れたとき、感情や先入観に引っ張られず、事実を正確に捉えようとしている。', reverse: false },
+  { id: 14, axis: 'literacy', sub: 'learning',    text: 'わかったつもりで満足し、事実の確認や裏取りを十分にしないことがある。', reverse: true },
+  { id: 15, axis: 'literacy', sub: 'learning',    text: '同じ情報を見ても、自分は事実をより正確に整理できていると感じることがある。', reverse: false },
 
   // ⑥ Logical（論理）：必要なことだけを伝え、相手を正確に動かす力
-  { id: 16, axis: 'literacy', sub: 'logical',     text: '相手と仲良くなるためではなく、目的をもち、必要なことを伝えることが習慣になっている。', reverse: false },
-  { id: 17, axis: 'literacy', sub: 'logical',     text: '相手に共感しようとしたり、余計なことを話しすぎたりして、かえって相手を混乱させていることがある。', reverse: true },
-  { id: 18, axis: 'literacy', sub: 'logical',     text: '自分が出した指示や依頼に対して、相手から確認や質問が戻ってくることがほぼない。', reverse: false },
+  { id: 16, axis: 'literacy', sub: 'logical',     text: '目的に応じて、論理で伝えるかストーリーで伝えるかを使い分けることが習慣になっている。', reverse: false },
+  { id: 17, axis: 'literacy', sub: 'logical',     text: '相手に合わせすぎたり、話しすぎたりして、かえって伝わりにくくしてしまうことがある。', reverse: true },
+  { id: 18, axis: 'literacy', sub: 'logical',     text: '自分が出した指示や依頼は、相手が追加の確認をほとんど必要とせず動ける形で伝えられている。', reverse: false },
 
   // ⑦ Life（社会実装）：精神論を捨て、目に見える結果に変える力
-  { id: 19, axis: 'literacy', sub: 'life',        text: '学んだことの成果を、気持ちや感覚ではなく、数字・期限・成果物など目に見える形で定義している。', reverse: false },
-  { id: 20, axis: 'literacy', sub: 'life',        text: '成果を「手応えがあった」「反応がよかった」という感覚で評価し、具体的な数字で測定していないことがある。', reverse: true },
-  { id: 21, axis: 'literacy', sub: 'life',        text: '自分の学びの成果を、第三者が見ても測定できる数字や結果として、継続的に提示できている。', reverse: false },
+  { id: 19, axis: 'literacy', sub: 'life',        text: '学んだことの成果を、感覚ではなく、数字・期限・成果物など見える形で定めている。', reverse: false },
+  { id: 20, axis: 'literacy', sub: 'life',        text: '成果を感覚で判断し、具体的な数字や基準で測れていないことがある。', reverse: true },
+  { id: 21, axis: 'literacy', sub: 'life',        text: '自分の学びの成果は、第三者が見てもわかる数字・期限・成果物として示せている。', reverse: false },
 
   // ⑧ Leadership（リーダーシップ）：なれ合いを捨て、一人で結果を出せる人間を作る力
-  { id: 22, axis: 'literacy', sub: 'leadership',  text: 'なれ合いや同情を一切捨て、相手が一人で戦って結果を出せるように、自分のやり方をそのまま渡している。', reverse: false },
-  { id: 23, axis: 'literacy', sub: 'leadership',  text: '相手の気持ちに寄り添いすぎた結果、自分がいないと何もできない「甘えた人間」を作ってしまっている。', reverse: true },
-  { id: 24, axis: 'literacy', sub: 'leadership',  text: '自分が教えた相手が、さらに別の相手に同じことを教え、その相手も結果を出している。', reverse: false },
+  { id: 22, axis: 'literacy', sub: 'leadership',  text: '相手が自立して結果を出せるように、再現できる形で自分のやり方を渡している。', reverse: false },
+  { id: 23, axis: 'literacy', sub: 'leadership',  text: '相手に寄り添いすぎた結果、自分がいないと動けない状態を生んでしまうことがある。', reverse: true },
+  { id: 24, axis: 'literacy', sub: 'leadership',  text: '自分が教えた相手が、さらに別の相手にも再現できる形で伝え、結果につなげている。', reverse: false },
 
   // ━━━ 技 -Competency- (4C) ━━━
 
   // ⑨ Critical Thinking（批判的思考）：論理的に見抜く力
-  { id: 25, axis: 'competency', sub: 'critical',      text: '自分の判断について、根拠と仮説を分けて構造的に説明することが習慣になっている。', reverse: false },
-  { id: 26, axis: 'competency', sub: 'critical',      text: '結論を先に決めてから、それに合う理由を後から集めてしまうことがある。', reverse: true },
-  { id: 27, axis: 'competency', sub: 'critical',      text: '周囲が見落としていた論点や本質を、自分が先に整理して言葉にする場面が繰り返しある。', reverse: false },
+  { id: 25, axis: 'competency', sub: 'critical',      text: '自分の判断について、根拠と仮説を分けて整理しながら説明できている。', reverse: false },
+  { id: 26, axis: 'competency', sub: 'critical',      text: '先に結論ありきで考え、それに合う理由を後から集めてしまうことがある。', reverse: true },
+  { id: 27, axis: 'competency', sub: 'critical',      text: '周囲が見落としていた論点や本質を、自分が先に整理して言葉にすることがある。', reverse: false },
 
   // ⑩ Creativity（創造性）：新しいアイデアを生み出す力
-  { id: 28, axis: 'competency', sub: 'creativity',    text: '問題解決の際に、自分の業界や専門分野以外からヒントを取り入れることが習慣になっている。', reverse: false },
-  { id: 29, axis: 'competency', sub: 'creativity',    text: '新しい発想が必要な場面でも、過去にうまくいったやり方に頼り続けてしまうことがある。', reverse: true },
-  { id: 30, axis: 'competency', sub: 'creativity',    text: '一見関係のない要素を組み合わせて、新しいアイデアや形を実際に生み出すことが日常的にある。', reverse: false },
+  { id: 28, axis: 'competency', sub: 'creativity',    text: '問題を解決するとき、自分の専門外からもヒントを取り入れている。', reverse: false },
+  { id: 29, axis: 'competency', sub: 'creativity',    text: '新しい発想が必要でも、過去にうまくいったやり方に頼ってしまうことがある。', reverse: true },
+  { id: 30, axis: 'competency', sub: 'creativity',    text: '一見関係のない要素を組み合わせて、新しいアイデアや形を生み出すことがある。', reverse: false },
 
-  // ⑪ Communication（伝える力）：考えを伝え共感を得る力 ★本丸：伝えて相手を動かす
-  { id: 31, axis: 'competency', sub: 'communication', text: '自分の伝え方によって、相手の理解や行動に変化が起こることが継続している。', reverse: false },
-  { id: 32, axis: 'competency', sub: 'communication', text: '相手に伝わらなかったときも、伝え方を大きく変えずに終えてしまうことがある。', reverse: true },
-  { id: 33, axis: 'competency', sub: 'communication', text: '自分の言葉がきっかけとなって、相手が自発的に動き出す場面が繰り返しある。', reverse: false },
+  // ⑪ Communication（伝える力）：考えを伝え共感を得る力
+  { id: 31, axis: 'competency', sub: 'communication', text: '自分の伝え方によって、相手の理解が深まったり、行動が変わったりすることが続いている。', reverse: false },
+  { id: 32, axis: 'competency', sub: 'communication', text: '相手に伝わらなくても、伝え方を十分に変えないまま終えてしまうことがある。', reverse: true },
+  { id: 33, axis: 'competency', sub: 'communication', text: '動く意志のある相手に対して、自分の言葉をきっかけに、相手が自発的に動き出す場面が繰り返しある。', reverse: false },
 
   // ⑫ Collaboration（協働）：多様な人と協働する力
-  { id: 34, axis: 'competency', sub: 'collaboration', text: '年齢・立場・専門の異なる人とも、目的を持って協力しながら成果を出すことが定着している。', reverse: false },
-  { id: 35, axis: 'competency', sub: 'collaboration', text: '自分と価値観や進め方が違う相手とは、うまく噛み合わないまま終わってしまうことがある。', reverse: true },
-  { id: 36, axis: 'competency', sub: 'collaboration', text: '自分一人では出せなかった成果を、他者との協働によって再現できている。', reverse: false },
+  { id: 34, axis: 'competency', sub: 'collaboration', text: '年齢・立場・専門の異なる人とも、目的を共有しながら協力して成果につなげている。', reverse: false },
+  { id: 35, axis: 'competency', sub: 'collaboration', text: '自分と価値観や進め方が違う相手とは、うまく連携できないまま終わることがある。', reverse: true },
+  { id: 36, axis: 'competency', sub: 'collaboration', text: '自分一人では出せなかった成果を、他者との協働によって実際に生み出せている。', reverse: false },
 
   // ━━━ 衝 -Impact- (4I) ━━━
 
   // ⑬ Idea（アイデア）：熱狂できるテーマを見出す力
-  { id: 37, axis: 'impact', sub: 'idea',           text: '他人からの指示や評価とは無関係に、すべてのエネルギーを注ぎ込める対象が明確に存在する。', reverse: false },
-  { id: 38, axis: 'impact', sub: 'idea',           text: '何に力を注ぐべきかが定まらず、目先の出来事に振り回されてエネルギーを無駄に分散させていることがある。', reverse: true },
-  { id: 39, axis: 'impact', sub: 'idea',           text: '自分の熱量に共鳴した人間が、指示ではなく自分ごととしてそのテーマを引き受けていることが今の日常になっている。', reverse: false },
+  { id: 37, axis: 'impact', sub: 'idea',           text: '他人の評価とは無関係に、強くエネルギーを注げる対象が明確にある。', reverse: false },
+  { id: 38, axis: 'impact', sub: 'idea',           text: '力を注ぐ対象が定まらず、目先の出来事に振り回されてエネルギーが分散してしまうことがある。', reverse: true },
+  { id: 39, axis: 'impact', sub: 'idea',           text: '自分の熱量に共鳴した人が、自発的にテーマを動かし大きな流れができている。', reverse: false },
 
   // ⑭ Innovation（変革）：知識と技能を形にする力
-  { id: 40, axis: 'impact', sub: 'innovation',     text: '頭の中の構想をそのままにせず、必ず目に見える形や結果として現実に出力することが習慣になっている。', reverse: false },
-  { id: 41, axis: 'impact', sub: 'innovation',     text: '構想やアイデアを持ちながら、プロトタイプや試作すら作らずに時間が過ぎていることがある。', reverse: true },
-  { id: 42, axis: 'impact', sub: 'innovation',     text: '知識と技術を組み合わせて現実に形を生み出すことが、今の自分のデフォルトの動き方になっている。', reverse: false },
+  { id: 40, axis: 'impact', sub: 'innovation',     text: '頭の中の構想を止めたままにせず、見える形や結果として表に出している。', reverse: false },
+  { id: 41, axis: 'impact', sub: 'innovation',     text: '構想やアイデアがあっても、試作まで進まないまま時間が過ぎることがある。', reverse: true },
+  { id: 42, axis: 'impact', sub: 'innovation',     text: '知識と技術を組み合わせて現実に形を生み出すことが、自然にできている。', reverse: false },
 
   // ⑮ Implementation（実装）：社会に実装する力
-  { id: 43, axis: 'impact', sub: 'implementation', text: '自分が作ったものを自己満足で終わらせず、組織や社会の仕組みの一部として実際に稼働させている。', reverse: false },
-  { id: 44, axis: 'impact', sub: 'implementation', text: '成果物を作っただけで満足し、それが誰にも使われず現実の何の役にも立っていないことがある。', reverse: true },
-  { id: 45, axis: 'impact', sub: 'implementation', text: '自分が構築した仕組みが、当初の想定を超えて、別の領域や組織にも転用されていることが今の当たり前になっている。', reverse: false },
+  { id: 43, axis: 'impact', sub: 'implementation', text: '自分が生み出したものを自己満足で終わらせず、実際に使われる形まで落とし込んでいる。', reverse: false },
+  { id: 44, axis: 'impact', sub: 'implementation', text: '形にしたことで満足し、実際に使われる段階まで進んでいないことがある。', reverse: true },
+  { id: 45, axis: 'impact', sub: 'implementation', text: '自分が構築した仕組みが、当初の想定を超えて別の領域や組織にも転用されている。', reverse: false },
 
-  // ⑯ Influence（影響）：変化を広げ文化として根づかせる力 ★本丸：自分不在でも機能する
-  { id: 46, axis: 'impact', sub: 'influence',      text: '自分が持ち込んだ基準に周囲が染まり、以前のやり方に戻れなくなっていることが今の日常になっている。', reverse: false },
-  { id: 47, axis: 'impact', sub: 'influence',      text: '自分が直接言わなくなった途端、空気が緩み、以前の低い基準に戻る場面がある。', reverse: true },
-  { id: 48, axis: 'impact', sub: 'influence',      text: '自分が直接関与しなくても、自分が持ち込んだ変化が当たり前のルールとして機能し続けることが今の現実になっている。', reverse: false },
+  // ⑯ Influence（影響）：変化を広げ文化として根づかせる力
+  { id: 46, axis: 'impact', sub: 'influence',      text: '自分が持ち込んだ基準が周囲に定着し、以前より高い基準で動くことが当たり前になっている。', reverse: false },
+  { id: 47, axis: 'impact', sub: 'influence',      text: '自分の言葉や関わりがあっても、相手の認識や行動が大きくは変わらないことがある。', reverse: true },
+  { id: 48, axis: 'impact', sub: 'influence',      text: '自分が直接関与しなくても、自分が持ち込んだ変化が仕組みやルールとして機能し続けている。', reverse: false },
 ];
 
 /**
