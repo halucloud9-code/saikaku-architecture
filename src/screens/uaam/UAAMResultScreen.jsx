@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
 import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
+import ActivationMatrix from './ActivationMatrix';
 
 /* ============================================================
  * 定数
@@ -1439,8 +1440,8 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         {/* ===== 才覚発動領域マトリクス ===== */}
         <ActivityDomainChart scores={scores} />
 
-        {/* ===== 16軸レーダーチャート ===== */}
-        <RadarChart16 scores={scores} />
+        {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
+        <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
 
         {/* ===== AI分析 ===== */}
         {analysis && (
