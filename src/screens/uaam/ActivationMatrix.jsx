@@ -1,487 +1,590 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 /**
- * ActivationMatrix — 16項目統一レーダーチャート
+ * ActivationMatrix — 16項目統一チャート
+ * System 1 Design: 見た瞬間に心を奪う
  *
- * 4軸 × 4サブ = 16次元を1つの多角形で可視化
- * ダーク背景 + グロー + アニメーション + インタラクション
+ * Canvas描画 + requestAnimationFrame で:
+ * - 呼吸するグローアニメーション
+ * - パーティクルエフェクト（データ頂点から放射）
+ * - グラデーションポリゴン（軸色が滑らかに遷移）
+ * - 展開アニメーション（easeOutExpo）
  */
 
 const NUM_FONT = "'DM Sans', 'Outfit', sans-serif";
+const N = 16;
 
 const AXIS_META = [
-  { key: 'mindset',    kanji: '志', en: 'MindSet',    color: '#4A8FD4', glow: '#4A8FD440' },
-  { key: 'literacy',   kanji: '知', en: 'Literacy',   color: '#3DBD7A', glow: '#3DBD7A40' },
-  { key: 'competency', kanji: '技', en: 'Competency', color: '#D4A84A', glow: '#D4A84A40' },
-  { key: 'impact',     kanji: '衝', en: 'Impact',     color: '#D45A4A', glow: '#D45A4A40' },
+  { key: 'mindset',    kanji: '志', en: 'MindSet',    color: [90, 150, 220],  hex: '#5A96DC' },
+  { key: 'literacy',   kanji: '知', en: 'Literacy',   color: [70, 195, 130],  hex: '#46C382' },
+  { key: 'competency', kanji: '技', en: 'Competency', color: [220, 175, 70],  hex: '#DCAF46' },
+  { key: 'impact',     kanji: '衝', en: 'Impact',     color: [220, 95, 80],   hex: '#DC5F50' },
 ];
 
 const SUB_META = [
-  // 志 (0-3)
   { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '意味' },
   { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '気づき' },
   { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '意識転換' },
   { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達' },
-  // 知 (4-7)
   { key: 'learning',      axis: 1, label: 'Learning',      jp: '学習' },
   { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理' },
   { key: 'life',          axis: 1, label: 'Life',          jp: '社会実装' },
   { key: 'leadership',    axis: 1, label: 'Leadership',    jp: 'リーダーシップ' },
-  // 技 (8-11)
   { key: 'critical',      axis: 2, label: 'Critical',      jp: '批判的思考' },
   { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造性' },
   { key: 'communication', axis: 2, label: 'Communication', jp: '伝える力' },
   { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働' },
-  // 衝 (12-15)
   { key: 'idea',           axis: 3, label: 'Idea',           jp: 'アイデア' },
   { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革' },
   { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装' },
   { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響' },
 ];
 
-const N = 16;
-const CX = 260, CY = 260, OUTER_R = 190;
-const SVG_SIZE = 520;
-
-function polarToXY(i, r) {
-  const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
-  return { x: CX + Math.cos(angle) * r, y: CY + Math.sin(angle) * r };
+function getAngle(i) {
+  return (Math.PI * 2 * i) / N - Math.PI / 2;
 }
 
-function ringPath(r) {
-  return SUB_META.map((_, i) => {
-    const p = polarToXY(i, r);
-    return `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`;
-  }).join(' ') + ' Z';
+function lerpColor(c1, c2, t) {
+  return [
+    Math.round(c1[0] + (c2[0] - c1[0]) * t),
+    Math.round(c1[1] + (c2[1] - c1[1]) * t),
+    Math.round(c1[2] + (c2[2] - c1[2]) * t),
+  ];
 }
 
-export default function ActivationMatrix({ scores, maxSub = 15, onSubClick }) {
-  const [animProgress, setAnimProgress] = useState(0);
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+export default function ActivationMatrix({ scores, maxSub = 15 }) {
+  const canvasRef = useRef(null);
   const [selectedIdx, setSelectedIdx] = useState(null);
-  const animRef = useRef(null);
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const stateRef = useRef({ time: 0, entryProgress: 0, particles: [], mouseX: -1, mouseY: -1 });
+  const frameRef = useRef(null);
 
-  // Build data points
+  // Build data
   const points = useMemo(() => {
     return SUB_META.map((sub, i) => {
       const axisData = scores?.[AXIS_META[sub.axis].key];
       const raw = axisData?.subs?.[sub.key] ?? axisData?.domainSubs?.[sub.key] ?? 0;
       const pct = Math.round((raw / maxSub) * 100);
-      const r = (raw / maxSub) * OUTER_R;
-      const pos = polarToXY(i, r);
-      const outerPos = polarToXY(i, OUTER_R);
-      const labelPos = polarToXY(i, OUTER_R + 34);
+      const ratio = raw / maxSub;
       const color = AXIS_META[sub.axis].color;
-      return { ...sub, raw, pct, r, pos, outerPos, labelPos, color, idx: i };
+      const hex = AXIS_META[sub.axis].hex;
+      return { ...sub, raw, pct, ratio, color, hex, idx: i };
     });
   }, [scores, maxSub]);
 
-  // Overall total
-  const totalScore = useMemo(() => {
-    return points.reduce((sum, p) => sum + p.raw, 0);
-  }, [points]);
-  const totalMax = maxSub * 16;
-  const totalPct = Math.round((totalScore / totalMax) * 100);
+  const totalPct = useMemo(() => {
+    const total = points.reduce((s, p) => s + p.raw, 0);
+    return Math.round((total / (maxSub * 16)) * 100);
+  }, [points, maxSub]);
 
-  // Top 3 and bottom 3
   const sorted = useMemo(() => [...points].sort((a, b) => b.pct - a.pct), [points]);
   const top3 = sorted.slice(0, 3);
   const bottom3 = sorted.slice(-3).reverse();
 
-  // Entrance animation
+  // Init particles
   useEffect(() => {
-    let start = null;
-    const duration = 1200;
-    function tick(ts) {
-      if (!start) start = ts;
-      const elapsed = ts - start;
-      const t = Math.min(elapsed / duration, 1);
-      // easeOutExpo
-      const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-      setAnimProgress(eased);
-      if (t < 1) animRef.current = requestAnimationFrame(tick);
+    const particles = [];
+    for (let i = 0; i < 60; i++) {
+      particles.push({
+        idx: Math.floor(Math.random() * N),
+        offset: Math.random() * 0.3 - 0.15,
+        speed: 0.3 + Math.random() * 0.7,
+        life: Math.random(),
+        size: 0.5 + Math.random() * 1.5,
+        brightness: 0.3 + Math.random() * 0.7,
+      });
     }
-    animRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animRef.current);
-  }, [scores]);
+    stateRef.current.particles = particles;
+  }, []);
 
-  // Data polygon path (animated)
-  const dataPath = useMemo(() => {
-    return points.map((p, i) => {
-      const animR = p.r * animProgress;
-      const pos = polarToXY(i, animR);
-      return `${i === 0 ? 'M' : 'L'}${pos.x},${pos.y}`;
-    }).join(' ') + ' Z';
-  }, [points, animProgress]);
+  const draw = useCallback((timestamp) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  // Animated dot positions
-  const animDots = useMemo(() => {
-    return points.map((p, i) => polarToXY(i, p.r * animProgress));
-  }, [points, animProgress]);
+    const st = stateRef.current;
+    if (!st.startTime) st.startTime = timestamp;
+    st.time = (timestamp - st.startTime) / 1000;
+
+    // Entry animation (1.8s easeOutExpo)
+    const entryT = Math.min((timestamp - st.startTime) / 1800, 1);
+    st.entryProgress = entryT === 1 ? 1 : 1 - Math.pow(2, -12 * entryT);
+
+    const DPR = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(DPR, DPR);
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const R = Math.min(W, H) * 0.32;
+    const ep = st.entryProgress;
+    const breath = Math.sin(st.time * 1.2) * 0.5 + 0.5; // 0~1 breathing
+
+    ctx.clearRect(0, 0, W, H);
+
+    // === Background radial glow ===
+    const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.8);
+    bgGrad.addColorStop(0, `rgba(184,150,12,${0.04 + breath * 0.02})`);
+    bgGrad.addColorStop(0.5, 'rgba(40,35,25,0.03)');
+    bgGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // === Grid rings (organic, breathing) ===
+    [0.25, 0.5, 0.75, 1.0].forEach((p, ri) => {
+      const gr = R * p * ep;
+      const breathOffset = breath * 1.5 * (1 - p);
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const angle = getAngle(i % N);
+        const x = cx + Math.cos(angle) * (gr + breathOffset);
+        const y = cy + Math.sin(angle) * (gr + breathOffset);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      const alpha = p === 1 ? 0.15 : 0.04 + ri * 0.02;
+      ctx.strokeStyle = `rgba(255,255,255,${alpha * ep})`;
+      ctx.lineWidth = p === 1 ? 1 : 0.5;
+      ctx.stroke();
+    });
+
+    // === Spokes with gradient ===
+    for (let i = 0; i < N; i++) {
+      const angle = getAngle(i);
+      const outerX = cx + Math.cos(angle) * R * ep;
+      const outerY = cy + Math.sin(angle) * R * ep;
+      const grad = ctx.createLinearGradient(cx, cy, outerX, outerY);
+      const c = AXIS_META[SUB_META[i].axis].color;
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},${(i % 4 === 0 ? 0.2 : 0.06) * ep})`);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(outerX, outerY);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = i % 4 === 0 ? 1 : 0.5;
+      ctx.stroke();
+    }
+
+    // === Sector tint ===
+    AXIS_META.forEach((axis, ai) => {
+      const a1 = getAngle(ai * 4);
+      const a2 = getAngle((ai + 1) * 4);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R * ep, a1, a2);
+      ctx.closePath();
+      const c = axis.color;
+      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.03 * ep})`;
+      ctx.fill();
+    });
+
+    // === Data polygon (gradient colored per axis) ===
+    // Draw filled segments per axis group
+    const getDataPoint = (i) => {
+      const angle = getAngle(i);
+      const dr = points[i].ratio * R * ep;
+      return { x: cx + Math.cos(angle) * dr, y: cy + Math.sin(angle) * dr };
+    };
+
+    // Glow layer
+    ctx.save();
+    ctx.shadowColor = `rgba(220,180,60,${0.3 + breath * 0.15})`;
+    ctx.shadowBlur = 20 + breath * 10;
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const p = getDataPoint(i);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = `rgba(255,220,80,${0.4 * ep})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    // Fill per-axis group with gradient
+    AXIS_META.forEach((axis, ai) => {
+      const startI = ai * 4;
+      const c = axis.color;
+      const nextC = AXIS_META[(ai + 1) % 4].color;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      for (let j = 0; j <= 4; j++) {
+        const idx = (startI + j) % N;
+        const dp = getDataPoint(idx);
+        ctx.lineTo(dp.x, dp.y);
+      }
+      ctx.closePath();
+
+      const fillGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      fillGrad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${0.08 * ep})`);
+      fillGrad.addColorStop(0.6, `rgba(${c[0]},${c[1]},${c[2]},${(0.2 + breath * 0.08) * ep})`);
+      fillGrad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},${(0.35 + breath * 0.1) * ep})`);
+      ctx.fillStyle = fillGrad;
+      ctx.fill();
+    });
+
+    // Stroke (colored per segment)
+    for (let i = 0; i < N; i++) {
+      const p1 = getDataPoint(i);
+      const p2 = getDataPoint((i + 1) % N);
+      const c1 = AXIS_META[SUB_META[i].axis].color;
+      const c2 = AXIS_META[SUB_META[(i + 1) % N].axis].color;
+      const mc = lerpColor(c1, c2, 0.5);
+
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.strokeStyle = `rgba(${mc[0]},${mc[1]},${mc[2]},${0.7 * ep})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    // === Particles ===
+    st.particles.forEach(pt => {
+      pt.life += pt.speed * 0.008;
+      if (pt.life > 1) { pt.life = 0; pt.idx = Math.floor(Math.random() * N); }
+
+      const dp = getDataPoint(pt.idx);
+      const angle = getAngle(pt.idx) + pt.offset;
+      const dist = pt.life * 30;
+      const px = dp.x + Math.cos(angle) * dist;
+      const py = dp.y + Math.sin(angle) * dist;
+      const alpha = (1 - pt.life) * pt.brightness * ep;
+      const c = AXIS_META[SUB_META[pt.idx].axis].color;
+
+      ctx.beginPath();
+      ctx.arc(px, py, pt.size * (1 - pt.life * 0.5), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+      ctx.fill();
+    });
+
+    // === Data dots ===
+    const activeI = selectedIdx ?? hoveredIdx;
+    for (let i = 0; i < N; i++) {
+      const dp = getDataPoint(i);
+      const c = points[i].color;
+      const isActive = activeI === i;
+      const isTop = top3.some(t => t.idx === i);
+      const dotR = isActive ? 7 : isTop ? 5 : 3;
+      const pulseR = isTop ? (1 + Math.sin(st.time * 3 + i) * 0.15) : 1;
+
+      // Outer glow
+      if (isActive || isTop) {
+        const glowR = (dotR + 8) * pulseR;
+        const grad = ctx.createRadialGradient(dp.x, dp.y, 0, dp.x, dp.y, glowR);
+        grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${isActive ? 0.5 : 0.25})`);
+        grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+        ctx.beginPath();
+        ctx.arc(dp.x, dp.y, glowR, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      // Dot
+      ctx.beginPath();
+      ctx.arc(dp.x, dp.y, dotR * pulseR, 0, Math.PI * 2);
+      ctx.fillStyle = isActive ? `rgb(${c[0]},${c[1]},${c[2]})` : '#FFFFFF';
+      ctx.fill();
+      ctx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      ctx.stroke();
+
+      // Center highlight
+      ctx.beginPath();
+      ctx.arc(dp.x, dp.y, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+    }
+
+    // === Labels ===
+    const labelR = R + 24;
+    for (let i = 0; i < N; i++) {
+      const angle = getAngle(i);
+      const lx = cx + Math.cos(angle) * labelR * ep;
+      const ly = cy + Math.sin(angle) * labelR * ep;
+      const c = points[i].color;
+      const isActive = activeI === i;
+      const isTop = top3.some(t => t.idx === i);
+      const cos = Math.cos(angle);
+      const align = cos > 0.15 ? 'left' : cos < -0.15 ? 'right' : 'center';
+      const nudge = cos > 0.15 ? 8 : cos < -0.15 ? -8 : 0;
+
+      ctx.textAlign = align;
+      ctx.textBaseline = 'middle';
+
+      // Score number
+      ctx.font = `${isActive || isTop ? '700' : '500'} ${isActive ? 15 : 13}px "DM Sans", sans-serif`;
+      ctx.fillStyle = isActive
+        ? `rgb(${c[0]},${c[1]},${c[2]})`
+        : isTop ? '#FFFFFF' : 'rgba(255,255,255,0.6)';
+      ctx.fillText(points[i].raw + '', lx + nudge, ly - 8);
+
+      // Japanese label
+      ctx.font = `${isActive ? '700' : '400'} ${isActive ? 11 : 10}px sans-serif`;
+      ctx.fillStyle = isActive ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)';
+      ctx.fillText(points[i].jp, lx + nudge, ly + 6);
+
+      // Percentage on active
+      if (isActive) {
+        ctx.font = '600 9px "DM Sans", sans-serif';
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.7)`;
+        ctx.fillText(points[i].pct + '%', lx + nudge, ly + 19);
+      }
+    }
+
+    // === Axis kanji labels ===
+    AXIS_META.forEach((axis, ai) => {
+      const midAngle = getAngle(ai * 4 + 1.5);
+      const kr = R + 55;
+      const kx = cx + Math.cos(midAngle) * kr * ep;
+      const ky = cy + Math.sin(midAngle) * kr * ep;
+      const c = axis.color;
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Kanji
+      ctx.font = '800 22px "Noto Serif JP", serif';
+      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.6 + breath * 0.15})`;
+      ctx.fillText(axis.kanji, kx, ky - 5);
+
+      // English
+      ctx.font = '600 8px "DM Sans", sans-serif';
+      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.4)`;
+      ctx.fillText(axis.en.toUpperCase(), kx, ky + 12);
+    });
+
+    // === Center ===
+    // Breathing ring
+    const centerR = 32 + breath * 3;
+    const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, centerR + 10);
+    cGrad.addColorStop(0, 'rgba(30,28,24,0.9)');
+    cGrad.addColorStop(0.7, 'rgba(20,18,14,0.8)');
+    cGrad.addColorStop(1, 'rgba(20,18,14,0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR + 10, 0, Math.PI * 2);
+    ctx.fillStyle = cGrad;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(15,13,10,0.85)';
+    ctx.fill();
+    ctx.strokeStyle = `rgba(220,180,60,${0.15 + breath * 0.1})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Total %
+    const displayPct = Math.round(totalPct * ep);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '800 24px "DM Sans", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(displayPct + '', cx, cy - 2);
+    ctx.font = '500 8px "DM Sans", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText('TOTAL %', cx, cy + 14);
+
+    frameRef.current = requestAnimationFrame(draw);
+  }, [points, totalPct, selectedIdx, hoveredIdx, top3, maxSub]);
+
+  // Start animation loop
+  useEffect(() => {
+    stateRef.current.startTime = null;
+    frameRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [draw]);
+
+  // Hit detection
+  const handleInteraction = useCallback((e, isClick) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const R = Math.min(rect.width, rect.height) * 0.32;
+    const ep = stateRef.current.entryProgress;
+
+    let closest = -1;
+    let closestDist = 30; // hit radius in px
+    for (let i = 0; i < N; i++) {
+      const angle = getAngle(i);
+      const dr = points[i].ratio * R * ep;
+      const px = cx + Math.cos(angle) * dr;
+      const py = cy + Math.sin(angle) * dr;
+      const dist = Math.sqrt((mx - px) ** 2 + (my - py) ** 2);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = i;
+      }
+    }
+
+    if (isClick) {
+      setSelectedIdx(closest === selectedIdx ? null : closest >= 0 ? closest : null);
+    } else {
+      setHoveredIdx(closest >= 0 ? closest : null);
+    }
+  }, [points, selectedIdx]);
 
   const activeIdx = selectedIdx ?? hoveredIdx;
   const activePoint = activeIdx != null ? points[activeIdx] : null;
 
   return (
-    <div style={{
-      background: 'linear-gradient(145deg, #0D0B09 0%, #1A1510 50%, #0D0B09 100%)',
-      borderRadius: 20,
-      padding: '32px 20px 28px',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      {/* Subtle background texture */}
+    <div style={{ borderRadius: 20, overflow: 'hidden' }}>
+      {/* Canvas area */}
       <div style={{
-        position: 'absolute', inset: 0,
-        background: 'radial-gradient(ellipse at 50% 30%, rgba(184,150,12,0.06) 0%, transparent 60%)',
-        pointerEvents: 'none',
-      }} />
+        background: 'linear-gradient(160deg, #0E0C08 0%, #161210 40%, #0E0C08 100%)',
+        padding: '28px 8px 16px',
+        position: 'relative',
+      }}>
+        {/* Title */}
+        <div style={{ textAlign: 'center', marginBottom: 12, position: 'relative', zIndex: 1 }}>
+          <div style={{
+            fontSize: 9, color: 'rgba(220,180,60,0.6)', letterSpacing: '0.35em', fontWeight: 600,
+            textTransform: 'uppercase',
+          }}>
+            Activation Matrix
+          </div>
+          <div style={{
+            fontFamily: "'Noto Serif JP', serif", fontSize: 18, fontWeight: 700,
+            color: '#FFFFFF', letterSpacing: '0.1em', marginTop: 4,
+          }}>
+            才覚発動領域
+          </div>
+        </div>
 
-      {/* Title */}
-      <div style={{ textAlign: 'center', marginBottom: 24, position: 'relative', zIndex: 1 }}>
-        <div style={{
-          fontSize: 10, color: '#B8960C', letterSpacing: '0.3em', fontWeight: 600,
-          marginBottom: 6, textTransform: 'uppercase',
-        }}>
-          Activation Matrix
-        </div>
-        <div style={{
-          fontFamily: "'Noto Serif JP', serif", fontSize: 20, fontWeight: 700,
-          color: '#FFFFFF', letterSpacing: '0.08em',
-        }}>
-          才覚発動領域
-        </div>
+        <canvas
+          ref={canvasRef}
+          style={{
+            width: '100%',
+            height: 'min(85vw, 520px)',
+            display: 'block',
+            cursor: 'pointer',
+          }}
+          onClick={(e) => handleInteraction(e, true)}
+          onMouseMove={(e) => handleInteraction(e, false)}
+          onMouseLeave={() => setHoveredIdx(null)}
+        />
       </div>
 
-      {/* SVG Chart */}
-      <div style={{ position: 'relative', maxWidth: SVG_SIZE, margin: '0 auto' }}>
-        <svg
-          viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
-        >
-          <defs>
-            {/* Glow filter */}
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="8" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-
-            {/* Gradient for data polygon */}
-            <linearGradient id="dataGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#B8960C" stopOpacity="0.35" />
-              <stop offset="50%" stopColor="#D4A84A" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#B8960C" stopOpacity="0.35" />
-            </linearGradient>
-
-            {/* Sector arc backgrounds */}
-            {AXIS_META.map((axis, ai) => (
-              <radialGradient key={axis.key} id={`sector-${ai}`} cx="50%" cy="50%" r="50%">
-                <stop offset="60%" stopColor={axis.color} stopOpacity="0.03" />
-                <stop offset="100%" stopColor={axis.color} stopOpacity="0.08" />
-              </radialGradient>
-            ))}
-          </defs>
-
-          {/* Sector background arcs */}
-          {AXIS_META.map((axis, ai) => {
-            const startIdx = ai * 4;
-            const startAngle = (Math.PI * 2 * startIdx) / N - Math.PI / 2;
-            const endAngle = (Math.PI * 2 * (startIdx + 4)) / N - Math.PI / 2;
-            const r = OUTER_R + 4;
-            const x1 = CX + Math.cos(startAngle) * r;
-            const y1 = CY + Math.sin(startAngle) * r;
-            const x2 = CX + Math.cos(endAngle) * r;
-            const y2 = CY + Math.sin(endAngle) * r;
-            return (
-              <path key={axis.key}
-                d={`M${CX},${CY} L${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2} Z`}
-                fill={`url(#sector-${ai})`}
-              />
-            );
-          })}
-
-          {/* Grid rings */}
-          {[0.25, 0.5, 0.75, 1].map(p => (
-            <path key={p} d={ringPath(OUTER_R * p)}
-              fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={p === 1 ? 1 : 0.5}
-            />
-          ))}
-
-          {/* Axis spokes */}
-          {points.map((p, i) => (
-            <line key={i}
-              x1={CX} y1={CY} x2={p.outerPos.x} y2={p.outerPos.y}
-              stroke={i % 4 === 0 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}
-              strokeWidth={i % 4 === 0 ? 1 : 0.5}
-            />
-          ))}
-
-          {/* Data polygon glow */}
-          <path d={dataPath} fill="none" stroke="#B8960C" strokeWidth="3"
-            filter="url(#glow-strong)" opacity={0.4 * animProgress}
-          />
-
-          {/* Data polygon fill */}
-          <path d={dataPath} fill="url(#dataGrad)" opacity={animProgress} />
-
-          {/* Data polygon stroke */}
-          <path d={dataPath} fill="none" stroke="#B8960C" strokeWidth="1.5"
-            opacity={0.8 * animProgress} strokeLinejoin="round"
-          />
-
-          {/* Data dots */}
-          {animDots.map((dot, i) => {
-            const p = points[i];
-            const isActive = activeIdx === i;
-            const isTop = top3.some(t => t.idx === i);
-            const baseR = isTop ? 5 : 3.5;
-            const dotR = isActive ? 7 : baseR;
-            return (
-              <g key={i}>
-                {/* Glow circle */}
-                {(isActive || isTop) && (
-                  <circle cx={dot.x} cy={dot.y} r={dotR + 4}
-                    fill={p.color} opacity={isActive ? 0.3 : 0.15}
-                    style={{ transition: 'all 0.3s ease' }}
-                  />
-                )}
-                {/* Main dot */}
-                <circle cx={dot.x} cy={dot.y} r={dotR}
-                  fill={isActive ? p.color : '#FFFFFF'}
-                  stroke={p.color} strokeWidth={isActive ? 2 : 1.5}
-                  style={{
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    filter: isActive ? 'url(#glow)' : 'none',
-                  }}
-                  onMouseEnter={() => setHoveredIdx(i)}
-                  onMouseLeave={() => setHoveredIdx(null)}
-                  onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
-                />
-                {/* Score label on hover */}
-                {isActive && (
-                  <text x={dot.x} y={dot.y - 14}
-                    textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="700"
-                    fontFamily={NUM_FONT}
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {p.pct}%
-                  </text>
-                )}
-              </g>
-            );
-          })}
-
-          {/* Outer labels */}
-          {points.map((p, i) => {
-            const isActive = activeIdx === i;
-            const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
-            const angleDeg = (angle * 180) / Math.PI;
-            const isRight = angleDeg > -90 && angleDeg < 90;
-            const anchor = Math.abs(angleDeg + 90) < 10 || Math.abs(angleDeg - 90) < 10
-              ? 'middle'
-              : isRight ? 'start' : 'end';
-
-            return (
-              <g key={i}
-                style={{ cursor: 'pointer' }}
-                onMouseEnter={() => setHoveredIdx(i)}
-                onMouseLeave={() => setHoveredIdx(null)}
-                onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
-              >
-                <text
-                  x={p.labelPos.x} y={p.labelPos.y - 6}
-                  textAnchor={anchor}
-                  fill={isActive ? p.color : 'rgba(255,255,255,0.5)'}
-                  fontSize={isActive ? 11 : 10}
-                  fontWeight={isActive ? 700 : 400}
-                  fontFamily={NUM_FONT}
-                  style={{ transition: 'all 0.2s ease' }}
-                >
-                  {p.label}
-                </text>
-                <text
-                  x={p.labelPos.x} y={p.labelPos.y + 8}
-                  textAnchor={anchor}
-                  fill={isActive ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)'}
-                  fontSize={9}
-                  style={{ transition: 'all 0.2s ease' }}
-                >
-                  {p.jp}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Axis kanji labels at sector midpoints */}
-          {AXIS_META.map((axis, ai) => {
-            const midIdx = ai * 4 + 1.5;
-            const angle = (Math.PI * 2 * midIdx) / N - Math.PI / 2;
-            const r = OUTER_R + 62;
-            const x = CX + Math.cos(angle) * r;
-            const y = CY + Math.sin(angle) * r;
-            return (
-              <g key={axis.key}>
-                <text x={x} y={y - 4} textAnchor="middle"
-                  fill={axis.color} fontSize="20" fontWeight="800"
-                  fontFamily="'Noto Serif JP', serif"
-                  opacity="0.7"
-                >
-                  {axis.kanji}
-                </text>
-                <text x={x} y={y + 12} textAnchor="middle"
-                  fill={axis.color} fontSize="8" fontWeight="600"
-                  fontFamily={NUM_FONT} letterSpacing="0.1em" opacity="0.5"
-                >
-                  {axis.en.toUpperCase()}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Center score */}
-          <circle cx={CX} cy={CY} r="36" fill="rgba(0,0,0,0.6)" stroke="rgba(184,150,12,0.3)" strokeWidth="1" />
-          <text x={CX} y={CY - 4} textAnchor="middle" fill="#FFFFFF"
-            fontSize="22" fontWeight="800" fontFamily={NUM_FONT}
-          >
-            {Math.round(totalPct * animProgress)}
-          </text>
-          <text x={CX} y={CY + 12} textAnchor="middle" fill="rgba(255,255,255,0.4)"
-            fontSize="9" fontWeight="500" fontFamily={NUM_FONT} letterSpacing="0.1em"
-          >
-            TOTAL %
-          </text>
-        </svg>
-      </div>
-
-      {/* Detail card on selection */}
+      {/* Detail card */}
       {activePoint && selectedIdx != null && (
         <div style={{
-          margin: '16px auto 0',
-          maxWidth: 360,
-          background: 'rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(10px)',
-          border: `1px solid ${activePoint.color}40`,
-          borderRadius: 14,
-          padding: '18px 20px',
-          animation: 'fadeSlideUp 0.3s ease',
+          background: 'linear-gradient(180deg, #18150F, #0E0C08)',
+          padding: '16px 20px 20px',
+          animation: 'amFadeIn 0.3s ease',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10,
+          }}>
             <div>
-              <span style={{
-                fontSize: 14, fontWeight: 700, color: activePoint.color,
-              }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: activePoint.hex }}>
                 {activePoint.jp}
               </span>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginLeft: 8 }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 8 }}>
                 {activePoint.label}
               </span>
             </div>
-            <div style={{
-              fontFamily: NUM_FONT, fontSize: 20, fontWeight: 800, color: '#FFFFFF',
-            }}>
-              {activePoint.pct}<span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>%</span>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 24, fontWeight: 800, color: '#FFFFFF' }}>
+              {activePoint.pct}<span style={{ fontSize: 13, fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>%</span>
             </div>
           </div>
-          {/* Score bar */}
-          <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden', marginBottom: 12 }}>
+          <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
             <div style={{
               height: '100%', width: `${activePoint.pct}%`,
-              background: `linear-gradient(90deg, ${activePoint.color}, ${activePoint.color}AA)`,
-              borderRadius: 2,
-              transition: 'width 0.5s ease',
+              background: `linear-gradient(90deg, ${activePoint.hex}, ${activePoint.hex}88)`,
+              borderRadius: 2, transition: 'width 0.4s ease',
             }} />
           </div>
-          <div style={{
-            fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6,
-          }}>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
             {activePoint.raw}/{maxSub} — {AXIS_META[activePoint.axis].kanji} {AXIS_META[activePoint.axis].en}
           </div>
         </div>
       )}
 
-      {/* Top & Bottom badges */}
+      {/* Rankings */}
       <div style={{
-        display: 'flex', gap: 20, justifyContent: 'center', marginTop: 24,
-        flexWrap: 'wrap', position: 'relative', zIndex: 1,
+        background: 'linear-gradient(180deg, #0E0C08, #141210)',
+        padding: '20px 20px 28px',
+        display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap',
       }}>
         {/* Top 3 */}
-        <div style={{ flex: '1 1 140px', maxWidth: 200 }}>
+        <div style={{ flex: '1 1 140px', maxWidth: 220 }}>
           <div style={{
-            fontSize: 9, color: '#B8960C', letterSpacing: '0.2em', fontWeight: 600,
-            marginBottom: 10, textTransform: 'uppercase', textAlign: 'center',
+            fontSize: 9, color: 'rgba(220,180,60,0.6)', letterSpacing: '0.25em', fontWeight: 700,
+            marginBottom: 12, textTransform: 'uppercase', textAlign: 'center',
           }}>
             Strengths
           </div>
           {top3.map((p, i) => (
             <div key={p.key} style={{
-              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
-              padding: '6px 10px', borderRadius: 8,
-              background: i === 0 ? 'rgba(184,150,12,0.1)' : 'transparent',
+              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6,
+              padding: '8px 12px', borderRadius: 10,
+              background: i === 0 ? 'rgba(220,180,60,0.08)' : 'transparent',
+              border: i === 0 ? '1px solid rgba(220,180,60,0.15)' : '1px solid transparent',
             }}>
               <span style={{
-                fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800,
-                color: i === 0 ? '#B8960C' : 'rgba(255,255,255,0.6)',
-                width: 18,
+                fontFamily: NUM_FONT, fontSize: 14, fontWeight: 800,
+                color: i === 0 ? 'rgba(220,180,60,0.8)' : 'rgba(255,255,255,0.3)',
+                width: 20, textAlign: 'center',
               }}>
                 {i + 1}
               </span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 600 }}>{p.jp}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>{p.label}</div>
+                <div style={{ fontSize: 13, color: '#FFFFFF', fontWeight: i === 0 ? 700 : 500 }}>{p.jp}</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>{p.label}</div>
               </div>
               <span style={{
-                fontFamily: NUM_FONT, fontSize: 14, fontWeight: 700,
-                color: p.color,
+                fontFamily: NUM_FONT, fontSize: 15, fontWeight: 700, color: p.hex,
               }}>
-                {p.pct}%
+                {p.pct}<span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.3)' }}>%</span>
               </span>
             </div>
           ))}
         </div>
 
         {/* Bottom 3 */}
-        <div style={{ flex: '1 1 140px', maxWidth: 200 }}>
+        <div style={{ flex: '1 1 140px', maxWidth: 220 }}>
           <div style={{
-            fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2em', fontWeight: 600,
-            marginBottom: 10, textTransform: 'uppercase', textAlign: 'center',
+            fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.25em', fontWeight: 700,
+            marginBottom: 12, textTransform: 'uppercase', textAlign: 'center',
           }}>
             Growth Areas
           </div>
           {bottom3.map((p, i) => (
             <div key={p.key} style={{
-              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
-              padding: '6px 10px', borderRadius: 8,
+              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6,
+              padding: '8px 12px', borderRadius: 10,
             }}>
               <span style={{
-                fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800,
-                color: 'rgba(255,255,255,0.3)', width: 18,
+                fontFamily: NUM_FONT, fontSize: 14, fontWeight: 800,
+                color: 'rgba(255,255,255,0.2)', width: 20, textAlign: 'center',
               }}>
-                {16 - 2 + i}
+                {14 + i}
               </span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{p.jp}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)' }}>{p.label}</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>{p.jp}</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', marginTop: 1 }}>{p.label}</div>
               </div>
               <span style={{
-                fontFamily: NUM_FONT, fontSize: 14, fontWeight: 700,
-                color: 'rgba(255,255,255,0.5)',
+                fontFamily: NUM_FONT, fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.4)',
               }}>
-                {p.pct}%
+                {p.pct}<span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.2)' }}>%</span>
               </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Animation keyframes */}
       <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(8px); }
+        @keyframes amFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
