@@ -113,8 +113,8 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
           </p>
         </div>
 
-        {/* ─── 才覚領域カード ─── */}
-        <button
+        {/* ─── 才覚領域カード（管理者のみ） ─── */}
+        {isAdmin && <button
           onClick={onSelectSaikaku}
           onMouseEnter={() => setHoverSaikaku(true)}
           onMouseLeave={() => setHoverSaikaku(false)}
@@ -210,7 +210,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               </div>
             </div>
           </div>
-        </button>
+        </button>}
 
         {/* ─── 才覚発動領域カード ─── */}
         <button
