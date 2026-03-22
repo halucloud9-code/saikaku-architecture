@@ -52,7 +52,7 @@ function lerpColor(c1, c2, t) {
   ];
 }
 
-export default function ActivationMatrix({ scores, maxSub = 15 }) {
+export default function ActivationMatrix({ scores, maxSub = 20 }) {
   const canvasRef = useRef(null);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [hoveredIdx, setHoveredIdx] = useState(null);

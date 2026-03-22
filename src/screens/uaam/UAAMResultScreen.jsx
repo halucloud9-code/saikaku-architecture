@@ -73,29 +73,28 @@ const SUB_ADVICE = {
 
 /**
  * スコアスケール自動検出
- * クライアント計算: 1-5点×3問 = MAX_SUB=15, MAX_AXIS=60
- * サーバー計算:     0-4点×3問 = MAX_SUB=12, MAX_AXIS=48
- * 実データから動的に判定する
+ * 64問版: 1-5点×4問 = MAX_SUB=20, MAX_AXIS=80
+ * 旧48問版: MAX_SUB=15, MAX_AXIS=60（後方互換）
+ * 旧サーバー版: MAX_SUB=12, MAX_AXIS=48（後方互換）
  */
 function detectScale(scores) {
-  if (!scores) return { maxSub: 15, maxAxis: 60 };
-  let hasOver12 = false;
+  if (!scores) return { maxSub: 20, maxAxis: 80 };
+  let maxFound = 0;
   for (const axis of Object.values(scores)) {
     if (axis?.subs) {
       for (const v of Object.values(axis.subs)) {
-        if (v > 12) { hasOver12 = true; break; }
+        if (v > maxFound) maxFound = v;
       }
     }
-    if (hasOver12) break;
   }
-  return hasOver12
-    ? { maxSub: 15, maxAxis: 60 }
-    : { maxSub: 12, maxAxis: 48 };
+  if (maxFound > 15) return { maxSub: 20, maxAxis: 80 };
+  if (maxFound > 12) return { maxSub: 15, maxAxis: 60 };
+  return { maxSub: 12, maxAxis: 48 };
 }
 
 // デフォルト値（コンポーネント外で使う箇所用）
-let MAX_AXIS = 60;
-let MAX_SUB = 15;
+let MAX_AXIS = 80;
+let MAX_SUB = 20;
 let MAX_CROSS = MAX_AXIS * MAX_AXIS;
 let DISPLAY_CROSS = MAX_CROSS / 2;
 const displayDomain = (raw) => Math.round(raw / 2);
@@ -1387,8 +1386,8 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
               display: 'flex', justifyContent: 'center', gap: 10, marginTop: 14,
             }}>
               {(() => {
-                const v3Diff = (vAnswers['V3'] != null && answers?.[46] != null)
-                  ? Math.abs(vAnswers['V3'] - answers[46])
+                const v3Diff = (vAnswers['V3'] != null && answers?.[61] != null)
+                  ? Math.abs(vAnswers['V3'] - answers[61])
                   : null;
                 const items = [
                   { label: 'V1', value: vAnswers['V1'] },
