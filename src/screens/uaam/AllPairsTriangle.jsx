@@ -50,13 +50,7 @@ const ZONE_HEX = {
 };
 const ZONE_LABEL = { full:'FULL ✦', active:'ACTIVE', potential:'POTENTIAL', dormant:'DORMANT' };
 
-const RANK_STYLE = [
-  { bg: 'linear-gradient(135deg,#B8960C,#E8C547)', color: '#fff', label: '1st' },
-  { bg: 'linear-gradient(135deg,#888,#bbb)',        color: '#fff', label: '2nd' },
-  { bg: 'linear-gradient(135deg,#A07A18,#C9A45A)',  color: '#fff', label: '3rd' },
-  { bg: '#EDEAE4', color: '#555', label: '4th' },
-  { bg: '#EDEAE4', color: '#555', label: '5th' },
-];
+const RANK_NUM = ['1', '2', '3', '4', '5'];
 
 const BLOCKS = [
   { name:'ANCHOR',    jp:'志×志', axes:[0,0] },
@@ -194,30 +188,27 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
           </div>
           {elemTop5.map((e, rank) => {
             const g   = CODE_GRP[e.key];
-            const rs  = RANK_STYLE[rank];
             const pct = e.score / 20;
             return (
               <div key={e.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: rank < 4 ? 10 : 0 }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: 6,
-                  background: rs.bg, color: rs.color,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 800, flexShrink: 0,
-                  letterSpacing: '0.02em',
-                }}>{rs.label}</div>
+                  width: 20, fontSize: 11, fontWeight: 700,
+                  color: rank === 0 ? '#B8960C' : '#AAA',
+                  flexShrink: 0, textAlign: 'center',
+                }}>{RANK_NUM[rank]}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: AXIS_HEX[g] }}>
                       {SUB_JP[e.key]}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#1A1A1A', fontFamily: "'Outfit', sans-serif" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#333', fontFamily: "'Outfit', sans-serif" }}>
                       {e.score}
                     </span>
                   </div>
-                  <div style={{ height: 6, background: '#EDEAE4', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: 5, background: '#EDEAE4', borderRadius: 2, overflow: 'hidden' }}>
                     <div style={{
-                      height: '100%', borderRadius: 3,
-                      background: `linear-gradient(90deg, ${AXIS_HEX[g]}, ${AXIS_LIGHT[g]})`,
+                      height: '100%', borderRadius: 2,
+                      background: AXIS_HEX[g],
                       width: `${pct * 100}%`,
                       transition: 'width 0.5s ease',
                     }} />
@@ -240,36 +231,33 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
             const blk = getBlock(p.kA, p.kB);
             const z   = getZone(smap[p.kA], smap[p.kB]);
             const zc  = ZONE_HEX[z];
-            const rs  = RANK_STYLE[rank];
             const pct = p.score / 400;
             return (
               <div key={`${p.kA}-${p.kB}`} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: rank < 4 ? 10 : 0 }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: 6,
-                  background: rs.bg, color: rs.color,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 800, flexShrink: 0,
-                  letterSpacing: '0.02em',
-                }}>{rs.label}</div>
+                  width: 20, fontSize: 11, fontWeight: 700,
+                  color: rank === 0 ? '#B8960C' : '#AAA',
+                  flexShrink: 0, textAlign: 'center',
+                }}>{RANK_NUM[rank]}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: zc }}>
                       {SUB_JP[p.kA]} × {SUB_JP[p.kB]}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#1A1A1A', fontFamily: "'Outfit', sans-serif" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#333', fontFamily: "'Outfit', sans-serif" }}>
                       {p.score}
                     </span>
                   </div>
-                  <div style={{ height: 6, background: '#EDEAE4', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: 5, background: '#EDEAE4', borderRadius: 2, overflow: 'hidden' }}>
                     <div style={{
-                      height: '100%', borderRadius: 3,
-                      background: `linear-gradient(90deg, ${zc}, ${toRgba(zc, 0.6)})`,
+                      height: '100%', borderRadius: 2,
+                      background: zc,
                       width: `${pct * 100}%`,
                       transition: 'width 0.5s ease',
                     }} />
                   </div>
                   {blk && (
-                    <div style={{ fontSize: 10, color: '#AAA', marginTop: 3 }}>{blk.name}</div>
+                    <div style={{ fontSize: 10, color: '#BBB', marginTop: 2 }}>{blk.name}</div>
                   )}
                 </div>
               </div>
@@ -318,8 +306,8 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
                     transition: 'transform 0.12s, box-shadow 0.12s',
                   }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.transform = 'scale(1.5)';
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                      e.currentTarget.style.transform = 'scale(1.3)';
+                      e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.15)';
                       e.currentTarget.style.zIndex = '20';
                       setTip({ kA, kB, x: e.clientX, y: e.clientY });
                     }}
@@ -390,7 +378,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
                   <div style={{ height: 6, background: '#EDEAE4', borderRadius: 3, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', borderRadius: 3,
-                      background: `linear-gradient(90deg, ${color}, ${AXIS_LIGHT[b.axes[0]]})`,
+                      background: color,
                       width: `${pct * 100}%`,
                       transition: 'width 0.5s ease',
                     }} />
