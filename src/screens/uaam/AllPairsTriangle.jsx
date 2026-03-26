@@ -155,6 +155,26 @@ function blockTotals(smap) {
   });
 }
 
+// 16素子 TOP5
+function top5Elements(smap) {
+  return ORDERED
+    .map(k => ({ key: k, score: smap[k] }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+}
+
+// 120ペア TOP5（スコア積）
+function top5Pairs(smap) {
+  const pairs = [];
+  for (let i = 0; i < N - 1; i++) {
+    for (let j = i + 1; j < N; j++) {
+      const kA = ORDERED[i], kB = ORDERED[j];
+      pairs.push({ kA, kB, score: smap[kA] * smap[kB] });
+    }
+  }
+  return pairs.sort((a, b) => b.score - a.score).slice(0, 5);
+}
+
 // ── コンポーネント ────────────────────────────────────
 export default function AllPairsTriangle({ scores, maxSub = 20 }) {
   const smap = buildScoreMap(scores, maxSub);
@@ -162,6 +182,9 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
 
   const totals = blockTotals(smap);
   const maxTotal = Math.max(...totals, 1);
+
+  const elemTop5 = top5Elements(smap);
+  const pairTop5 = top5Pairs(smap);
 
   const cellColor = useCallback((kA, kB) => {
     const sA = smap[kA], sB = smap[kB];
@@ -189,6 +212,84 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
         }}>才覚発動 全ペアマトリックス</div>
         <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
           16素子 × 120ペア — スコア積でゾーン発光
+        </div>
+      </div>
+
+      {/* ===== TOP5 カード ===== */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+
+        {/* 16素子 TOP5 */}
+        <div style={{
+          background: '#F9F6F0', border: '1px solid #E8E0D4',
+          borderRadius: 12, padding: '16px 18px',
+        }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.1em', color: '#999', textTransform: 'uppercase', marginBottom: 10 }}>
+            16素子 — Top 5
+          </div>
+          {elemTop5.map((e, rank) => {
+            const g   = CODE_GRP[e.key];
+            const pct = e.score / 20;
+            return (
+              <div key={e.key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 700, color: '#999',
+                  minWidth: 16, textAlign: 'center',
+                }}>#{rank + 1}</div>
+                <div style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: AXIS_HEX[g], minWidth: 56,
+                }}>{SUB_JP[e.key]}</div>
+                <div style={{ flex: 1, height: 6, background: '#E8E0D4', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3,
+                    background: AXIS_HEX[g],
+                    width: `${pct * 100}%`,
+                  }} />
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#1A1A1A', minWidth: 24, textAlign: 'right' }}>
+                  {e.score}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 120ペア TOP5 */}
+        <div style={{
+          background: '#F9F6F0', border: '1px solid #E8E0D4',
+          borderRadius: 12, padding: '16px 18px',
+        }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.1em', color: '#999', textTransform: 'uppercase', marginBottom: 10 }}>
+            120ペア — Top 5
+          </div>
+          {pairTop5.map((p, rank) => {
+            const blk = getBlock(p.kA, p.kB);
+            const z   = getZone(smap[p.kA], smap[p.kB]);
+            const zc  = ZONE_HEX[z];
+            const pct = p.score / 400;
+            return (
+              <div key={`${p.kA}-${p.kB}`} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 700, color: '#999',
+                  minWidth: 16, textAlign: 'center',
+                }}>#{rank + 1}</div>
+                <div style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: zc, minWidth: 80, lineHeight: 1.3,
+                }}>{SUB_JP[p.kA]}×{SUB_JP[p.kB]}</div>
+                <div style={{ flex: 1, height: 6, background: '#E8E0D4', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3,
+                    background: zc,
+                    width: `${pct * 100}%`,
+                  }} />
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#1A1A1A', minWidth: 28, textAlign: 'right' }}>
+                  {p.score}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
