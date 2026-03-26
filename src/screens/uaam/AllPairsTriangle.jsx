@@ -60,18 +60,18 @@ const SUB_EN = {
 };
 const AXIS_JP = ['志 MindSet', '知 Literacy', '技 Competency', '衝 Impact'];
 
-// 軸カラー（プロジェクト既存配色に合わせる）
-const AXIS_HEX   = ['#5A96DC', '#46C382', '#DCAF46', '#DC5F50'];
-const AXIS_LIGHT = ['#93C5FD', '#6EE7B7', '#FDE68A', '#FCA5A5'];
-const AXIS_DIM   = ['rgba(90,150,220,0.15)', 'rgba(70,195,130,0.15)',
-                    'rgba(220,175,70,0.15)', 'rgba(220,95,80,0.15)'];
+// 軸カラー（UAAMResultScreen の AXIS_COLORS に統一）
+const AXIS_HEX   = ['#2C5F8A', '#1E7A4A', '#A07A18', '#8B3A28'];
+const AXIS_LIGHT = ['#5A96DC', '#46C382', '#DCAF46', '#DC5F50'];
+const AXIS_DIM   = ['rgba(44,95,138,0.10)', 'rgba(30,122,74,0.10)',
+                    'rgba(160,122,24,0.10)', 'rgba(139,58,40,0.10)'];
 
-// ゾーンカラー
+// ゾーンカラー（元サイトのトーンに合わせて落ち着いた配色）
 const ZONE_HEX = {
-  full:      '#F59E0B',
-  active:    '#3B82F6',
-  potential: '#EC4899',
-  dormant:   '#6B7280',
+  full:      '#B8960C',  // ACCENT_GOLD
+  active:    '#2C5F8A',  // 志カラー
+  potential: '#7A4A7A',  // 落ち着いたパープル
+  dormant:   '#A09080',  // 温かみのあるグレー
 };
 const ZONE_LABEL = {
   full:      'FULL ✦',
@@ -193,26 +193,25 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
   }, [smap]);
 
   return (
-    <div style={{
-      background: '#fff',
-      border: '1px solid #E8E0D4',
+    <div className="uaam-chart pdf-section" style={{
+      background: '#FFFFFF',
       borderRadius: 16,
-      padding: '24px 28px',
-      margin: '24px 0',
+      padding: '28px 24px',
+      marginBottom: 20,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      border: '1px solid #E8E0D4',
     }}>
-      {/* ヘッダー */}
+      {/* ヘッダー（SectionHeader準拠） */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{
-          fontSize: 11, letterSpacing: '0.12em', color: '#999',
-          textTransform: 'uppercase', marginBottom: 4,
-        }}>All Pairs Triangle</div>
-        <div style={{
+        <h2 style={{
           fontFamily: "'Noto Serif JP', Georgia, serif",
           fontSize: 18, fontWeight: 700, color: '#1A1A1A',
-        }}>才覚発動 全ペアマトリックス</div>
-        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-          16素子 × 120ペア — スコア積でゾーン発光
-        </div>
+          margin: 0, letterSpacing: '0.02em',
+        }}>才覚発動 全ペアマトリックス</h2>
+        <p style={{ fontSize: 13, color: '#333333', margin: '4px 0 0', fontWeight: 400 }}>
+          All Pairs Triangle — 16素子 × 120ペア スコア積分析
+        </p>
+        <div style={{ width: 40, height: 2, background: '#1A1A1A', marginTop: 10, borderRadius: 1, opacity: 0.4 }} />
       </div>
 
       {/* ===== TOP5 カード ===== */}
@@ -220,7 +219,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
 
         {/* 16素子 TOP5 */}
         <div style={{
-          background: '#F9F6F0', border: '1px solid #E8E0D4',
+          background: '#FAFAF8', border: '1px solid #EDEAE4',
           borderRadius: 12, padding: '16px 18px',
         }}>
           <div style={{ fontSize: 10, letterSpacing: '0.1em', color: '#999', textTransform: 'uppercase', marginBottom: 10 }}>
@@ -239,7 +238,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
                   fontSize: 11, fontWeight: 700,
                   color: AXIS_HEX[g], minWidth: 56,
                 }}>{SUB_JP[e.key]}</div>
-                <div style={{ flex: 1, height: 6, background: '#E8E0D4', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ flex: 1, height: 6, background: '#EDEAE4', borderRadius: 3, overflow: 'hidden' }}>
                   <div style={{
                     height: '100%', borderRadius: 3,
                     background: AXIS_HEX[g],
@@ -256,7 +255,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
 
         {/* 120ペア TOP5 */}
         <div style={{
-          background: '#F9F6F0', border: '1px solid #E8E0D4',
+          background: '#FAFAF8', border: '1px solid #EDEAE4',
           borderRadius: 12, padding: '16px 18px',
         }}>
           <div style={{ fontSize: 10, letterSpacing: '0.1em', color: '#999', textTransform: 'uppercase', marginBottom: 10 }}>
@@ -277,7 +276,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
                   fontSize: 11, fontWeight: 700,
                   color: zc, minWidth: 80, lineHeight: 1.3,
                 }}>{SUB_JP[p.kA]}×{SUB_JP[p.kB]}</div>
-                <div style={{ flex: 1, height: 6, background: '#E8E0D4', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ flex: 1, height: 6, background: '#EDEAE4', borderRadius: 3, overflow: 'hidden' }}>
                   <div style={{
                     height: '100%', borderRadius: 3,
                     background: zc,
@@ -436,27 +435,26 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
         return (
           <div style={{
             position: 'fixed', left: x, top: y,
-            background: '#1C1C30', border: '1px solid #2D2D4E',
+            background: '#FFFFFF', border: '1px solid #E8E0D4',
             borderRadius: 10, padding: '10px 14px',
             fontSize: 12, zIndex: 9999, minWidth: 180,
-            boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
             pointerEvents: 'none',
           }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#E2E8F0', marginBottom: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1A1A1A', marginBottom: 6 }}>
               {SUB_JP[tip.kA]} × {SUB_JP[tip.kB]}
             </div>
             <div style={{
               display: 'inline-block',
               padding: '2px 8px', borderRadius: 20, marginBottom: 6,
-              background: toRgba(zc, 0.25),
+              background: toRgba(zc, 0.12),
               color: zc,
-              border: `1px solid ${toRgba(zc, 0.5)}`,
-              fontSize: 11,
+              border: `1px solid ${toRgba(zc, 0.4)}`,
+              fontSize: 11, fontWeight: 600,
             }}>{ZONE_LABEL[z]}</div>
-            <div style={{ color: '#94A3B8', lineHeight: 1.7 }}>
-              <div>{SUB_JP[tip.kA]} × {SUB_JP[tip.kB]}</div>
-              <div>スコア: {sA} × {sB} = <strong style={{ color: '#E2E8F0' }}>{sA * sB}</strong></div>
-              {blk && <div style={{ marginTop: 4, color: '#64748B', fontSize: 11 }}>{blk.name} / {blk.jp}</div>}
+            <div style={{ color: '#555', lineHeight: 1.7 }}>
+              <div>スコア: {sA} × {sB} = <strong style={{ color: '#1A1A1A' }}>{sA * sB}</strong></div>
+              {blk && <div style={{ marginTop: 4, color: '#888', fontSize: 11 }}>{blk.name} / {blk.jp}</div>}
             </div>
           </div>
         );
