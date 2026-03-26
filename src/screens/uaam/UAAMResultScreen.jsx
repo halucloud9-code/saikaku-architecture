@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
 import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
+import AllPairsTriangle from './AllPairsTriangle';
 
 /* ============================================================
  * 定数
@@ -1441,6 +1442,9 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
+
+        {/* ===== 全ペア三角マトリックス（All Pairs Triangle） ===== */}
+        <AllPairsTriangle scores={scores} maxSub={MAX_SUB} />
 
         {/* ===== AI分析 ===== */}
         {analysis && (
