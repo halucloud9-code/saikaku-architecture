@@ -228,7 +228,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
                 background: AXIS_DIM[CODE_GRP[ORDERED[i]]],
                 borderRadius: 3,
               }}>
-                {SUB_EN[ORDERED[i]].slice(0, 2)}
+                {SUB_JP[ORDERED[i]].slice(0, 2)}
               </div>
 
               {/* セル j = i+1..15 */}
@@ -263,7 +263,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
                 color: AXIS_LIGHT[CODE_GRP[k]],
                 fontWeight: 700,
               }}>
-                {SUB_EN[k].slice(0, 2)}
+                {SUB_JP[k].slice(0, 2)}
               </div>
             ))}
           </div>
@@ -342,7 +342,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20 }) {
             pointerEvents: 'none',
           }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#E2E8F0', marginBottom: 6 }}>
-              {SUB_EN[tip.kA]} × {SUB_EN[tip.kB]}
+              {SUB_JP[tip.kA]} × {SUB_JP[tip.kB]}
             </div>
             <div style={{
               display: 'inline-block',
