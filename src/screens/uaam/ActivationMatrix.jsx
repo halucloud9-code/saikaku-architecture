@@ -47,7 +47,7 @@ const SUB_META = [
 ];
 
 function getAngle(i) {
-  return (Math.PI * 2 * i) / N - Math.PI / 2;
+  return (Math.PI * 2 * i) / N - Math.PI * 3 / 4;
 }
 
 function lerpColor(c1, c2, t) {
@@ -129,17 +129,13 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
 
     ctx.clearRect(0, 0, W, H);
 
-    // === 十字ライン（+ と ×）===
+    // === ×型クロスライン ===
     ctx.save();
     ctx.globalAlpha = 0.07 * ep;
     ctx.strokeStyle = `rgba(42,37,32,0.6)`;
     ctx.lineWidth = 0.8;
-    // + 縦横
-    ctx.beginPath(); ctx.moveTo(cx, cy - R * 1.3); ctx.lineTo(cx, cy + R * 1.3); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - R * 1.3, cy); ctx.lineTo(cx + R * 1.3, cy); ctx.stroke();
-    // × 斜め
-    ctx.beginPath(); ctx.moveTo(cx - R * 0.9, cy - R * 0.9); ctx.lineTo(cx + R * 0.9, cy + R * 0.9); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx + R * 0.9, cy - R * 0.9); ctx.lineTo(cx - R * 0.9, cy + R * 0.9); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - R * 1.3, cy - R * 1.3); ctx.lineTo(cx + R * 1.3, cy + R * 1.3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + R * 1.3, cy - R * 1.3); ctx.lineTo(cx - R * 1.3, cy + R * 1.3); ctx.stroke();
     ctx.restore();
 
     // === グリッドリング（繊細・上品）===
@@ -391,11 +387,12 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     }
 
     // === 軸漢字ラベル ===
+    const _off = (R + 50) * 0.707;
     const AXIS_LABEL_POS = [
-      { x: cx,         y: cy - R - 50 }, // 志: 真上
-      { x: cx + R + 50, y: cy          }, // 知: 真右
-      { x: cx,         y: cy + R + 50 }, // 技: 真下
-      { x: cx - R - 50, y: cy          }, // 衝: 真左
+      { x: cx - _off, y: cy - _off }, // 志: 左上 (-135°)
+      { x: cx + _off, y: cy - _off }, // 知: 右上 (-45°)
+      { x: cx + _off, y: cy + _off }, // 技: 右下 (45°)
+      { x: cx - _off, y: cy + _off }, // 衝: 左下 (135°)
     ];
     AXIS_META.forEach((axis, ai) => {
       const kx = AXIS_LABEL_POS[ai].x * ep + cx * (1 - ep);
