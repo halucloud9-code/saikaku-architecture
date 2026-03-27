@@ -21,10 +21,10 @@ const PALETTE = {
 };
 
 const AXIS_META = [
-  { key: 'mindset',    kanji: '志', en: 'MindSet',    color: [74, 111, 165],  hex: '#4A6FA5' },
-  { key: 'literacy',   kanji: '知', en: 'Literacy',   color: [46, 139, 87],   hex: '#2E8B57' },
-  { key: 'competency', kanji: '技', en: 'Competency', color: [196, 146, 42],  hex: '#C4922A' },
-  { key: 'impact',     kanji: '衝', en: 'Impact',     color: [168, 68, 50],   hex: '#A84432' },
+  { key: 'mindset',    kanji: '志', en: 'WHY',   color: [74, 111, 165],  hex: '#4A6FA5' },
+  { key: 'literacy',   kanji: '知', en: 'THINK', color: [46, 139, 87],   hex: '#2E8B57' },
+  { key: 'competency', kanji: '技', en: 'HOW',   color: [196, 146, 42],  hex: '#C4922A' },
+  { key: 'impact',     kanji: '衝', en: 'ACT',   color: [168, 68, 50],   hex: '#A84432' },
 ];
 
 const SUB_META = [
@@ -391,11 +391,15 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     }
 
     // === 軸漢字ラベル ===
+    const AXIS_LABEL_POS = [
+      { x: cx,         y: cy - R - 50 }, // 志: 真上
+      { x: cx + R + 50, y: cy          }, // 知: 真右
+      { x: cx,         y: cy + R + 50 }, // 技: 真下
+      { x: cx - R - 50, y: cy          }, // 衝: 真左
+    ];
     AXIS_META.forEach((axis, ai) => {
-      const midAngle = getAngle(ai * 4 + 1.5);
-      const kr = R + 55;
-      const kx = cx + Math.cos(midAngle) * kr * ep;
-      const ky = cy + Math.sin(midAngle) * kr * ep;
+      const kx = AXIS_LABEL_POS[ai].x * ep + cx * (1 - ep);
+      const ky = AXIS_LABEL_POS[ai].y * ep + cy * (1 - ep);
       const c = axis.color;
 
       ctx.textAlign = 'center';
