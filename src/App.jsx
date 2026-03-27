@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, getRedirectResult, db } from './firebase';
 import LoginScreen from './screens/LoginScreen';
 import InputScreen from './screens/InputScreen';
@@ -17,11 +18,33 @@ const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
   .map((e) => e.trim())
   .filter(Boolean);
 
-export default function App() {
-  // 開発用: ?dev=uaam でログインスキップ＆ダミー結果画面表示
-  const devMode = new URLSearchParams(window.location.search).get('dev');
+// URLパラメータ取得
+const params = new URLSearchParams(window.location.search);
+const devMode = params.get('dev');
+const pageParam = params.get('page'); // ?page=uaam-result で直接結果画面へ
 
-  const [screen, setScreen] = useState(devMode === 'uaam' ? 'uaam-result' : 'login');
+/**
+ * Firestoreから保存済みUAAM結果を読み込む
+ */
+async function loadSavedUaamResult(uid) {
+  try {
+    const docRef = doc(db, 'uaam_results', uid);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.scores && data.analysis) {
+        return { scores: data.scores, analysis: data.analysis };
+      }
+    }
+  } catch (e) {
+    console.warn('[UAAM] Failed to load saved result:', e);
+  }
+  return null;
+}
+
+export default function App() {
+  const initialScreen = devMode === 'uaam' ? 'uaam-result' : 'login';
+  const [screen, setScreen] = useState(initialScreen);
   const [user, setUser] = useState(devMode === 'uaam' ? { displayName: 'Dev User', photoURL: null, email: 'dev@test.com' } : null);
   const [authLoading, setAuthLoading] = useState(devMode ? false : true);
   const [result, setResult] = useState(null);
@@ -54,48 +77,73 @@ export default function App() {
   const [uaamError, setUaamError] = useState('');
 
   useEffect(() => {
-    if (devMode) return; // デバッグモード時はAuth不要
+    if (devMode) return;
     // リダイレクトログイン後の結果を処理
     getRedirectResult(auth).then(async (result) => {
       if (result && result.user) {
-        const { doc, setDoc, getDoc, serverTimestamp } = await import('firebase/firestore');
+        const { doc: docFn, setDoc: setDocFn, getDoc: getDocFn, serverTimestamp } = await import('firebase/firestore');
         const user = result.user;
-        const docRef = doc(db, 'results', user.uid);
-        const snap = await getDoc(docRef);
+        const docRef = docFn(db, 'results', user.uid);
+        const snap = await getDocFn(docRef);
         if (!snap.data()?.consentAt) {
-          await setDoc(docRef, { consentAt: serverTimestamp() }, { merge: true });
+          await setDocFn(docRef, { consentAt: serverTimestamp() }, { merge: true });
         }
       }
     }).catch(() => {});
 
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       setAuthLoading(false);
       if (u) {
+        // ログイン完了 → 保存済みUAAM結果を読み込み
+        const saved = await loadSavedUaamResult(u.uid);
+        if (saved) {
+          setUaamResult(saved);
+          // ?page=uaam-result の場合は直接結果画面へ
+          if (pageParam === 'uaam-result') {
+            setScreen('uaam-result');
+            return;
+          }
+        }
+        // ?page=uaam-result でもデータがない場合は質問画面へ
+        if (pageParam === 'uaam-result' && !saved) {
+          setScreen('uaam');
+          return;
+        }
         setScreen((prev) => (prev === 'login' ? 'select' : prev));
       }
     });
     return unsubscribe;
   }, []);
 
-  const handleLogin = (u) => {
+  const handleLogin = async (u) => {
     setUser(u);
+    // ログイン時にも保存済みUAAM結果を読み込む
+    const saved = await loadSavedUaamResult(u.uid);
+    if (saved) {
+      setUaamResult(saved);
+      if (pageParam === 'uaam-result') {
+        setScreen('uaam-result');
+        return;
+      }
+    }
+    if (pageParam === 'uaam-result' && !saved) {
+      setScreen('uaam');
+      return;
+    }
     setScreen('select');
   };
 
   const handleSubmit = async (formData) => {
     setError('');
-    setResult(null);   // ← 必ず旧データをクリアしてから新規分析
+    setResult(null);
     setScreen('loading');
     try {
-      // セッション切れチェック
       if (!auth.currentUser) {
         throw new Error('ログインセッションが切れました。再度ログインしてください。');
       }
-      // トークンを強制リフレッシュして確実に有効なものを取得
       const idToken = await auth.currentUser.getIdToken(true);
 
-      // タイムアウト付きfetch（90秒）
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90_000);
       let res;
@@ -126,7 +174,7 @@ export default function App() {
     }
   };
 
-  const handleUaamSubmit = async (answers) => {
+  const handleUaamSubmit = async (answers, vAnswers = {}) => {
     setUaamError('');
     setUaamResult(null);
     setScreen('uaam-loading');
@@ -142,7 +190,7 @@ export default function App() {
         res = await fetch('/api/uaam', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken, answers }),
+          body: JSON.stringify({ idToken, answers, vAnswers }),
           signal: controller.signal,
         });
       } finally {
@@ -150,7 +198,8 @@ export default function App() {
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '診断に失敗しました');
-      setUaamResult(data);
+      // vAnswers と answers を結果に含める（結果画面でV問表示に使う）
+      setUaamResult({ ...data, vAnswers, answers });
       setScreen('uaam-result');
     } catch (e) {
       if (e.name === 'AbortError') {
@@ -170,6 +219,11 @@ export default function App() {
     for (let i = 1; i <= 48; i++) {
       dummyAnswers[i] = Math.floor(Math.random() * 5) + 1;
     }
+    const dummyVAnswers = {
+      V1: Math.floor(Math.random() * 5) + 1,
+      V2: Math.floor(Math.random() * 5) + 1,
+      V3: Math.floor(Math.random() * 5) + 1,
+    };
     const scores = calculateScores(dummyAnswers);
     const analysis = {
       type_name: 'テストタイプ',
@@ -181,7 +235,7 @@ export default function App() {
       narrative: 'これはテスト用のダミーデータです。実際のAI分析は行われていません。ランダムに生成されたスコアで結果画面のレイアウトを確認するためのモードです。',
       action_suggestions: ['アクション1', 'アクション2', 'アクション3'],
     };
-    setUaamResult({ scores, analysis });
+    setUaamResult({ scores, analysis, vAnswers: dummyVAnswers, answers: dummyAnswers });
     setScreen('uaam-result');
   };
 

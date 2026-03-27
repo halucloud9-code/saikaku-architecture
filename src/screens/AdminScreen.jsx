@@ -165,11 +165,14 @@ function UserModal({ user: u, onClose }) {
 
 export default function AdminScreen({ user, onBack, onLogout }) {
   const [users, setUsers] = useState([]);
+  const [uaamUsers, setUaamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('saikaku'); // 'saikaku' | 'uaam'
+  const [vFilter, setVFilter] = useState('all'); // 'all' | 'v1_high' | 'v2_high' | 'v3_diff' | 'critical'
 
   useEffect(() => {
     fetchUsers();
@@ -187,6 +190,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '取得に失敗しました');
       setUsers(data.users || []);
+      setUaamUsers(data.uaamUsers || []);
     } catch (e) {
       setError(e.message || 'データの取得に失敗しました');
     } finally {
@@ -242,6 +246,38 @@ export default function AdminScreen({ user, onBack, onLogout }) {
         u.selectedKakuchiiki?.toLowerCase().includes(q)
     );
   }, [users, search]);
+
+  // UAAMユーザーのフィルタリング（検索 + Vフラグフィルタ）
+  const filteredUaam = useMemo(() => {
+    let list = uaamUsers;
+    // 検索フィルタ
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (u) =>
+          u.name?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q)
+      );
+    }
+    // Vフラグフィルタ
+    if (vFilter !== 'all') {
+      list = list.filter((u) => {
+        const v = u.vAnswers;
+        if (!v) return false;
+        if (vFilter === 'v1_high') return v['V1'] === 5;
+        if (vFilter === 'v2_high') return v['V2'] === 5;
+        if (vFilter === 'critical') return v['V1'] === 5 && v['V2'] === 5;
+        if (vFilter === 'v3_diff') {
+          const v3 = v['V3'];
+          const q46 = u.answers?.[46] ?? u.answers?.['46'];
+          if (v3 == null || q46 == null) return false;
+          return Math.abs(v3 - q46) >= 2;
+        }
+        return true;
+      });
+    }
+    return list;
+  }, [uaamUsers, search, vFilter]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F0E8' }}>
@@ -341,6 +377,33 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           ))}
         </div>
 
+        {/* タブ切り替え */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 24 }}>
+          {[
+            { key: 'saikaku', label: '才覚領域', count: users.length },
+            { key: 'uaam', label: 'UAAM診断', count: uaamUsers.length },
+          ].map(({ key, label, count }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              style={{
+                padding: '10px 24px',
+                border: 'none',
+                borderBottom: tab === key ? '3px solid #C4922A' : '3px solid transparent',
+                background: tab === key ? '#FDFCFA' : 'transparent',
+                color: tab === key ? '#2A2520' : '#7A7060',
+                fontSize: 14,
+                fontWeight: tab === key ? 700 : 400,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {label}（{loading ? '—' : count}）
+            </button>
+          ))}
+        </div>
+
+        {tab === 'saikaku' && (<>
         {/* テーブルヘッダー */}
         <div
           style={{
@@ -628,6 +691,276 @@ export default function AdminScreen({ user, onBack, onLogout }) {
         <p style={{ textAlign: 'center', fontSize: 12, color: '#D4C9B0', marginTop: 16 }}>
           {filtered.length} 件表示 / 総計 {users.length} 件
         </p>
+        </>)}
+
+        {/* ━━━ UAAMタブ ━━━ */}
+        {tab === 'uaam' && (<>
+        {/* UAAMヘッダー */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h2
+              style={{
+                fontFamily: 'Shippori Mincho, serif',
+                fontSize: 18,
+                fontWeight: 700,
+                color: '#2A2520',
+                margin: 0,
+              }}
+            >
+              UAAM診断結果
+            </h2>
+            <button
+              onClick={fetchUsers}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: '1px solid #D4C9B0',
+                background: 'transparent',
+                color: '#7A7060',
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              更新
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="名前・メールで検索..."
+              style={{
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: '1px solid #D4C9B0',
+                background: '#FDFCFA',
+                fontSize: 13,
+                color: '#2A2520',
+                width: 200,
+                fontFamily: 'Noto Sans JP, sans-serif',
+                outline: 'none',
+              }}
+            />
+            <select
+              value={vFilter}
+              onChange={(e) => setVFilter(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 8,
+                border: '1px solid #D4C9B0',
+                background: '#FDFCFA',
+                fontSize: 13,
+                color: '#2A2520',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="all">全件表示</option>
+              <option value="v1_high">V1=5（盛り傾向）</option>
+              <option value="v2_high">V2=5（盛り傾向）</option>
+              <option value="critical">V1&V2=5（要注意）</option>
+              <option value="v3_diff">V3差≥2（一貫性ブレ）</option>
+            </select>
+          </div>
+        </div>
+
+        {/* UAAMテーブル */}
+        <div
+          style={{
+            background: '#FDFCFA',
+            borderRadius: 12,
+            border: '1px solid #D4C9B0',
+            overflow: 'hidden',
+            boxShadow: '0 2px 8px rgba(42,37,32,0.04)',
+          }}
+        >
+          {loading ? (
+            <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060' }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  border: '3px solid #D4C9B0',
+                  borderTopColor: '#C4922A',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 12px',
+                }}
+              />
+              読み込み中...
+            </div>
+          ) : filteredUaam.length === 0 ? (
+            <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060', fontSize: 14 }}>
+              {search || vFilter !== 'all' ? '該当するユーザーが見つかりません' : 'まだUAAM診断結果がありません'}
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
+                  {['', '名前', '志', '知', '技', '衝', 'V1', 'V2', 'V3差', 'タイプ', '診断日'].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: '12px 12px',
+                        textAlign: 'left',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: '#7A7060',
+                        letterSpacing: '0.06em',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUaam.map((u, idx) => {
+                  const v = u.vAnswers || {};
+                  const v3 = v['V3'];
+                  const q46 = u.answers?.[46] ?? u.answers?.['46'];
+                  const v3Diff = (v3 != null && q46 != null) ? Math.abs(v3 - q46) : null;
+                  const v1is5 = v['V1'] === 5;
+                  const v2is5 = v['V2'] === 5;
+                  const isCritical = v1is5 && v2is5;
+
+                  return (
+                    <tr
+                      key={u.uid}
+                      style={{
+                        borderBottom: '1px solid #D4C9B0',
+                        background: isCritical ? '#FFF5F5' : idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4',
+                      }}
+                    >
+                      <td style={{ padding: '10px 12px' }}>
+                        {u.photoURL ? (
+                          <img src={u.photoURL} alt={u.name} style={{ width: 32, height: 32, borderRadius: '50%' }} />
+                        ) : (
+                          <div
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              background: '#D4C9B0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 12,
+                              color: '#7A7060',
+                            }}
+                          >
+                            {u.name?.[0] || '?'}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#2A2520' }}>{u.name}</div>
+                        <div style={{ fontSize: 11, color: '#7A7060' }}>{u.email}</div>
+                      </td>
+                      {/* 4軸スコア */}
+                      {['mindset', 'literacy', 'competency', 'impact'].map((axis) => {
+                        const s = u.scores?.[axis];
+                        const colors = { mindset: '#4A6FA5', literacy: '#2E8B57', competency: '#C4922A', impact: '#A84432' };
+                        return (
+                          <td key={axis} style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            {s ? (
+                              <span style={{
+                                fontFamily: "'DM Sans', sans-serif",
+                                fontSize: 16,
+                                fontWeight: 700,
+                                color: colors[axis],
+                              }}>
+                                {s.percentage ?? Math.round((s.total / (s.max || 1)) * 100)}%
+                              </span>
+                            ) : (
+                              <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      {/* V1 */}
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: v1is5 ? '#A84432' : '#7A7060',
+                        }}>
+                          {v['V1'] ?? '—'}
+                        </span>
+                      </td>
+                      {/* V2 */}
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: v2is5 ? '#A84432' : '#7A7060',
+                        }}>
+                          {v['V2'] ?? '—'}
+                        </span>
+                      </td>
+                      {/* V3差 */}
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: v3Diff != null && v3Diff >= 2 ? '#A84432' : '#7A7060',
+                        }}>
+                          {v3Diff != null ? v3Diff : '—'}
+                        </span>
+                      </td>
+                      {/* タイプ名 */}
+                      <td style={{ padding: '10px 12px', maxWidth: 160 }}>
+                        <span style={{
+                          fontFamily: 'Shippori Mincho, serif',
+                          fontSize: 12,
+                          color: '#2A2520',
+                          lineHeight: 1.4,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}>
+                          {u.analysis?.type_name || '—'}
+                        </span>
+                      </td>
+                      {/* 診断日 */}
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 12, color: '#7A7060' }}>
+                          {u.uaamUpdatedAt
+                            ? new Date(u.uaamUpdatedAt).toLocaleDateString('ja-JP', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                              })
+                            : '—'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <p style={{ textAlign: 'center', fontSize: 12, color: '#D4C9B0', marginTop: 16 }}>
+          {filteredUaam.length} 件表示 / 総計 {uaamUsers.length} 件
+        </p>
+        </>)}
       </div>
 
       {/* 詳細モーダル */}

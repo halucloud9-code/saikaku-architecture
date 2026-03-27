@@ -62,7 +62,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               border: '2px solid rgba(196,146,42,0.3)',
             }} />
           )}
-          <span style={{ fontSize: 13, color: '#BFB5A0', fontWeight: 500 }}>{user?.displayName}</span>
+          <span style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600 }}>{user?.displayName}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {isAdmin && (
@@ -97,24 +97,24 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.3em', color: '#C4922A',
               textTransform: 'uppercase',
-            }}>Select Program</span>
+            }}>Ability Decoding Program</span>
             <div style={{ width: 32, height: 1, background: 'linear-gradient(90deg, #C4922A, transparent)' }} />
           </div>
           <h1 style={{
             fontSize: 28, fontWeight: 800, color: '#F5F0E8', margin: 0,
             fontFamily: "'Noto Serif JP', Georgia, serif",
             letterSpacing: '0.08em',
-          }}>診断プログラム</h1>
+          }}>才覚解読プログラム</h1>
           <p style={{
-            fontSize: 13, color: '#8A8070', marginTop: 10,
+            fontSize: 13, color: '#FFFFFF', marginTop: 10,
             lineHeight: 1.7, letterSpacing: '0.02em',
           }}>
             あなたの才覚を解き明かすプログラムを選択してください
           </p>
         </div>
 
-        {/* ─── 才覚領域カード ─── */}
-        <button
+        {/* ─── 才覚領域カード（管理者のみ） ─── */}
+        {isAdmin && <button
           onClick={onSelectSaikaku}
           onMouseEnter={() => setHoverSaikaku(true)}
           onMouseLeave={() => setHoverSaikaku(false)}
@@ -160,7 +160,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             {/* タイトル */}
             <div style={{ marginBottom: 6 }}>
               <span style={{
-                fontSize: 26, fontWeight: 900, color: '#F5F0E8',
+                fontSize: 26, fontWeight: 900, color: '#FFFFFF',
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 letterSpacing: '0.06em',
                 display: 'block',
@@ -169,7 +169,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             <div style={{
               fontSize: 12, fontWeight: 600, color: '#C4922A',
               letterSpacing: '0.12em', marginBottom: 20,
-              fontFamily: "'Playfair Display', Georgia, serif",
+              fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
             }}>Architecture</div>
 
             {/* 区切り */}
@@ -180,10 +180,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
 
             {/* 説明文 */}
             <p style={{
-              fontSize: 14, color: '#BFB5A0', margin: 0, lineHeight: 2,
+              fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
               letterSpacing: '0.02em',
             }}>
-              才能 × 価値観 × 情熱<br />
+              価値観 × 才能 × 情熱<br />
               化学反応を起こす<br />
               あなただけの才覚領域を見つけだす
             </p>
@@ -210,7 +210,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               </div>
             </div>
           </div>
-        </button>
+        </button>}
 
         {/* ─── 才覚発動領域カード ─── */}
         <button
@@ -251,19 +251,23 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               borderRadius: 100, padding: '4px 14px', marginBottom: 16,
             }}>
               <span style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', color: '#6B9AD4',
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: '#6B9AD4',
                 textTransform: 'uppercase',
-              }}>Activation Matrix</span>
+              }}>Unique Ability Activation Matrix</span>
             </div>
 
             {/* タイトル */}
             <div style={{ marginBottom: 6 }}>
               <span style={{
-                fontSize: 26, fontWeight: 900, color: '#F5F0E8',
+                fontSize: 26, fontWeight: 900, color: '#FFFFFF',
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 letterSpacing: '0.06em',
                 display: 'block',
-              }}>才覚発動領域</span>
+              }}>才覚発動領域<span style={{
+                fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
+                fontSize: 16, fontWeight: 700, color: '#6B9AD4',
+                marginLeft: 6, letterSpacing: '0.08em',
+              }}>MATRIX</span></span>
             </div>
             <div style={{
               fontSize: 12, fontWeight: 600, color: '#6B9AD4',
@@ -278,10 +282,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
 
             {/* 説明文 */}
             <p style={{
-              fontSize: 14, color: '#BFB5A0', margin: 0, lineHeight: 2,
+              fontSize: 14, color: '#FFFFFF', margin: 0, lineHeight: 2,
               letterSpacing: '0.02em',
             }}>
-              48問の診断で4軸16項目を分析し<br />
+              <span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>48</span>問の診断で<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>4</span>軸<span style={{ fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif", fontWeight: 700 }}>16</span>項目を分析し<br />
               才覚発動領域マトリクスを可視化します
             </p>
 
@@ -317,6 +321,26 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 <span>パスワード</span>
               </div>
             </div>
+
+            {/* Coming Soon — 枠なし、一番下 */}
+            <div style={{
+              marginTop: 24, paddingTop: 20,
+              borderTop: '1px solid rgba(74,111,165,0.12)',
+              textAlign: 'center',
+            }}>
+              <div style={{
+                fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
+                color: '#FFD700',
+                textTransform: 'uppercase',
+                marginBottom: 6,
+              }}>Coming Soon</div>
+              <div style={{
+                fontFamily: "'Noto Serif JP', Georgia, serif",
+                fontSize: 14, fontWeight: 800, color: '#FFFFFF',
+                letterSpacing: '0.08em',
+              }}>才覚発動　領域展開</div>
+            </div>
           </div>
         </button>
 
@@ -325,7 +349,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
           fontSize: 10, color: 'rgba(138,128,112,0.4)', textAlign: 'center',
           marginTop: 8, letterSpacing: '0.1em',
         }}>
-          Powered by Claude AI × Firebase
+          Powered by GRIFFON × Firebase
         </p>
       </div>
 

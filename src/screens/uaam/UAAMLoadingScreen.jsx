@@ -76,7 +76,7 @@ export default function UAAMLoadingScreen() {
             fontSize: 18,
             fontWeight: 600,
             color: current.color,
-            fontFamily: "'Playfair Display', Georgia, serif",
+            fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif",
             letterSpacing: '0.15em',
             marginTop: 8,
             opacity: 0.8,
