@@ -58,6 +58,13 @@ function lerpColor(c1, c2, t) {
   ];
 }
 
+function getZone(raw) {
+  if (raw >= 16) return 'active';
+  if (raw >= 12) return 'potential';
+  if (raw >= 10) return 'emerging';
+  return 'dormant';
+}
+
 export default function ActivationMatrix({ scores, maxSub = 20 }) {
   const canvasRef = useRef(null);
   const [selectedIdx, setSelectedIdx] = useState(null);
@@ -155,6 +162,24 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       ctx.lineWidth = p === 1 ? 1 : 0.5;
       ctx.stroke();
     });
+
+    // === ゾーン閾値リング (Active threshold: 16/20 = 0.8) ===
+    const thresholdR = R * 0.8 * ep;
+    ctx.save();
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      const angle = getAngle(i % N);
+      const x = cx + Math.cos(angle) * thresholdR;
+      const y = cy + Math.sin(angle) * thresholdR;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = `rgba(196,146,42,${0.3 * ep})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
 
     // === スポーク ===
     for (let i = 0; i < N; i++) {
@@ -265,26 +290,29 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       ctx.fill();
     });
 
-    // === データドット ===
+    // === データドット（ゾーンベース）===
     const activeI = selectedIdx ?? hoveredIdx;
     for (let i = 0; i < N; i++) {
       const dp = getDataPoint(i);
       const c = points[i].color;
-      const isActive = activeI === i;
-      const topRank = top3.findIndex(t => t.idx === i);
-      const isTop3 = topRank >= 0;
-      const top5Rank = top5.findIndex(t => t.idx === i);
-      const isTop5 = top5Rank >= 0;
-      const dotR = isActive ? 8 : topRank === 0 ? 7 : topRank === 1 ? 6 : isTop3 ? 5.5 : isTop5 ? 4.5 : 3;
-      const pulseR = isTop3 ? (1 + Math.sin(st.time * 3 + i) * (topRank === 0 ? 0.2 : 0.12)) : 1;
+      const isSelected = activeI === i;
+      const zone = getZone(points[i].raw);
 
-      // TOP3: ゴールドグロー
-      if (isActive || isTop3) {
-        const glowSize = topRank === 0 ? 18 : topRank === 1 ? 14 : isTop3 ? 12 : 10;
-        const glowR = (dotR + glowSize) * pulseR;
-        const glowAlpha = isActive ? 0.45 : topRank === 0 ? 0.35 : topRank === 1 ? 0.25 : 0.18;
-        // TOP3はゴールドグロー
-        const glowColor = isTop3 ? [196, 146, 42] : c;
+      const dotR = isSelected ? 8
+        : zone === 'active'    ? 7
+        : zone === 'potential' ? 5
+        : zone === 'emerging'  ? 3.5
+        : 2.5;
+      const pulse = (zone === 'active' || isSelected)
+        ? (1 + Math.sin(st.time * 3 + i) * 0.18)
+        : 1;
+
+      // グロー
+      if (isSelected || zone === 'active' || zone === 'potential') {
+        const glowColor = (zone === 'active' || isSelected) ? [196, 146, 42] : c;
+        const glowSize  = zone === 'active' ? 18 : zone === 'potential' ? 12 : 8;
+        const glowAlpha = isSelected ? 0.45 : zone === 'active' ? 0.38 : 0.18;
+        const glowR = (dotR + glowSize) * pulse;
         const grad = ctx.createRadialGradient(dp.x, dp.y, 0, dp.x, dp.y, glowR);
         grad.addColorStop(0, `rgba(${glowColor[0]},${glowColor[1]},${glowColor[2]},${glowAlpha})`);
         grad.addColorStop(0.5, `rgba(${glowColor[0]},${glowColor[1]},${glowColor[2]},${glowAlpha * 0.3})`);
@@ -295,33 +323,46 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         ctx.fill();
       }
 
-      // ドット本体: 白 + 軸色の縁
+      // ドット本体
       ctx.beginPath();
-      ctx.arc(dp.x, dp.y, dotR * pulseR, 0, Math.PI * 2);
-      ctx.fillStyle = isActive ? `rgb(${c[0]},${c[1]},${c[2]})` : '#FFFFFF';
+      ctx.arc(dp.x, dp.y, dotR * pulse, 0, Math.PI * 2);
+      if (zone === 'dormant') {
+        ctx.fillStyle = isSelected ? `rgb(${c[0]},${c[1]},${c[2]})` : '#BBBBBB';
+        ctx.strokeStyle = 'rgba(150,150,150,0.5)';
+        ctx.lineWidth = 1;
+      } else if (zone === 'active') {
+        ctx.fillStyle = isSelected ? `rgb(${c[0]},${c[1]},${c[2]})` : '#FFFFFF';
+        ctx.strokeStyle = `rgba(196,146,42,0.9)`;
+        ctx.lineWidth = 2;
+      } else if (zone === 'potential') {
+        ctx.fillStyle = isSelected ? `rgb(${c[0]},${c[1]},${c[2]})` : '#FFFFFF';
+        ctx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.lineWidth = 1.5;
+      } else { // emerging
+        ctx.fillStyle = isSelected ? `rgb(${c[0]},${c[1]},${c[2]})` : '#FFFFFF';
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.55)`;
+        ctx.lineWidth = 1;
+      }
       ctx.fill();
-      // TOP3はゴールドボーダー
-      ctx.strokeStyle = isTop3 ? `rgba(196,146,42,0.85)` : `rgb(${c[0]},${c[1]},${c[2]})`;
-      ctx.lineWidth = isActive ? 2.5 : isTop3 ? 2 : isTop5 ? 1.5 : 1;
       ctx.stroke();
 
       // 中心ハイライト
       ctx.beginPath();
       ctx.arc(dp.x, dp.y, 1.5, 0, Math.PI * 2);
-      ctx.fillStyle = isTop3 ? `rgba(255,215,0,0.8)` : '#FDFCFA';
+      ctx.fillStyle = zone === 'active' ? 'rgba(255,215,0,0.85)' : '#FDFCFA';
       ctx.fill();
     }
 
-    // === ラベル ===
+    // === ラベル（ゾーンベース）===
     const labelR = R + 26;
     for (let i = 0; i < N; i++) {
       const angle = getAngle(i);
       const lx = cx + Math.cos(angle) * labelR * ep;
       const ly = cy + Math.sin(angle) * labelR * ep;
       const c = points[i].color;
-      const isActive = activeI === i;
+      const isSelected = activeI === i;
+      const zone = getZone(points[i].raw);
       const topRank = top3.findIndex(t => t.idx === i);
-      const isTop = topRank >= 0;
       const cos = Math.cos(angle);
       const align = cos > 0.15 ? 'left' : cos < -0.15 ? 'right' : 'center';
       const nudge = cos > 0.15 ? 8 : cos < -0.15 ? -8 : 0;
@@ -329,74 +370,80 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       ctx.textAlign = align;
       ctx.textBaseline = 'middle';
 
-      if (isTop) {
-        const fontSize = topRank === 0 ? 22 : topRank === 1 ? 18 : 16;
-
-        // 数字（メインテキスト色 + グロー）
-        ctx.save();
-        ctx.shadowColor = `rgba(${c[0]},${c[1]},${c[2]},0.4)`;
-        ctx.shadowBlur = topRank === 0 ? 10 : 5;
-        ctx.font = `800 ${fontSize}px "DM Sans", sans-serif`;
-        ctx.fillStyle = topRank === 0 ? '#2A2520' : `rgba(42,37,32,${topRank === 1 ? 0.9 : 0.8})`;
-        ctx.fillText(points[i].raw + '', lx + nudge, ly - 10);
-        ctx.restore();
-
-        // ランクバッジ
-        ctx.font = `700 9px "DM Sans", sans-serif`;
-        ctx.fillStyle = '#C4922A';
-        const rankLabel = '#' + (topRank + 1);
-        const badgeOffsetX = align === 'left'
-          ? ctx.measureText(points[i].raw + '').width + 6
-          : align === 'right'
-          ? -(ctx.measureText(points[i].raw + '').width + 6)
-          : ctx.measureText(points[i].raw + '').width / 2 + 6;
-        ctx.fillText(rankLabel, lx + nudge + badgeOffsetX, ly - 14);
-
-        // 日本語ラベル
-        ctx.font = `700 ${topRank === 0 ? 12 : 11}px "Noto Serif JP", serif`;
-        ctx.fillStyle = topRank === 0 ? '#2A2520' : 'rgba(42,37,32,0.75)';
-        ctx.fillText(points[i].jp, lx + nudge, ly + 6);
-
-        // パーセンテージ
-        ctx.font = `600 10px "DM Sans", sans-serif`;
-        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
-        ctx.fillText(points[i].pct + '%', lx + nudge, ly + 20);
-
-      } else if (isActive) {
+      if (isSelected) {
+        // 選択時: 詳細表示
         ctx.font = '700 15px "DM Sans", sans-serif';
         ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
         ctx.fillText(points[i].raw + '', lx + nudge, ly - 8);
-
         ctx.font = '700 11px "Noto Serif JP", serif';
         ctx.fillStyle = '#2A2520';
         ctx.fillText(points[i].jp, lx + nudge, ly + 6);
-
         ctx.font = '600 9px "DM Sans", sans-serif';
         ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.7)`;
         ctx.fillText(points[i].pct + '%', lx + nudge, ly + 19);
 
-      } else {
-        ctx.font = '500 12px "DM Sans", sans-serif';
-        ctx.fillStyle = 'rgba(42,37,32,0.65)';
-        ctx.fillText(points[i].raw + '', lx + nudge, ly - 7);
-
-        ctx.font = '400 10px "Noto Serif JP", serif';
-        ctx.fillStyle = 'rgba(42,37,32,0.45)';
+      } else if (zone === 'active') {
+        // Active: 大きい数値 + ゴールドグロー
+        ctx.save();
+        ctx.shadowColor = `rgba(196,146,42,0.55)`;
+        ctx.shadowBlur = 12;
+        ctx.font = `800 20px "DM Sans", sans-serif`;
+        ctx.fillStyle = '#2A2520';
+        ctx.fillText(points[i].raw + '', lx + nudge, ly - 10);
+        ctx.restore();
+        if (topRank >= 0) {
+          ctx.font = `700 9px "DM Sans", sans-serif`;
+          ctx.fillStyle = '#C4922A';
+          const numW = ctx.measureText(points[i].raw + '').width;
+          const bx = align === 'left' ? lx + nudge + numW + 4
+            : align === 'right' ? lx + nudge - numW - 4
+            : lx + nudge + numW / 2 + 4;
+          ctx.fillText('#' + (topRank + 1), bx, ly - 18);
+        }
+        ctx.font = `700 11px "Noto Serif JP", serif`;
+        ctx.fillStyle = '#2A2520';
         ctx.fillText(points[i].jp, lx + nudge, ly + 6);
+        ctx.font = `600 9px "DM Sans", sans-serif`;
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.9)`;
+        ctx.fillText(points[i].pct + '%', lx + nudge, ly + 19);
+
+      } else if (zone === 'potential') {
+        // Potential: 中サイズ + 軸色
+        ctx.font = `700 15px "DM Sans", sans-serif`;
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
+        ctx.fillText(points[i].raw + '', lx + nudge, ly - 8);
+        ctx.font = `500 10px "Noto Serif JP", serif`;
+        ctx.fillStyle = 'rgba(42,37,32,0.65)';
+        ctx.fillText(points[i].jp, lx + nudge, ly + 6);
+
+      } else if (zone === 'emerging') {
+        // Emerging: 小さめ + 薄い軸色
+        ctx.font = `500 12px "DM Sans", sans-serif`;
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.55)`;
+        ctx.fillText(points[i].raw + '', lx + nudge, ly - 7);
+        ctx.font = `400 9px "Noto Serif JP", serif`;
+        ctx.fillStyle = 'rgba(42,37,32,0.4)';
+        ctx.fillText(points[i].jp, lx + nudge, ly + 5);
+
+      } else {
+        // Dormant: 最小・グレー・薄い
+        ctx.font = `400 11px "DM Sans", sans-serif`;
+        ctx.fillStyle = 'rgba(42,37,32,0.28)';
+        ctx.fillText(points[i].raw + '', lx + nudge, ly - 6);
+        ctx.font = `400 9px "Noto Serif JP", serif`;
+        ctx.fillStyle = 'rgba(42,37,32,0.18)';
+        ctx.fillText(points[i].jp, lx + nudge, ly + 5);
       }
     }
 
-    // === 軸漢字ラベル ===
-    const _off = (R + 50) * 0.707;
-    const AXIS_LABEL_POS = [
-      { x: cx - _off, y: cy - _off }, // 志: 左上 (-135°)
-      { x: cx + _off, y: cy - _off }, // 知: 右上 (-45°)
-      { x: cx + _off, y: cy + _off }, // 技: 右下 (45°)
-      { x: cx - _off, y: cy + _off }, // 衝: 左下 (135°)
-    ];
+    // === 軸漢字ラベル（各グループ中央角度・最外周配置）===
+    const kanjiR = Math.min(R + 85, Math.min(W / 2, H / 2) - 14);
     AXIS_META.forEach((axis, ai) => {
-      const kx = AXIS_LABEL_POS[ai].x * ep + cx * (1 - ep);
-      const ky = AXIS_LABEL_POS[ai].y * ep + cy * (1 - ep);
+      const midAngle = getAngle(ai * 4 + 1.5);
+      const targetX = cx + Math.cos(midAngle) * kanjiR;
+      const targetY = cy + Math.sin(midAngle) * kanjiR;
+      const kx = targetX * ep + cx * (1 - ep);
+      const ky = targetY * ep + cy * (1 - ep);
       const c = axis.color;
 
       ctx.textAlign = 'center';
@@ -407,7 +454,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.75 + breath * 0.12})`;
       ctx.fillText(axis.kanji, kx, ky - 5);
 
-      // English
+      // English sublabel
       ctx.font = '600 8px "DM Sans", sans-serif';
       ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.45)`;
       ctx.fillText(axis.en.toUpperCase(), kx, ky + 12);
