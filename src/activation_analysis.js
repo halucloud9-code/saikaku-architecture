@@ -285,12 +285,9 @@ function pickTopByBlock(items, order, limit) {
 }
 
 // =============================================
-// 4. エクスポート
+// 4. エクスポート（ESM）
 // =============================================
-// CommonJS
-if (typeof module !== 'undefined') {
-  module.exports = { getActivationAnalysis, TEMPLATES, BLOCK_MAP };
-}
+export { getActivationAnalysis, TEMPLATES, BLOCK_MAP };
 
 // =============================================
 // 5. 動作確認用サンプル（開発時のみ使用）
