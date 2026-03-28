@@ -1,5 +1,76 @@
 # 才覚領域 Architecture — 引き継ぎ情報
 
+---
+
+## 🔚 グリフォン セッション終了プロトコル（毎回・セッション末尾で実行）
+
+**「グリフォン、引き継ぎ書更新して」の一言で即実行する内容：**
+
+1. 今日の変更内容を「最近の変更履歴」に追記する
+2. 未完了タスクを「今後のタスク」に反映する
+3. NotionのUAAMタスクDBと同期する（完了済みをチェック）
+4. HANDOFF.mdをgit commit & push する
+
+```bash
+# 終了時git操作パターン
+SESSION=/sessions/serene-brave-johnson
+GITCOPY=$SESSION/saikaku-gitcopyN/.git   # N は毎回インクリメント
+GIT_DIR=$GITCOPY GIT_WORK_TREE=/sessions/serene-brave-johnson/mnt/saikaku-architecture \
+  git -c user.name="halu" -c user.email="halu.cloud9@gmail.com" add HANDOFF.md
+GIT_DIR=$GITCOPY GIT_WORK_TREE=/sessions/serene-brave-johnson/mnt/saikaku-architecture \
+  git -c user.name="halu" -c user.email="halu.cloud9@gmail.com" commit -m "引き継ぎ書更新 $(date +%Y.%m.%d)"
+GIT_DIR=$GITCOPY git push origin main
+```
+
+---
+
+## ✅ push後の自動確認プロトコル（push直後に必ず実行）
+
+**STEP A — Vercelビルド確認**
+```
+WebFetch: https://saikaku-architecture.vercel.app
+→ ステータス200・ページが返ってくればビルドOK
+→ エラーページが返ってきたらVercel管理画面を確認
+```
+
+**STEP B — 発動分析パネル動作確認**
+```
+WebFetch: https://saikaku-architecture.vercel.app/?dev=uaam
+→ レスポンスに「発動中」「未発動」「message」「action」が含まれていればOK
+→ 含まれていなければActivationPanel/activation_analysis.jsを確認
+```
+
+---
+
+## ⚡ グリフォン セッション開始時の必須手順（毎回・最優先）
+
+**STEP 0 — リポジトリ接続（最初に必ずやる）**
+
+```
+mcp__cowork__request_cowork_directory を呼ぶ
+path: /Users/halu/グリフォンアプリ/saikaku-architecture
+```
+
+これをやると：
+- グリフォンがリポジトリを直接読み書きできる
+- `git add / commit / push` をグリフォンが直接実行できる
+- 「ターミナルで貼って」→「貼れない」詰まりが完全になくなる
+
+接続確認：`/sessions/.../mnt/saikaku-architecture/` が見えればOK。
+
+**git操作（接続後はこちらを使う ← 旧パターンより簡単）**
+```bash
+cd /sessions/<session>/mnt/saikaku-architecture
+git config user.email "halu.cloud9@gmail.com"
+git config user.name "halu"
+git add <file>
+git commit -m "メッセージ"
+git push
+```
+※ index.lock 警告が出ても commit/push は成功する。無視してOK。
+
+---
+
 ## プロジェクト概要
 - **リポジトリ**: `https://github.com/halucloud9-code/saikaku-architecture.git`
 - **デプロイ**: Vercel（GitHub mainブランチに push すると自動デプロイ）
