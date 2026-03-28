@@ -3,6 +3,7 @@ import { signOutUser } from '../../firebase';
 import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle from './AllPairsTriangle';
+import ActivationPanel from '../ActivationPanel';
 
 /* ============================================================
  * 定数
@@ -1284,6 +1285,11 @@ function RadarChart16({ scores }) {
  * メインコンポーネント
  * ============================================================ */
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
+
+      {/* 発動分析パネル — ⚠️ scores={subcategoryScoresの変数名} に差し替えること */}
+      <div style={{ margin: '32px 0' }}>
+        <ActivationPanel scores={{}} threshold={52} />
+      </div>
   const { scores, analysis, vAnswers, answers } = result;
 
   // スケール自動検出（サーバー0-12 vs クライアント0-15）

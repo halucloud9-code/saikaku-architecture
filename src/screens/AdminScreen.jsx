@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, signOutUser } from '../firebase';
 import { Chart, computePcts, CHART_COLORS } from '../utils/chartUtils';
+import ActivationPanel from '../ActivationPanel';
 
 function MiniDonut({ axes, colors }) {
   const canvasRef = useRef(null);
@@ -694,6 +695,14 @@ export default function AdminScreen({ user, onBack, onLogout }) {
         </>)}
 
         {/* ━━━ UAAMタブ ━━━ */}
+
+        {/* 発動分析パネル */}
+        {selectedUser?.uaamResult?.subcategoryScores && (
+          <div style={{ marginTop: 24 }}>
+            <h4 style={{ fontWeight: 700, marginBottom: 8 }}>発動分析</h4>
+            <ActivationPanel scores={selectedUser.uaamResult.subcategoryScores} threshold={52} />
+          </div>
+        )}
         {tab === 'uaam' && (<>
         {/* UAAMヘッダー */}
         <div
