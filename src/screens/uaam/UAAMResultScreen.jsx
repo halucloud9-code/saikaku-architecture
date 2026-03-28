@@ -3,7 +3,7 @@ import { signOutUser } from '../../firebase';
 import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle from './AllPairsTriangle';
-import ActivationPanel from '../ActivationPanel';
+import ActivationPanel from '../../ActivationPanel';
 
 /* ============================================================
  * 定数
@@ -1285,16 +1285,6 @@ function RadarChart16({ scores }) {
  * メインコンポーネント
  * ============================================================ */
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
-
-      {/* 発動分析パネル — ⚠️ scores={subcategoryScoresの変数名} に差し替えること */}
-      <div style={{ margin: '32px 0' }}>
-        <ActivationPanel scores={
-              Object.values(scores || {}).reduce((acc, domain) => {
-                if (domain?.subs) Object.assign(acc, domain.subs);
-                return acc;
-              }, {})
-            } threshold={13} />
-      </div>
   const { scores, analysis, vAnswers, answers } = result;
 
   // スケール自動検出（サーバー0-12 vs クライアント0-15）
@@ -1456,6 +1446,14 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
         {/* ===== 全ペア三角マトリックス（All Pairs Triangle） ===== */}
         <AllPairsTriangle scores={scores} maxSub={MAX_SUB} />
+
+        {/* ===== 発動分析パネル ===== */}
+        <ActivationPanel scores={
+          Object.values(scores || {}).reduce((acc, domain) => {
+            if (domain?.subs) Object.assign(acc, domain.subs);
+            return acc;
+          }, {})
+        } threshold={13} />
 
         {/* ===== AI分析 ===== */}
         {analysis && (
