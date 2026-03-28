@@ -19,7 +19,7 @@ const BLOCK_COLOR = {
   衝: { bg: '#FDF2F8', border: '#E879F9', label: '#A21CAF' },
 };
 
-export default function ActivationPanel({ scores, threshold = 52 }) {
+export default function ActivationPanel({ scores, threshold = 13 }) {
   if (!scores) return null;
 
   const { active, sleeping } = getActivationAnalysis(scores, threshold);

@@ -8,8 +8,9 @@
  *   ・AI API不要・ルールベースで完結
  *
  * スコア設計:
- *   1サブカテゴリ = 4問 × 20点 = 80点満点
- *   全体 = 16サブカテゴリ × 80点 = 1280点満点
+ *   1サブカテゴリ = 4問 × 5点 = 20点満点
+ *   1軸 = 4サブカテゴリ × 20点 = 80点満点
+ *   全体 = 4軸 × 80点 = 320点満点
  *
  * ⚠️ 要確認:
  *   BLOCK_MAP のサブカテゴリ→ブロック対応は仮設計。
@@ -213,12 +214,12 @@ const TEMPLATES = {
  *   例: { 根幹力: 85, 受容力: 72, 転換力: 91, ... }
  * @param {number} threshold
  *   発動中/未発動の閾値（80点満点中）
- *   設計根拠: 平均層200pt ÷ 16カテゴリ ≒ 12.5pt → 満点80点に換算 → 52〜56点
- *   デフォルト: 52点（平均層200pt相当）
+ *   設計根拠: 平均層200pt ÷ 16カテゴリ ≒ 12.5pt → 20点満点のサブスコアで → 13点
+ *   デフォルト: 13点（平均層200pt相当 / 20点満点）
  *   ⚠️ 要確認: 設計分析書のゾーン閾値と照合して最終値を決定すること
  * @returns {Object} { active: [...], sleeping: [...] }
  */
-function getActivationAnalysis(subcategoryScores, threshold = 52) {
+function getActivationAnalysis(subcategoryScores, threshold = 13) {
   // 各サブカテゴリにブロック情報とスコアを付与
   const items = Object.entries(subcategoryScores).map(([name, score]) => ({
     name,
@@ -296,15 +297,15 @@ if (typeof module !== 'undefined') {
 // =============================================
 // ブラウザコンソールで動作確認する場合は以下をコピペ
 /*
-// スコアは80点満点
+// スコアは20点満点
 const testScores = {
-  根幹力: 72, 受容力: 48, 転換力: 76, 熟達力: 40,
-  謙学力: 64, 論理力: 36, 活用力: 68, 統率力: 52,
-  本質力: 80, 創造力: 44, 伝達力: 60, 協働力: 32,
-  起動力: 70, 革新力: 50, 実装力: 58, 影響力: 28,
+  根幹力: 18, 受容力: 12, 転換力: 19, 熟達力: 10,
+  謙学力: 16, 論理力: 9,  活用力: 17, 統率力: 13,
+  本質力: 20, 創造力: 11, 伝達力: 15, 協働力: 8,
+  起動力: 17, 革新力: 13, 実装力: 14, 影響力: 7,
 };
 
-const result = getActivationAnalysis(testScores, 70);
+const result = getActivationAnalysis(testScores, 13);
 console.log('=== 発動中 TOP2 ===');
 result.active.forEach(i => {
   console.log(`[${i.block}] ${i.name} (${i.score}点)`);

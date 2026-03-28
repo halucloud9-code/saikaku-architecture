@@ -1288,7 +1288,12 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
       {/* 発動分析パネル — ⚠️ scores={subcategoryScoresの変数名} に差し替えること */}
       <div style={{ margin: '32px 0' }}>
-        <ActivationPanel scores={{}} threshold={52} />
+        <ActivationPanel scores={
+              Object.values(scores || {}).reduce((acc, domain) => {
+                if (domain?.subs) Object.assign(acc, domain.subs);
+                return acc;
+              }, {})
+            } threshold={13} />
       </div>
   const { scores, analysis, vAnswers, answers } = result;
 

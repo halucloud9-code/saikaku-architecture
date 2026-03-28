@@ -700,7 +700,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
         {selectedUser?.uaamResult?.subcategoryScores && (
           <div style={{ marginTop: 24 }}>
             <h4 style={{ fontWeight: 700, marginBottom: 8 }}>発動分析</h4>
-            <ActivationPanel scores={selectedUser.uaamResult.subcategoryScores} threshold={52} />
+            <ActivationPanel scores={selectedUser.uaamResult.subcategoryScores} threshold={13} />
           </div>
         )}
         {tab === 'uaam' && (<>
