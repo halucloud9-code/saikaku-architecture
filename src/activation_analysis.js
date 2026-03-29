@@ -13,19 +13,19 @@
 // 1. 英語subキー → 日本語表示名
 // =============================================
 const LABEL_MAP = {
-  mindset:        '根幹力',
+  meaning:        '根幹力',
   mindfulness:    '受容力',
   mindshift:      '転換力',
   mastery:        '熟達力',
-  literacy:       '謙学力',
+  learning:       '謙学力',
   logical:        '論理力',
   life:           '活用力',
   leadership:     '統率力',
-  competency:     '本質力',
+  critical:       '本質力',
   creativity:     '創造力',
   communication:  '伝達力',
   collaboration:  '協働力',
-  impact:         '起動力',
+  idea:           '起動力',
   innovation:     '革新力',
   implementation: '実装力',
   influence:      '影響力',
@@ -35,19 +35,19 @@ const LABEL_MAP = {
 // 2. 英語subキー → ブロック（志/知/技/衝）
 // =============================================
 const BLOCK_MAP = {
-  mindset:        '志',
+  meaning:        '志',
   mindfulness:    '志',
   mindshift:      '志',
   mastery:        '志',
-  literacy:       '知',
+  learning:       '知',
   logical:        '知',
   life:           '知',
   leadership:     '知',
-  competency:     '技',
+  critical:       '技',
   creativity:     '技',
   communication:  '技',
   collaboration:  '技',
-  impact:         '衝',
+  idea:           '衝',
   innovation:     '衝',
   implementation: '衝',
   influence:      '衝',
@@ -57,7 +57,7 @@ const BLOCK_MAP = {
 // 3. テンプレート定義（英語キー）
 // =============================================
 const TEMPLATES = {
-  mindset: {
+  meaning: {
     active: {
       message: '自分の判断基準が言語化されているから、状況が変わってもブレずに決断できている。',
       action: 'その判断基準を誰かに伝えて、一致しているか確認してみる',
@@ -97,7 +97,7 @@ const TEMPLATES = {
       action: '今日やることを終えた後、昨日と何が変わったかを1行メモする',
     },
   },
-  literacy: {
+  learning: {
     active: {
       message: '自分より詳しい人に出会うと、防衛ではなく素直に興味が動いている。',
       action: '最近尊敬した人に、「何を大切にしているか」を直接聞いてみる',
@@ -137,7 +137,7 @@ const TEMPLATES = {
       action: '指示より先に、相手が今何を大切にしているかを1つ聞いてみる',
     },
   },
-  competency: {
+  critical: {
     active: {
       message: '情報の表面より、その奥にある構造や意図が先に見えている。',
       action: '今取り組んでいる課題の「本当の問いは何か」をもう一度問い直してみる',
@@ -177,7 +177,7 @@ const TEMPLATES = {
       action: '今週、誰かに任せたら自分が驚くことを1つ探す',
     },
   },
-  impact: {
+  idea: {
     active: {
       message: '十分な情報が揃う前に、最初の1アクションを起こせている。',
       action: '次のアイデアを、考える前に30秒以内に1アクション起こしてみる',
