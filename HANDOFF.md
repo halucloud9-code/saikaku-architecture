@@ -1,5 +1,76 @@
 # 才覚領域 Architecture — 引き継ぎ情報
 
+---
+
+## 🔚 グリフォン セッション終了プロトコル（毎回・セッション末尾で実行）
+
+**「グリフォン、引き継ぎ書更新して」の一言で即実行する内容：**
+
+1. 今日の変更内容を「最近の変更履歴」に追記する
+2. 未完了タスクを「今後のタスク」に反映する
+3. NotionのUAAMタスクDBと同期する（完了済みをチェック）
+4. HANDOFF.mdをgit commit & push する
+
+```bash
+# 終了時git操作パターン
+SESSION=/sessions/serene-brave-johnson
+GITCOPY=$SESSION/saikaku-gitcopyN/.git   # N は毎回インクリメント
+GIT_DIR=$GITCOPY GIT_WORK_TREE=/sessions/serene-brave-johnson/mnt/saikaku-architecture \
+  git -c user.name="halu" -c user.email="halu.cloud9@gmail.com" add HANDOFF.md
+GIT_DIR=$GITCOPY GIT_WORK_TREE=/sessions/serene-brave-johnson/mnt/saikaku-architecture \
+  git -c user.name="halu" -c user.email="halu.cloud9@gmail.com" commit -m "引き継ぎ書更新 $(date +%Y.%m.%d)"
+GIT_DIR=$GITCOPY git push origin main
+```
+
+---
+
+## ✅ push後の自動確認プロトコル（push直後に必ず実行）
+
+**STEP A — Vercelビルド確認**
+```
+WebFetch: https://saikaku-architecture.vercel.app
+→ ステータス200・ページが返ってくればビルドOK
+→ エラーページが返ってきたらVercel管理画面を確認
+```
+
+**STEP B — 発動分析パネル動作確認**
+```
+WebFetch: https://saikaku-architecture.vercel.app/?dev=uaam
+→ レスポンスに「発動中」「未発動」「message」「action」が含まれていればOK
+→ 含まれていなければActivationPanel/activation_analysis.jsを確認
+```
+
+---
+
+## ⚡ グリフォン セッション開始時の必須手順（毎回・最優先）
+
+**STEP 0 — リポジトリ接続（最初に必ずやる）**
+
+```
+mcp__cowork__request_cowork_directory を呼ぶ
+path: /Users/halu/グリフォンアプリ/saikaku-architecture
+```
+
+これをやると：
+- グリフォンがリポジトリを直接読み書きできる
+- `git add / commit / push` をグリフォンが直接実行できる
+- 「ターミナルで貼って」→「貼れない」詰まりが完全になくなる
+
+接続確認：`/sessions/.../mnt/saikaku-architecture/` が見えればOK。
+
+**git操作（接続後はこちらを使う ← 旧パターンより簡単）**
+```bash
+cd /sessions/<session>/mnt/saikaku-architecture
+git config user.email "halu.cloud9@gmail.com"
+git config user.name "halu"
+git add <file>
+git commit -m "メッセージ"
+git push
+```
+※ index.lock 警告が出ても commit/push は成功する。無視してOK。
+
+---
+
 ## プロジェクト概要
 - **リポジトリ**: `https://github.com/halucloud9-code/saikaku-architecture.git`
 - **デプロイ**: Vercel（GitHub mainブランチに push すると自動デプロイ）
@@ -161,12 +232,29 @@ GIT_DIR=$GITCOPY git push origin main
 10. **AdminScreen**: 才覚領域/UAAM診断タブ切替 + Vフラグフィルタリング
 11. **api/uaam.js**: vAnswers受取・Firestore保存対応
 12. **api/admin/users.js**: uaam_results コレクションからUAAMデータ返却対応
+13. **ActivationPanel**: 英語subキー対応・return内配置修正・scores正しく展開（2026.03.30）
+14. **グリフォン効率化**: HANDOFF.mdにSTEP0/終了プロトコル/Vercel確認/バグ監視追加（2026.03.30）
+15. **Notionタスク管理**: UAAMプロジェクト作成・タスク6件投入（2026.03.30）
+16. **AdminScreen UAAMモーダル**: 行クリックで詳細モーダル（4軸+16サブ+ActivationPanel+AI分析+Vフラグ）（2026.03.30）
+17. **Vercelデプロイ確認**: https://saikaku-architecture.vercel.app/?dev=uaam で才覚発動マトリックス表示を確認（2026.03.30）
 
-## 今後のタスク（未着手）
+## 🔴 次セッションで最初にやること（引き継ぎ）
+1. **ActivationPanel 表示確認**（ハルがブラウザで手動確認必要）
+   - `https://saikaku-architecture.vercel.app/?dev=uaam` を開いてスクロールダウン
+   - AllPairsTriangleの下に「発動中」「未発動」の説明文・アクションが表示されているか確認
+   - 問題あればUAAMResultScreen.jsx のreturn内ActivationPanel配置を再確認
+
+2. **AdminScreen UAAMモーダル確認**（ハルがブラウザで手動確認必要）
+   - 右上「管理画面」ボタン → UAAMタブ → ユーザー行をクリック
+   - 4軸スコア・16サブバー・ActivationPanel・AI分析・Vフラグのモーダルが開くか確認
+   - 問題あればAdminScreen.jsx の selectedUaam / UAAMModal を確認
+
+3. 上記確認後、問題なければ次フェーズへ（Notionタスク参照）
+
+## 今後のタスク（未着手）→ Notion「UAAM 才覚発動診断アプリ」プロジェクトで管理
 - [ ] 領域専用の質問設計（領域スコアは別の質問で算出する予定）
 - [ ] 他者評価（360度フィードバック）— 自己評価の後にタイミングを見て実施
 - [ ] Cronbach's α 信頼性係数の検証（診断データが溜まってから）
-- [ ] AdminScreen UAAM詳細モーダル（ユーザークリック時の詳細表示）
 
 ## 注意事項
 - ユーザーは数字フォントに非常にこだわりがある。DM Sansに変えたが、もし再度不満があれば Inter, Outfit, Montserrat 等を試す
