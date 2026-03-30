@@ -1,45 +1,15 @@
 /**
  * カスタム確認メール送信 API
- * RESEND_API_KEY が設定されていれば Resend 経由で高配信率メールを送信
- * 未設定の場合は Firebase デフォルトにフォールバック（スパム注意）
+ * 優先順位:
+ *   1. GMAIL_APP_PASSWORD が設定されていれば Gmail SMTP 経由で送信（最高配信率）
+ *   2. RESEND_API_KEY が設定されていれば Resend 経由で送信
+ *   3. どちらも未設定の場合は Firebase デフォルトにフォールバック（スパム注意）
  */
 import { getAuth } from 'firebase-admin/auth';
 import { ADMIN_EMAILS } from './lib/firebaseAdmin.js';
+import { createTransport } from 'nodemailer';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
-
-  const { email, uid } = req.body;
-  if (!email || !uid) return res.status(400).json({ error: 'email と uid が必要です' });
-
-  // Resend API キーがない場合は Firebase デフォルトを使う旨を返す
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (!RESEND_API_KEY) {
-    return res.status(200).json({ method: 'firebase_default', note: 'RESEND_API_KEY が未設定のため Firebase デフォルトメールを使用' });
-  }
-
-  try {
-    // Firebase Admin で確認リンクを生成
-    const link = await getAuth().generateEmailVerificationLink(email, {
-      url: `${process.env.VITE_FIREBASE_AUTH_DOMAIN ? `https://${process.env.VITE_FIREBASE_AUTH_DOMAIN}` : 'https://saikaku-architecture.vercel.app'}/`,
-      handleCodeInApp: false,
-    });
-
-    // Resend でメール送信
-    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-    const FROM_NAME  = process.env.RESEND_FROM_NAME  || '才覚領域';
-
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: `${FROM_NAME} <${FROM_EMAIL}>`,
-        to: [email],
-        subject: '【才覚領域】メールアドレスの確認',
-        html: `
+const EMAIL_HTML = (link) => `
 <!DOCTYPE html>
 <html lang="ja">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -47,7 +17,6 @@ export default async function handler(req, res) {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0F;min-height:100vh;">
     <tr><td align="center" style="padding:40px 16px;">
       <table width="100%" style="max-width:480px;background:#12101A;border-radius:16px;border:1px solid rgba(196,146,42,0.3);overflow:hidden;">
-        <!-- ヘッダー -->
         <tr>
           <td style="background:linear-gradient(135deg,#8B6914,#C4922A,#FFD700,#C4922A);padding:2px 0;"></td>
         </tr>
@@ -60,14 +29,12 @@ export default async function handler(req, res) {
             <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.5);">才覚領域 — あなただけの才覚領域を導き出す</p>
           </td>
         </tr>
-        <!-- 本文 -->
         <tr>
           <td style="padding:28px 32px;">
             <p style="font-size:14px;color:rgba(255,255,255,0.75);line-height:1.9;margin:0 0 20px;">
               ご登録いただきありがとうございます。<br>
               下のボタンをクリックして、メールアドレスを確認してください。
             </p>
-            <!-- ボタン -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
               <tr>
                 <td align="center">
@@ -84,7 +51,6 @@ export default async function handler(req, res) {
             </p>
           </td>
         </tr>
-        <!-- フッター -->
         <tr>
           <td style="padding:16px 32px 28px;border-top:1px solid rgba(255,255,255,0.06);">
             <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.25);text-align:center;line-height:1.7;">
@@ -97,8 +63,73 @@ export default async function handler(req, res) {
     </td></tr>
   </table>
 </body>
-</html>
-        `,
+</html>`;
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const { email, uid } = req.body;
+  if (!email || !uid) return res.status(400).json({ error: 'email と uid が必要です' });
+
+  const GMAIL_USER         = process.env.GMAIL_USER;
+  const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+  const RESEND_API_KEY     = process.env.RESEND_API_KEY;
+
+  // どの方法も設定されていない → Firebase デフォルトにフォールバック
+  if (!GMAIL_APP_PASSWORD && !RESEND_API_KEY) {
+    return res.status(200).json({
+      method: 'firebase_default',
+      note: 'GMAIL_APP_PASSWORD / RESEND_API_KEY が未設定のため Firebase デフォルトメールを使用',
+    });
+  }
+
+  try {
+    // Firebase Admin で確認リンクを生成
+    const link = await getAuth().generateEmailVerificationLink(email, {
+      url: `${process.env.VITE_FIREBASE_AUTH_DOMAIN
+        ? `https://${process.env.VITE_FIREBASE_AUTH_DOMAIN}`
+        : 'https://saikaku-architecture.vercel.app'}/`,
+      handleCodeInApp: false,
+    });
+
+    const html    = EMAIL_HTML(link);
+    const subject = '【才覚領域】メールアドレスの確認';
+
+    /* ── 1. Gmail SMTP（最優先） ─────────────────────────────────── */
+    if (GMAIL_APP_PASSWORD) {
+      const transporter = createTransport({
+        service: 'gmail',
+        auth: {
+          user: GMAIL_USER || 'halu.cloud9@gmail.com',
+          pass: GMAIL_APP_PASSWORD,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"才覚領域" <${GMAIL_USER || 'halu.cloud9@gmail.com'}>`,
+        to: email,
+        subject,
+        html,
+      });
+
+      return res.status(200).json({ method: 'gmail_smtp', success: true });
+    }
+
+    /* ── 2. Resend ───────────────────────────────────────────────── */
+    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    const FROM_NAME  = process.env.RESEND_FROM_NAME  || '才覚領域';
+
+    const emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `${FROM_NAME} <${FROM_EMAIL}>`,
+        to: [email],
+        subject,
+        html,
       }),
     });
 
@@ -109,6 +140,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ method: 'resend', id: data.id, success: true });
+
   } catch (e) {
     console.error('[send-verification-email]', e);
     return res.status(500).json({ error: e.message });
