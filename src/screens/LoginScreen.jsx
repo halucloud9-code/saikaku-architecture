@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { signInWithGoogle, db } from '../firebase';
+import { signInWithGoogle, signInWithEmail, signUpWithEmail, db } from '../firebase';
 import griffonImg from '../assets/griffon.png';
 
 /* ============================================================
@@ -60,11 +60,24 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [authMode, setAuthMode] = useState('google'); // 'google' | 'email'
+  const [emailMode, setEmailMode] = useState('login'); // 'login' | 'signup'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
     injectStyles();
     requestAnimationFrame(() => setMounted(true));
   }, []);
+
+  const saveConsent = async (user) => {
+    const docRef = doc(db, 'results', user.uid);
+    const snap = await getDoc(docRef);
+    if (!snap.data()?.consentAt) {
+      await setDoc(docRef, { consentAt: serverTimestamp() }, { merge: true });
+    }
+  };
 
   const handleLogin = async () => {
     if (!agreed) return;
@@ -73,18 +86,41 @@ export default function LoginScreen({ onLogin }) {
     try {
       const result = await signInWithGoogle();
       if (result && result.user) {
-        const user = result.user;
-        const docRef = doc(db, 'results', user.uid);
-        const snap = await getDoc(docRef);
-        if (!snap.data()?.consentAt) {
-          await setDoc(docRef, { consentAt: serverTimestamp() }, { merge: true });
-        }
-        onLogin(user);
+        await saveConsent(result.user);
+        onLogin(result.user);
       }
     } catch (e) {
       if (e.code !== 'auth/popup-closed-by-user') {
         setError('ログインに失敗しました。再度お試しください。');
       }
+      setLoading(false);
+    }
+  };
+
+  const handleEmailAuth = async () => {
+    if (!agreed || !email || !password) return;
+    setLoading(true);
+    setError('');
+    try {
+      let result;
+      if (emailMode === 'signup') {
+        if (!displayName) { setError('お名前を入力してください'); setLoading(false); return; }
+        result = await signUpWithEmail(email, password, displayName);
+      } else {
+        result = await signInWithEmail(email, password);
+      }
+      await saveConsent(result.user);
+      onLogin(result.user);
+    } catch (e) {
+      const msgs = {
+        'auth/email-already-in-use': 'このメールアドレスはすでに登録されています',
+        'auth/invalid-email': 'メールアドレスの形式が正しくありません',
+        'auth/weak-password': 'パスワードは6文字以上で設定してください',
+        'auth/user-not-found': 'メールアドレスが見つかりません',
+        'auth/wrong-password': 'パスワードが正しくありません',
+        'auth/invalid-credential': 'メールアドレスまたはパスワードが正しくありません',
+      };
+      setError(msgs[e.code] || 'エラーが発生しました。再度お試しください。');
       setLoading(false);
     }
   };
@@ -293,11 +329,70 @@ export default function LoginScreen({ onLogin }) {
             </span>
           </label>
 
+          {/* 認証方法切り替え */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, ...fadeStyle(0.55) }}>
+            {['google', 'email'].map(mode => (
+              <button key={mode} onClick={() => { setAuthMode(mode); setError(''); }}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  background: authMode === mode ? 'rgba(196,146,42,0.15)' : 'rgba(255,255,255,0.03)',
+                  border: authMode === mode ? '1px solid rgba(196,146,42,0.4)' : '1px solid rgba(255,255,255,0.08)',
+                  color: authMode === mode ? '#C4922A' : 'rgba(255,255,255,0.3)',
+                }}>
+                {mode === 'google' ? 'Googleで入る' : 'メールで入る'}
+              </button>
+            ))}
+          </div>
+
+          {/* メール認証フォーム */}
+          {authMode === 'email' && (
+            <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10, ...fadeStyle(0.0) }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {['login', 'signup'].map(m => (
+                  <button key={m} onClick={() => { setEmailMode(m); setError(''); }}
+                    style={{
+                      flex: 1, padding: '6px 0', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                      cursor: 'pointer', transition: 'all 0.2s',
+                      background: emailMode === m ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      border: emailMode === m ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.05)',
+                      color: emailMode === m ? '#F5F0E8' : 'rgba(255,255,255,0.3)',
+                    }}>
+                    {m === 'login' ? 'ログイン' : '新規登録'}
+                  </button>
+                ))}
+              </div>
+              {emailMode === 'signup' && (
+                <input type="text" placeholder="お名前（表示名）" value={displayName}
+                  onChange={e => setDisplayName(e.target.value)}
+                  style={{
+                    width: '100%', padding: '12px 14px', borderRadius: 10, boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+                    color: '#F5F0E8', fontSize: 14, outline: 'none',
+                  }} />
+              )}
+              <input type="email" placeholder="メールアドレス" value={email}
+                onChange={e => setEmail(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 10, boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#F5F0E8', fontSize: 14, outline: 'none',
+                }} />
+              <input type="password" placeholder="パスワード（6文字以上）" value={password}
+                onChange={e => setPassword(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 10, boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#F5F0E8', fontSize: 14, outline: 'none',
+                }} />
+            </div>
+          )}
+
           {/* ログインボタン */}
           <button
             className="login-btn-gold"
-            onClick={handleLogin}
-            disabled={!agreed || loading}
+            onClick={authMode === 'google' ? handleLogin : handleEmailAuth}
+            disabled={!agreed || loading || (authMode === 'email' && (!email || !password))}
             style={{
               width: '100%', padding: '16px 24px', borderRadius: 14,
               border: agreed && !loading ? `1.5px solid ${GOLD}60` : '1.5px solid rgba(255,255,255,0.06)',
@@ -329,11 +424,17 @@ export default function LoginScreen({ onLogin }) {
               </>
             ) : (
               <>
-                <svg width="18" height="18" viewBox="0 0 48 48">
-                  <path fill={agreed ? '#0A0A0F' : 'rgba(255,255,255,0.2)'}
-                    d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-                </svg>
-                Googleでログイン
+                {authMode === 'google' ? (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 48 48">
+                      <path fill={agreed ? '#0A0A0F' : 'rgba(255,255,255,0.2)'}
+                        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+                    </svg>
+                    Googleでログイン
+                  </>
+                ) : (
+                  <>{emailMode === 'signup' ? '新規登録' : 'ログイン'}</>
+                )}
               </>
             )}
           </button>
