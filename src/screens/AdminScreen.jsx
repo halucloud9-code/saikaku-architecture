@@ -324,8 +324,10 @@ function UAAMModal({ user: u, onClose }) {
 // 係数: A+=0.95 / A=0.90 / B+=0.85 / B=0.80 / C+=0.75 / C=0.70 / D+=0.65 / D=0.60 / E+=0.55 / E=0.50
 const HARU_GRADES = {
   '塚原厚':    'A+', '根本輝尚':   'A',
-  '島田知幸':  'B+', '藤原宗賢':   'B',  '澤井洸蕎': 'B', 'saiayamana': 'B', 'Saia Yamana': 'B', '山名彩亜': 'B',
-  '原田祐介':  'C',  '道又正人':   'C', '谷口尚子':  'C', '浜口奈々': 'C', '秋葉': 'C',
+  '島田知幸':  'B+', '藤原宗賢':   'B',  '澤井洸蕎': 'B',
+  'SaiaYamana': 'B', 'saiaYamana': 'B', 'saiayamana': 'B', '山名彩亜': 'B', '山名': 'B',
+  '原田祐介':  'C',  '道又正人':   'C', '谷口尚子':  'C', '浜口奈々': 'C',
+  '秋葉はやと': 'C', '秋葉ハヤト': 'C', '秋葉隼人': 'C', '秋葉颯人': 'C', '秋葉': 'C',
   '坂口友亮':  'D',  '鈴木栄子':   'D', '守永博貴':  'D', '宇田川昌美': 'D', '飯塚玄氣': 'D',
 };
 
@@ -348,8 +350,23 @@ const GRADE_STYLE = {
   'E':  { bg: '#2A1A2A', color: '#B060B0' },
 };
 
+function getGrade(name) {
+  if (!name) return null;
+  const normalized = name.replace(/\s/g, '').toLowerCase();
+  // 完全一致（スペース除去）
+  for (const [key, grade] of Object.entries(HARU_GRADES)) {
+    if (normalized === key.replace(/\s/g, '').toLowerCase()) return grade;
+  }
+  // 部分一致（名前がキーを含む、またはキーが名前を含む）
+  for (const [key, grade] of Object.entries(HARU_GRADES)) {
+    const k = key.replace(/\s/g, '').toLowerCase();
+    if (k.length >= 2 && (normalized.includes(k) || k.includes(normalized))) return grade;
+  }
+  return null;
+}
+
 function GradeBadge({ name }) {
-  const grade = HARU_GRADES[name?.replace(/\s/g, '')];
+  const grade = getGrade(name);
   if (!grade) return null;
   const s = GRADE_STYLE[grade];
   return (
