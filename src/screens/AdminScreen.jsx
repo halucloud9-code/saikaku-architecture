@@ -164,12 +164,169 @@ function UserModal({ user: u, onClose }) {
   );
 }
 
+// ─── UAAM詳細モーダル ───────────────────────────────────────
+const AXIS_META = [
+  { key: 'mindset',   label: '志', color: '#4A6FA5',
+    subs: ['meaning','mindfulness','mindshift','mastery'],
+    subLabels: ['根幹力','受容力','転換力','熟達力'] },
+  { key: 'literacy',  label: '知', color: '#2E8B57',
+    subs: ['learning','logical','life','leadership'],
+    subLabels: ['謙学力','論理力','活用力','統率力'] },
+  { key: 'competency',label: '技', color: '#C4922A',
+    subs: ['critical','creativity','communication','collaboration'],
+    subLabels: ['本質力','創造力','伝達力','協働力'] },
+  { key: 'impact',    label: '衝', color: '#A84432',
+    subs: ['idea','innovation','implementation','influence'],
+    subLabels: ['起動力','革新力','実装力','影響力'] },
+];
+
+function UAAMModal({ user: u, onClose }) {
+  if (!u) return null;
+  const subcategoryScores = Object.values(u.scores || {}).reduce((acc, domain) => {
+    if (domain?.subs) Object.assign(acc, domain.subs);
+    return acc;
+  }, {});
+  const MAX_SUB = 20;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(42,37,32,0.65)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, padding: 24,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#FDFCFA', borderRadius: 16,
+          border: '1px solid #D4C9B0', padding: '32px',
+          maxWidth: 760, width: '100%', maxHeight: '88vh',
+          overflowY: 'auto',
+          boxShadow: '0 20px 60px rgba(42,37,32,0.22)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ヘッダー */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {u.photoURL
+              ? <img src={u.photoURL} alt={u.name} style={{ width: 48, height: 48, borderRadius: '50%', border: '2px solid #D4C9B0' }} />
+              : <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#D4C9B0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#7A7060' }}>{u.name?.[0] || '?'}</div>
+            }
+            <div>
+              <div style={{ fontFamily: 'Shippori Mincho, serif', fontSize: 20, fontWeight: 700, color: '#2A2520' }}>{u.name}</div>
+              <div style={{ fontSize: 13, color: '#7A7060' }}>{u.email}</div>
+              {u.uaamUpdatedAt && <div style={{ fontSize: 11, color: '#B0A898', marginTop: 2 }}>診断日: {new Date(u.uaamUpdatedAt).toLocaleDateString('ja-JP')}</div>}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #D4C9B0', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#7A7060' }}>
+            ✕ 閉じる
+          </button>
+        </div>
+
+        {/* Vフラグ警告 */}
+        {(() => {
+          const v = u.vAnswers || {};
+          const warns = [];
+          if (v['V1'] === 5 && v['V2'] === 5) warns.push({ text: 'V1&V2=5：客観視の精度に課題の可能性', color: '#A84432', bg: '#FFF5F5' });
+          else {
+            if (v['V1'] === 5) warns.push({ text: 'V1=5：自己評価が高め傾向', color: '#C4922A', bg: '#FFFBF0' });
+            if (v['V2'] === 5) warns.push({ text: 'V2=5：自己評価が高め傾向', color: '#C4922A', bg: '#FFFBF0' });
+          }
+          const v3 = v['V3']; const q46 = u.answers?.[46] ?? u.answers?.['46'];
+          if (v3 != null && q46 != null && Math.abs(v3 - q46) >= 2) warns.push({ text: `V3差=${Math.abs(v3-q46)}：回答一貫性にブレあり`, color: '#4A6FA5', bg: '#F0F4FF' });
+          return warns.length > 0 ? (
+            <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {warns.map((w, i) => (
+                <div key={i} style={{ background: w.bg, border: `1px solid ${w.color}40`, borderRadius: 8, padding: '8px 14px', fontSize: 12, color: w.color, fontWeight: 600 }}>
+                  ⚠ {w.text}
+                </div>
+              ))}
+            </div>
+          ) : null;
+        })()}
+
+        {/* 4軸スコア */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+          {AXIS_META.map(({ key, label, color }) => {
+            const s = u.scores?.[key];
+            const pct = s ? (s.percentage ?? Math.round((s.total / (s.max || 1)) * 100)) : 0;
+            return (
+              <div key={key} style={{ background: '#F5F0E8', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#7A7060', letterSpacing: '0.1em', marginBottom: 6 }}>{label}</div>
+                <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 28, fontWeight: 700, color, lineHeight: 1 }}>{pct}<span style={{ fontSize: 14 }}>%</span></div>
+                <div style={{ fontSize: 11, color: '#B0A898', marginTop: 4 }}>{s?.total ?? '—'} / {s?.max ?? '—'}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 16サブカテゴリ スコアバー */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#7A7060', letterSpacing: '0.1em', marginBottom: 12 }}>16 SUBCATEGORY SCORES</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '8px 24px' }}>
+            {AXIS_META.map(({ key, label, color, subs, subLabels }) =>
+              subs.map((subKey, i) => {
+                const score = u.scores?.[key]?.subs?.[subKey] ?? subcategoryScores[subKey] ?? 0;
+                const pct = Math.round((score / MAX_SUB) * 100);
+                return (
+                  <div key={subKey} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 10, color, fontWeight: 700, width: 16, textAlign: 'center' }}>{label}</span>
+                    <span style={{ fontSize: 12, color: '#2A2520', width: 52, flexShrink: 0 }}>{subLabels[i]}</span>
+                    <div style={{ flex: 1, height: 6, background: '#E8E0D4', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.4s' }} />
+                    </div>
+                    <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, color, width: 24, textAlign: 'right' }}>{score}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* 発動分析パネル */}
+        {Object.keys(subcategoryScores).length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <ActivationPanel scores={subcategoryScores} threshold={13} />
+          </div>
+        )}
+
+        {/* AI分析 */}
+        {u.analysis?.type_name && (
+          <div style={{ background: '#F5F0E8', borderRadius: 10, padding: '16px 20px', marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: '#7A7060', letterSpacing: '0.12em', marginBottom: 8 }}>TYPE</div>
+            <div style={{ fontFamily: 'Shippori Mincho, serif', fontSize: 16, fontWeight: 700, color: '#2A2520', lineHeight: 1.6 }}>{u.analysis.type_name}</div>
+          </div>
+        )}
+        {u.analysis?.axis_analysis && (
+          <div>
+            <div style={{ fontSize: 11, color: '#7A7060', letterSpacing: '0.1em', marginBottom: 10 }}>AI 軸別分析</div>
+            {Object.entries(u.analysis.axis_analysis).map(([axKey, text]) => {
+              const ax = AXIS_META.find(a => a.key === axKey);
+              if (!ax || !text) return null;
+              return (
+                <div key={axKey} style={{ borderLeft: `3px solid ${ax.color}`, padding: '10px 16px', marginBottom: 10, background: `${ax.color}08`, borderRadius: '0 8px 8px 0' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: ax.color, marginBottom: 4 }}>{ax.label}</div>
+                  <p style={{ fontSize: 13, color: '#4A4035', margin: 0, lineHeight: 1.8 }}>{text}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminScreen({ user, onBack, onLogout }) {
   const [users, setUsers] = useState([]);
   const [uaamUsers, setUaamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
+  const [selectedUaam, setSelectedUaam] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('saikaku'); // 'saikaku' | 'uaam'
@@ -696,13 +853,6 @@ export default function AdminScreen({ user, onBack, onLogout }) {
 
         {/* ━━━ UAAMタブ ━━━ */}
 
-        {/* 発動分析パネル */}
-        {selectedUser?.uaamResult?.subcategoryScores && (
-          <div style={{ marginTop: 24 }}>
-            <h4 style={{ fontWeight: 700, marginBottom: 8 }}>発動分析</h4>
-            <ActivationPanel scores={selectedUser.uaamResult.subcategoryScores} threshold={13} />
-          </div>
-        )}
         {tab === 'uaam' && (<>
         {/* UAAMヘッダー */}
         <div
@@ -847,10 +997,15 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                   return (
                     <tr
                       key={u.uid}
+                      onClick={() => setSelectedUaam(u)}
                       style={{
                         borderBottom: '1px solid #D4C9B0',
                         background: isCritical ? '#FFF5F5' : idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s',
                       }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#F5EFE6'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = isCritical ? '#FFF5F5' : idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4'}
                     >
                       <td style={{ padding: '10px 12px' }}>
                         {u.photoURL ? (
@@ -972,8 +1127,11 @@ export default function AdminScreen({ user, onBack, onLogout }) {
         </>)}
       </div>
 
-      {/* 詳細モーダル */}
+      {/* 才覚領域 詳細モーダル */}
       {selected && <UserModal user={selected} onClose={() => setSelected(null)} />}
+
+      {/* UAAM 詳細モーダル */}
+      {selectedUaam && <UAAMModal user={selectedUaam} onClose={() => setSelectedUaam(null)} />}
     </div>
   );
 }
