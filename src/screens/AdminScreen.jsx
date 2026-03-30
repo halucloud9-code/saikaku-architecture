@@ -29,33 +29,65 @@ function MiniDonut({ axes, colors }) {
   return <canvas ref={canvasRef} width={60} height={60} />;
 }
 
-function UserModal({ user: u, onClose }) {
+function UserModal({ user: u, onClose, onDelete, onSave }) {
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [confirmDel, setConfirmDel] = useState(false);
+
   if (!u) return null;
+
+  const startEdit = () => {
+    setEditData({
+      selectedKakuchiiki: u.selectedKakuchiiki || '',
+      inputValueTop5:     u.inputValueTop5   || u.inputValue   || '',
+      inputTalentTop5:    u.inputTalentTop5  || u.inputTalent  || '',
+      inputPassionTop5:   u.inputPassionTop5 || u.inputPassion || '',
+      inputQ1: u.inputQ1 || '',
+      inputQ2: u.inputQ2 || '',
+      inputQ3: u.inputQ3 || '',
+    });
+    setSaveError('');
+    setEditMode(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSave(u.uid, editData);
+      setEditMode(false);
+    } catch (e) {
+      setSaveError(e.message || '保存に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldStyle = {
+    width: '100%', padding: '10px 12px', borderRadius: 8,
+    border: '1px solid #D4C9B0', background: '#FDFCFA',
+    fontSize: 13, color: '#2A2520', fontFamily: 'Noto Sans JP, sans-serif',
+    lineHeight: 1.7, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+  };
+  const labelStyle = { fontSize: 11, fontWeight: 700, color: '#7A7060', letterSpacing: '0.1em', marginBottom: 6, display: 'block' };
 
   return (
     <div
       style={{
-        position: 'fixed',
-        inset: 0,
+        position: 'fixed', inset: 0,
         background: 'rgba(42,37,32,0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: 24,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, padding: 24,
       }}
       onClick={onClose}
     >
       <div
         style={{
-          background: '#FDFCFA',
-          borderRadius: 16,
-          border: '1px solid #D4C9B0',
-          padding: '32px',
-          maxWidth: 720,
-          width: '100%',
-          maxHeight: '85vh',
-          overflowY: 'auto',
+          background: '#FDFCFA', borderRadius: 16, border: '1px solid #D4C9B0',
+          padding: '32px', maxWidth: 720, width: '100%',
+          maxHeight: '85vh', overflowY: 'auto',
           boxShadow: '0 20px 60px rgba(42,37,32,0.2)',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -63,101 +95,182 @@ function UserModal({ user: u, onClose }) {
         {/* ヘッダー */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            {u.photoURL && (
-              <img src={u.photoURL} alt={u.name} style={{ width: 48, height: 48, borderRadius: '50%', border: '2px solid #D4C9B0' }} />
-            )}
+            {u.photoURL
+              ? <img src={u.photoURL} alt={u.name} style={{ width: 48, height: 48, borderRadius: '50%', border: '2px solid #D4C9B0' }} />
+              : <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#D4C9B0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#7A7060' }}>{u.name?.[0] || '?'}</div>
+            }
             <div>
               <div style={{ fontFamily: 'Shippori Mincho, serif', fontSize: 20, fontWeight: 700, color: '#2A2520' }}>{u.name}</div>
               <div style={{ fontSize: 13, color: '#7A7060' }}>{u.email}</div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: '1px solid #D4C9B0',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontSize: 13,
-              color: '#7A7060',
-            }}
-          >
-            ✕ 閉じる
-          </button>
-        </div>
-
-        {/* 才覚領域 */}
-        <div
-          style={{
-            background: '#2A2520',
-            borderRadius: 10,
-            padding: '16px 20px',
-            marginBottom: 24,
-          }}
-        >
-          <div style={{ fontSize: 11, color: '#7A7060', letterSpacing: '0.12em', marginBottom: 8 }}>才覚領域</div>
-          <div
-            style={{
-              fontFamily: 'Shippori Mincho, serif',
-              fontSize: 18,
-              fontWeight: 700,
-              color: '#FDFCFA',
-              lineHeight: 1.6,
-            }}
-          >
-            {u.selectedKakuchiiki}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {!editMode && (
+              <button
+                onClick={startEdit}
+                style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #C4922A', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#C4922A', fontWeight: 600 }}
+              >
+                ✏️ 編集
+              </button>
+            )}
+            {!editMode && (
+              <button
+                onClick={() => setConfirmDel(true)}
+                style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #A84432', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#A84432', fontWeight: 600 }}
+              >
+                🗑 削除
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #D4C9B0', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#7A7060' }}
+            >
+              ✕ 閉じる
+            </button>
           </div>
         </div>
 
-        {/* 3グラフ */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 16,
-            marginBottom: 24,
-          }}
-        >
-          {[
-            { label: '才能', type: 'talentAxes', colors: CHART_COLORS.talent, color: '#C4922A' },
-            { label: '価値観', type: 'valueAxes', colors: CHART_COLORS.value, color: '#4A6FA5' },
-            { label: '情熱', type: 'passionAxes', colors: CHART_COLORS.passion, color: '#A84432' },
-          ].map(({ label, type, colors, color }) => (
-            <div
-              key={type}
-              style={{
-                background: '#F5F0E8',
-                borderRadius: 10,
-                padding: '16px',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 10 }}>{label}</div>
-              <MiniDonut axes={u[type]} colors={colors} />
-              <div style={{ marginTop: 10 }}>
-                {['axis1', 'axis2', 'axis3'].map((k) => (
-                  <div key={k} style={{ fontSize: 11, color: '#7A7060', marginTop: 4 }}>
-                    {u[type]?.[k]?.name || '-'}
-                  </div>
-                ))}
+        {/* 削除確認 */}
+        {confirmDel && (
+          <div style={{ background: '#FFF5F5', border: '1px solid #A84432', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#A84432', marginBottom: 10 }}>
+              ⚠ 「{u.name}」のデータを完全に削除しますか？
+            </div>
+            <div style={{ fontSize: 12, color: '#7A7060', marginBottom: 14 }}>
+              才覚領域結果・UAAM結果・アカウント情報がすべて削除されます。この操作は取り消せません。
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { onDelete(u.uid); setConfirmDel(false); }}
+                style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#A84432', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                削除する
+              </button>
+              <button
+                onClick={() => setConfirmDel(false)}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #D4C9B0', background: 'transparent', color: '#7A7060', fontSize: 13, cursor: 'pointer' }}
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 編集モード ─── */}
+        {editMode ? (
+          <div>
+            {saveError && (
+              <div style={{ background: '#FFF5F5', border: '1px solid #A84432', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#A84432' }}>
+                {saveError}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={labelStyle}>才覚領域</label>
+                <textarea rows={3} style={fieldStyle} value={editData.selectedKakuchiiki}
+                  onChange={(e) => setEditData(d => ({ ...d, selectedKakuchiiki: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>価値観（TOP5）</label>
+                <textarea rows={3} style={fieldStyle} value={editData.inputValueTop5}
+                  onChange={(e) => setEditData(d => ({ ...d, inputValueTop5: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>才能（TOP5）</label>
+                <textarea rows={3} style={fieldStyle} value={editData.inputTalentTop5}
+                  onChange={(e) => setEditData(d => ({ ...d, inputTalentTop5: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>情熱（TOP5）</label>
+                <textarea rows={3} style={fieldStyle} value={editData.inputPassionTop5}
+                  onChange={(e) => setEditData(d => ({ ...d, inputPassionTop5: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Q1（才覚が発動した瞬間）</label>
+                <textarea rows={3} style={fieldStyle} value={editData.inputQ1}
+                  onChange={(e) => setEditData(d => ({ ...d, inputQ1: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Q2（才覚が発動した場面）</label>
+                <textarea rows={3} style={fieldStyle} value={editData.inputQ2}
+                  onChange={(e) => setEditData(d => ({ ...d, inputQ2: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Q3（才覚が発動した結果）</label>
+                <textarea rows={3} style={fieldStyle} value={editData.inputQ3}
+                  onChange={(e) => setEditData(d => ({ ...d, inputQ3: e.target.value }))} />
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* インサイト */}
-        {u.insight && (
-          <div
-            style={{
-              background: '#F5F0E8',
-              borderRadius: 10,
-              padding: '16px 20px',
-            }}
-          >
-            <div style={{ fontSize: 11, color: '#7A7060', letterSpacing: '0.12em', marginBottom: 8 }}>CORE INSIGHT</div>
-            <p style={{ fontSize: 14, color: '#2A2520', lineHeight: 1.8, margin: 0 }}>{u.insight}</p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#C4922A', color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}
+              >
+                {saving ? '保存中...' : '💾 保存'}
+              </button>
+              <button
+                onClick={() => { setEditMode(false); setSaveError(''); }}
+                style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #D4C9B0', background: 'transparent', color: '#7A7060', fontSize: 14, cursor: 'pointer' }}
+              >
+                キャンセル
+              </button>
+            </div>
           </div>
+        ) : (
+          <>
+            {/* 才覚領域 */}
+            <div style={{ background: '#2A2520', borderRadius: 10, padding: '16px 20px', marginBottom: 24 }}>
+              <div style={{ fontSize: 11, color: '#7A7060', letterSpacing: '0.12em', marginBottom: 8 }}>才覚領域</div>
+              <div style={{ fontFamily: 'Shippori Mincho, serif', fontSize: 18, fontWeight: 700, color: '#FDFCFA', lineHeight: 1.6 }}>
+                {u.selectedKakuchiiki}
+              </div>
+            </div>
+
+            {/* 3グラフ */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+              {[
+                { label: '才能', type: 'talentAxes', colors: CHART_COLORS.talent, color: '#C4922A' },
+                { label: '価値観', type: 'valueAxes', colors: CHART_COLORS.value, color: '#4A6FA5' },
+                { label: '情熱', type: 'passionAxes', colors: CHART_COLORS.passion, color: '#A84432' },
+              ].map(({ label, type, colors, color }) => (
+                <div key={type} style={{ background: '#F5F0E8', borderRadius: 10, padding: '16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 10 }}>{label}</div>
+                  <MiniDonut axes={u[type]} colors={colors} />
+                  <div style={{ marginTop: 10 }}>
+                    {['axis1', 'axis2', 'axis3'].map((k) => (
+                      <div key={k} style={{ fontSize: 11, color: '#7A7060', marginTop: 4 }}>
+                        {u[type]?.[k]?.name || '-'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 入力内容 */}
+            {[
+              { label: '価値観', val: u.inputValueTop5 || u.inputValue, color: '#4A6FA5' },
+              { label: '才能',   val: u.inputTalentTop5 || u.inputTalent, color: '#C4922A' },
+              { label: '情熱',   val: u.inputPassionTop5 || u.inputPassion, color: '#A84432' },
+              { label: 'Q1', val: u.inputQ1, color: '#7B5EA7' },
+              { label: 'Q2', val: u.inputQ2, color: '#7B5EA7' },
+              { label: 'Q3', val: u.inputQ3, color: '#7B5EA7' },
+            ].filter(({ val }) => val).map(({ label, val, color }) => (
+              <div key={label} style={{ background: '#F5F0E8', borderRadius: 10, padding: '14px 18px', marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '0.1em', marginBottom: 6 }}>{label}</div>
+                <p style={{ fontSize: 13, color: '#2A2520', lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>{val}</p>
+              </div>
+            ))}
+
+            {/* インサイト */}
+            {u.insight && (
+              <div style={{ background: '#F5F0E8', borderRadius: 10, padding: '16px 20px', marginTop: 12 }}>
+                <div style={{ fontSize: 11, color: '#7A7060', letterSpacing: '0.12em', marginBottom: 8 }}>CORE INSIGHT</div>
+                <p style={{ fontSize: 14, color: '#2A2520', lineHeight: 1.8, margin: 0 }}>{u.insight}</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -180,7 +293,8 @@ const AXIS_META = [
     subLabels: ['起動力','革新力','実装力','影響力'] },
 ];
 
-function UAAMModal({ user: u, onClose }) {
+function UAAMModal({ user: u, onClose, onDelete }) {
+  const [confirmDel, setConfirmDel] = useState(false);
   if (!u) return null;
   const subcategoryScores = Object.values(u.scores || {}).reduce((acc, domain) => {
     if (domain?.subs) Object.assign(acc, domain.subs);
@@ -221,10 +335,44 @@ function UAAMModal({ user: u, onClose }) {
               {u.uaamUpdatedAt && <div style={{ fontSize: 11, color: '#B0A898', marginTop: 2 }}>診断日: {new Date(u.uaamUpdatedAt).toLocaleDateString('ja-JP')}</div>}
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #D4C9B0', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#7A7060' }}>
-            ✕ 閉じる
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setConfirmDel(true)}
+              style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #A84432', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#A84432', fontWeight: 600 }}
+            >
+              🗑 削除
+            </button>
+            <button onClick={onClose} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #D4C9B0', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#7A7060' }}>
+              ✕ 閉じる
+            </button>
+          </div>
         </div>
+
+        {/* 削除確認 */}
+        {confirmDel && (
+          <div style={{ background: '#FFF5F5', border: '1px solid #A84432', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#A84432', marginBottom: 10 }}>
+              ⚠ 「{u.name}」のデータを完全に削除しますか？
+            </div>
+            <div style={{ fontSize: 12, color: '#7A7060', marginBottom: 14 }}>
+              才覚領域結果・UAAM結果・アカウント情報がすべて削除されます。この操作は取り消せません。
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { onDelete(u.uid); setConfirmDel(false); }}
+                style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#A84432', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                削除する
+              </button>
+              <button
+                onClick={() => setConfirmDel(false)}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #D4C9B0', background: 'transparent', color: '#7A7060', fontSize: 13, cursor: 'pointer' }}
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Vフラグ警告 */}
         {(() => {
@@ -396,6 +544,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('saikaku'); // 'saikaku' | 'uaam'
   const [vFilter, setVFilter] = useState('all'); // 'all' | 'v1_high' | 'v2_high' | 'v3_diff' | 'critical'
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -419,6 +568,42 @@ export default function AdminScreen({ user, onBack, onLogout }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = async (uid) => {
+    setDeleting(true);
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ uid }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '削除に失敗しました');
+      setUsers((prev) => prev.filter((u) => u.uid !== uid));
+      setUaamUsers((prev) => prev.filter((u) => u.uid !== uid));
+      setSelected(null);
+      setSelectedUaam(null);
+    } catch (e) {
+      setError(e.message || '削除に失敗しました');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleSaveUser = async (uid, fields) => {
+    const idToken = await auth.currentUser.getIdToken(true);
+    const res = await fetch('/api/admin/update-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ uid, fields }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '保存に失敗しました');
+    // ローカル状態を更新
+    setUsers((prev) => prev.map((u) => u.uid === uid ? { ...u, ...fields } : u));
+    setSelected((prev) => prev ? { ...prev, ...fields } : null);
   };
 
   const handleExport = async () => {
@@ -1214,10 +1399,23 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       </div>
 
       {/* 才覚領域 詳細モーダル */}
-      {selected && <UserModal user={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <UserModal
+          user={selected}
+          onClose={() => setSelected(null)}
+          onDelete={handleDelete}
+          onSave={handleSaveUser}
+        />
+      )}
 
       {/* UAAM 詳細モーダル */}
-      {selectedUaam && <UAAMModal user={selectedUaam} onClose={() => setSelectedUaam(null)} />}
+      {selectedUaam && (
+        <UAAMModal
+          user={selectedUaam}
+          onClose={() => setSelectedUaam(null)}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 }
