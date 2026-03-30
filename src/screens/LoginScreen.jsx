@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { signInWithGoogle, signInWithEmail, signUpWithEmail, db } from '../firebase';
+import { signInWithGoogle, signInWithEmail, signUpWithEmail, sendVerificationEmail, sendPasswordReset, signOutUser, db } from '../firebase';
 import griffonImg from '../assets/griffon.png';
 
 /* ============================================================
@@ -65,6 +65,9 @@ export default function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [verificationSent, setVerificationSent] = useState(false); // 確認メール送信済み
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
 
   useEffect(() => {
     injectStyles();
@@ -106,8 +109,21 @@ export default function LoginScreen({ onLogin }) {
       if (emailMode === 'signup') {
         if (!displayName) { setError('お名前を入力してください'); setLoading(false); return; }
         result = await signUpWithEmail(email, password, displayName);
+        // 確認メールを送信してサインアウト
+        await sendVerificationEmail(result.user);
+        await signOutUser();
+        setVerificationSent(true);
+        setLoading(false);
+        return;
       } else {
         result = await signInWithEmail(email, password);
+        // メールアドレス未確認チェック
+        if (!result.user.emailVerified) {
+          await signOutUser();
+          setError('メールアドレスの確認が完了していません。登録時に届いた確認メールのリンクをクリックしてください。');
+          setLoading(false);
+          return;
+        }
       }
       await saveConsent(result.user);
       onLogin(result.user);
@@ -125,12 +141,90 @@ export default function LoginScreen({ onLogin }) {
     }
   };
 
+  // 確認メール再送信
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    setResendMsg('');
+    try {
+      // 再送信のためにサインインしてメール送信
+      const result = await signInWithEmail(email, password);
+      await sendVerificationEmail(result.user);
+      await signOutUser();
+      setResendMsg('✅ 確認メールを再送しました');
+    } catch (e) {
+      setResendMsg('❌ 再送信に失敗しました。しばらく経ってから再度お試しください。');
+    }
+    setResendLoading(false);
+  };
+
   // フェードインアニメーションの遅延
   const fadeStyle = (delay) => ({
     opacity: mounted ? 1 : 0,
     transform: mounted ? 'translateY(0)' : 'translateY(24px)',
     transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
   });
+
+  // ── 確認メール送信済み画面 ──
+  if (verificationSent) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(170deg, #0A0A0F 0%, #12101A 30%, #0E0C14 60%, #0A0A0F 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '24px 16px',
+      }}>
+        <div style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}>
+          {/* アイコン */}
+          <div style={{ fontSize: 64, marginBottom: 24 }}>✉️</div>
+
+          <h2 style={{
+            fontFamily: "'Noto Serif JP', serif",
+            fontSize: 24, fontWeight: 700, color: '#FFFFFF',
+            margin: '0 0 16px',
+          }}>確認メールを送信しました</h2>
+
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.9, margin: '0 0 8px' }}>
+            <span style={{ color: GOLD, fontWeight: 600 }}>{email}</span><br />
+            に確認メールを送りました。
+          </p>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.9, margin: '0 0 32px' }}>
+            メール内の「メールアドレスを確認」リンクをクリックしてから、<br />
+            ログイン画面に戻ってサインインしてください。
+          </p>
+
+          {/* 再送信 */}
+          {resendMsg && (
+            <div style={{
+              marginBottom: 16, padding: '10px 16px', borderRadius: 10,
+              background: resendMsg.startsWith('✅') ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+              border: `1px solid ${resendMsg.startsWith('✅') ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+              fontSize: 12, color: resendMsg.startsWith('✅') ? '#4ADE80' : '#F87171',
+            }}>{resendMsg}</div>
+          )}
+
+          <button onClick={handleResendVerification} disabled={resendLoading}
+            style={{
+              width: '100%', padding: '14px', borderRadius: 12, marginBottom: 12,
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+              color: resendLoading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.7)',
+              fontSize: 14, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer',
+            }}>
+            {resendLoading ? '送信中...' : '確認メールを再送信'}
+          </button>
+
+          <button onClick={() => { setVerificationSent(false); setEmailMode('login'); setPassword(''); }}
+            style={{
+              width: '100%', padding: '14px', borderRadius: 12,
+              background: `linear-gradient(135deg, #8B6914, #C4922A, #FFD700, #C4922A)`,
+              border: 'none', color: '#0A0A0F',
+              fontSize: 14, fontWeight: 800, cursor: 'pointer',
+            }}>
+            ログイン画面に戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{

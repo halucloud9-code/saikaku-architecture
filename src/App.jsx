@@ -92,9 +92,16 @@ export default function App() {
     }).catch(() => {});
 
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
       setAuthLoading(false);
       if (u) {
+        // メール認証ユーザーはメールアドレス確認が必要
+        const isEmailProvider = u.providerData.some(p => p.providerId === 'password');
+        if (isEmailProvider && !u.emailVerified) {
+          // 未確認ユーザーはログイン画面に留める（サインアウトしない）
+          setUser(null);
+          return;
+        }
+        setUser(u);
         // ログイン完了 → 保存済みUAAM結果を読み込み
         const saved = await loadSavedUaamResult(u.uid);
         if (saved) {
@@ -102,6 +109,8 @@ export default function App() {
         }
         // 常にセレクト画面へ（才覚領域 / 才覚発動領域 の選択画面）
         setScreen((prev) => (prev === 'login' ? 'select' : prev));
+      } else {
+        setUser(null);
       }
     });
     return unsubscribe;

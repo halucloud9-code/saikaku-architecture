@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -43,4 +43,14 @@ export const signUpWithEmail = async (email, password, displayName) => {
 // メール+パスワードログイン
 export const signInWithEmail = async (email, password) => {
   return signInWithEmailAndPassword(auth, email, password);
+};
+
+// メールアドレス確認メール送信
+export const sendVerificationEmail = async (user) => {
+  return sendEmailVerification(user);
+};
+
+// パスワードリセットメール送信
+export const sendPasswordReset = async (email) => {
+  return sendPasswordResetEmail(auth, email);
 };
