@@ -109,21 +109,21 @@ export default function LoginScreen({ onLogin }) {
       if (emailMode === 'signup') {
         if (!displayName) { setError('お名前を入力してください'); setLoading(false); return; }
         result = await signUpWithEmail(email, password, displayName);
-        // Resend API 経由で確認メール送信（失敗時は Firebase デフォルトにフォールバック）
+        // 確認メール送信（失敗してもアカウント作成は成功として扱う）
         try {
           const res = await fetch('/api/send-verification-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, uid: result.user.uid }),
           });
-          const data = await res.json();
-          // Resend API キー未設定 → Firebase デフォルトで送信
+          const data = await res.json().catch(() => ({}));
+          // カスタム API 未設定またはエラー → Firebase デフォルトで送信
           if (!res.ok || data.method === 'firebase_default') {
-            await sendVerificationEmail(result.user);
+            try { await sendVerificationEmail(result.user); } catch (_) {}
           }
         } catch (_) {
-          // フォールバック: Firebase デフォルト
-          await sendVerificationEmail(result.user);
+          // フォールバック: Firebase デフォルト（こちらも失敗を許容）
+          try { await sendVerificationEmail(result.user); } catch (_) {}
         }
         await signOutUser();
         setVerificationSent(true);
