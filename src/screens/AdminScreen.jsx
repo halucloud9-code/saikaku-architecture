@@ -321,20 +321,31 @@ function UAAMModal({ user: u, onClose }) {
 }
 
 // haruによる実力グレード（現実パフォーマンス評価）
+// 係数: A+=0.95 / A=0.90 / B+=0.85 / B=0.80 / C+=0.75 / C=0.70 / D+=0.65 / D=0.60 / E+=0.55 / E=0.50
 const HARU_GRADES = {
-  '塚原厚':   'A+', '根本輝尚':  'A',
-  '島田知幸': 'B',  '藤原宗賢':  'B-',
-  '原田祐介': 'C',  '道又正人':  'C', '谷口尚子': 'C', '浜口奈々':  'C',
-  '坂口友亮': 'D',  '鈴木栄子':  'D', '守永博貴': 'D', '宇田川昌美': 'D', '飯塚玄氣': 'D',
+  '塚原厚':    'A+', '根本輝尚':   'A',
+  '島田知幸':  'B+', '藤原宗賢':   'B',
+  '原田祐介':  'C',  '道又正人':   'C', '谷口尚子':  'C', '浜口奈々': 'C',
+  '坂口友亮':  'D',  '鈴木栄子':   'D', '守永博貴':  'D', '宇田川昌美': 'D', '飯塚玄氣': 'D',
+};
+
+const GRADE_COEFF = {
+  'A+': 0.95, 'A': 0.90, 'B+': 0.85, 'B': 0.80,
+  'C+': 0.75, 'C': 0.70, 'D+': 0.65, 'D': 0.60,
+  'E+': 0.55, 'E': 0.50,
 };
 
 const GRADE_STYLE = {
-  'A+': { bg: '#0A2A0A', color: '#4EF84E', label: 'A+' },
-  'A':  { bg: '#1A3A1A', color: '#7EE87E', label: 'A'  },
-  'B':  { bg: '#1A2B3A', color: '#7EC8E8', label: 'B'  },
-  'B-': { bg: '#1A2B3A', color: '#A8D8E8', label: 'B-' },
-  'C':  { bg: '#2A2A1A', color: '#D4C97E', label: 'C'  },
-  'D':  { bg: '#3A1A1A', color: '#E87E7E', label: 'D'  },
+  'A+': { bg: '#0A2A0A', color: '#4EF84E' },
+  'A':  { bg: '#1A3A1A', color: '#7EE87E' },
+  'B+': { bg: '#0A1E2A', color: '#4EC8F8' },
+  'B':  { bg: '#1A2B3A', color: '#7EC8E8' },
+  'C+': { bg: '#2A2510', color: '#F0D870' },
+  'C':  { bg: '#2A2A1A', color: '#D4C97E' },
+  'D+': { bg: '#2A1A10', color: '#F0A870' },
+  'D':  { bg: '#3A1A1A', color: '#E87E7E' },
+  'E+': { bg: '#2A1A2A', color: '#D07ED0' },
+  'E':  { bg: '#2A1A2A', color: '#B060B0' },
 };
 
 function GradeBadge({ name }) {
@@ -724,7 +735,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
-                  {['', '名前', '才覚領域', '価値観', '才能', '情熱', 'Q1', 'Q2', 'Q3', '解析日時'].map((h) => (
+                  {['', '名前', '才覚領域', '価値観', '才能', '情熱', 'Q1', 'Q2', 'Q3', '解析日時', '発動スコア'].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -876,6 +887,23 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                             })
                           : '—'}
                       </span>
+                    </td>
+                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                      {(() => {
+                        const grade = HARU_GRADES[u.name?.replace(/\s/g, '')];
+                        const coeff = GRADE_COEFF[grade];
+                        if (!coeff || !u.result?.axes) return <span style={{ fontSize: 12, color: '#B0A898' }}>—</span>;
+                        const axes = u.result.axes;
+                        const total = (axes.mindset || 0) + (axes.literacy || 0) + (axes.competency || 0) + (axes.impact || 0);
+                        const activated = Math.round(total * coeff);
+                        const s = GRADE_STYLE[grade] || {};
+                        return (
+                          <div>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: s.color || '#C4922A' }}>{activated}</span>
+                            <span style={{ fontSize: 10, color: '#B0A898', marginLeft: 4 }}>/{total}×{coeff}</span>
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}
