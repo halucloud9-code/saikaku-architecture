@@ -99,17 +99,8 @@ export default function App() {
         const saved = await loadSavedUaamResult(u.uid);
         if (saved) {
           setUaamResult(saved);
-          // ?page=uaam-result の場合は直接結果画面へ
-          if (pageParam === 'uaam-result') {
-            setScreen('uaam-result');
-            return;
-          }
         }
-        // ?page=uaam-result でもデータがない場合は質問画面へ
-        if (pageParam === 'uaam-result' && !saved) {
-          setScreen('uaam');
-          return;
-        }
+        // 常にセレクト画面へ（才覚領域 / 才覚発動領域 の選択画面）
         setScreen((prev) => (prev === 'login' ? 'select' : prev));
       }
     });
@@ -122,15 +113,8 @@ export default function App() {
     const saved = await loadSavedUaamResult(u.uid);
     if (saved) {
       setUaamResult(saved);
-      if (pageParam === 'uaam-result') {
-        setScreen('uaam-result');
-        return;
-      }
     }
-    if (pageParam === 'uaam-result' && !saved) {
-      setScreen('uaam');
-      return;
-    }
+    // 常にセレクト画面へ（才覚領域 / 才覚発動領域 の選択画面）
     setScreen('select');
   };
 

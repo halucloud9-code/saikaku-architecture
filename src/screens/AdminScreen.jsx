@@ -320,6 +320,42 @@ function UAAMModal({ user: u, onClose }) {
   );
 }
 
+// haruによる実力グレード（現実パフォーマンス評価）
+const HARU_GRADES = {
+  '塚原厚':   'A+', '根本輝尚':  'A',
+  '島田知幸': 'B',  '藤原宗賢':  'B-',
+  '原田祐介': 'C',  '道又正人':  'C', '谷口尚子': 'C', '浜口奈々':  'C',
+  '坂口友亮': 'D',  '鈴木栄子':  'D', '守永博貴': 'D', '宇田川昌美': 'D', '飯塚玄氣': 'D',
+};
+
+const GRADE_STYLE = {
+  'A+': { bg: '#0A2A0A', color: '#4EF84E', label: 'A+' },
+  'A':  { bg: '#1A3A1A', color: '#7EE87E', label: 'A'  },
+  'B':  { bg: '#1A2B3A', color: '#7EC8E8', label: 'B'  },
+  'B-': { bg: '#1A2B3A', color: '#A8D8E8', label: 'B-' },
+  'C':  { bg: '#2A2A1A', color: '#D4C97E', label: 'C'  },
+  'D':  { bg: '#3A1A1A', color: '#E87E7E', label: 'D'  },
+};
+
+function GradeBadge({ name }) {
+  const grade = HARU_GRADES[name?.replace(/\s/g, '')];
+  if (!grade) return null;
+  const s = GRADE_STYLE[grade];
+  return (
+    <span style={{
+      display: 'inline-block',
+      background: s.bg,
+      color: s.color,
+      fontSize: 10,
+      fontWeight: 700,
+      padding: '1px 6px',
+      borderRadius: 4,
+      marginLeft: 6,
+      letterSpacing: '0.05em',
+    }}>{s.label}</span>
+  );
+}
+
 export default function AdminScreen({ user, onBack, onLogout }) {
   const [users, setUsers] = useState([]);
   const [uaamUsers, setUaamUsers] = useState([]);
@@ -742,7 +778,9 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                       )}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#2A2520' }}>{u.name}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#2A2520', display: 'flex', alignItems: 'center' }}>
+                        {u.name}<GradeBadge name={u.name} />
+                      </div>
                       <div style={{ fontSize: 12, color: '#7A7060' }}>{u.email}</div>
                     </td>
                     <td style={{ padding: '12px 16px', maxWidth: 240 }}>
@@ -1029,7 +1067,9 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                         )}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#2A2520' }}>{u.name}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#2A2520', display: 'flex', alignItems: 'center' }}>
+                          {u.name}<GradeBadge name={u.name} />
+                        </div>
                         <div style={{ fontSize: 11, color: '#7A7060' }}>{u.email}</div>
                       </td>
                       {/* 4軸スコア */}
