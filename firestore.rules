@@ -9,6 +9,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // uaam_results コレクション：本人のみ読み書き可
+    match /uaam_results/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
     // その他のコレクションへのアクセスはすべて拒否
     match /{document=**} {
       allow read, write: if false;
