@@ -34,10 +34,19 @@ export default async function handler(req, res) {
       }
     }
 
-    // Firestore の才覚領域結果を UID で削除
+    // Firestore の才覚領域結果を UID で削除（ドキュメントID直接 + uid フィールドクエリ）
     if (targetUid) {
       try { await db.collection('results').doc(targetUid).delete(); } catch (_) {}
       try { await db.collection('uaam_results').doc(targetUid).delete(); } catch (_) {}
+      // ドキュメントID != uid の場合に備えてフィールドでも検索
+      try {
+        const snap = await db.collection('results').where('uid', '==', targetUid).get();
+        await Promise.all(snap.docs.map((d) => d.ref.delete()));
+      } catch (_) {}
+      try {
+        const snap = await db.collection('uaam_results').where('uid', '==', targetUid).get();
+        await Promise.all(snap.docs.map((d) => d.ref.delete()));
+      } catch (_) {}
     }
 
     // email で Firestore を検索して削除（uid が取れなかった場合の保険）
