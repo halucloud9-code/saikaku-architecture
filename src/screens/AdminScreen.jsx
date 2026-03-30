@@ -545,6 +545,9 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   const [tab, setTab] = useState('saikaku'); // 'saikaku' | 'uaam'
   const [vFilter, setVFilter] = useState('all'); // 'all' | 'v1_high' | 'v2_high' | 'v3_diff' | 'critical'
   const [deleting, setDeleting] = useState(false);
+  const [emailDeleteInput, setEmailDeleteInput] = useState('');
+  const [emailDeleteConfirm, setEmailDeleteConfirm] = useState(false);
+  const [emailDeleteMsg, setEmailDeleteMsg] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -587,6 +590,32 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       setSelectedUaam(null);
     } catch (e) {
       setError(e.message || '削除に失敗しました');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleEmailDelete = async () => {
+    if (!emailDeleteInput.trim()) return;
+    setDeleting(true);
+    setEmailDeleteMsg('');
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ email: emailDeleteInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '削除に失敗しました');
+      // ローカルリストからも除去
+      setUsers((prev) => prev.filter((u) => u.email !== emailDeleteInput.trim()));
+      setUaamUsers((prev) => prev.filter((u) => u.email !== emailDeleteInput.trim()));
+      setEmailDeleteMsg(`✅ ${emailDeleteInput.trim()} を削除しました`);
+      setEmailDeleteInput('');
+      setEmailDeleteConfirm(false);
+    } catch (e) {
+      setEmailDeleteMsg(`❌ ${e.message || '削除に失敗しました'}`);
     } finally {
       setDeleting(false);
     }
@@ -783,6 +812,74 @@ export default function AdminScreen({ user, onBack, onLogout }) {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* メールアドレス直接削除パネル */}
+        <div
+          style={{
+            background: '#FDFCFA', borderRadius: 12, border: '1px solid #D4C9B0',
+            padding: '16px 20px', marginBottom: 24,
+            boxShadow: '0 2px 8px rgba(42,37,32,0.04)',
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#A84432', letterSpacing: '0.08em', marginBottom: 10 }}>
+            🗑 メールアドレス指定削除（リスト未表示ユーザー対応）
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="email"
+              value={emailDeleteInput}
+              onChange={(e) => { setEmailDeleteInput(e.target.value); setEmailDeleteConfirm(false); setEmailDeleteMsg(''); }}
+              placeholder="削除するメールアドレス"
+              style={{
+                padding: '8px 14px', borderRadius: 8, border: '1px solid #D4C9B0',
+                background: '#FDFCFA', fontSize: 13, color: '#2A2520',
+                width: 280, fontFamily: 'Noto Sans JP, sans-serif', outline: 'none',
+              }}
+            />
+            {!emailDeleteConfirm ? (
+              <button
+                onClick={() => { if (emailDeleteInput.trim()) setEmailDeleteConfirm(true); }}
+                disabled={!emailDeleteInput.trim()}
+                style={{
+                  padding: '8px 18px', borderRadius: 8, border: '1px solid #A84432',
+                  background: 'transparent', color: '#A84432', fontSize: 13, fontWeight: 600,
+                  cursor: emailDeleteInput.trim() ? 'pointer' : 'not-allowed',
+                  opacity: emailDeleteInput.trim() ? 1 : 0.4,
+                }}
+              >
+                削除
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: '#A84432', fontWeight: 600 }}>
+                  「{emailDeleteInput}」を本当に削除しますか？
+                </span>
+                <button
+                  onClick={handleEmailDelete}
+                  disabled={deleting}
+                  style={{
+                    padding: '7px 16px', borderRadius: 8, border: 'none',
+                    background: '#A84432', color: '#fff', fontSize: 13, fontWeight: 700,
+                    cursor: deleting ? 'wait' : 'pointer', opacity: deleting ? 0.7 : 1,
+                  }}
+                >
+                  {deleting ? '削除中...' : '確定'}
+                </button>
+                <button
+                  onClick={() => setEmailDeleteConfirm(false)}
+                  style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #D4C9B0', background: 'transparent', color: '#7A7060', fontSize: 13, cursor: 'pointer' }}
+                >
+                  キャンセル
+                </button>
+              </div>
+            )}
+          </div>
+          {emailDeleteMsg && (
+            <div style={{ marginTop: 10, fontSize: 13, color: emailDeleteMsg.startsWith('✅') ? '#2E8B57' : '#A84432', fontWeight: 600 }}>
+              {emailDeleteMsg}
+            </div>
+          )}
         </div>
 
         {/* タブ切り替え */}
