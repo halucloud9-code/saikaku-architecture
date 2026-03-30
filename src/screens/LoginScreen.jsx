@@ -109,8 +109,22 @@ export default function LoginScreen({ onLogin }) {
       if (emailMode === 'signup') {
         if (!displayName) { setError('お名前を入力してください'); setLoading(false); return; }
         result = await signUpWithEmail(email, password, displayName);
-        // 確認メールを送信してサインアウト
-        await sendVerificationEmail(result.user);
+        // Resend API 経由で確認メール送信（失敗時は Firebase デフォルトにフォールバック）
+        try {
+          const res = await fetch('/api/send-verification-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, uid: result.user.uid }),
+          });
+          const data = await res.json();
+          // Resend API キー未設定 → Firebase デフォルトで送信
+          if (!res.ok || data.method === 'firebase_default') {
+            await sendVerificationEmail(result.user);
+          }
+        } catch (_) {
+          // フォールバック: Firebase デフォルト
+          await sendVerificationEmail(result.user);
+        }
         await signOutUser();
         setVerificationSent(true);
         setLoading(false);
@@ -173,29 +187,48 @@ export default function LoginScreen({ onLogin }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '24px 16px',
       }}>
-        <div style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}>
+        <div style={{ width: '100%', maxWidth: 440, textAlign: 'center' }}>
           {/* アイコン */}
-          <div style={{ fontSize: 64, marginBottom: 24 }}>✉️</div>
+          <div style={{ fontSize: 64, marginBottom: 20 }}>✉️</div>
 
           <h2 style={{
             fontFamily: "'Noto Serif JP', serif",
-            fontSize: 24, fontWeight: 700, color: '#FFFFFF',
-            margin: '0 0 16px',
+            fontSize: 22, fontWeight: 700, color: '#FFFFFF',
+            margin: '0 0 12px',
           }}>確認メールを送信しました</h2>
 
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.9, margin: '0 0 8px' }}>
-            <span style={{ color: GOLD, fontWeight: 600 }}>{email}</span><br />
-            に確認メールを送りました。
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.9, margin: '0 0 6px' }}>
+            <span style={{ color: GOLD, fontWeight: 700 }}>{email}</span>
           </p>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.9, margin: '0 0 32px' }}>
-            メール内の「メールアドレスを確認」リンクをクリックしてから、<br />
-            ログイン画面に戻ってサインインしてください。
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.8, margin: '0 0 20px' }}>
+            に確認メールを送りました。<br />
+            リンクをクリックしてから、ログイン画面に戻ってください。
           </p>
+
+          {/* ⚠️ 迷惑メールの注意 */}
+          <div style={{
+            background: 'rgba(255,193,7,0.08)',
+            border: '1px solid rgba(255,193,7,0.25)',
+            borderRadius: 12,
+            padding: '14px 18px',
+            marginBottom: 20,
+            textAlign: 'left',
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#FFD700', marginBottom: 8 }}>
+              📂 メールが見つからない場合
+            </div>
+            <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 2 }}>
+              <li><strong style={{ color: 'rgba(255,255,255,0.85)' }}>迷惑メール・スパムフォルダ</strong>をご確認ください</li>
+              <li>送信元：<code style={{ color: '#FFD700', fontSize: 11 }}>noreply@saikaku-architecture.firebaseapp.com</code></li>
+              <li>件名：<strong style={{ color: 'rgba(255,255,255,0.85)' }}>「メールアドレスを確認」</strong></li>
+              <li>届くまで<strong style={{ color: 'rgba(255,255,255,0.85)' }}>数分かかる</strong>場合があります</li>
+            </ul>
+          </div>
 
           {/* 再送信 */}
           {resendMsg && (
             <div style={{
-              marginBottom: 16, padding: '10px 16px', borderRadius: 10,
+              marginBottom: 14, padding: '10px 16px', borderRadius: 10,
               background: resendMsg.startsWith('✅') ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
               border: `1px solid ${resendMsg.startsWith('✅') ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
               fontSize: 12, color: resendMsg.startsWith('✅') ? '#4ADE80' : '#F87171',
@@ -205,11 +238,11 @@ export default function LoginScreen({ onLogin }) {
           <button onClick={handleResendVerification} disabled={resendLoading}
             style={{
               width: '100%', padding: '14px', borderRadius: 12, marginBottom: 12,
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
-              color: resendLoading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.7)',
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
+              color: resendLoading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)',
               fontSize: 14, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer',
             }}>
-            {resendLoading ? '送信中...' : '確認メールを再送信'}
+            {resendLoading ? '送信中...' : '🔄 確認メールを再送信'}
           </button>
 
           <button onClick={() => { setVerificationSent(false); setEmailMode('login'); setPassword(''); }}
