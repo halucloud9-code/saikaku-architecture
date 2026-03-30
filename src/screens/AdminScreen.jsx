@@ -545,6 +545,10 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   const [tab, setTab] = useState('saikaku'); // 'saikaku' | 'uaam'
   const [vFilter, setVFilter] = useState('all'); // 'all' | 'v1_high' | 'v2_high' | 'v3_diff' | 'critical'
   const [deleting, setDeleting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFields, setExportFields] = useState([
+    'name','email','kakuchiiki','valueAxes','talentAxes','passionAxes','createdAt'
+  ]);
   const [emailDeleteInput, setEmailDeleteInput] = useState('');
   const [emailDeleteConfirm, setEmailDeleteConfirm] = useState(false);
   const [emailDeleteMsg, setEmailDeleteMsg] = useState('');
@@ -635,14 +639,17 @@ export default function AdminScreen({ user, onBack, onLogout }) {
     setSelected((prev) => prev ? { ...prev, ...fields } : null);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (fields) => {
     setExporting(true);
+    setShowExportModal(false);
     let url = null;
     try {
       if (!auth.currentUser) throw new Error('認証セッションが切れました');
       const idToken = await auth.currentUser.getIdToken(true);
       const res = await fetch('/api/admin/export', {
-        headers: { Authorization: `Bearer ${idToken}` },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ fields: fields || exportFields }),
       });
       if (!res.ok) throw new Error('エクスポートに失敗しました');
       const blob = await res.blob();
@@ -654,7 +661,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
     } catch (e) {
       alert(e.message);
     } finally {
-      if (url) URL.revokeObjectURL(url); // 成功・失敗どちらでも解放
+      if (url) URL.revokeObjectURL(url);
       setExporting(false);
     }
   };
@@ -966,7 +973,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
               }}
             />
             <button
-              onClick={handleExport}
+              onClick={() => setShowExportModal(true)}
               disabled={exporting}
               style={{
                 padding: '8px 20px',
@@ -980,7 +987,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                 opacity: exporting ? 0.7 : 1,
               }}
             >
-              {exporting ? '処理中...' : 'CSVエクスポート'}
+              {exporting ? '処理中...' : '📥 CSVエクスポート'}
             </button>
           </div>
         </div>
@@ -1035,19 +1042,8 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
-                  {['', '名前', '才覚領域', '価値観', '才能', '情熱', 'Q1', 'Q2', 'Q3', '解析日時', '発動スコア'].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: '12px 16px',
-                        textAlign: 'left',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: '#7A7060',
-                        letterSpacing: '0.06em',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
+                  {['', '名前', '才覚領域', '価値観', '才能', '情熱', '解析日時', '発動スコア'].map((h) => (
+                    <th key={h} style={{ padding: '12px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#7A7060', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                       {h}
                     </th>
                   ))}
@@ -1058,139 +1054,59 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                   <tr
                     key={u.uid}
                     onClick={() => setSelected(u)}
-                    style={{
-                      borderBottom: '1px solid #D4C9B0',
-                      background: idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4',
-                      cursor: 'pointer',
-                      transition: 'background 0.15s ease',
-                    }}
+                    style={{ borderBottom: '1px solid #D4C9B0', background: idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4', cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = '#FBF4E8')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4')}
                   >
-                    <td style={{ padding: '12px 16px' }}>
-                      {u.photoURL ? (
-                        <img src={u.photoURL} alt={u.name} style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                      ) : (
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            background: '#D4C9B0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 12,
-                            color: '#7A7060',
-                          }}
-                        >
-                          {u.name?.[0] || '?'}
-                        </div>
-                      )}
+                    {/* アバター */}
+                    <td style={{ padding: '10px 12px' }}>
+                      {u.photoURL
+                        ? <img src={u.photoURL} alt={u.name} style={{ width: 32, height: 32, borderRadius: '50%' }} />
+                        : <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#D4C9B0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#7A7060' }}>{u.name?.[0] || '?'}</div>
+                      }
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    {/* 名前 + メール */}
+                    <td style={{ padding: '10px 12px' }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: '#2A2520', display: 'flex', alignItems: 'center' }}>
                         {u.name}<GradeBadge name={u.name} />
                       </div>
-                      <div style={{ fontSize: 12, color: '#7A7060' }}>{u.email}</div>
+                      <div style={{ fontSize: 11, color: '#7A7060' }}>{u.email}</div>
                     </td>
-                    <td style={{ padding: '12px 16px', maxWidth: 240 }}>
-                      <span
-                        style={{
-                          fontFamily: 'Shippori Mincho, serif',
-                          fontSize: 13,
-                          color: '#2A2520',
-                          lineHeight: 1.5,
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {u.selectedKakuchiiki}
+                    {/* 才覚領域（1行） */}
+                    <td style={{ padding: '10px 12px', maxWidth: 280 }}>
+                      <span style={{ fontFamily: 'Shippori Mincho, serif', fontSize: 13, color: '#2A2520', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {u.selectedKakuchiiki || '—'}
                       </span>
                     </td>
+                    {/* 価値観・才能・情熱（上位3軸タグのみ） */}
                     {[
-                      { axes: u.valueAxes,   color: '#4A6FA5', top5: u.inputValueTop5   || u.inputValue   },
-                      { axes: u.talentAxes,  color: '#C4922A', top5: u.inputTalentTop5  || u.inputTalent  },
-                      { axes: u.passionAxes, color: '#A84432', top5: u.inputPassionTop5 || u.inputPassion },
-                    ].map(({ axes, color, top5 }, i) => (
-                      <td key={i} style={{ padding: '12px 16px' }}>
-                        {/* AIが生成した3軸タグ */}
-                        {axes ? (
-                          <div>
-                            {['axis1', 'axis2', 'axis3'].map((k) => (
-                              <span
-                                key={k}
-                                style={{
-                                  display: 'inline-block',
-                                  padding: '2px 8px',
-                                  borderRadius: 100,
-                                  background: `${color}15`,
-                                  color,
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  margin: '2px 2px',
-                                }}
-                              >
-                                {axes[k]?.name || '-'}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
-                        )}
-                        {/* ユーザーが入力した5つ */}
-                        {top5 && (
-                          <div style={{ marginTop: 4 }}>
-                            {top5.split(/[,、，\n]/).map((s) => s.trim()).filter(Boolean).map((item, j) => (
-                              <span
-                                key={j}
-                                style={{
-                                  display: 'inline-block',
-                                  padding: '1px 6px',
-                                  borderRadius: 100,
-                                  background: 'transparent',
-                                  border: `1px solid ${color}99`,
-                                  color: color,
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  margin: '2px 2px',
-                                }}
-                              >
-                                {item}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    ))}
-                    {[
-                      { val: u.inputQ1, color: '#7B5EA7' },
-                      { val: u.inputQ2, color: '#7B5EA7' },
-                      { val: u.inputQ3, color: '#7B5EA7' },
-                    ].map(({ val, color }, qi) => (
-                      <td key={`q${qi}`} style={{ padding: '12px 16px', maxWidth: 200 }}>
-                        {val
-                          ? <span style={{ fontSize: 12, color: '#2A2520', lineHeight: 1.6, display: 'block', whiteSpace: 'pre-wrap' }}>{val}</span>
+                      { axes: u.valueAxes,   color: '#4A6FA5' },
+                      { axes: u.talentAxes,  color: '#C4922A' },
+                      { axes: u.passionAxes, color: '#A84432' },
+                    ].map(({ axes, color }, i) => (
+                      <td key={i} style={{ padding: '10px 12px' }}>
+                        {axes
+                          ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              {['axis1', 'axis2', 'axis3'].map((k) => axes[k]?.name ? (
+                                <span key={k} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 100, background: `${color}15`, color, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                  {axes[k].name}
+                                </span>
+                              ) : null)}
+                            </div>
                           : <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
                         }
                       </td>
                     ))}
-                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                    {/* 解析日時 */}
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: 12, color: '#7A7060' }}>
-                        {u.createdAt
-                          ? new Date(u.createdAt).toLocaleDateString('ja-JP', {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                            })
-                          : '—'}
+                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '—'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                    {/* 発動スコア */}
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                       {(() => {
-                        const grade = HARU_GRADES[u.name?.replace(/\s/g, '')];
+                        const grade = getGrade(u.name);
                         const coeff = GRADE_COEFF[grade];
                         if (!coeff || !u.result?.axes) return <span style={{ fontSize: 12, color: '#B0A898' }}>—</span>;
                         const axes = u.result.axes;
@@ -1200,7 +1116,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                         return (
                           <div>
                             <span style={{ fontSize: 13, fontWeight: 700, color: s.color || '#C4922A' }}>{activated}</span>
-                            <span style={{ fontSize: 10, color: '#B0A898', marginLeft: 4 }}>/{total}×{coeff}</span>
+                            <span style={{ fontSize: 10, color: '#B0A898', marginLeft: 4 }}>/{total}</span>
                           </div>
                         );
                       })()}
@@ -1512,6 +1428,110 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           onClose={() => setSelectedUaam(null)}
           onDelete={handleDelete}
         />
+      )}
+
+      {/* エクスポート フィールド選択モーダル */}
+      {showExportModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(42,37,32,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}
+          onClick={() => setShowExportModal(false)}
+        >
+          <div
+            style={{ background: '#FDFCFA', borderRadius: 16, border: '1px solid #D4C9B0', padding: '28px 32px', maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(42,37,32,0.18)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontFamily: 'Shippori Mincho, serif', fontSize: 18, fontWeight: 700, color: '#2A2520', marginBottom: 20 }}>
+              📥 エクスポート設定
+            </div>
+
+            {/* プリセット */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#7A7060', letterSpacing: '0.1em', marginBottom: 10 }}>プリセット</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'アドレスのみ',   fields: ['name','email'] },
+                  { label: '才覚領域のみ',   fields: ['name','email','kakuchiiki'] },
+                  { label: '3軸まで',        fields: ['name','email','kakuchiiki','valueAxes','talentAxes','passionAxes','createdAt'] },
+                  { label: '全て',           fields: ['name','email','kakuchiiki','valueAxes','valueInput','talentAxes','talentInput','passionAxes','passionInput','q1','q2','q3','createdAt'] },
+                ].map(({ label, fields }) => (
+                  <button
+                    key={label}
+                    onClick={() => setExportFields(fields)}
+                    style={{
+                      padding: '6px 14px', borderRadius: 8,
+                      border: `1px solid ${JSON.stringify(exportFields) === JSON.stringify(fields) ? '#C4922A' : '#D4C9B0'}`,
+                      background: JSON.stringify(exportFields) === JSON.stringify(fields) ? '#C4922A15' : 'transparent',
+                      color: JSON.stringify(exportFields) === JSON.stringify(fields) ? '#C4922A' : '#7A7060',
+                      fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* カスタム選択 */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#7A7060', letterSpacing: '0.1em', marginBottom: 10 }}>カスタム</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {[
+                  { key: 'name',        label: '名前' },
+                  { key: 'email',       label: 'メール' },
+                  { key: 'kakuchiiki',  label: '才覚領域' },
+                  { key: 'valueAxes',   label: '価値観 3軸' },
+                  { key: 'valueInput',  label: '価値観 入力' },
+                  { key: 'talentAxes',  label: '才能 3軸' },
+                  { key: 'talentInput', label: '才能 入力' },
+                  { key: 'passionAxes', label: '情熱 3軸' },
+                  { key: 'passionInput',label: '情熱 入力' },
+                  { key: 'q1',          label: 'Q1' },
+                  { key: 'q2',          label: 'Q2' },
+                  { key: 'q3',          label: 'Q3' },
+                  { key: 'createdAt',   label: '解析日時' },
+                ].map(({ key, label }) => {
+                  const checked = exportFields.includes(key);
+                  return (
+                    <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#2A2520', userSelect: 'none' }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setExportFields((prev) =>
+                            checked ? prev.filter((f) => f !== key) : [...prev, key]
+                          );
+                        }}
+                        style={{ width: 15, height: 15, accentColor: '#C4922A', cursor: 'pointer' }}
+                      />
+                      {label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => handleExport(exportFields)}
+                disabled={exportFields.length === 0}
+                style={{
+                  padding: '10px 28px', borderRadius: 8, border: 'none',
+                  background: exportFields.length === 0 ? '#D4C9B0' : '#C4922A',
+                  color: '#fff', fontSize: 14, fontWeight: 700,
+                  cursor: exportFields.length === 0 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                ダウンロード
+              </button>
+              <button
+                onClick={() => setShowExportModal(false)}
+                style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #D4C9B0', background: 'transparent', color: '#7A7060', fontSize: 14, cursor: 'pointer' }}
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
