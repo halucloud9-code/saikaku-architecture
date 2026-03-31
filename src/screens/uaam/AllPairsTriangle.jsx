@@ -64,10 +64,10 @@ const BLOCK_HEX = {
 };
 const ZONE_LABEL = { full:'FULL ✦', active:'ACTIVE', potential:'POTENTIAL', dormant:'DORMANT' };
 const ZONE_DESC  = {
-  full:      '両才覚が満点（20×20）— 完全発動状態',
-  active:    '両才覚が高水準（16以上）— 安定発動中',
-  potential: '片方が高水準（16以上）— 条件次第で発動可能',
-  dormant:   '両才覚が未達（16未満）— 発動待機・潜在状態',
+  full:      '両才覚が満点（20×20）— 完全解放発動状態',
+  active:    '両才覚が高水準（16×16以上）— 才覚発動状態',
+  potential: '両才覚が高水準（12×12以上）— 潜在才覚発動',
+  dormant:   '両才覚が未達（12未満）— 発動待機・潜在状態',
 };
 // 右側 vs 左側のゾーン割り当て
 const RIGHT_ZONES = ['full', 'active'];
@@ -319,7 +319,7 @@ const toRgba = (hex, a) => {
 function getZone(sA, sB) {
   if (sA === 20 && sB === 20) return 'full';
   if (sA >= 16 && sB >= 16)   return 'active';
-  if (sA >= 16 || sB >= 16)   return 'potential';
+  if (sA >= 12 && sB >= 12)   return 'potential';
   return 'dormant';
 }
 
