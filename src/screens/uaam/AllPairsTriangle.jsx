@@ -9,7 +9,7 @@ import { useState, useCallback, useMemo } from 'react';
  */
 
 // ── 定数 ─────────────────────────────────────────────
-const CELL = 32, GAP = 2, STEP = CELL + GAP;
+const CELL = 52, GAP = 2, STEP = CELL + GAP;
 
 const ORDERED = [
   'meaning', 'mindfulness', 'mindshift', 'mastery',
@@ -47,6 +47,20 @@ const ZONE_HEX = {
   active:    '#1A6FD4',   // 鮮青：発動中
   potential: '#8B35C8',   // 鮮紫：潜在
   dormant:   '#5A7A8A',   // 青灰：休眠
+};
+
+// 10ブロック固有カラー（セルの色相を決定）
+const BLOCK_HEX = {
+  ANCHOR:    '#1A5C9E',  // 志×志  深青
+  SAGE:      '#1A7A4A',  // 知×知  深緑
+  INVENTOR:  '#B87010',  // 技×技  琥珀
+  PIONEER:   '#B83020',  // 衝×衝  深紅
+  VISIONARY: '#0A8090',  // 志×知  ティール
+  BUILDER:   '#6040A0',  // 志×技  紫
+  CATALYST:  '#A02070',  // 志×衝  マゼンタ
+  CRAFTER:   '#4A8030',  // 知×技  オリーブ
+  NAVIGATOR: '#107060',  // 知×衝  エメラルド
+  STRIKER:   '#C05010',  // 技×衝  オレンジ
 };
 const ZONE_LABEL = { full:'FULL ✦', active:'ACTIVE', potential:'POTENTIAL', dormant:'DORMANT' };
 const ZONE_DESC  = {
@@ -297,9 +311,11 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
   const maxTotal = Math.max(...blockTotals, 1);
 
   const cellColor = useCallback((kA, kB) => {
-    const sA = smap[kA], sB = smap[kB];
-    const z  = getZone(sA, sB);
-    return toRgba(ZONE_HEX[z], zAlpha(z, sA, sB));
+    const sA  = smap[kA], sB = smap[kB];
+    const z   = getZone(sA, sB);
+    const blk = getBlock(kA, kB);
+    const hex = blk ? BLOCK_HEX[blk.name] : '#808080';
+    return toRgba(hex, zAlpha(z, sA, sB));
   }, [smap]);
 
   return (
@@ -462,8 +478,8 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
           <div style={{ display: 'flex', gap: GAP, marginBottom: 4, paddingLeft: STEP }}>
             {ORDERED.map((k, j) => (
               <div key={j} style={{
-                width: CELL, height: 18, flexShrink: 0,
-                fontSize: 9, textAlign: 'center', fontWeight: 700,
+                width: CELL, height: 20, flexShrink: 0,
+                fontSize: 10, textAlign: 'center', fontWeight: 700,
                 color: AXIS_LIGHT[CODE_GRP[k]],
               }}>
                 {SUB_JP[k].slice(0, 2)}
@@ -489,16 +505,16 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                   const sc = smap[kRow];
                   return (
                     <div key={j} style={{
-                      width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
+                      width: CELL, height: CELL, borderRadius: 5, flexShrink: 0,
                       background: AXIS_DIM[CODE_GRP[kRow]],
                       display: 'flex', flexDirection: 'column',
                       alignItems: 'center', justifyContent: 'center',
-                      gap: 1,
+                      gap: 2,
                     }}>
-                      <div style={{ fontSize: 7, fontWeight: 700, color: AXIS_LIGHT[CODE_GRP[kRow]], lineHeight: 1 }}>
-                        {AXIS_SHORT[CODE_GRP[kRow]]}
+                      <div style={{ fontSize: 9, fontWeight: 700, color: AXIS_LIGHT[CODE_GRP[kRow]], lineHeight: 1 }}>
+                        {SUB_JP[kRow].slice(0, 2)}
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: AXIS_LIGHT[CODE_GRP[kRow]], fontFamily: "'Outfit',sans-serif", lineHeight: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: AXIS_LIGHT[CODE_GRP[kRow]], fontFamily: "'Outfit',sans-serif", lineHeight: 1 }}>
                         {sc}
                       </div>
                     </div>
@@ -507,17 +523,22 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                 const z = getZone(smap[kRow], smap[kCol]);
                 const visible = !zones || zones.includes(z);
                 const pairScore = smap[kRow] * smap[kCol];
+                const name = pairDef(kRow, kCol);
+                // セル内表示用：最初の5文字（助詞除去）
+                const shortName = name.slice(0, 5);
                 return (
                   <div key={j} style={{
-                    width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
+                    width: CELL, height: CELL, borderRadius: 5, flexShrink: 0,
                     background: visible ? cellColor(kRow, kCol) : 'rgba(0,0,0,0.04)',
                     cursor: visible ? 'pointer' : 'default',
                     transition: 'transform 0.12s, box-shadow 0.12s',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center',
+                    gap: 2, padding: '3px 2px', overflow: 'hidden',
                   }}
                     onMouseEnter={visible ? e => {
-                      e.currentTarget.style.transform = 'scale(1.3)';
-                      e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.15)';
+                      e.currentTarget.style.transform = 'scale(1.25)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.22)';
                       e.currentTarget.style.zIndex = '20';
                       setTip({ kA: kRow, kB: kCol, x: e.clientX, y: e.clientY });
                     } : undefined}
@@ -529,15 +550,24 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                       setTip(null);
                     } : undefined}
                   >
+                    {visible && shortName && (
+                      <span style={{
+                        fontSize: 7, fontWeight: 700, lineHeight: 1.2,
+                        color: 'rgba(255,255,255,0.95)',
+                        textAlign: 'center', pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                        letterSpacing: '-0.02em',
+                      }}>
+                        {shortName}
+                      </span>
+                    )}
                     <span style={{
-                      fontSize: visible ? (pairScore >= 100 ? 8 : 9) : 8,
-                      fontWeight: 800,
+                      fontSize: 9, fontWeight: 800,
                       fontFamily: "'Outfit',sans-serif",
-                      color: visible ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.18)',
-                      pointerEvents: 'none',
-                      lineHeight: 1,
+                      color: visible ? 'rgba(255,255,255,0.80)' : 'rgba(0,0,0,0.14)',
+                      pointerEvents: 'none', lineHeight: 1,
                     }}>
-                      {pairScore}
+                      {pairScore > 0 ? pairScore : ''}
                     </span>
                   </div>
                 );
