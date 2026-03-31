@@ -49,6 +49,12 @@ const ZONE_HEX = {
   dormant:   '#A09080',
 };
 const ZONE_LABEL = { full:'FULL ✦', active:'ACTIVE', potential:'POTENTIAL', dormant:'DORMANT' };
+const ZONE_DESC  = {
+  full:      '両才覚が満点（20×20）— 完全発動状態',
+  active:    '両才覚が高水準（16以上）— 安定発動中',
+  potential: '片方が高水準（16以上）— 条件次第で発動可能',
+  dormant:   '両才覚が未達（16未満）— 発動待機・潜在状態',
+};
 
 const RANK_NUM = ['1', '2', '3', '4', '5'];
 
@@ -413,17 +419,19 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
       </div>
 
       {/* ── ゾーン凡例 ── */}
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #EDEAE4' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #EDEAE4' }}>
         {Object.entries(ZONE_HEX).map(([z, hex]) => (
-          <div key={z} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: '#666' }}>
+          <div key={z} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <div style={{
-              width: 16, height: 16, borderRadius: 4,
+              width: 14, height: 14, borderRadius: 3, flexShrink: 0, marginTop: 2,
               background: z === 'dormant' ? toRgba(hex, 0.3) : z === 'potential' ? toRgba(hex, 0.55) : toRgba(hex, 0.85),
             }} />
-            <span style={{ fontWeight: 600, color: hex }}>{ZONE_LABEL[z]}</span>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: hex, letterSpacing: '0.05em' }}>{ZONE_LABEL[z]}</div>
+              <div style={{ fontSize: 10, color: '#888', marginTop: 1, lineHeight: 1.5 }}>{ZONE_DESC[z]}</div>
+            </div>
           </div>
         ))}
-        <div style={{ marginLeft: 'auto', fontSize: 11, color: '#AAA' }}>ホバーで詳細</div>
       </div>
 
       {/* ── 正方形マトリックス（16×16） ── */}
