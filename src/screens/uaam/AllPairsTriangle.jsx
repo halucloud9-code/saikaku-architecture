@@ -391,11 +391,9 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
   const maxTotal = Math.max(...blockTotals, 1);
 
   const cellColor = useCallback((kA, kB) => {
-    const sA  = smap[kA], sB = smap[kB];
-    const z   = getZone(sA, sB);
-    const blk = getBlock(kA, kB);
-    const hex = blk ? BLOCK_HEX[blk.name] : '#808080';
-    return toRgba(hex, zAlpha(z, sA, sB));
+    const sA = smap[kA], sB = smap[kB];
+    const z  = getZone(sA, sB);
+    return toRgba(ZONE_HEX[z], zAlpha(z, sA, sB));
   }, [smap]);
 
   return (
