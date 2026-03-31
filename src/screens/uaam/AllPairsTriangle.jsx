@@ -9,7 +9,7 @@ import { useState, useCallback, useMemo } from 'react';
  */
 
 // ── 定数 ─────────────────────────────────────────────
-const CELL = 26, GAP = 2, STEP = CELL + GAP;
+const CELL = 36, GAP = 2, STEP = CELL + GAP;
 
 const ORDERED = [
   'meaning', 'mindfulness', 'mindshift', 'mastery',
@@ -221,6 +221,86 @@ const PAIR_DEFS = {
   'innovation|influence':    '変革を文化として広げる力',
   'implementation|influence':'実装した変化を社会に浸透させる力',
 };
+
+// ── 120ペア 3文字ショートネーム ──────────────────────────
+const PAIR_SHORT = {
+  // ━ 志×志 ANCHOR ━
+  'meaning|mindfulness':    '集中力', 'meaning|mindshift':      '転換力',
+  'meaning|mastery':        '反復力', 'mindfulness|mindshift':  '覚察力',
+  'mindfulness|mastery':    '習慣力', 'mindshift|mastery':      '定着力',
+  // ━ 志×知 VISIONARY ━
+  'meaning|learning':       '探求力', 'meaning|logical':        '言語力',
+  'meaning|life':           '結実力', 'meaning|leadership':     '牽引力',
+  'mindfulness|learning':   '変換力', 'mindfulness|logical':    '把握力',
+  'mindfulness|life':       '即応力', 'mindfulness|leadership': '育成力',
+  'mindshift|learning':     '本質力', 'mindshift|logical':      '構築力',
+  'mindshift|life':         '具現力', 'mindshift|leadership':   '変革力',
+  'mastery|learning':       '深化力', 'mastery|logical':        '整理力',
+  'mastery|life':           '再現力', 'mastery|leadership':     '人育力',
+  // ━ 志×技 BUILDER ━
+  'meaning|critical':       '洞察力', 'meaning|creativity':     '創造力',
+  'meaning|communication':  '伝達力', 'meaning|collaboration':  '統率力',
+  'mindfulness|critical':   '観察力', 'mindfulness|creativity': '発想力',
+  'mindfulness|communication':'共感力','mindfulness|collaboration':'促進力',
+  'mindshift|critical':     '批判力', 'mindshift|creativity':   '革新力',
+  'mindshift|communication':'説得力', 'mindshift|collaboration':'包容力',
+  'mastery|critical':       '探問力', 'mastery|creativity':     '知恵力',
+  'mastery|communication':  '解説力', 'mastery|collaboration':  '発揮力',
+  // ━ 知×知 SAGE ━
+  'learning|logical':       '論述力', 'learning|life':          '実践力',
+  'learning|leadership':    '転化力', 'logical|life':           '連結力',
+  'logical|leadership':     '論動力', 'life|leadership':        '実育力',
+  // ━ 知×技 CRAFTER ━
+  'learning|critical':      '分析力', 'learning|creativity':    '融合力',
+  'learning|communication': '翻訳力', 'learning|collaboration': '共有力',
+  'logical|critical':       '論察力', 'logical|creativity':     '論創力',
+  'logical|communication':  '論伝力', 'logical|collaboration':  '整合力',
+  'life|critical':          '特定力', 'life|creativity':        '解決力',
+  'life|communication':     '証伝力', 'life|collaboration':     '協業力',
+  'leadership|critical':    '構造力', 'leadership|creativity':  '展望力',
+  'leadership|communication':'感化力','leadership|collaboration':'統合力',
+  // ━ 技×技 INVENTOR ━
+  'critical|creativity':    '価値力', 'critical|communication': '明快力',
+  'critical|collaboration': '核共力', 'creativity|communication':'表現力',
+  'creativity|collaboration':'共創力','communication|collaboration':'連携力',
+  // ━ 志×衝 CATALYST ━
+  'meaning|idea':           '熱狂力', 'meaning|innovation':     '起革力',
+  'meaning|implementation': '実装力', 'meaning|influence':      '文化力',
+  'mindfulness|idea':       '着想力', 'mindfulness|innovation': '限革力',
+  'mindfulness|implementation':'先察力','mindfulness|influence': '先見力',
+  'mindshift|idea':         '脱枠力', 'mindshift|innovation':   '破壊力',
+  'mindshift|implementation':'突破力', 'mindshift|influence':   '伝播力',
+  'mastery|idea':           '洗練力', 'mastery|innovation':     '牽変力',
+  'mastery|implementation': '形成力', 'mastery|influence':      '根着力',
+  // ━ 知×衝 NAVIGATOR ━
+  'learning|idea':          '発見力', 'learning|innovation':    '原動力',
+  'learning|implementation':'知実力', 'learning|influence':     '学影力',
+  'logical|idea':           '論発力', 'logical|innovation':     '設計力',
+  'logical|implementation': '確実力', 'logical|influence':      '論影力',
+  'life|idea':              '現場力', 'life|innovation':        '現革力',
+  'life|implementation':    '機能力', 'life|influence':         '波及力',
+  'leadership|idea':        '触媒力', 'leadership|innovation':  '革創力',
+  'leadership|implementation':'完遂力','leadership|influence':  '風土力',
+  // ━ 技×衝 STRIKER ━
+  'critical|idea':          '問革力', 'critical|innovation':    '核心力',
+  'critical|implementation':'検証力', 'critical|influence':     '啓発力',
+  'creativity|idea':        '創見力', 'creativity|innovation':  '創変力',
+  'creativity|implementation':'具形力','creativity|influence':  '創文力',
+  'communication|idea':     '熱伝力', 'communication|innovation':'共鳴力',
+  'communication|implementation':'効伝力','communication|influence':'影響力',
+  'collaboration|idea':     '多視力', 'collaboration|innovation':'協革力',
+  'collaboration|implementation':'協実力','collaboration|influence':'普及力',
+  // ━ 衝×衝 PIONEER ━
+  'idea|innovation':        '具革力', 'idea|implementation':    '情実力',
+  'idea|influence':         '根文力', 'innovation|implementation':'実現力',
+  'innovation|influence':   '革文力', 'implementation|influence':'浸透力',
+};
+
+function pairShort(kA, kB) {
+  const ia = ORDERED.indexOf(kA), ib = ORDERED.indexOf(kB);
+  const key = ia < ib ? `${kA}|${kB}` : `${kB}|${kA}`;
+  return PAIR_SHORT[key] ?? '';
+}
 
 function pairDef(kA, kB) {
   const ia = ORDERED.indexOf(kA), ib = ORDERED.indexOf(kB);
@@ -532,15 +612,12 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
 
                 const z = getZone(smap[kRow], smap[kCol]);
                 const visible = !zones || zones.includes(z);
-                const name = pairDef(kRow, kCol);
-                // 「◯◯力」部分を抽出（最後の"力"を含む末尾3文字）
-                const forceIdx = name.lastIndexOf('力');
-                const shortName = forceIdx >= 0 ? name.slice(Math.max(0, forceIdx - 2), forceIdx + 1) : name.slice(0, 3);
+                const cellName = pairShort(kRow, kCol);
 
                 return (
                   <div key={j} style={{
                     width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
-                    background: visible ? cellColor(kRow, kCol) : 'rgba(0,0,0,0.05)',
+                    background: visible ? cellColor(kRow, kCol) : 'rgba(0,0,0,0.04)',
                     cursor: visible ? 'pointer' : 'default',
                     transition: 'transform 0.12s, box-shadow 0.12s',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -560,14 +637,14 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                       setTip(null);
                     } : undefined}
                   >
-                    {visible && (
+                    {visible && cellName && (
                       <span style={{
-                        fontSize: 6, fontWeight: 700, lineHeight: 1,
+                        fontSize: 8, fontWeight: 700, lineHeight: 1,
                         color: 'rgba(255,255,255,0.95)',
                         textAlign: 'center', pointerEvents: 'none',
-                        letterSpacing: '-0.02em',
+                        letterSpacing: '0em', whiteSpace: 'nowrap',
                       }}>
-                        {shortName}
+                        {cellName}
                       </span>
                     )}
                   </div>
