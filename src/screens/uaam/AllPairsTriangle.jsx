@@ -9,7 +9,7 @@ import { useState, useCallback, useMemo } from 'react';
  */
 
 // ── 定数 ─────────────────────────────────────────────
-const CELL = 52, GAP = 2, STEP = CELL + GAP;
+const CELL = 26, GAP = 2, STEP = CELL + GAP;
 
 const ORDERED = [
   'meaning', 'mindfulness', 'mindshift', 'mastery',
@@ -502,42 +502,52 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
               {/* セル */}
               {ORDERED.map((kCol, j) => {
                 if (i === j) {
+                  // 対角：サブ軸名＋スコア
                   const sc = smap[kRow];
                   return (
                     <div key={j} style={{
-                      width: CELL, height: CELL, borderRadius: 5, flexShrink: 0,
+                      width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
                       background: AXIS_DIM[CODE_GRP[kRow]],
                       display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center',
-                      gap: 2,
+                      alignItems: 'center', justifyContent: 'center', gap: 1,
                     }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: AXIS_LIGHT[CODE_GRP[kRow]], lineHeight: 1 }}>
+                      <div style={{ fontSize: 7, fontWeight: 700, color: AXIS_LIGHT[CODE_GRP[kRow]], lineHeight: 1 }}>
                         {SUB_JP[kRow].slice(0, 2)}
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: AXIS_LIGHT[CODE_GRP[kRow]], fontFamily: "'Outfit',sans-serif", lineHeight: 1 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: AXIS_LIGHT[CODE_GRP[kRow]], fontFamily: "'Outfit',sans-serif", lineHeight: 1 }}>
                         {sc}
                       </div>
                     </div>
                   );
                 }
+
+                // 上三角(j>i)＝右側マトリックス用、下三角(j<i)＝左側マトリックス用
+                const isUpper = j > i;
+                const inMyTriangle = mirror ? !isUpper : isUpper;
+
+                if (!inMyTriangle) {
+                  // このマトリックスが担当しない三角：空セル
+                  return <div key={j} style={{ width: CELL, height: CELL, flexShrink: 0, background: 'transparent' }} />;
+                }
+
                 const z = getZone(smap[kRow], smap[kCol]);
                 const visible = !zones || zones.includes(z);
-                const pairScore = smap[kRow] * smap[kCol];
                 const name = pairDef(kRow, kCol);
-                // セル内表示用：最初の5文字（助詞除去）
-                const shortName = name.slice(0, 5);
+                // 「◯◯力」部分を抽出（最後の"力"を含む末尾3文字）
+                const forceIdx = name.lastIndexOf('力');
+                const shortName = forceIdx >= 0 ? name.slice(Math.max(0, forceIdx - 2), forceIdx + 1) : name.slice(0, 3);
+
                 return (
                   <div key={j} style={{
-                    width: CELL, height: CELL, borderRadius: 5, flexShrink: 0,
-                    background: visible ? cellColor(kRow, kCol) : 'rgba(0,0,0,0.04)',
+                    width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
+                    background: visible ? cellColor(kRow, kCol) : 'rgba(0,0,0,0.05)',
                     cursor: visible ? 'pointer' : 'default',
                     transition: 'transform 0.12s, box-shadow 0.12s',
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                    gap: 2, padding: '3px 2px', overflow: 'hidden',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden',
                   }}
                     onMouseEnter={visible ? e => {
-                      e.currentTarget.style.transform = 'scale(1.25)';
+                      e.currentTarget.style.transform = 'scale(1.3)';
                       e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.22)';
                       e.currentTarget.style.zIndex = '20';
                       setTip({ kA: kRow, kB: kCol, x: e.clientX, y: e.clientY });
@@ -550,25 +560,16 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                       setTip(null);
                     } : undefined}
                   >
-                    {visible && shortName && (
+                    {visible && (
                       <span style={{
-                        fontSize: 7, fontWeight: 700, lineHeight: 1.2,
+                        fontSize: 6, fontWeight: 700, lineHeight: 1,
                         color: 'rgba(255,255,255,0.95)',
                         textAlign: 'center', pointerEvents: 'none',
-                        whiteSpace: 'nowrap',
                         letterSpacing: '-0.02em',
                       }}>
                         {shortName}
                       </span>
                     )}
-                    <span style={{
-                      fontSize: 9, fontWeight: 800,
-                      fontFamily: "'Outfit',sans-serif",
-                      color: visible ? 'rgba(255,255,255,0.80)' : 'rgba(0,0,0,0.14)',
-                      pointerEvents: 'none', lineHeight: 1,
-                    }}>
-                      {pairScore > 0 ? pairScore : ''}
-                    </span>
                   </div>
                 );
               })}
