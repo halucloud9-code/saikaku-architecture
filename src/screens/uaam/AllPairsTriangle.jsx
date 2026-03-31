@@ -43,10 +43,10 @@ const AXIS_DIM   = ['rgba(44,95,138,0.12)','rgba(30,122,74,0.12)',
                     'rgba(160,122,24,0.12)','rgba(139,58,40,0.12)'];
 
 const ZONE_HEX = {
-  full:      '#B8960C',
-  active:    '#2C5F8A',
-  potential: '#7A4A7A',
-  dormant:   '#A09080',
+  full:      '#D4900A',   // 深金：完全発動
+  active:    '#1A6FD4',   // 鮮青：発動中
+  potential: '#8B35C8',   // 鮮紫：潜在
+  dormant:   '#5A7A8A',   // 青灰：休眠
 };
 const ZONE_LABEL = { full:'FULL ✦', active:'ACTIVE', potential:'POTENTIAL', dormant:'DORMANT' };
 const ZONE_DESC  = {
@@ -55,6 +55,9 @@ const ZONE_DESC  = {
   potential: '片方が高水準（16以上）— 条件次第で発動可能',
   dormant:   '両才覚が未達（16未満）— 発動待機・潜在状態',
 };
+// 右側 vs 左側のゾーン割り当て
+const RIGHT_ZONES = ['full', 'active'];
+const LEFT_ZONES  = ['potential', 'dormant'];
 
 const RANK_NUM = ['1', '2', '3', '4', '5'];
 
@@ -229,9 +232,9 @@ function getZone(sA, sB) {
 function zAlpha(z, sA, sB) {
   const ratio = (sA * sB) / 400;
   if (z === 'full')      return 1.0;
-  if (z === 'active')    return 0.38 + ratio * 0.62;
-  if (z === 'potential') return 0.14 + ratio * 0.58;
-  return 0.05 + ratio * 0.15;
+  if (z === 'active')    return 0.55 + ratio * 0.45;
+  if (z === 'potential') return 0.45 + ratio * 0.40;
+  return 0.30 + ratio * 0.25;
 }
 
 function getBlock(kA, kB) {
@@ -419,19 +422,37 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
       </div>
 
       {/* ── ゾーン凡例 ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #EDEAE4' }}>
-        {Object.entries(ZONE_HEX).map(([z, hex]) => (
-          <div key={z} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <div style={{
-              width: 14, height: 14, borderRadius: 3, flexShrink: 0, marginTop: 2,
-              background: z === 'dormant' ? toRgba(hex, 0.3) : z === 'potential' ? toRgba(hex, 0.55) : toRgba(hex, 0.85),
-            }} />
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: hex, letterSpacing: '0.05em' }}>{ZONE_LABEL[z]}</div>
-              <div style={{ fontSize: 10, color: '#888', marginTop: 1, lineHeight: 1.5 }}>{ZONE_DESC[z]}</div>
-            </div>
+      <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #EDEAE4' }}>
+        {/* 右側ゾーン */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', minWidth: 52 }}>右側</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {RIGHT_ZONES.map(z => (
+              <div key={z} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ width: 14, height: 14, borderRadius: 3, flexShrink: 0, marginTop: 2, background: toRgba(ZONE_HEX[z], 0.85) }} />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: ZONE_HEX[z], letterSpacing: '0.05em' }}>{ZONE_LABEL[z]}</div>
+                  <div style={{ fontSize: 10, color: '#888', marginTop: 1, lineHeight: 1.4 }}>{ZONE_DESC[z]}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+        {/* 左側ゾーン */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', minWidth: 52 }}>左側</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {LEFT_ZONES.map(z => (
+              <div key={z} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ width: 14, height: 14, borderRadius: 3, flexShrink: 0, marginTop: 2, background: toRgba(ZONE_HEX[z], z === 'dormant' ? 0.55 : 0.75) }} />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: ZONE_HEX[z], letterSpacing: '0.05em' }}>{ZONE_LABEL[z]}</div>
+                  <div style={{ fontSize: 10, color: '#888', marginTop: 1, lineHeight: 1.4 }}>{ZONE_DESC[z]}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── 正方形マトリックス（16×16） ── */}
