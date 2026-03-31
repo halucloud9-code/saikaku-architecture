@@ -617,7 +617,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                 return (
                   <div key={j} style={{
                     width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
-                    background: visible ? cellColor(kRow, kCol) : 'rgba(0,0,0,0.04)',
+                    background: visible ? cellColor(kRow, kCol) : 'transparent',
                     cursor: visible ? 'pointer' : 'default',
                     transition: 'transform 0.12s, box-shadow 0.12s',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
