@@ -1444,8 +1444,9 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
 
-        {/* ===== 全ペア三角マトリックス（All Pairs Triangle） ===== */}
-        <AllPairsTriangle scores={scores} maxSub={MAX_SUB} />
+        {/* ===== 全ペア三角マトリックス（右：FULL+ACTIVE ／ 左：POTENTIAL+DORMANT） ===== */}
+        <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['full', 'active']} />
+        <AllPairsTriangle scores={scores} maxSub={MAX_SUB} mirror={true} zones={['potential', 'dormant']} />
 
         {/* ===== 発動分析パネル ===== */}
         <ActivationPanel scores={

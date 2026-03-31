@@ -84,54 +84,54 @@ export const UAAM_QUESTIONS = [
   // ━━━ 志 -MindSet- (4M) ━━━
 
   // ① Meaning（意味）：行動の軸をつくる力
-  { id: 1,  axis: 'mindset', sub: 'meaning',     text: '今日の行動の多くが、SPを起点に選べている。', reverse: false },
-  { id: 2,  axis: 'mindset', sub: 'meaning',     text: '目的（SP）より、いつもの癖や流れで動くことが多い。', reverse: true },
-  { id: 3,  axis: 'mindset', sub: 'meaning',     text: '損得や感情より先に目的（SP）を基準にして、とるべき選択を選んでいる。', reverse: false },
+  { id: 1,  axis: 'mindset', sub: 'meaning',     text: '今日の行動の多くが、自分の在り方（人生の目的）を起点に選べている。', reverse: false },
+  { id: 2,  axis: 'mindset', sub: 'meaning',     text: '目的より、いつもの癖や流れで動くことが多い。', reverse: true },
+  { id: 3,  axis: 'mindset', sub: 'meaning',     text: '損得や感情より先に、自分が大切にしている在り方を基準にして選択できている。', reverse: false },
   { id: 4,  axis: 'mindset', sub: 'meaning',     text: '関わりのある人から、目的を持って生きている人だと感じ取られている。', reverse: false },
 
   // ② Mindfulness（気づき）：今に意識を向け、変化を受け入れる力
   { id: 5,  axis: 'mindset', sub: 'mindfulness',  text: '防衛反応が出たときに気づき、本来の自分のあり方と行動に立ち戻ることが多い。', reverse: false },
-  { id: 6,  axis: 'mindset', sub: 'mindfulness',  text: '感情が動いたとき、その勢いのまま言葉や行動に出ることが多い。', reverse: true },
+  { id: 6,  axis: 'mindset', sub: 'mindfulness',  text: '感情的に反応したまま、その状態を一日中引きずってしまうことがある。', reverse: true },
   { id: 7,  axis: 'mindset', sub: 'mindfulness',  text: '急な変化があっても、文句や不安より先に「じゃあどうするか」に意識が向く。', reverse: false },
-  { id: 8,  axis: 'mindset', sub: 'mindfulness',  text: 'あなたと話していると、自分が見えていなかったことに気づく、という反応が周りから返ってくる。', reverse: false },
+  { id: 8,  axis: 'mindset', sub: 'mindfulness',  text: '周囲の人が、自分との対話を通じて「見えていなかった自分」に気づき始めている。', reverse: false },
 
   // ③ Mindshift（意識転換）：固定観念を手放し、新しい可能性を見出す力
-  { id: 9,  axis: 'mindset', sub: 'mindshift',    text: '「自分にはどうせ無理」「自分はそういうタイプじゃない」という声が出たとき、それを事実として扱わずにいられる。', reverse: false },
-  { id: 10, axis: 'mindset', sub: 'mindshift',    text: '頭ではわかっていても、慣れ親しんだパターンで反応してしまうことが多い。', reverse: true },
+  { id: 9,  axis: 'mindset', sub: 'mindshift',    text: '「自分にはどうせ無理」という声が出たとき、それを事実として扱わずにいられる。', reverse: false },
+  { id: 10, axis: 'mindset', sub: 'mindshift',    text: '望ましいあり方がわかっていても、つい防衛的な反応で動いてしまうことがある。', reverse: true },
   { id: 11, axis: 'mindset', sub: 'mindshift',    text: '新しいものを生み出すために、あえて今までのやり方を手放すことがある。', reverse: false },
-  { id: 12, axis: 'mindset', sub: 'mindshift',    text: '行き詰まった場面で、視点を切り替えるきっかけを求めて相談が集まってくる。', reverse: false },
+  { id: 12, axis: 'mindset', sub: 'mindshift',    text: '行き詰まった場面で、思考の突破口を求めて最初に相談される立場にいる。', reverse: false },
 
   // ④ Mastery（熟達）：実践と反復で学びを定着させる力
-  { id: 13, axis: 'mindset', sub: 'mastery',      text: '学んだことを、夢（SD）に向けた日々の行動に落とし込み、成果につなげられている。', reverse: false },
-  { id: 14, axis: 'mindset', sub: 'mastery',      text: '日常の忙しさの中で、新しく始めたことより慣れた行動を優先しがちだ。', reverse: true },
+  { id: 13, axis: 'mindset', sub: 'mastery',      text: '学んだことを、夢に向けた日々の行動に落とし込み、成果につなげられている。', reverse: false },
+  { id: 14, axis: 'mindset', sub: 'mastery',      text: '実践しようと決めたことが、気づけば他の優先事項に埋もれてしまうことがある。', reverse: true },
   { id: 15, axis: 'mindset', sub: 'mastery',      text: '意識せず自然にした行動であっても、誰かにプラスの影響を与えている。', reverse: false },
-  { id: 16, axis: 'mindset', sub: 'mastery',      text: '自分の取り組み方や習慣が、周囲の人の参考になっている。', reverse: false },
+  { id: 16, axis: 'mindset', sub: 'mastery',      text: '自分のやり方や考え方を、周囲が自発的に取り入れている。', reverse: false },
 
   // ━━━ 知 -Literacy- (4L) ━━━
 
   // ⑤ Learning（学習）：感情を捨てて事実だけを見る力
-  { id: 17, axis: 'literacy', sub: 'learning',    text: '新しい情報に触れたとき、感情や先入観に引っ張られず、事実を正確に捉えようとしている。', reverse: false },
-  { id: 18, axis: 'literacy', sub: 'learning',    text: '学んだことを、まず形だけ取り入れて満足してしまうことがある。', reverse: true },
-  { id: 19, axis: 'literacy', sub: 'learning',    text: '同じ情報を見ても、自分は事実をより正確に整理できていると感じることがある。', reverse: false },
-  { id: 20, axis: 'literacy', sub: 'learning',    text: '学び方そのものに興味を持たれ、方法を聞かれることが増えている。', reverse: false },
+  { id: 17, axis: 'literacy', sub: 'learning',    text: '新しい学びに触れるとき、先入観を除いて学ぶ意識がある。', reverse: false },
+  { id: 18, axis: 'literacy', sub: 'learning',    text: '人から聞いたことや学んだことを、そのまま受け売りで使ってしまうことがある。', reverse: true },
+  { id: 19, axis: 'literacy', sub: 'learning',    text: '学んでも忘却しては意味がないので、必ず自分に落とし込むための行動をする。', reverse: false },
+  { id: 20, axis: 'literacy', sub: 'learning',    text: '学び方そのものについて、周囲から継続的に質問や相談が寄せられている。', reverse: false },
 
   // ⑥ Logical（論理）：必要なことだけを伝え、相手を正確に動かす力
   { id: 21, axis: 'literacy', sub: 'logical',     text: '目的に応じて、論理で伝えるかストーリーで伝えるかを使い分けることが習慣になっている。', reverse: false },
-  { id: 22, axis: 'literacy', sub: 'logical',     text: '伝えたい気持ちが先走り、情報量や言葉数が多くなりがちだ。', reverse: true },
+  { id: 22, axis: 'literacy', sub: 'logical',     text: '相手に合わせすぎたり、情報を詰め込みすぎたりして、かえって要点がぼやけてしまうことがある。', reverse: true },
   { id: 23, axis: 'literacy', sub: 'logical',     text: '自分が出した指示や依頼は、相手が追加の確認をほとんど必要とせず動ける形で伝えられている。', reverse: false },
-  { id: 24, axis: 'literacy', sub: 'logical',     text: '自分が説明した後に、相手の表情や行動が明らかに変わる場面がある。', reverse: false },
+  { id: 24, axis: 'literacy', sub: 'logical',     text: '自分が説明した後に、相手の表情や行動が明確に変わる場面が繰り返されている。', reverse: false },
 
   // ⑦ Life（社会実装）：精神論を捨て、目に見える結果に変える力
-  { id: 25, axis: 'literacy', sub: 'life',        text: '学んだことを、まず小さくてもいいから現場で試すことを自分に課している。', reverse: false },
-  { id: 26, axis: 'literacy', sub: 'life',        text: '学びの場では理解できても、実際の現場では別の判断軸で動いていることが多い。', reverse: true },
-  { id: 27, axis: 'literacy', sub: 'life',        text: '自分の学びの成果は、第三者が見てもわかる数字・期限・成果物として示せている。', reverse: false },
-  { id: 28, axis: 'literacy', sub: 'life',        text: '抽象的な概念を現場で使える形にする役回りが、自然と自分に集まっている。', reverse: false },
+  { id: 25, axis: 'literacy', sub: 'life',        text: '学んだことを、実際の現場や日常で試してみる行動を自然と繰り返している。', reverse: false },
+  { id: 26, axis: 'literacy', sub: 'life',        text: '学んだ知識を溜め込むばかりで、現場のやり方は今までどおりのままになっていることがある。', reverse: true },
+  { id: 27, axis: 'literacy', sub: 'life',        text: '自分が学んだことが、具体的な現場の成果や変化として現れている。', reverse: false },
+  { id: 28, axis: 'literacy', sub: 'life',        text: '理論を現場に落とし込む役割として、周囲から自然と頼りにされている。', reverse: false },
 
   // ⑧ Leadership（リーダーシップ）：なれ合いを捨て、一人で結果を出せる人間を作る力
-  { id: 29, axis: 'literacy', sub: 'leadership',  text: '相手が自立して結果を出せるように、再現できる形で自分のやり方を渡している。', reverse: false },
-  { id: 30, axis: 'literacy', sub: 'leadership',  text: '自分のビジョンを伝えても、周囲の温度感との間にギャップを感じることがある。', reverse: true },
-  { id: 31, axis: 'literacy', sub: 'leadership',  text: '自分が教えた相手が、さらに別の相手にも再現できる形で伝え、結果につなげている。', reverse: false },
-  { id: 32, axis: 'literacy', sub: 'leadership',  text: '自分がチームに加わると、全体の方向性が自然とまとまり始める手応えがある。', reverse: false },
+  { id: 29, axis: 'literacy', sub: 'leadership',  text: 'チームや周囲の人が、自分の目的・方向性を理解した上で動いている状態を作れている。', reverse: false },
+  { id: 30, axis: 'literacy', sub: 'leadership',  text: '自分が方向性を示しても、周囲が様子見のまま動き出すのに時間がかかることがある。', reverse: true },
+  { id: 31, axis: 'literacy', sub: 'leadership',  text: 'チーム内の人間関係の摩擦をチャンスに変え、関係を築くことができる。', reverse: false },
+  { id: 32, axis: 'literacy', sub: 'leadership',  text: '自分が関わることで、チーム全体の方向性が定まり、各メンバーの動きに一貫性が生まれている。', reverse: false },
 
   // ━━━ 技 -Competency- (4C) ━━━
 
@@ -139,51 +139,51 @@ export const UAAM_QUESTIONS = [
   { id: 33, axis: 'competency', sub: 'critical',      text: '自分の判断について、根拠と仮説を分けて整理しながら説明できている。', reverse: false },
   { id: 34, axis: 'competency', sub: 'critical',      text: '先にネガティブな結論を決めてしまい、その結論に合う理由ばかりを後から集めてしまうことがある。', reverse: true },
   { id: 35, axis: 'competency', sub: 'critical',      text: '周囲が見落としていた論点や本質を、自分が先に整理して言葉にすることがある。', reverse: false },
-  { id: 36, axis: 'competency', sub: 'critical',      text: '企画や計画の精度を上げたいとき、チェック役として自分に声がかかる場面がある。', reverse: false },
+  { id: 36, axis: 'competency', sub: 'critical',      text: '企画や計画の穴を見つける場面で、自分への検証依頼が真っ先に来ている。', reverse: false },
 
   // ⑩ Creativity（創造性）：新しいアイデアを生み出す力
   { id: 37, axis: 'competency', sub: 'creativity',    text: '問題を解決するとき、自分の専門外からもヒントを取り入れている。', reverse: false },
   { id: 38, axis: 'competency', sub: 'creativity',    text: '新しい発想が必要でも、過去にうまくいったやり方に頼ってしまうことがある。', reverse: true },
   { id: 39, axis: 'competency', sub: 'creativity',    text: '一見関係のない要素を組み合わせて、新しいアイデアや形を生み出すことがある。', reverse: false },
-  { id: 40, axis: 'competency', sub: 'creativity',    text: '行き詰まった状況で、新しい切り口を期待されて声がかかることが増えている。', reverse: false },
+  { id: 40, axis: 'competency', sub: 'creativity',    text: '突破口が見えない状況で、自分の発想を起点にチームが実際に動き出している。', reverse: false },
 
   // ⑪ Communication（伝える力）：考えを伝え共感を得る力
   { id: 41, axis: 'competency', sub: 'communication', text: '自分の伝え方によって、相手の理解が深まったり、行動が変わったりすることが続いている。', reverse: false },
-  { id: 42, axis: 'competency', sub: 'communication', text: '自分の意図が正確に伝わっていると思ったのに、相手には違う意味で受け取られていたことがある。', reverse: true },
+  { id: 42, axis: 'competency', sub: 'communication', text: '伝えたいことを一方的に話してしまい、相手がどう受け取ったかの確認が後回しになることがある。', reverse: true },
   { id: 43, axis: 'competency', sub: 'communication', text: '動く意志のある相手に対して、自分の言葉をきっかけに、相手が自発的に動き出す場面が繰り返しある。', reverse: false },
-  { id: 44, axis: 'competency', sub: 'communication', text: '大事な内容を届けたいとき、伝え手として自分が選ばれる場面がある。', reverse: false },
+  { id: 44, axis: 'competency', sub: 'communication', text: '大切な話を誰かに届ける場面で、伝え手として自分が選ばれている。', reverse: false },
 
   // ⑫ Collaboration（協働）：多様な人と協働する力
   { id: 45, axis: 'competency', sub: 'collaboration', text: '年齢・立場・専門の異なる人とも、目的を共有しながら協力して成果につなげている。', reverse: false },
-  { id: 46, axis: 'competency', sub: 'collaboration', text: '自分と進め方が異なる相手とは、合わせるより自分のやり方を通すことが多い。', reverse: true },
+  { id: 46, axis: 'competency', sub: 'collaboration', text: '自分と価値観や進め方が違う相手とは、お互いに距離を置いたまま終わることがある。', reverse: true },
   { id: 47, axis: 'competency', sub: 'collaboration', text: '自分一人では出せなかった成果を、他者との協働によって実際に生み出せている。', reverse: false },
-  { id: 48, axis: 'competency', sub: 'collaboration', text: '意見の対立が起きた場面で、橋渡し役として自然と自分の存在が求められる。', reverse: false },
+  { id: 48, axis: 'competency', sub: 'collaboration', text: '対立や分断が起きた場面で、自分が間に入ることで関係が実際に修復されている。', reverse: false },
 
   // ━━━ 衝 -Impact- (4I) ━━━
 
   // ⑬ Idea（アイデア）：熱狂できるテーマを見出す力
   { id: 49, axis: 'impact', sub: 'idea',           text: '他人の評価とは無関係に、強くエネルギーを注げる対象が明確にある。', reverse: false },
-  { id: 50, axis: 'impact', sub: 'idea',           text: '目の前に面白そうなことがあると、つい手を広げてエネルギーが分散しがちだ。', reverse: true },
-  { id: 51, axis: 'impact', sub: 'idea',           text: '誰も手をつけていない領域で、ゼロから形を立ち上げることがある。', reverse: false },
-  { id: 52, axis: 'impact', sub: 'idea',           text: '自分が関わり始めると、それまで止まっていたことが動き出す現象が起きている。', reverse: false },
+  { id: 50, axis: 'impact', sub: 'idea',           text: '力を注ぐ対象がころころ変わり、目先の出来事に振り回されてエネルギーが分散してしまうことがある。', reverse: true },
+  { id: 51, axis: 'impact', sub: 'idea',           text: 'まだ世の中にないものを、ゼロから自分の手で立ち上げることがある。', reverse: false },
+  { id: 52, axis: 'impact', sub: 'idea',           text: '自分が関わることで、それまで停滞していたプロジェクトや取り組みが前に進んでいる。', reverse: false },
 
   // ⑭ Innovation（変革）：知識と技能を形にする力
-  { id: 53, axis: 'impact', sub: 'innovation',     text: '頭の中の構想を止めたままにせず、見える形や結果として表に出している。', reverse: false },
-  { id: 54, axis: 'impact', sub: 'innovation',     text: '構想やアイデアがあっても、試作まで進まないまま時間が過ぎることがある。', reverse: true },
-  { id: 55, axis: 'impact', sub: 'innovation',     text: '知識と技術を組み合わせて現実に形を生み出すことが、自然にできている。', reverse: false },
-  { id: 56, axis: 'impact', sub: 'innovation',     text: '既存の仕組みを根本から見直す役割が、自然と自分に回ってきている。', reverse: false },
+  { id: 53, axis: 'impact', sub: 'innovation',     text: '既存のやり方に限界を感じたとき、それを壊して新しい形を作ることができている。', reverse: false },
+  { id: 54, axis: 'impact', sub: 'innovation',     text: '問題があるとわかっていても、慣れたやり方にしがみついて現状維持を選んでしまうことがある。', reverse: true },
+  { id: 55, axis: 'impact', sub: 'innovation',     text: '自分が変えた仕組みや方法が、周囲から「以前より格段によくなった」と評価されている。', reverse: false },
+  { id: 56, axis: 'impact', sub: 'innovation',     text: '古い枠組みを壊して再構築する役割が、周囲から自然と自分に集まっている。', reverse: false },
 
   // ⑮ Implementation（実装）：社会に実装する力
   { id: 57, axis: 'impact', sub: 'implementation', text: '自分が生み出したものを自己満足で終わらせず、実際に使われる形まで落とし込んでいる。', reverse: false },
-  { id: 58, axis: 'impact', sub: 'implementation', text: '形にするところまでは得意だが、運用・定着のフェーズは別の人に任せがちだ。', reverse: true },
-  { id: 59, axis: 'impact', sub: 'implementation', text: 'やると決めたことを、実際に機能する状態まで粘り強く仕上げている。', reverse: false },
-  { id: 60, axis: 'impact', sub: 'implementation', text: '自分に任されたことは、最終的に使える形になって届けられている実感がある。', reverse: false },
+  { id: 58, axis: 'impact', sub: 'implementation', text: '形にしたことで満足し、そこから先の実用化が後回しになってしまうことがある。', reverse: true },
+  { id: 59, axis: 'impact', sub: 'implementation', text: 'やると決めたことを、最後までやり抜き、実際に機能する状態まで仕上げることができている。', reverse: false },
+  { id: 60, axis: 'impact', sub: 'implementation', text: '自分に託された仕事は確実に形になるという信頼が、周囲の行動に表れている。', reverse: false },
 
   // ⑯ Influence（影響）：変化を広げ文化として根づかせる力
-  { id: 61, axis: 'impact', sub: 'influence',      text: '自分が関わった場所では、自分の考え方や姿勢が組織や場の文化として根づいている。', reverse: false },
-  { id: 62, axis: 'impact', sub: 'influence',      text: '自分の言葉や関わりがあっても、相手の認識や行動が大きくは変わらないことがある。', reverse: true },
-  { id: 63, axis: 'impact', sub: 'influence',      text: '自分が直接関与しなくても、自分が持ち込んだ変化が仕組みやルールとして機能し続けている。', reverse: false },
-  { id: 64, axis: 'impact', sub: 'influence',      text: '関わった人から、自分との出会いがきっかけで人生の方向が変わったと伝えられたことがある。', reverse: false },
+  { id: 61, axis: 'impact', sub: 'influence',      text: '自分が関わった場所では、自分の考え方や取り組みが、組織や場の文化として根づいている。', reverse: false },
+  { id: 62, axis: 'impact', sub: 'influence',      text: '自分の言葉や関わりが、相手にとってはその場限りの出来事で終わってしまうことがある。', reverse: true },
+  { id: 63, axis: 'impact', sub: 'influence',      text: '自分の存在が、関わった人たちの生き方や選択に、長期的な変化を生み出し続けている。', reverse: false },
+  { id: 64, axis: 'impact', sub: 'influence',      text: '自分と関わった人たちの生き方や選択が、出会いの前と後で実際に変化し続けている。', reverse: false },
 ];
 
 /**
