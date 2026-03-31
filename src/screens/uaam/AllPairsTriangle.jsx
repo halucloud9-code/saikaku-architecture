@@ -9,7 +9,7 @@ import { useState, useCallback, useMemo } from 'react';
  */
 
 // ── 定数 ─────────────────────────────────────────────
-const CELL = 26, GAP = 2, STEP = CELL + GAP;
+const CELL = 32, GAP = 2, STEP = CELL + GAP;
 
 const ORDERED = [
   'meaning', 'mindfulness', 'mindshift', 'mastery',
@@ -457,26 +457,34 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
               {/* セル */}
               {ORDERED.map((kCol, j) => {
                 if (i === j) {
+                  const sc = smap[kRow];
                   return (
                     <div key={j} style={{
                       width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
                       background: AXIS_DIM[CODE_GRP[kRow]],
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 8, fontWeight: 800,
-                      color: AXIS_LIGHT[CODE_GRP[kRow]],
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center',
+                      gap: 1,
                     }}>
-                      {AXIS_SHORT[CODE_GRP[kRow]]}
+                      <div style={{ fontSize: 7, fontWeight: 700, color: AXIS_LIGHT[CODE_GRP[kRow]], lineHeight: 1 }}>
+                        {AXIS_SHORT[CODE_GRP[kRow]]}
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: AXIS_LIGHT[CODE_GRP[kRow]], fontFamily: "'Outfit',sans-serif", lineHeight: 1 }}>
+                        {sc}
+                      </div>
                     </div>
                   );
                 }
                 const z = getZone(smap[kRow], smap[kCol]);
                 const visible = !zones || zones.includes(z);
+                const pairScore = smap[kRow] * smap[kCol];
                 return (
                   <div key={j} style={{
                     width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
                     background: visible ? cellColor(kRow, kCol) : 'rgba(0,0,0,0.04)',
                     cursor: visible ? 'pointer' : 'default',
                     transition: 'transform 0.12s, box-shadow 0.12s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                     onMouseEnter={visible ? e => {
                       e.currentTarget.style.transform = 'scale(1.3)';
@@ -491,7 +499,18 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                       e.currentTarget.style.zIndex = '';
                       setTip(null);
                     } : undefined}
-                  />
+                  >
+                    <span style={{
+                      fontSize: visible ? (pairScore >= 100 ? 8 : 9) : 8,
+                      fontWeight: 800,
+                      fontFamily: "'Outfit',sans-serif",
+                      color: visible ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.18)',
+                      pointerEvents: 'none',
+                      lineHeight: 1,
+                    }}>
+                      {pairScore}
+                    </span>
+                  </div>
                 );
               })}
             </div>
