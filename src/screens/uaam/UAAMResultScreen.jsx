@@ -73,26 +73,7 @@ const SUB_ADVICE = {
   influence:     '言葉だけでなく自分の行動で示すことを意識しましょう。約束を守り、一貫した姿勢を積み重ねることが周囲への影響力の基盤となります。',
 };
 
-/**
- * スコアスケール自動検出
- * 64問版: 1-5点×4問 = MAX_SUB=20, MAX_AXIS=80
- * 旧48問版: MAX_SUB=15, MAX_AXIS=60（後方互換）
- * 旧サーバー版: MAX_SUB=12, MAX_AXIS=48（後方互換）
- */
-function detectScale(scores) {
-  if (!scores) return { maxSub: 20, maxAxis: 80 };
-  let maxFound = 0;
-  for (const axis of Object.values(scores)) {
-    if (axis?.subs) {
-      for (const v of Object.values(axis.subs)) {
-        if (v > maxFound) maxFound = v;
-      }
-    }
-  }
-  if (maxFound > 15) return { maxSub: 20, maxAxis: 80 };
-  if (maxFound > 12) return { maxSub: 15, maxAxis: 60 };
-  return { maxSub: 12, maxAxis: 48 };
-}
+// 64問版固定: 1-5点×4問 = MAX_SUB=20, MAX_AXIS=80
 
 // デフォルト値（コンポーネント外で使う箇所用）
 let MAX_AXIS = 80;
@@ -1287,10 +1268,9 @@ function RadarChart16({ scores }) {
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
   const { scores, analysis, vAnswers, answers } = result;
 
-  // スケール自動検出（サーバー0-12 vs クライアント0-15）
-  const scale = detectScale(scores);
-  MAX_SUB = scale.maxSub;
-  MAX_AXIS = scale.maxAxis;
+  // 20点固定
+  MAX_SUB = 20;
+  MAX_AXIS = 80;
   MAX_CROSS = MAX_AXIS * MAX_AXIS;
   DISPLAY_CROSS = MAX_CROSS / 2;
 
