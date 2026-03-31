@@ -601,15 +601,6 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                   );
                 }
 
-                // 上三角(j>i)＝右側マトリックス用、下三角(j<i)＝左側マトリックス用
-                const isUpper = j > i;
-                const inMyTriangle = mirror ? !isUpper : isUpper;
-
-                if (!inMyTriangle) {
-                  // このマトリックスが担当しない三角：空セル
-                  return <div key={j} style={{ width: CELL, height: CELL, flexShrink: 0, background: 'transparent' }} />;
-                }
-
                 const z = getZone(smap[kRow], smap[kCol]);
                 const visible = !zones || zones.includes(z);
                 const cellName = pairShort(kRow, kCol);
