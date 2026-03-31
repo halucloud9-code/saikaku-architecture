@@ -551,74 +551,43 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
         </div>
       </div>
 
-      {/* ── 正方形マトリックス（16×16） ── */}
+      {/* ── 三角マトリックス（右三角 or 左三角） ── */}
       <div style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'inline-block', padding: '4px 2px 8px' }}>
-          {/* 列ラベル（上） */}
-          <div style={{ display: 'flex', gap: GAP, marginBottom: 4, paddingLeft: STEP }}>
-            {ORDERED.map((k, j) => (
-              <div key={j} style={{
-                width: CELL, height: 20, flexShrink: 0,
-                fontSize: 10, textAlign: 'center', fontWeight: 700,
-                color: AXIS_LIGHT[CODE_GRP[k]],
-              }}>
-                {SUB_JP[k].slice(0, 2)}
-              </div>
-            ))}
-          </div>
-          {/* 行 */}
-          {ORDERED.map((kRow, i) => (
-            <div key={i} style={{ display: 'flex', gap: GAP, marginBottom: GAP }}>
+        <div style={{ display: 'inline-block', padding: '4px 2px 8px', transform: mirror ? 'scaleX(-1)' : 'none' }}>
+          {Array.from({ length: N - 1 }, (_, i) => (
+            <div key={i} style={{ display: 'flex', gap: GAP, marginBottom: GAP, paddingLeft: i * STEP }}>
               {/* 行ラベル */}
               <div style={{
                 width: CELL, height: CELL, flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 9, fontWeight: 700, borderRadius: 4,
-                color: AXIS_LIGHT[CODE_GRP[kRow]],
-                background: AXIS_DIM[CODE_GRP[kRow]],
+                color: AXIS_LIGHT[CODE_GRP[ORDERED[i]]],
+                background: AXIS_DIM[CODE_GRP[ORDERED[i]]],
+                transform: mirror ? 'scaleX(-1)' : 'none',
               }}>
-                {SUB_JP[kRow].slice(0, 2)}
+                {SUB_JP[ORDERED[i]].slice(0, 2)}
               </div>
-              {/* セル */}
-              {ORDERED.map((kCol, j) => {
-                if (i === j) {
-                  // 対角：サブ軸名＋スコア
-                  const sc = smap[kRow];
-                  return (
-                    <div key={j} style={{
-                      width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
-                      background: AXIS_DIM[CODE_GRP[kRow]],
-                      display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center', gap: 1,
-                    }}>
-                      <div style={{ fontSize: 7, fontWeight: 700, color: AXIS_LIGHT[CODE_GRP[kRow]], lineHeight: 1 }}>
-                        {SUB_JP[kRow].slice(0, 2)}
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: AXIS_LIGHT[CODE_GRP[kRow]], fontFamily: "'Outfit',sans-serif", lineHeight: 1 }}>
-                        {sc}
-                      </div>
-                    </div>
-                  );
-                }
-
-                const z = getZone(smap[kRow], smap[kCol]);
+              {/* セル（i+1 〜 N-1） */}
+              {Array.from({ length: N - i - 1 }, (_, d) => {
+                const j = i + 1 + d;
+                const kA = ORDERED[i], kB = ORDERED[j];
+                const z = getZone(smap[kA], smap[kB]);
                 const visible = !zones || zones.includes(z);
-                const cellName = pairShort(kRow, kCol);
-
+                const cellName = pairShort(kA, kB);
                 return (
                   <div key={j} style={{
                     width: CELL, height: CELL, borderRadius: 4, flexShrink: 0,
-                    background: visible ? cellColor(kRow, kCol) : 'transparent',
+                    background: visible ? cellColor(kA, kB) : 'rgba(0,0,0,0.05)',
                     cursor: visible ? 'pointer' : 'default',
                     transition: 'transform 0.12s, box-shadow 0.12s',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     overflow: 'hidden',
                   }}
                     onMouseEnter={visible ? e => {
-                      e.currentTarget.style.transform = 'scale(1.3)';
+                      e.currentTarget.style.transform = mirror ? 'scaleX(-1) scale(1.3)' : 'scale(1.3)';
                       e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.22)';
                       e.currentTarget.style.zIndex = '20';
-                      setTip({ kA: kRow, kB: kCol, x: e.clientX, y: e.clientY });
+                      setTip({ kA, kB, x: e.clientX, y: e.clientY });
                     } : undefined}
                     onMouseMove={visible ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
                     onMouseLeave={visible ? e => {
@@ -634,6 +603,8 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
                         color: 'rgba(255,255,255,0.95)',
                         textAlign: 'center', pointerEvents: 'none',
                         letterSpacing: '0em', whiteSpace: 'nowrap',
+                        transform: mirror ? 'scaleX(-1)' : 'none',
+                        display: 'inline-block',
                       }}>
                         {cellName}
                       </span>
@@ -643,6 +614,19 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
               })}
             </div>
           ))}
+          {/* 底辺ラベル */}
+          <div style={{ display: 'flex', gap: GAP, marginTop: 6 }}>
+            {ORDERED.map((k, j) => (
+              <div key={j} style={{
+                width: CELL, flexShrink: 0,
+                fontSize: 9, textAlign: 'center', fontWeight: 700,
+                color: AXIS_LIGHT[CODE_GRP[k]],
+                transform: mirror ? 'scaleX(-1)' : 'none',
+              }}>
+                {SUB_JP[k].slice(0, 2)}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
