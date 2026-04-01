@@ -1555,8 +1555,8 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           <div style={{
             fontFamily: "'Noto Serif JP', Georgia, serif",
             fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
-          }}>Activation Matrix</div>
-          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚発動領域</div>
+          }}>MLCI Activation Profile</div>
+          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚4軸プロファイル</div>
           <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
         </div>
         <FourAxisGrid scores={scores} />

@@ -563,13 +563,13 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
             fontSize: 9, color: '#C4922A', letterSpacing: '0.35em', fontWeight: 600,
             textTransform: 'uppercase', opacity: 0.75,
           }}>
-            Activation Matrix
+            Sixteen-Axis Activation Matrix
           </div>
           <div style={{
             fontFamily: "'Noto Serif JP', serif", fontSize: 18, fontWeight: 700,
             color: '#2A2520', letterSpacing: '0.1em', marginTop: 4,
           }}>
-            才覚発動領域
+            16軸 才覚レーダー
           </div>
         </div>
 

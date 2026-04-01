@@ -801,10 +801,10 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
       {/* ── ヘッダー ── */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.14em', color: '#7A4A9A', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
-          Activation Matrix — Symmetric View
+          Ability Pair Matrix
         </div>
         <h2 style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 22, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
-          才覚発動領域
+          才覚ペア解析
         </h2>
         <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0' }}>
           右上 ◥ FULL &amp; ACTIVE（16×16以上）　左下 ◤ POTENTIAL（合計30+）
