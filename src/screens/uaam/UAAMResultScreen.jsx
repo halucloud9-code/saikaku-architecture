@@ -692,6 +692,7 @@ function FourAxisGrid({ scores }) {
       boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       border: '1px solid #E8E0D4',
     }}>
+      <SectionHeader title="Activation Matrix" subtitle="才覚発動領域" />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {FOUR_AXES.map(axis => (
           <MiniRadar key={axis.key} axis={axis} scores={scores} />
@@ -1108,7 +1109,7 @@ function RadarChart16({ scores }) {
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
     const n = 16;
     const step = (2 * Math.PI) / n;
-    const startAngle = -Math.PI / 2;
+    const startAngle = -Math.PI / 2 - (3 * Math.PI) / 16; // グループ中心を12/3/6/9時に揃える
 
     const getPoint = (i, val) => {
       const angle = startAngle + i * step;
@@ -1543,6 +1544,9 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           )}
         </Section>
 
+        {/* ===== Activation Matrix — 4軸グリッド（名前の直下） ===== */}
+        <FourAxisGrid scores={scores} />
+
         {/* ===== 総合スコア（4色扇形） ===== */}
         <Section>
           <SectionHeader title="志知技衝 総合スコア" subtitle="MLCI Total Score" />
@@ -1574,38 +1578,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           )}
         </Section>
 
-        {/* ===== サブ項目 扇形チャート x4 ===== */}
-        {subRadars.map(({ axis, data, order }) => (
-          <Section key={axis.key} style={{ marginBottom: 16 }}>
-            <SectionHeader
-              title={`${axis.label}（${axis.english}）`}
-              subtitle={axis.description}
-              color={AXIS_COLORS[axis.key]}
-            />
-
-            {/* 軸スコア */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              marginBottom: 12, padding: '8px 0',
-            }}>
-              <span style={{
-                fontSize: 32, fontWeight: 900, color: AXIS_COLORS[axis.key],
-                fontFamily: NUM_FONT,
-              }}>{scores[axis.key]?.total || 0}</span>
-              <span style={{ fontSize: 14, color: TEXT_MUTED, fontFamily: NUM_FONT }}>/ {MAX_AXIS}</span>
-            </div>
-
-            <SubFanChart
-              axis={axis}
-              data={data}
-              order={order}
-              axisColor={AXIS_COLORS[axis.key]}
-            />
-          </Section>
-        ))}
-
-        {/* ===== 4軸グリッド（志/知/技/衝） ===== */}
-        <FourAxisGrid scores={scores} />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
