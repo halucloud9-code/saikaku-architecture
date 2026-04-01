@@ -239,87 +239,96 @@ function _getZone(sA, sB) {
  * @returns {Object} { active: [...], sleeping: [...] }
  *
  * 判定ルール:
- *   ✅ 今、発動している力  → マトリクス右側（Natural/Pro）に登場する素子（スコア高い順）
- *   🔑 次に動かす力       → マトリクス左側（Active TOP10）に登場する素子で右側未登場のもの
- *   右側ゼロの場合        → 左側の素子すべてを「次に動かす力」として扱う
+ *
+ * ✅ 今、発動している力（3つ）
+ *   STEP1: 右側（Natural/Pro）からスコア高い順に最大3つ
+ *   STEP2: 3つ未満なら左側（Active TOP10）で不足分を補充
+ *   STEP3: 右側ゼロの場合は左側から3つ
+ *
+ * 🔑 次に動かす力（3つ）
+ *   左側（Active TOP10）からスコア高い順に3つ
+ *   ✅ で左側が選ばれた場合はその分をスキップし次点を選ぶ
+ *
+ * フォールバック: 左右どちらも空 → スコア閾値（13点）判定に切り替え
  */
 function getActivationAnalysis(subcategoryScores, threshold = 13) {
   const ALL_KEYS = Object.keys(LABEL_MAP).filter(k => subcategoryScores[k] != null);
+  const sc = (k) => subcategoryScores[k] ?? 0;
 
-  // ── 右側（Natural + Pro）に登場する素子を収集 ──
+  // ── 右側（Natural + Pro）素子を収集 ──
   const rightSet = new Set();
   for (const kA of ALL_KEYS) {
     for (const kB of ALL_KEYS) {
       if (kA === kB) continue;
-      const z = _getZone(subcategoryScores[kA], subcategoryScores[kB]);
-      if (z === 'natural' || z === 'pro') {
-        rightSet.add(kA);
-        rightSet.add(kB);
-      }
+      const z = _getZone(sc(kA), sc(kB));
+      if (z === 'natural' || z === 'pro') { rightSet.add(kA); rightSet.add(kB); }
     }
   }
 
-  // ── 左側（Active TOP10）に登場する素子を収集 ──
+  // ── 左側（Active TOP10）素子を収集 ──
   const activePairs = [];
   for (let i = 0; i < ALL_KEYS.length - 1; i++) {
     for (let j = i + 1; j < ALL_KEYS.length; j++) {
       const kA = ALL_KEYS[i], kB = ALL_KEYS[j];
-      const sA = subcategoryScores[kA], sB = subcategoryScores[kB];
-      if (_getZone(sA, sB) === 'active') {
-        activePairs.push({ kA, kB, sum: sA + sB });
-      }
+      if (_getZone(sc(kA), sc(kB)) === 'active')
+        activePairs.push({ kA, kB, sum: sc(kA) + sc(kB) });
     }
   }
   activePairs.sort((a, b) => b.sum - a.sum);
   const leftSet = new Set();
   if (activePairs.length > 0) {
     const cutoff = activePairs[Math.min(9, activePairs.length - 1)].sum;
-    activePairs.filter(p => p.sum >= cutoff).forEach(p => {
-      leftSet.add(p.kA);
-      leftSet.add(p.kB);
-    });
+    activePairs.filter(p => p.sum >= cutoff).forEach(p => { leftSet.add(p.kA); leftSet.add(p.kB); });
   }
 
-  // ── 右側ゼロなら左側を全部「次に動かす力」へ ──
-  const hasRight = rightSet.size > 0;
-  const sleepingKeys = hasRight
-    ? [...leftSet].filter(k => !rightSet.has(k))
-    : [...leftSet];
+  // スコア降順ソート
+  const sortDesc = (keys) => [...keys].sort((a, b) => sc(b) - sc(a));
+  const rightSorted = sortDesc(rightSet);
+  const leftSorted  = sortDesc(leftSet);
+
+  // ── ✅ 今、発動している力（3つ）──
+  let activeKeys = [];
+  if (rightSorted.length === 0) {
+    // 右ゼロ → 左から3つ
+    activeKeys = leftSorted.slice(0, 3);
+  } else {
+    // 右から最大3つ
+    activeKeys = rightSorted.slice(0, 3);
+    // 不足分を左から補充
+    if (activeKeys.length < 3) {
+      const need = 3 - activeKeys.length;
+      const fill = leftSorted.filter(k => !activeKeys.includes(k)).slice(0, need);
+      activeKeys = [...activeKeys, ...fill];
+    }
+  }
+
+  // ── 🔑 次に動かす力（3つ）──
+  // ✅ で左から選ばれたキーを除外して次点を選ぶ
+  const activeFromLeft = new Set(activeKeys.filter(k => leftSet.has(k)));
+  const sleepingKeys = leftSorted.filter(k => !activeFromLeft.has(k)).slice(0, 3);
 
   // ── アイテム生成 ──
   const toItem = (key, status) => ({
     key,
     name:    LABEL_MAP[key] || key,
     block:   BLOCK_MAP[key] || '?',
-    score:   subcategoryScores[key],
+    score:   sc(key),
     status,
     message: TEMPLATES[key]?.[status]?.message || '',
     action:  TEMPLATES[key]?.[status]?.action  || '',
   });
 
-  const activeItems   = [...rightSet].map(k => toItem(k, 'active'))
-                          .sort((a, b) => b.score - a.score);
-  const sleepingItems = sleepingKeys.map(k => toItem(k, 'sleeping'))
-                          .sort((a, b) => b.score - a.score);
-
-  // フォールバック: どちらも空の場合はスコア閾値に戻す
-  const hasMappings = activeItems.length > 0 || sleepingItems.length > 0;
-  if (!hasMappings) {
-    const all = ALL_KEYS.map(key => ({
-      key, name: LABEL_MAP[key] || key, block: BLOCK_MAP[key] || '?',
-      score: subcategoryScores[key], status: subcategoryScores[key] >= threshold ? 'active' : 'sleeping',
-    }));
+  // フォールバック: 左右どちらも空
+  if (activeKeys.length === 0 && sleepingKeys.length === 0) {
     return {
-      active:   pickTopByBlock(all.filter(i => i.status === 'active'),   'desc', 2)
-                  .map(i => toItem(i.key, 'active')),
-      sleeping: pickTopByBlock(all.filter(i => i.status === 'sleeping'), 'asc',  2)
-                  .map(i => toItem(i.key, 'sleeping')),
+      active:   sortDesc(ALL_KEYS.filter(k => sc(k) >= threshold)).slice(0, 3).map(k => toItem(k, 'active')),
+      sleeping: sortDesc(ALL_KEYS.filter(k => sc(k) <  threshold)).slice(0, 3).map(k => toItem(k, 'sleeping')),
     };
   }
 
   return {
-    active:   pickTopByBlock(activeItems,   'desc', 2),
-    sleeping: pickTopByBlock(sleepingItems, 'desc', 2),
+    active:   activeKeys.map(k => toItem(k, 'active')),
+    sleeping: sleepingKeys.map(k => toItem(k, 'sleeping')),
   };
 }
 
