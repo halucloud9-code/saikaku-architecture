@@ -34,7 +34,7 @@ const SUB_META = [
   { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達' },
   { key: 'learning',      axis: 1, label: 'Learning',      jp: '学習' },
   { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理' },
-  { key: 'life',          axis: 1, label: 'Life',          jp: '社会実装' },
+  { key: 'life',          axis: 1, label: 'Life',          jp: '活用' },
   { key: 'leadership',    axis: 1, label: 'Leadership',    jp: 'リーダーシップ' },
   { key: 'critical',      axis: 2, label: 'Critical',      jp: '批判的思考' },
   { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造性' },

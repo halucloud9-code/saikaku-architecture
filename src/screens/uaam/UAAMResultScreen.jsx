@@ -33,7 +33,7 @@ const SUB_LABELS = {
 
 const SUB_JP = {
   meaning: '意味', mindfulness: '気づき', mindshift: '意識転換', mastery: '熟達',
-  learning: '学習', logical: '論理', life: '社会実装', leadership: 'リーダーシップ',
+  learning: '学習', logical: '論理', life: '活用', leadership: 'リーダーシップ',
   critical: '批判的思考', creativity: '創造性', communication: '伝える力', collaboration: '協働',
   idea: 'アイデア', innovation: '変革', implementation: '実装', influence: '影響',
 };
@@ -61,7 +61,7 @@ const SUB_ADVICE = {
   mastery:       '一つのスキルに集中して取り組む時間を確保しましょう。毎回「前回よりここを改善する」と小さな目標を持つことで着実に熟達していきます。',
   learning:      '毎日15分の読書や新しい知識のインプットを習慣化しましょう。学んだことを誰かに説明する「アウトプット」が定着の鍵です。',
   logical:       '複雑な問題に直面したら、まず要素を分解して紙に書き出しましょう。「原因→結果」の因果関係を図にすることで論理的思考力が鍛えられます。',
-  life:          '学んだ知識を実生活の小さな課題解決に適用してみましょう。「知っている」から「使える」への転換が社会実装力の本質です。',
+  life:          '学んだ知識を実生活の小さな課題解決に適用してみましょう。「知っている」から「使える」への転換が活用力の本質です。',
   leadership:    'まず身近な場面で「自分から提案する」ことを意識しましょう。相手の話を最後まで聴き、全員が発言できる場を作ることがリーダーシップの第一歩です。',
   critical:      '情報を受け取ったとき「本当にそうか？根拠は？」と問う習慣を持ちましょう。賛成意見と反対意見の両方を調べることで批判的思考力が向上します。',
   creativity:    '日常のルーティンをあえて変えてみましょう。異分野の知識や全く関係のない経験を組み合わせてみることが創造性の源泉です。',
@@ -527,7 +527,7 @@ const FOUR_AXES = [
     subJp: ['批判思考','創造性','伝える力','協働'] },
   { key: 'literacy',   jp: '知', en: 'Literacy',   color: '#1E7A4A',
     subs: ['learning','logical','life','leadership'],
-    subJp: ['学習','論理','社会実装','リーダー'] },
+    subJp: ['学習','論理','活用','リーダー'] },
   { key: 'impact',     jp: '衝', en: 'Impact',     color: '#C0614A',
     subs: ['idea','innovation','implementation','influence'],
     subJp: ['アイデア','変革','実装','影響'] },
@@ -1087,7 +1087,7 @@ function RadarChart16({ scores }) {
       { key: 'mastery',       jp: '熟達',           en: 'Mastery',        group: 'mindset' },
       { key: 'learning',      jp: '学習',           en: 'Learning',       group: 'literacy' },
       { key: 'logical',       jp: '論理',           en: 'Logical',        group: 'literacy' },
-      { key: 'life',          jp: '社会実装',       en: 'Life',           group: 'literacy' },
+      { key: 'life',          jp: '活用',           en: 'Life',           group: 'literacy' },
       { key: 'leadership',    jp: 'リーダーシップ', en: 'Leadership',     group: 'literacy' },
       { key: 'critical',      jp: '批判的思考',     en: 'Critical',       group: 'competency' },
       { key: 'creativity',    jp: '創造性',         en: 'Creativity',     group: 'competency' },

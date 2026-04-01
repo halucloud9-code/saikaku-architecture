@@ -29,9 +29,9 @@ const AXIS_KEYS  = ['mindset', 'literacy', 'competency', 'impact'];
 const AXIS_JP    = ['志 MindSet', '知 Literacy', '技 Competency', '衝 Impact'];
 const AXIS_SHORT = ['志', '知', '技', '衝'];
 
-const SUB_JP = {
+export const SUB_JP = {
   meaning:'意味', mindfulness:'気づき', mindshift:'意識転換', mastery:'熟達',
-  learning:'学習', logical:'論理', life:'社会実装', leadership:'リーダーシップ',
+  learning:'学習', logical:'論理', life:'活用', leadership:'リーダーシップ',
   critical:'批判的思考', creativity:'創造性', communication:'伝える力', collaboration:'協働',
   idea:'アイデア', innovation:'変革', implementation:'実装', influence:'影響',
 };
@@ -42,13 +42,14 @@ const AXIS_LIGHT = ['#5A96DC', '#46C382', '#DCAF46', '#DC5F50'];
 const AXIS_DIM   = ['rgba(44,95,138,0.12)','rgba(30,122,74,0.12)',
                     'rgba(160,122,24,0.12)','rgba(139,58,40,0.12)'];
 
-const ZONE_HEX = {
+export const ZONE_HEX = {
   natural:   '#8B35C8',   // 紫：20×20 完全発動
   pro:       '#1A6FD4',   // 青：両才覚16以上または15以上合計32以上
   active:    '#7CB82F',   // 黄緑：両才覚12以上合計31以下（左）
   potential: '#E07830',   // オレンジ：両才覚10以上合計22以上（左）
   dormant:   '#5A7A8A',   // 無色（非表示）
 };
+export const ZONE_LABEL = { natural:'NATURAL ✦', pro:'PRO', active:'ACTIVE', potential:'POTENTIAL', dormant:'—' };
 
 // 10ブロック固有カラー（セルの色相を決定）
 const BLOCK_HEX = {
@@ -76,7 +77,7 @@ const LEFT_ZONES  = ['potential', 'dormant'];
 
 const RANK_NUM = ['1', '2', '3', '4', '5'];
 
-const BLOCKS = [
+export const BLOCKS = [
   { name:'ANCHOR',    jp:'志×志', axes:[0,0] },
   { name:'SAGE',      jp:'知×知', axes:[1,1] },
   { name:'INVENTOR',  jp:'技×技', axes:[2,2] },
@@ -297,13 +298,13 @@ const PAIR_SHORT = {
   'innovation|influence':   '革文力', 'implementation|influence':'浸透力',
 };
 
-function pairShort(kA, kB) {
+export function pairShort(kA, kB) {
   const ia = ORDERED.indexOf(kA), ib = ORDERED.indexOf(kB);
   const key = ia < ib ? `${kA}|${kB}` : `${kB}|${kA}`;
   return PAIR_SHORT[key] ?? '';
 }
 
-function pairDef(kA, kB) {
+export function pairDef(kA, kB) {
   const ia = ORDERED.indexOf(kA), ib = ORDERED.indexOf(kB);
   const key = ia < ib ? `${kA}|${kB}` : `${kB}|${kA}`;
   return PAIR_DEFS[key] ?? '';
@@ -351,7 +352,7 @@ function zAlpha(z, sA, sB) {
   return 0.08;
 }
 
-function getBlock(kA, kB) {
+export function getBlock(kA, kB) {
   const gA = CODE_GRP[kA], gB = CODE_GRP[kB];
   const pMin = Math.min(gA,gB), pMax = Math.max(gA,gB);
   return BLOCKS.find(b => {

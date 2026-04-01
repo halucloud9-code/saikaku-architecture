@@ -302,12 +302,27 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     }
   }
 
-  // ── 🔑 次に動かす力（3つ）──
-  // ✅ で左から選ばれたキーを除外して次点を選ぶ
-  const activeFromLeft = new Set(activeKeys.filter(k => leftSet.has(k)));
-  const sleepingKeys = leftSorted.filter(k => !activeFromLeft.has(k)).slice(0, 3);
+  // ── 🔑 次に動かす力（最大3）──
+  // 120ペア全体から NATURAL→PRO→ACTIVE 順、同ゾーン内は合計スコア降順で上位3ペアを選ぶ
+  const ZONE_ORDER_MAP = { natural: 0, pro: 1, active: 2 };
+  const sleepingPairs = [];
+  for (let i = 0; i < ALL_KEYS.length - 1; i++) {
+    for (let j = i + 1; j < ALL_KEYS.length; j++) {
+      const kA = ALL_KEYS[i], kB = ALL_KEYS[j];
+      const sA = sc(kA), sB = sc(kB);
+      const z = _getZone(sA, sB);
+      if (z === 'natural' || z === 'pro' || z === 'active') {
+        sleepingPairs.push({ kA, kB, zone: z, scoreA: sA, scoreB: sB, sum: sA + sB, isPair: true });
+      }
+    }
+  }
+  sleepingPairs.sort((a, b) => {
+    const zo = ZONE_ORDER_MAP[a.zone] - ZONE_ORDER_MAP[b.zone];
+    return zo !== 0 ? zo : b.sum - a.sum;
+  });
+  const topSleepingPairs = sleepingPairs.slice(0, 3);
 
-  // ── アイテム生成 ──
+  // ── アイテム生成（✅ 個別キー用）──
   const toItem = (key, status) => ({
     key,
     name:    LABEL_MAP[key] || key,
@@ -318,17 +333,17 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     action:  TEMPLATES[key]?.[status]?.action  || '',
   });
 
-  // フォールバック: 左右どちらも空
-  if (activeKeys.length === 0 && sleepingKeys.length === 0) {
+  // フォールバック: ✅ が空の場合
+  if (activeKeys.length === 0) {
     return {
       active:   sortDesc(ALL_KEYS.filter(k => sc(k) >= threshold)).slice(0, 3).map(k => toItem(k, 'active')),
-      sleeping: sortDesc(ALL_KEYS.filter(k => sc(k) <  threshold)).slice(0, 3).map(k => toItem(k, 'sleeping')),
+      sleeping: topSleepingPairs,
     };
   }
 
   return {
     active:   activeKeys.map(k => toItem(k, 'active')),
-    sleeping: sleepingKeys.map(k => toItem(k, 'sleeping')),
+    sleeping: topSleepingPairs,
   };
 }
 

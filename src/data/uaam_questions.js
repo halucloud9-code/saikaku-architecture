@@ -46,7 +46,7 @@ export const UAAM_AXES = [
     subs: [
       { key: 'learning',   label: 'Learning（学習）',         description: '感情を捨てて事実だけを見る力' },
       { key: 'logical',    label: 'Logical（論理）',          description: '必要なことだけを伝え、相手を正確に動かす力' },
-      { key: 'life',       label: 'Life（社会実装）',         description: '精神論を捨て、目に見える結果に変える力' },
+      { key: 'life',       label: 'Life（活用）',              description: '精神論を捨て、目に見える結果に変える力' },
       { key: 'leadership', label: 'Leadership（リーダーシップ）', description: 'なれ合いを捨て、一人で結果を出せる人間を作る力' },
     ],
   },
@@ -121,7 +121,7 @@ export const UAAM_QUESTIONS = [
   { id: 23, axis: 'literacy', sub: 'logical',     text: '自分が出した指示や依頼は、相手が追加の確認をほとんど必要とせず動ける形で伝えられている。', reverse: false },
   { id: 24, axis: 'literacy', sub: 'logical',     text: '自分が説明した後に、相手の表情や行動が明確に変わる場面が繰り返されている。', reverse: false },
 
-  // ⑦ Life（社会実装）：精神論を捨て、目に見える結果に変える力
+  // ⑦ Life（活用）：精神論を捨て、目に見える結果に変える力
   { id: 25, axis: 'literacy', sub: 'life',        text: '学んだことを、実際の現場や日常で試してみる行動を自然と繰り返している。', reverse: false },
   { id: 26, axis: 'literacy', sub: 'life',        text: '学んだ知識を溜め込むばかりで、現場のやり方は今までどおりのままになっていることがある。', reverse: true },
   { id: 27, axis: 'literacy', sub: 'life',        text: '自分が学んだことが、具体的な現場の成果や変化として現れている。', reverse: false },
