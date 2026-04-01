@@ -1109,7 +1109,7 @@ function RadarChart16({ scores }) {
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
     const n = 16;
     const step = (2 * Math.PI) / n;
-    const startAngle = -Math.PI / 2 - (3 * Math.PI) / 16; // サブ項目配置（グループ中心を12/3/6/9時に合わせる）
+    const startAngle = -Math.PI / 2; // サブ項目配置（意味=12時スタート）
 
     const getPoint = (i, val) => {
       const angle = startAngle + i * step;
