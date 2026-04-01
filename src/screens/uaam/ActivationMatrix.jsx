@@ -69,7 +69,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
   const canvasRef = useRef(null);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [hoveredIdx, setHoveredIdx] = useState(null);
-  const stateRef = useRef({ time: 0, entryProgress: 0, particles: [], mouseX: -1, mouseY: -1 });
+  const stateRef = useRef({ time: 0, entryProgress: 0, particles: [], mouseX: -1, mouseY: -1, activeI: null });
   const frameRef = useRef(null);
 
   const points = useMemo(() => {
@@ -90,9 +90,15 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
   }, [points, maxSub]);
 
   const sorted = useMemo(() => [...points].sort((a, b) => b.pct - a.pct), [points]);
-  const top3 = sorted.slice(0, 3);
-  const top5 = sorted.slice(0, 5);
-  const bottom3 = sorted.slice(-3).reverse();
+  // useMemo で安定した参照を保つ（これがないと hover のたびに draw が再生成されアニメーションがリセットされる）
+  const top3 = useMemo(() => sorted.slice(0, 3), [sorted]);
+  const top5 = useMemo(() => sorted.slice(0, 5), [sorted]);
+  const bottom3 = useMemo(() => sorted.slice(-3).reverse(), [sorted]);
+
+  // hover/click のたびに stateRef に書くだけ（animation は再起動しない）
+  useEffect(() => {
+    stateRef.current.activeI = selectedIdx ?? hoveredIdx;
+  }, [selectedIdx, hoveredIdx]);
 
   useEffect(() => {
     const particles = [];
@@ -291,7 +297,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     });
 
     // === データドット（ゾーンベース）===
-    const activeI = selectedIdx ?? hoveredIdx;
+    const activeI = stateRef.current.activeI;
     for (let i = 0; i < N; i++) {
       const dp = getDataPoint(i);
       const c = points[i].color;
@@ -439,7 +445,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     // === 軸漢字ラベル（各グループ中央角度・最外周配置）===
     const kanjiR = Math.min(R + 85, Math.min(W / 2, H / 2) - 14);
     AXIS_META.forEach((axis, ai) => {
-      const midAngle = getAngle(ai * 4 + 1.5);
+      const midAngle = getAngle(ai * 4 + 2);
       const targetX = cx + Math.cos(midAngle) * kanjiR;
       const targetY = cy + Math.sin(midAngle) * kanjiR;
       const kx = targetX * ep + cx * (1 - ep);
@@ -498,7 +504,9 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     ctx.fillText('TOTAL %', cx, cy + 13);
 
     frameRef.current = requestAnimationFrame(draw);
-  }, [points, totalPct, selectedIdx, hoveredIdx, top3, top5, maxSub]);
+  // selectedIdx/hoveredIdx は stateRef.current.activeI で読む → draw の deps に含めない
+  // → hover/click しても animation がリセットされない = 志/知/技/衝 が 12/3/6/9時に固定
+  }, [points, totalPct, top3, top5, maxSub]);
 
   useEffect(() => {
     stateRef.current.startTime = null;
