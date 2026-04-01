@@ -326,12 +326,26 @@ function getZone(sA, sB) {
 }
 
 function zAlpha(z, sA, sB) {
-  const ratio = (sA + sB) / 40;
-  if (z === 'full')      return 1.0;               // 固定・グラデなし
-  if (z === 'active')    return 0.55 + ratio * 0.45;
-  if (z === 'awakening') return 0.45 + ratio * 0.40;
-  if (z === 'potential') return 0.45 + ratio * 0.40;
-  return 0.30 + ratio * 0.25;
+  if (z === 'full') return 1.0; // 20×20 固定・グラデなし
+
+  const sum = sA + sB;
+
+  if (z === 'active') {
+    // 16+16=32（薄） → 19+20=39（濃）
+    const ratio = Math.max(0, Math.min(1, (sum - 32) / 7));
+    return 0.30 + ratio * 0.65; // 0.30〜0.95
+  }
+  if (z === 'awakening') {
+    // 12+12=24（薄） → 15+16=31（濃）
+    const ratio = Math.max(0, Math.min(1, (sum - 24) / 7));
+    return 0.28 + ratio * 0.62; // 0.28〜0.90
+  }
+  if (z === 'potential') {
+    // sum30（薄） → sum40（濃）
+    const ratio = Math.max(0, Math.min(1, (sum - 30) / 10));
+    return 0.35 + ratio * 0.55;
+  }
+  return 0.15;
 }
 
 function getBlock(kA, kB) {
