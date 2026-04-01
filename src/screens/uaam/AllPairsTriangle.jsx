@@ -324,7 +324,7 @@ function getZone(sA, sB) {
 }
 
 function zAlpha(z, sA, sB) {
-  const ratio = (sA * sB) / 400;
+  const ratio = (sA + sB) / 40;
   if (z === 'full')      return 1.0;
   if (z === 'active')    return 0.55 + ratio * 0.45;
   if (z === 'potential') return 0.45 + ratio * 0.40;
@@ -480,7 +480,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
             const blk = getBlock(p.kA, p.kB);
             const z   = getZone(smap[p.kA], smap[p.kB]);
             const zc  = ZONE_HEX[z];
-            const pct = p.score / 400;
+            const pct = p.score / 40;
             return (
               <div key={`${p.kA}-${p.kB}`} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: rank < 4 ? 10 : 0 }}>
                 <div style={{
@@ -716,7 +716,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
               fontSize: 11, fontWeight: 700,
             }}>{ZONE_LABEL[z]}</div>
             <div style={{ color: '#555', fontSize: 12, lineHeight: 1.8 }}>
-              <div>スコア <span style={{ color: '#1A1A1A', fontWeight: 800, fontFamily: "'Outfit'" }}>{sA}</span> × <span style={{ color: '#1A1A1A', fontWeight: 800, fontFamily: "'Outfit'" }}>{sB}</span> = <span style={{ color: zc, fontWeight: 800, fontSize: 14, fontFamily: "'Outfit'" }}>{sA * sB}</span></div>
+              <div>スコア <span style={{ color: '#1A1A1A', fontWeight: 800, fontFamily: "'Outfit'" }}>{sA}</span> + <span style={{ color: '#1A1A1A', fontWeight: 800, fontFamily: "'Outfit'" }}>{sB}</span> = <span style={{ color: zc, fontWeight: 800, fontSize: 14, fontFamily: "'Outfit'" }}>{sA + sB}</span></div>
               {blk && <div style={{ color: '#AAA', fontSize: 11, marginTop: 2 }}>{blk.name} / {blk.jp}</div>}
               {pairDef(tip.kA, tip.kB) && (
                 <div style={{
