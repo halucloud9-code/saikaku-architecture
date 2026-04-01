@@ -1430,7 +1430,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['potential']} />
           </div>
           <div style={{ flex: '1 1 480px', minWidth: 0 }}>
-            <AllPairsTriangle scores={scores} maxSub={MAX_SUB} mirror={true} zones={['full', 'active']} />
+            <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['full', 'active']} />
           </div>
         </div>
 
