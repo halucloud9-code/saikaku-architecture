@@ -222,35 +222,104 @@ const TEMPLATES = {
 // =============================================
 // 4. 発動分析メイン関数
 // =============================================
+// =============================================
+// 4b. マトリクスゾーン判定（AllPairsTriangle と同ロジック）
+// =============================================
+function _getZone(sA, sB) {
+  const sum = sA + sB;
+  if (sA === 20 && sB === 20) return 'natural';
+  if ((sA >= 16 && sB >= 16) || (sA >= 15 && sB >= 15 && sum >= 32)) return 'pro';
+  if (sA >= 12 && sB >= 12 && sum <= 31) return 'active';
+  return 'dormant';
+}
+
 /**
- * @param {Object} subcategoryScores  英語キー { mindset: 18, mindfulness: 15, ... }
- * @param {number} threshold          発動中/未発動の閾値（20点満点中、デフォルト13）
+ * @param {Object} subcategoryScores  英語キー { meaning: 18, mindfulness: 15, ... }
+ * @param {number} threshold          フォールバック用閾値（デフォルト13）
  * @returns {Object} { active: [...], sleeping: [...] }
+ *
+ * 判定ルール:
+ *   ✅ 今、発動している力  → マトリクス右側（Natural/Pro）に登場する素子（スコア高い順）
+ *   🔑 次に動かす力       → マトリクス左側（Active TOP10）に登場する素子で右側未登場のもの
+ *   右側ゼロの場合        → 左側の素子すべてを「次に動かす力」として扱う
  */
 function getActivationAnalysis(subcategoryScores, threshold = 13) {
-  const items = Object.entries(subcategoryScores).map(([key, score]) => ({
+  const ALL_KEYS = Object.keys(LABEL_MAP).filter(k => subcategoryScores[k] != null);
+
+  // ── 右側（Natural + Pro）に登場する素子を収集 ──
+  const rightSet = new Set();
+  for (const kA of ALL_KEYS) {
+    for (const kB of ALL_KEYS) {
+      if (kA === kB) continue;
+      const z = _getZone(subcategoryScores[kA], subcategoryScores[kB]);
+      if (z === 'natural' || z === 'pro') {
+        rightSet.add(kA);
+        rightSet.add(kB);
+      }
+    }
+  }
+
+  // ── 左側（Active TOP10）に登場する素子を収集 ──
+  const activePairs = [];
+  for (let i = 0; i < ALL_KEYS.length - 1; i++) {
+    for (let j = i + 1; j < ALL_KEYS.length; j++) {
+      const kA = ALL_KEYS[i], kB = ALL_KEYS[j];
+      const sA = subcategoryScores[kA], sB = subcategoryScores[kB];
+      if (_getZone(sA, sB) === 'active') {
+        activePairs.push({ kA, kB, sum: sA + sB });
+      }
+    }
+  }
+  activePairs.sort((a, b) => b.sum - a.sum);
+  const leftSet = new Set();
+  if (activePairs.length > 0) {
+    const cutoff = activePairs[Math.min(9, activePairs.length - 1)].sum;
+    activePairs.filter(p => p.sum >= cutoff).forEach(p => {
+      leftSet.add(p.kA);
+      leftSet.add(p.kB);
+    });
+  }
+
+  // ── 右側ゼロなら左側を全部「次に動かす力」へ ──
+  const hasRight = rightSet.size > 0;
+  const sleepingKeys = hasRight
+    ? [...leftSet].filter(k => !rightSet.has(k))
+    : [...leftSet];
+
+  // ── アイテム生成 ──
+  const toItem = (key, status) => ({
     key,
-    name: LABEL_MAP[key] || key,
-    score,
-    block: BLOCK_MAP[key] || '?',
-    status: score >= threshold ? 'active' : 'sleeping',
-  }));
-
-  const activeTop2  = pickTopByBlock(items.filter(i => i.status === 'active'),  'desc', 2);
-  const sleepingTop2 = pickTopByBlock(items.filter(i => i.status === 'sleeping'), 'asc',  2);
-
-  const toResult = (i, status) => ({
-    key:     i.key,
-    name:    i.name,
-    block:   i.block,
-    score:   i.score,
-    message: TEMPLATES[i.key]?.[status]?.message || '',
-    action:  TEMPLATES[i.key]?.[status]?.action  || '',
+    name:    LABEL_MAP[key] || key,
+    block:   BLOCK_MAP[key] || '?',
+    score:   subcategoryScores[key],
+    status,
+    message: TEMPLATES[key]?.[status]?.message || '',
+    action:  TEMPLATES[key]?.[status]?.action  || '',
   });
 
+  const activeItems   = [...rightSet].map(k => toItem(k, 'active'))
+                          .sort((a, b) => b.score - a.score);
+  const sleepingItems = sleepingKeys.map(k => toItem(k, 'sleeping'))
+                          .sort((a, b) => b.score - a.score);
+
+  // フォールバック: どちらも空の場合はスコア閾値に戻す
+  const hasMappings = activeItems.length > 0 || sleepingItems.length > 0;
+  if (!hasMappings) {
+    const all = ALL_KEYS.map(key => ({
+      key, name: LABEL_MAP[key] || key, block: BLOCK_MAP[key] || '?',
+      score: subcategoryScores[key], status: subcategoryScores[key] >= threshold ? 'active' : 'sleeping',
+    }));
+    return {
+      active:   pickTopByBlock(all.filter(i => i.status === 'active'),   'desc', 2)
+                  .map(i => toItem(i.key, 'active')),
+      sleeping: pickTopByBlock(all.filter(i => i.status === 'sleeping'), 'asc',  2)
+                  .map(i => toItem(i.key, 'sleeping')),
+    };
+  }
+
   return {
-    active:   activeTop2.map(i  => toResult(i,  'active')),
-    sleeping: sleepingTop2.map(i => toResult(i, 'sleeping')),
+    active:   pickTopByBlock(activeItems,   'desc', 2),
+    sleeping: pickTopByBlock(sleepingItems, 'desc', 2),
   };
 }
 
