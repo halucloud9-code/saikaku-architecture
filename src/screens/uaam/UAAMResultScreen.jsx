@@ -1109,7 +1109,7 @@ function RadarChart16({ scores }) {
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
     const n = 16;
     const step = (2 * Math.PI) / n;
-    const startAngle = -Math.PI / 2 - (3 * Math.PI) / 16; // グループ中心を12/3/6/9時に揃える
+    const startAngle = -Math.PI / 2; // サブ項目配置（意味=12時スタート）
 
     const getPoint = (i, val) => {
       const angle = startAngle + i * step;
@@ -1320,11 +1320,12 @@ function RadarChart16({ scores }) {
     }
 
     // === グループラベル（志・知・技・衝）===
+    // グループラベル: 12/3/6/9時に固定
     const groupLabels = [
-      { jp: '志', en: 'Mindset',    angle: startAngle + 1.5 * step, color: GC.mindset.stroke },
-      { jp: '知', en: 'Literacy',   angle: startAngle + 5.5 * step, color: GC.literacy.stroke },
-      { jp: '技', en: 'Competency', angle: startAngle + 9.5 * step, color: GC.competency.stroke },
-      { jp: '衝', en: 'Impact',     angle: startAngle + 13.5 * step,color: GC.impact.stroke },
+      { jp: '志', en: 'WHY',   angle: -Math.PI / 2,      color: GC.mindset.stroke },
+      { jp: '知', en: 'THINK', angle: 0,                 color: GC.literacy.stroke },
+      { jp: '技', en: 'HOW',   angle:  Math.PI / 2,      color: GC.competency.stroke },
+      { jp: '衝', en: 'ACT',   angle:  Math.PI,          color: GC.impact.stroke },
     ];
     groupLabels.forEach(({ jp, en, angle, color }) => {
       const gr = R + 80;
