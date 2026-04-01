@@ -811,10 +811,9 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
       {/* ── 凡例 ── */}
       <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
-          { zone: 'natural',   label: 'NATURAL ✦', desc: '20×20（右）' },
-          { zone: 'pro',       label: 'PRO',        desc: '両才覚16以上 or 15以上合計32+（右）' },
-          { zone: 'active',    label: 'ACTIVE',     desc: '両才覚12以上 合計31まで（左・黄緑）' },
-          { zone: 'potential', label: 'POTENTIAL',  desc: '両才覚10以上 合計22+（左・オレンジ）' },
+          { zone: 'natural', label: 'NATURAL ✦', desc: '20×20（右）' },
+          { zone: 'pro',     label: 'PRO',        desc: '両才覚16以上 or 15以上合計32+（右）' },
+          { zone: 'active',  label: 'ACTIVE',     desc: '両才覚12以上 合計31まで TOP10（左・黄緑）' },
         ].map(({ zone, label, desc }) => (
           <div key={zone} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 12, height: 12, borderRadius: 3, background: ZONE_HEX[zone] }} />
@@ -895,13 +894,12 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 左下三角（j < i）: ACTIVE TOP10（黄緑）+ POTENTIAL（橙）── テキストなし
+                  // ── 左下三角（j < i）: ACTIVE TOP10（黄緑）のみ ──
                   const sA = smap[colKey], sB = smap[rowKey];
                   const z  = getZone(sA, sB);
                   const pairKey = `${colKey}|${rowKey}`;
-                  const inTop10 = z === 'active' && activeTop10Set.has(pairKey);
-                  const show = inTop10 || z === 'potential';
-                  const bg   = show ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB)) : '#F0EEEA';
+                  const show = z === 'active' && activeTop10Set.has(pairKey);
+                  const bg   = show ? toRgba(ZONE_HEX['active'], zAlpha('active', sA, sB)) : '#F0EEEA';
                   return (
                     <div key={colKey} style={{
                       width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
