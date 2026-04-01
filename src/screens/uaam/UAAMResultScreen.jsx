@@ -552,7 +552,8 @@ function MiniRadar({ axis, scores }) {
   const maxTotal = maxSub * 4;
   const pct      = Math.round((total / maxTotal) * 100);
   const maxScore = Math.max(...rawScores, 1);
-  const topIdx   = rawScores.indexOf(maxScore);
+  const topIdx   = rawScores.indexOf(maxScore); // ラベル用（先頭1つ）
+  const isTopScore = (i) => rawScores[i] === maxScore; // 同点複数対応
 
   const S = 210, cx = S / 2, cy = S / 2, R = 76;
 
@@ -622,11 +623,11 @@ function MiniRadar({ axis, scores }) {
         {/* スコア扇形 */}
         {SECTORS.map((s, i) => {
           const r = Math.max(6, (rawScores[i] / maxSub) * R);
-          const isTop = rawScores[i] === maxScore;
+          const top = isTopScore(i);
           const baseOpa = 0.38 + (rawScores[i] / maxSub) * 0.28;
           return (
             <path key={i} d={sectorPath(cx, cy, r, s.start, s.end)}
-              fill={axis.color} fillOpacity={isTop ? 0.80 : baseOpa} />
+              fill={axis.color} fillOpacity={top ? 0.80 : baseOpa} />
           );
         })}
 
@@ -643,12 +644,12 @@ function MiniRadar({ axis, scores }) {
         {/* スコアテキスト（扇形内部） */}
         {SECTORS.map((s, i) => {
           const mid = ((s.start + s.end) / 2) * Math.PI / 180;
-          const isTop = rawScores[i] === maxScore;
+          const top = isTopScore(i);
           const textR = R * 0.56;
           const tx = +(cx + textR * Math.cos(mid)).toFixed(2);
           const ty = +(cy + textR * Math.sin(mid)).toFixed(2);
-          const fill = isTop ? '#FFFFFF' : axis.color;
-          const opa  = isTop ? 1 : 0.85;
+          const fill = top ? '#FFFFFF' : axis.color;
+          const opa  = top ? 1 : 0.85;
           return (
             <g key={i}>
               <text x={tx} y={ty - 7} textAnchor="middle" dominantBaseline="middle"
@@ -669,12 +670,12 @@ function MiniRadar({ axis, scores }) {
           const rad = deg * Math.PI / 180;
           const lx = +(cx + LP * Math.cos(rad)).toFixed(2);
           const ly = +(cy + LP * Math.sin(rad)).toFixed(2);
-          const isTop = i === topIdx;
+          const top = isTopScore(i);
           return (
             <text key={i} x={lx} y={ly}
               textAnchor="middle" dominantBaseline="middle"
-              fontSize={11} fontWeight={isTop ? 700 : 500}
-              fill={isTop ? axis.color : axis.color + 'AA'}>
+              fontSize={11} fontWeight={top ? 700 : 500}
+              fill={top ? axis.color : axis.color + 'AA'}>
               {axis.subJp[i]}
             </text>
           );
