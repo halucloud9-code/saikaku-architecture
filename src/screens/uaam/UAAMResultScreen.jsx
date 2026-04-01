@@ -1427,7 +1427,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         {/* ===== 正方形マトリックス（左：POTENTIAL+DORMANT ／ 右：FULL+ACTIVE） ===== */}
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ flex: '1 1 480px', minWidth: 0 }}>
-            <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['potential']} mirror={true} />
+            <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['potential']} mirror={false} />
           </div>
           <div style={{ flex: '1 1 480px', minWidth: 0 }}>
             <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['full', 'active']} mirror={false} />
