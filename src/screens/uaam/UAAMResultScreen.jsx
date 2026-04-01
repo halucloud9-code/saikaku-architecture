@@ -534,116 +534,129 @@ const FOUR_AXES = [
 ];
 
 function MiniRadar({ axis, scores }) {
-  const canvasRef = useRef(null);
   const rawScores = axis.subs.map(sub => scores?.[axis.key]?.subs?.[sub] ?? 0);
   const maxSub = 20;
+  const total = rawScores.reduce((a, b) => a + b, 0);
+  const maxTotal = maxSub * 4;
+  const pct = Math.round((total / maxTotal) * 100);
+  const maxScore = Math.max(...rawScores, 1);
 
-  // 4つの扇形定義（元のActivityDomainChartと同じ構造）
-  const fans = [
-    { idx: 0, startAngle: -Math.PI / 2, endAngle: 0,              lx:  0.45, ly: -0.45 }, // 右上
-    { idx: 1, startAngle: 0,             endAngle: Math.PI / 2,    lx:  0.45, ly:  0.45 }, // 右下
-    { idx: 2, startAngle: Math.PI / 2,   endAngle: Math.PI,        lx: -0.45, ly:  0.45 }, // 左下
-    { idx: 3, startAngle: Math.PI,       endAngle: 3 * Math.PI / 2, lx: -0.45, ly: -0.45 }, // 左上
+  const S = 190, cx = S / 2, cy = S / 2, R = 58;
+  const angles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI]; // 上・右・下・左
+  const pts = rawScores.map((sc, i) => ({
+    x: cx + (sc / maxSub) * R * Math.cos(angles[i]),
+    y: cy + (sc / maxSub) * R * Math.sin(angles[i]),
+  }));
+  const poly = pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+
+  // ラベル設定（上・右・下・左）
+  const labelCfg = [
+    { lx: cx, ly: cy - R - 28, anchor: 'middle', baseline: 'auto' },
+    { lx: cx + R + 30, ly: cy, anchor: 'start',  baseline: 'middle' },
+    { lx: cx, ly: cy + R + 28, anchor: 'middle', baseline: 'hanging' },
+    { lx: cx - R - 30, ly: cy, anchor: 'end',    baseline: 'middle' },
   ];
-  const labelPos = [
-    { dx: 0,  dy: -1 }, // 上
-    { dx: 1,  dy:  0 }, // 右
-    { dx: 0,  dy:  1 }, // 下
-    { dx: -1, dy:  0 }, // 左
-  ];
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const DPR = window.devicePixelRatio || 1;
-    const S = 200;
-    canvas.width  = S * DPR;
-    canvas.height = S * DPR;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(DPR, DPR);
-    const cx = S / 2, cy = S / 2, R = 72;
-    const PI = Math.PI;
-    ctx.clearRect(0, 0, S, S);
-
-    // グリッド円
-    [0.25, 0.5, 0.75, 1].forEach(p => {
-      ctx.beginPath();
-      ctx.arc(cx, cy, R * p, 0, PI * 2);
-      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-    });
-
-    // 十字軸
-    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(cx - R - 16, cy); ctx.lineTo(cx + R + 16, cy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, cy - R - 16); ctx.lineTo(cx, cy + R + 16); ctx.stroke();
-
-    // 背景扇形（ゴースト）
-    fans.forEach(f => {
-      ctx.beginPath(); ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, R, f.startAngle, f.endAngle);
-      ctx.closePath();
-      ctx.fillStyle = axis.color + '12';
-      ctx.fill();
-    });
-
-    // スコア扇形
-    const maxScore = Math.max(...rawScores);
-    fans.forEach(f => {
-      const sc = rawScores[f.idx];
-      const isTop = sc === maxScore && sc > 0;
-      const r = (sc / maxSub) * R;
-      ctx.beginPath(); ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, r, f.startAngle, f.endAngle);
-      ctx.closePath();
-      ctx.fillStyle = axis.color + (isTop ? '70' : '45');
-      ctx.fill();
-      ctx.strokeStyle = axis.color;
-      ctx.lineWidth = isTop ? 2.5 : 0.5;
-      ctx.stroke();
-    });
-
-    // 中心点
-    ctx.beginPath(); ctx.arc(cx, cy, 3, 0, PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.fill();
-
-    // 外周ラベル（素子名）
-    const labelMargin = R + 20;
-    labelPos.forEach((l, i) => {
-      ctx.font = '600 10px sans-serif';
-      ctx.fillStyle = axis.color;
-      ctx.textAlign   = i === 1 ? 'left' : i === 3 ? 'right' : 'center';
-      ctx.textBaseline = i === 0 ? 'bottom' : i === 2 ? 'top' : 'middle';
-      ctx.fillText(axis.subJp[i], cx + l.dx * labelMargin, cy + l.dy * labelMargin);
-    });
-
-    // スコア値（扇形内）
-    fans.forEach(f => {
-      const sc = rawScores[f.idx];
-      if (sc === 0) return;
-      const isTop = sc === maxScore;
-      const lx = cx + f.lx * R * 0.65;
-      const ly = cy + f.ly * R * 0.65;
-      ctx.font = `${isTop ? '700' : '500'} 11px sans-serif`;
-      ctx.fillStyle = isTop ? axis.color : 'rgba(0,0,0,0.40)';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${sc}/20`, lx, ly);
-      ctx.font = '10px sans-serif';
-      ctx.fillStyle = isTop ? axis.color : 'rgba(0,0,0,0.28)';
-      ctx.fillText(`${Math.round((sc / maxSub) * 100)}%`, lx, ly + 13);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scores]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4px' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: axis.color, letterSpacing: '0.06em', marginBottom: 2 }}>
-        {axis.jp} <span style={{ fontSize: 10, opacity: 0.65 }}>{axis.en}</span>
+    <div style={{
+      background: '#FFFFFF',
+      borderRadius: 16,
+      border: `1px solid ${axis.color}28`,
+      padding: '16px 14px 14px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      boxShadow: `0 2px 12px ${axis.color}14`,
+    }}>
+      {/* ── ヘッダー ── */}
+      <div style={{ width: '100%', marginBottom: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 18, fontWeight: 800, color: axis.color }}>
+            {axis.jp}
+            <span style={{ fontSize: 11, fontWeight: 500, marginLeft: 6, opacity: 0.60, fontFamily: 'sans-serif' }}>{axis.en}</span>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: axis.color, fontFamily: "'Outfit', sans-serif" }}>
+            {pct}<span style={{ fontSize: 11, fontWeight: 400, opacity: 0.6 }}>%</span>
+          </div>
+        </div>
+        {/* スコアバー */}
+        <div style={{ height: 4, background: axis.color + '18', borderRadius: 2, marginTop: 8, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', width: `${pct}%`,
+            background: `linear-gradient(90deg, ${axis.color}80, ${axis.color})`,
+            borderRadius: 2,
+          }} />
+        </div>
+        <div style={{ fontSize: 10, color: axis.color, opacity: 0.55, textAlign: 'right', marginTop: 3, fontFamily: "'Outfit', sans-serif" }}>
+          {total} / {maxTotal}
+        </div>
       </div>
-      <canvas ref={canvasRef} style={{ width: 200, height: 200 }} />
+
+      {/* ── SVGレーダー ── */}
+      <svg width={S} height={S} style={{ overflow: 'visible' }}>
+        <defs>
+          <radialGradient id={`rg-${axis.key}`}>
+            <stop offset="0%"   stopColor={axis.color} stopOpacity="0.55" />
+            <stop offset="100%" stopColor={axis.color} stopOpacity="0.10" />
+          </radialGradient>
+        </defs>
+
+        {/* 同心円グリッド */}
+        {[0.25, 0.5, 0.75, 1].map(r => (
+          <circle key={r} cx={cx} cy={cy} r={R * r}
+            fill={r === 1 ? axis.color + '06' : 'none'}
+            stroke={r === 1 ? axis.color + '30' : 'rgba(0,0,0,0.07)'}
+            strokeWidth={r === 1 ? 1 : 0.5}
+            strokeDasharray={r < 1 ? '3 3' : 'none'} />
+        ))}
+
+        {/* 軸線 */}
+        {angles.map((a, i) => (
+          <line key={i}
+            x1={cx} y1={cy}
+            x2={cx + R * Math.cos(a)} y2={cy + R * Math.sin(a)}
+            stroke="rgba(0,0,0,0.10)" strokeWidth={0.8} />
+        ))}
+
+        {/* データポリゴン */}
+        <polygon points={poly} fill={`url(#rg-${axis.key})`} />
+        <polygon points={poly} fill="none"
+          stroke={axis.color} strokeWidth={2.2} strokeLinejoin="round" />
+
+        {/* スコアドット */}
+        {pts.map((p, i) => {
+          const isTop = rawScores[i] === maxScore;
+          return (
+            <circle key={i} cx={p.x} cy={p.y} r={isTop ? 5 : 3.5}
+              fill={isTop ? axis.color : '#FFFFFF'}
+              stroke={axis.color} strokeWidth={isTop ? 0 : 1.8} />
+          );
+        })}
+
+        {/* 外周ラベル（素子名 + スコア） */}
+        {labelCfg.map((cfg, i) => {
+          const isTop = rawScores[i] === maxScore;
+          return (
+            <g key={i}>
+              <text x={cfg.lx} y={cfg.ly - (i === 2 ? 0 : i === 0 ? 2 : 0)}
+                textAnchor={cfg.anchor}
+                dominantBaseline={i === 0 ? 'auto' : i === 2 ? 'hanging' : 'middle'}
+                fontSize={10} fontWeight={isTop ? 700 : 500}
+                fill={isTop ? axis.color : 'rgba(0,0,0,0.45)'}>
+                {axis.subJp[i]}
+              </text>
+              <text
+                x={cfg.lx}
+                y={i === 0 ? cfg.ly + 13 : i === 2 ? cfg.ly + 13 : cfg.ly + 14}
+                textAnchor={cfg.anchor}
+                dominantBaseline={i === 0 ? 'auto' : i === 2 ? 'hanging' : 'middle'}
+                fontSize={13} fontWeight={800}
+                fill={isTop ? axis.color : 'rgba(0,0,0,0.35)'}
+                fontFamily="'Outfit', sans-serif">
+                {rawScores[i]}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
