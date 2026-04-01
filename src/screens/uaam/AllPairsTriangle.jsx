@@ -327,26 +327,28 @@ function getZone(sA, sB) {
 }
 
 function zAlpha(z, sA, sB) {
-  if (z === 'natural') return 1.0; // 20×20 固定・グラデなし
+  if (z === 'natural') return 0.92; // 20×20 — やや透明度を持たせて統一感
 
   const sum = sA + sB;
+  // ease-out曲線（低スコアで急上昇→高スコアで緩やか）
+  const easeOut = (r) => 1 - Math.pow(1 - r, 2);
 
   if (z === 'pro') {
-    // 合計32（薄）→ 合計39（濃）
-    const ratio = Math.max(0, Math.min(1, (sum - 32) / 7));
-    return 0.32 + ratio * 0.63; // 0.32〜0.95
+    // 合計32（薄）→ 合計40（濃）
+    const ratio = easeOut(Math.max(0, Math.min(1, (sum - 32) / 8)));
+    return 0.30 + ratio * 0.62; // 0.30〜0.92
   }
   if (z === 'active') {
-    // 合計24=12+12（薄）→ 合計31=15+16（濃）
-    const ratio = Math.max(0, Math.min(1, (sum - 24) / 7));
-    return 0.28 + ratio * 0.62; // 0.28〜0.90
+    // 合計24=12+12（薄）→ 合計31（濃）
+    const ratio = easeOut(Math.max(0, Math.min(1, (sum - 24) / 7)));
+    return 0.32 + ratio * 0.58; // 0.32〜0.90
   }
   if (z === 'potential') {
-    // 合計22（薄）→ 合計31（濃）
-    const ratio = Math.max(0, Math.min(1, (sum - 22) / 9));
-    return 0.28 + ratio * 0.57; // 0.28〜0.85
+    // 合計22（薄）→ 合計30（濃）
+    const ratio = easeOut(Math.max(0, Math.min(1, (sum - 22) / 8)));
+    return 0.22 + ratio * 0.53; // 0.22〜0.75
   }
-  return 0.10;
+  return 0.08;
 }
 
 function getBlock(kA, kB) {
@@ -789,14 +791,15 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
 
   return (
     <div className="uaam-chart pdf-section" style={{
-      background: '#FFFFFF', borderRadius: 16,
+      background: 'linear-gradient(145deg, #FDFAF5 0%, #FFFFFF 50%, #F8F4EF 100%)',
+      borderRadius: 16,
       padding: '32px 28px', marginBottom: 20,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
       border: '1px solid #E8E0D4',
     }}>
       {/* ── ヘッダー ── */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.14em', color: '#6A3A8A', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.14em', color: '#7A4A9A', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
           Activation Matrix — Symmetric View
         </div>
         <h2 style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 22, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
@@ -805,7 +808,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
         <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0' }}>
           右上 ◥ FULL &amp; ACTIVE（16×16以上）　左下 ◤ POTENTIAL（合計30+）
         </p>
-        <div style={{ width: 48, height: 2, background: 'linear-gradient(90deg,#7A4A7A,#B8960C)', marginTop: 12, borderRadius: 1 }} />
+        <div style={{ width: 64, height: 2, background: 'linear-gradient(90deg, #8B35C8, #1A6FD4, #7CB82F)', marginTop: 12, borderRadius: 1 }} />
       </div>
 
       {/* ── 凡例 ── */}
@@ -885,7 +888,11 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
                     const show = z === 'natural' || z === 'pro';
-                    const bg   = show ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB)) : '#F0EEEA';
+                    // 非アクティブ: スコア合計に応じたスムーズな薄グラデ
+                    const dimRatio = Math.max(0, Math.min(1, (sA + sB - 16) / 24));
+                    const bg = show
+                      ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB))
+                      : toRgba('#A09888', 0.06 + dimRatio * 0.14);
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
@@ -904,7 +911,11 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                   const z  = getZone(sA, sB);
                   const pairKey = `${colKey}|${rowKey}`;
                   const show = z === 'active' && activeTop10Set.has(pairKey);
-                  const bg   = show ? toRgba(ZONE_HEX['active'], zAlpha('active', sA, sB)) : '#F0EEEA';
+                  // 非アクティブ: スコア合計に応じたスムーズな薄グラデ
+                  const dimRatioL = Math.max(0, Math.min(1, (sA + sB - 16) / 24));
+                  const bg = show
+                    ? toRgba(ZONE_HEX['active'], zAlpha('active', sA, sB))
+                    : toRgba('#A09888', 0.06 + dimRatioL * 0.14);
                   return (
                     <div key={colKey} style={{
                       width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
