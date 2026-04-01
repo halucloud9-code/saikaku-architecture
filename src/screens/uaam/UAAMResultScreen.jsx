@@ -522,12 +522,12 @@ const FOUR_AXES = [
   { key: 'mindset',    jp: '志', en: 'MindSet',   color: '#2C5F8A',
     subs: ['meaning','mindfulness','mindshift','mastery'],
     subJp: ['意味','気づき','意識転換','熟達'] },
-  { key: 'literacy',   jp: '知', en: 'Literacy',   color: '#1E7A4A',
-    subs: ['learning','logical','life','leadership'],
-    subJp: ['学習','論理','社会実装','リーダー'] },
   { key: 'competency', jp: '技', en: 'Competency', color: '#A07A18',
     subs: ['critical','creativity','communication','collaboration'],
     subJp: ['批判思考','創造性','伝える力','協働'] },
+  { key: 'literacy',   jp: '知', en: 'Literacy',   color: '#1E7A4A',
+    subs: ['learning','logical','life','leadership'],
+    subJp: ['学習','論理','社会実装','リーダー'] },
   { key: 'impact',     jp: '衝', en: 'Impact',     color: '#C0614A',
     subs: ['idea','innovation','implementation','influence'],
     subJp: ['アイデア','変革','実装','影響'] },
@@ -1109,7 +1109,7 @@ function RadarChart16({ scores }) {
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
     const n = 16;
     const step = (2 * Math.PI) / n;
-    const startAngle = -Math.PI / 2; // サブ項目配置（意味=12時スタート）
+    const startAngle = -Math.PI / 2 - (3 * Math.PI) / 16; // サブ項目配置（グループ中心を12/3/6/9時に合わせる）
 
     const getPoint = (i, val) => {
       const angle = startAngle + i * step;
@@ -1512,17 +1512,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
       <div className="pdf-content-wrapper" style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}>
 
-        {/* ===== Activation Matrix — 最上部 ===== */}
-        <div style={{ marginBottom: 6, paddingLeft: 4 }}>
-          <div style={{
-            fontFamily: "'Noto Serif JP', Georgia, serif",
-            fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
-          }}>Activation Matrix</div>
-          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚発動領域</div>
-          <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
-        </div>
-        <FourAxisGrid scores={scores} />
-
         {/* ===== タイトル ===== */}
         <Section style={{ textAlign: 'center', padding: '32px 24px' }}>
           <div style={{
@@ -1560,6 +1549,17 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
+
+        {/* ===== Activation Matrix — 4ミニレーダー ===== */}
+        <div style={{ marginBottom: 6, paddingLeft: 4, marginTop: 20 }}>
+          <div style={{
+            fontFamily: "'Noto Serif JP', Georgia, serif",
+            fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
+          }}>Activation Matrix</div>
+          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚発動領域</div>
+          <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
+        </div>
+        <FourAxisGrid scores={scores} />
 
         {/* ===== 16×16 正方形対称マトリクス（右上：FULL+ACTIVE ／ 左下：POTENTIAL） ===== */}
         <SymmetricMatrix scores={scores} maxSub={MAX_SUB} />
