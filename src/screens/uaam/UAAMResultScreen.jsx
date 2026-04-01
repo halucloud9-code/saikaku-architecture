@@ -692,7 +692,6 @@ function FourAxisGrid({ scores }) {
       boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       border: '1px solid #E8E0D4',
     }}>
-      <SectionHeader title="Activation Matrix" subtitle="才覚発動領域" />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {FOUR_AXES.map(axis => (
           <MiniRadar key={axis.key} axis={axis} scores={scores} />
@@ -1545,6 +1544,14 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         </Section>
 
         {/* ===== Activation Matrix — 4軸グリッド（名前の直下） ===== */}
+        <div style={{ marginBottom: 6, paddingLeft: 4 }}>
+          <div style={{
+            fontFamily: "'Noto Serif JP', Georgia, serif",
+            fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
+          }}>Activation Matrix</div>
+          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚発動領域</div>
+          <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
+        </div>
         <FourAxisGrid scores={scores} />
 
         {/* ===== 総合スコア（4色扇形） ===== */}
