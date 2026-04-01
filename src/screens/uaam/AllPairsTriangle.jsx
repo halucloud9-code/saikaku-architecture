@@ -859,7 +859,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                 {/* セル */}
                 {ORDERED.map((colKey, j) => {
                   // ── 対角 ──
-                  // ── 対角 ── テキストなし・枠のみ
+                  // ── 対角 ── 16項目の素子名表示・枠グラデ
                   if (i === j) {
                     const sc = smap[rowKey];
                     const ratio = sc / 20;
@@ -871,7 +871,12 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                         background: 'transparent',
                         border: `${borderWidth}px solid ${toRgba(AXIS_HEX[grp], borderOpacity)}`,
                         borderRadius: 4,
-                      }} />
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 8, fontWeight: 700, color: AXIS_HEX[grp],
+                        lineHeight: 1.1, textAlign: 'center',
+                      }}>
+                        {SUB_JP[rowKey].slice(0, 3)}
+                      </div>
                     );
                   }
 
