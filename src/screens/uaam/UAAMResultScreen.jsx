@@ -534,64 +534,116 @@ const FOUR_AXES = [
 ];
 
 function MiniRadar({ axis, scores }) {
-  const S = 160, cx = S / 2, cy = S / 2, R = 48;
-  // 上・右・下・左 の角度
-  const angles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+  const canvasRef = useRef(null);
   const rawScores = axis.subs.map(sub => scores?.[axis.key]?.subs?.[sub] ?? 0);
   const maxSub = 20;
-  const pts = rawScores.map((sc, i) => {
-    const r = (sc / maxSub) * R;
-    return { x: cx + r * Math.cos(angles[i]), y: cy + r * Math.sin(angles[i]) };
-  });
-  const poly = pts.map(p => `${p.x},${p.y}`).join(' ');
-  const gridPoly = (p) => angles.map(a => `${cx + R * p * Math.cos(a)},${cy + R * p * Math.sin(a)}`).join(' ');
-  const labelR = R + 22;
-  const anchors = ['middle', 'start', 'middle', 'end'];
-  const baselines = ['auto', 'middle', 'hanging', 'middle'];
+
+  // 4つの扇形定義（元のActivityDomainChartと同じ構造）
+  const fans = [
+    { idx: 0, startAngle: -Math.PI / 2, endAngle: 0,              lx:  0.45, ly: -0.45 }, // 右上
+    { idx: 1, startAngle: 0,             endAngle: Math.PI / 2,    lx:  0.45, ly:  0.45 }, // 右下
+    { idx: 2, startAngle: Math.PI / 2,   endAngle: Math.PI,        lx: -0.45, ly:  0.45 }, // 左下
+    { idx: 3, startAngle: Math.PI,       endAngle: 3 * Math.PI / 2, lx: -0.45, ly: -0.45 }, // 左上
+  ];
+  const labelPos = [
+    { dx: 0,  dy: -1 }, // 上
+    { dx: 1,  dy:  0 }, // 右
+    { dx: 0,  dy:  1 }, // 下
+    { dx: -1, dy:  0 }, // 左
+  ];
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const DPR = window.devicePixelRatio || 1;
+    const S = 200;
+    canvas.width  = S * DPR;
+    canvas.height = S * DPR;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(DPR, DPR);
+    const cx = S / 2, cy = S / 2, R = 72;
+    const PI = Math.PI;
+    ctx.clearRect(0, 0, S, S);
+
+    // グリッド円
+    [0.25, 0.5, 0.75, 1].forEach(p => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * p, 0, PI * 2);
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    });
+
+    // 十字軸
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(cx - R - 16, cy); ctx.lineTo(cx + R + 16, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy - R - 16); ctx.lineTo(cx, cy + R + 16); ctx.stroke();
+
+    // 背景扇形（ゴースト）
+    fans.forEach(f => {
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, f.startAngle, f.endAngle);
+      ctx.closePath();
+      ctx.fillStyle = axis.color + '12';
+      ctx.fill();
+    });
+
+    // スコア扇形
+    const maxScore = Math.max(...rawScores);
+    fans.forEach(f => {
+      const sc = rawScores[f.idx];
+      const isTop = sc === maxScore && sc > 0;
+      const r = (sc / maxSub) * R;
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, f.startAngle, f.endAngle);
+      ctx.closePath();
+      ctx.fillStyle = axis.color + (isTop ? '70' : '45');
+      ctx.fill();
+      ctx.strokeStyle = axis.color;
+      ctx.lineWidth = isTop ? 2.5 : 0.5;
+      ctx.stroke();
+    });
+
+    // 中心点
+    ctx.beginPath(); ctx.arc(cx, cy, 3, 0, PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.fill();
+
+    // 外周ラベル（素子名）
+    const labelMargin = R + 20;
+    labelPos.forEach((l, i) => {
+      ctx.font = '600 10px sans-serif';
+      ctx.fillStyle = axis.color;
+      ctx.textAlign   = i === 1 ? 'left' : i === 3 ? 'right' : 'center';
+      ctx.textBaseline = i === 0 ? 'bottom' : i === 2 ? 'top' : 'middle';
+      ctx.fillText(axis.subJp[i], cx + l.dx * labelMargin, cy + l.dy * labelMargin);
+    });
+
+    // スコア値（扇形内）
+    fans.forEach(f => {
+      const sc = rawScores[f.idx];
+      if (sc === 0) return;
+      const isTop = sc === maxScore;
+      const lx = cx + f.lx * R * 0.65;
+      const ly = cy + f.ly * R * 0.65;
+      ctx.font = `${isTop ? '700' : '500'} 11px sans-serif`;
+      ctx.fillStyle = isTop ? axis.color : 'rgba(0,0,0,0.40)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${sc}/20`, lx, ly);
+      ctx.font = '10px sans-serif';
+      ctx.fillStyle = isTop ? axis.color : 'rgba(0,0,0,0.28)';
+      ctx.fillText(`${Math.round((sc / maxSub) * 100)}%`, lx, ly + 13);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scores]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 4px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4px' }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: axis.color, letterSpacing: '0.06em', marginBottom: 2 }}>
         {axis.jp} <span style={{ fontSize: 10, opacity: 0.65 }}>{axis.en}</span>
       </div>
-      <svg width={S} height={S} style={{ overflow: 'visible' }}>
-        {/* グリッド */}
-        {[0.25, 0.5, 0.75, 1].map(p => (
-          <polygon key={p} points={gridPoly(p)} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth={0.5} />
-        ))}
-        {/* 軸線 */}
-        {angles.map((a, i) => (
-          <line key={i} x1={cx} y1={cy}
-            x2={cx + R * Math.cos(a)} y2={cy + R * Math.sin(a)}
-            stroke="rgba(0,0,0,0.10)" strokeWidth={0.5} />
-        ))}
-        {/* スコアポリゴン */}
-        <polygon points={poly} fill={axis.color + '38'} stroke={axis.color} strokeWidth={1.8} />
-        {/* スコア点 */}
-        {pts.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={3} fill={axis.color} />
-        ))}
-        {/* ラベル */}
-        {angles.map((a, i) => (
-          <text key={i}
-            x={cx + labelR * Math.cos(a)}
-            y={cy + labelR * Math.sin(a)}
-            textAnchor={anchors[i]}
-            dominantBaseline={baselines[i]}
-            fontSize={9} fill={axis.color} fontWeight={600}>
-            {axis.subJp[i]}
-          </text>
-        ))}
-        {/* スコア値 */}
-        {pts.map((p, i) => (
-          <text key={i}
-            x={p.x + (i === 1 ? 6 : i === 3 ? -6 : 0)}
-            y={p.y + (i === 0 ? -6 : i === 2 ? 6 : 0)}
-            textAnchor={anchors[i]} fontSize={9} fill={axis.color} fontWeight={800}>
-            {rawScores[i]}
-          </text>
-        ))}
-      </svg>
+      <canvas ref={canvasRef} style={{ width: 200, height: 200 }} />
     </div>
   );
 }
