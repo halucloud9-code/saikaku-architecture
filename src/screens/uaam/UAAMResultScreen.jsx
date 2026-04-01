@@ -1512,6 +1512,17 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
       <div className="pdf-content-wrapper" style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}>
 
+        {/* ===== Activation Matrix — 最上部 ===== */}
+        <div style={{ marginBottom: 6, paddingLeft: 4 }}>
+          <div style={{
+            fontFamily: "'Noto Serif JP', Georgia, serif",
+            fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
+          }}>Activation Matrix</div>
+          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚発動領域</div>
+          <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
+        </div>
+        <FourAxisGrid scores={scores} />
+
         {/* ===== タイトル ===== */}
         <Section style={{ textAlign: 'center', padding: '32px 24px' }}>
           <div style={{
@@ -1545,47 +1556,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           )}
         </Section>
 
-        {/* ===== Activation Matrix — 4軸グリッド（名前の直下） ===== */}
-        <div style={{ marginBottom: 6, paddingLeft: 4 }}>
-          <div style={{
-            fontFamily: "'Noto Serif JP', Georgia, serif",
-            fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
-          }}>Activation Matrix</div>
-          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚発動領域</div>
-          <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
-        </div>
-        <FourAxisGrid scores={scores} />
-
-        {/* ===== 総合スコア（4色扇形） ===== */}
-        <Section>
-          <SectionHeader title="志知技衝 総合スコア" subtitle="MLCI Total Score" />
-          <MainFanChart scores={scores} />
-
-          {/* V問スコア（小さく数字のみ） */}
-          {vAnswers && (
-            <div style={{
-              display: 'flex', justifyContent: 'center', gap: 10, marginTop: 14,
-            }}>
-              {(() => {
-                const v3Diff = (vAnswers['V3'] != null && answers?.[61] != null)
-                  ? Math.abs(vAnswers['V3'] - answers[61])
-                  : null;
-                const items = [
-                  { label: 'V1', value: vAnswers['V1'] },
-                  { label: 'V2', value: vAnswers['V2'] },
-                  { label: 'V3', value: v3Diff },
-                ];
-                return items.map(({ label, value }) => (
-                  <span key={label} style={{
-                    fontSize: 10, color: TEXT_MUTED, fontFamily: NUM_FONT, letterSpacing: '0.02em',
-                  }}>
-                    {label}.{value ?? '-'}
-                  </span>
-                ));
-              })()}
-            </div>
-          )}
-        </Section>
 
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
