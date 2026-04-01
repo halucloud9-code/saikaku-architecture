@@ -319,10 +319,10 @@ const toRgba = (hex, a) => {
 
 function getZone(sA, sB) {
   const sum = sA + sB;
-  if (sA === 20 && sB === 20)                                    return 'natural';
+  if (sA === 20 && sB === 20)                                         return 'natural';
   if ((sA >= 16 && sB >= 16) || (sA >= 15 && sB >= 15 && sum >= 32)) return 'pro';
-  if (sA >= 12 && sB >= 12 && sum <= 31)                        return 'active';
-  if (sA >= 10 && sB >= 10 && sum >= 22)                        return 'potential';
+  if (sA >= 12 && sB >= 12 && sum <= 31)                             return 'active';
+  if (sA >= 10 && sB >= 10 && sum >= 22 && !(sA >= 12 && sB >= 12)) return 'potential'; // 片方12未満のみ
   return 'dormant';
 }
 
@@ -769,6 +769,24 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
   const SCELL = 34, SGAP = 2;
   const LABEL_W = 40;
 
+  // ACTIVE TOP10（合計値が高い順、タイ含む）
+  const activeTop10Set = useMemo(() => {
+    const pairs = [];
+    for (let i = 0; i < N - 1; i++) {
+      for (let j = i + 1; j < N; j++) {
+        const kA = ORDERED[i], kB = ORDERED[j];
+        const sA = smap[kA], sB = smap[kB];
+        if (getZone(sA, sB) === 'active') {
+          pairs.push({ kA, kB, sum: sA + sB });
+        }
+      }
+    }
+    pairs.sort((a, b) => b.sum - a.sum);
+    if (pairs.length === 0) return new Set();
+    const cutoff = pairs[Math.min(9, pairs.length - 1)].sum;
+    return new Set(pairs.filter(p => p.sum >= cutoff).map(p => `${p.kA}|${p.kB}`));
+  }, [smap]);
+
   return (
     <div className="uaam-chart pdf-section" style={{
       background: '#FFFFFF', borderRadius: 16,
@@ -877,11 +895,13 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 左下三角（j < i）: ACTIVE（黄緑）+ POTENTIAL（橙）── テキストなし
+                  // ── 左下三角（j < i）: ACTIVE TOP10（黄緑）+ POTENTIAL（橙）── テキストなし
                   const sA = smap[colKey], sB = smap[rowKey];
                   const z  = getZone(sA, sB);
-                  const show = z === 'active' || z === 'potential';
-                  const bg   = show ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB)) : '#F0EEEA'; // ← z を使う（バグ修正）
+                  const pairKey = `${colKey}|${rowKey}`;
+                  const inTop10 = z === 'active' && activeTop10Set.has(pairKey);
+                  const show = inTop10 || z === 'potential';
+                  const bg   = show ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB)) : '#F0EEEA';
                   return (
                     <div key={colKey} style={{
                       width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
