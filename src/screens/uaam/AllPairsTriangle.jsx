@@ -43,11 +43,11 @@ const AXIS_DIM   = ['rgba(44,95,138,0.12)','rgba(30,122,74,0.12)',
                     'rgba(160,122,24,0.12)','rgba(139,58,40,0.12)'];
 
 const ZONE_HEX = {
-  full:      '#D4900A',   // 深金：完全発動
-  active:    '#1A6FD4',   // 鮮青：発動中
-  awakening: '#7CB82F',   // 黄緑：覚醒中（両方12以上）
-  potential: '#8B35C8',   // 鮮紫：潜在
-  dormant:   '#5A7A8A',   // 青灰：休眠
+  natural:   '#8B35C8',   // 紫：20×20 完全発動
+  pro:       '#1A6FD4',   // 青：両才覚16以上または15以上合計32以上
+  active:    '#7CB82F',   // 黄緑：両才覚12以上合計31以下（左）
+  potential: '#E07830',   // オレンジ：両才覚10以上合計22以上（左）
+  dormant:   '#5A7A8A',   // 無色（非表示）
 };
 
 // 10ブロック固有カラー（セルの色相を決定）
@@ -63,7 +63,7 @@ const BLOCK_HEX = {
   NAVIGATOR: '#107060',  // 知×衝  エメラルド
   STRIKER:   '#C05010',  // 技×衝  オレンジ
 };
-const ZONE_LABEL = { full:'FULL ✦', active:'ACTIVE', awakening:'AWAKENING', potential:'POTENTIAL', dormant:'DORMANT' };
+const ZONE_LABEL = { natural:'NATURAL ✦', pro:'PRO', active:'ACTIVE', potential:'POTENTIAL', dormant:'—' };
 const ZONE_DESC  = {
   full:      '両才覚が満点（20×20）— 完全解放発動状態',
   active:    '両才覚が高水準（16×16以上）— 才覚発動状態',
@@ -318,34 +318,35 @@ const toRgba = (hex, a) => {
 };
 
 function getZone(sA, sB) {
-  if (sA === 20 && sB === 20) return 'full';
-  if (sA >= 16 && sB >= 16)   return 'active';
-  if (sA >= 12 && sB >= 12)   return 'awakening'; // 両方12以上 → 黄緑
-  if (sA + sB >= 30)          return 'potential';
+  const sum = sA + sB;
+  if (sA === 20 && sB === 20)                                    return 'natural';
+  if ((sA >= 16 && sB >= 16) || (sA >= 15 && sB >= 15 && sum >= 32)) return 'pro';
+  if (sA >= 12 && sB >= 12 && sum <= 31)                        return 'active';
+  if (sA >= 10 && sB >= 10 && sum >= 22)                        return 'potential';
   return 'dormant';
 }
 
 function zAlpha(z, sA, sB) {
-  if (z === 'full') return 1.0; // 20×20 固定・グラデなし
+  if (z === 'natural') return 1.0; // 20×20 固定・グラデなし
 
   const sum = sA + sB;
 
-  if (z === 'active') {
-    // 16+16=32（薄） → 19+20=39（濃）
+  if (z === 'pro') {
+    // 合計32（薄）→ 合計39（濃）
     const ratio = Math.max(0, Math.min(1, (sum - 32) / 7));
-    return 0.30 + ratio * 0.65; // 0.30〜0.95
+    return 0.32 + ratio * 0.63; // 0.32〜0.95
   }
-  if (z === 'awakening') {
-    // 12+12=24（薄） → 15+16=31（濃）
+  if (z === 'active') {
+    // 合計24=12+12（薄）→ 合計31=15+16（濃）
     const ratio = Math.max(0, Math.min(1, (sum - 24) / 7));
     return 0.28 + ratio * 0.62; // 0.28〜0.90
   }
   if (z === 'potential') {
-    // sum30（薄） → sum40（濃）
-    const ratio = Math.max(0, Math.min(1, (sum - 30) / 10));
-    return 0.35 + ratio * 0.55;
+    // 合計22（薄）→ 合計31（濃）
+    const ratio = Math.max(0, Math.min(1, (sum - 22) / 9));
+    return 0.28 + ratio * 0.57; // 0.28〜0.85
   }
-  return 0.15;
+  return 0.10;
 }
 
 function getBlock(kA, kB) {
@@ -792,10 +793,10 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
       {/* ── 凡例 ── */}
       <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
-          { zone: 'full',      label: 'FULL ✦',    desc: '両才覚20×20' },
-          { zone: 'active',    label: 'ACTIVE',     desc: '両才覚16以上' },
-          { zone: 'awakening', label: 'AWAKENING',  desc: '両才覚12以上（黄緑）' },
-          { zone: 'potential', label: 'POTENTIAL',  desc: '合計30以上（左下）' },
+          { zone: 'natural',   label: 'NATURAL ✦', desc: '20×20（右）' },
+          { zone: 'pro',       label: 'PRO',        desc: '両才覚16以上 or 15以上合計32+（右）' },
+          { zone: 'active',    label: 'ACTIVE',     desc: '両才覚12以上 合計31まで（左・黄緑）' },
+          { zone: 'potential', label: 'POTENTIAL',  desc: '両才覚10以上 合計22+（左・オレンジ）' },
         ].map(({ zone, label, desc }) => (
           <div key={zone} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 12, height: 12, borderRadius: 3, background: ZONE_HEX[zone] }} />
@@ -860,11 +861,11 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 右上三角（j > i）: FULL + ACTIVE + AWAKENING ──
+                  // ── 右上三角（j > i）: NATURAL + PRO ──
                   if (j > i) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
-                    const show = z === 'full' || z === 'active' || z === 'awakening';
+                    const show = z === 'natural' || z === 'pro';
                     const bg   = show ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB)) : '#F0EEEA';
                     const lbl  = show ? pairShort(rowKey, colKey) : '';
                     return (
@@ -882,10 +883,10 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 左下三角（j < i）: POTENTIAL ──
+                  // ── 左下三角（j < i）: ACTIVE + POTENTIAL ──
                   const sA = smap[colKey], sB = smap[rowKey];
                   const z  = getZone(sA, sB);
-                  const show = z === 'potential';
+                  const show = z === 'active' || z === 'potential';
                   const bg   = show ? toRgba(ZONE_HEX['potential'], zAlpha('potential', sA, sB)) : '#F0EEEA';
                   const lbl  = show ? pairShort(colKey, rowKey) : '';
                   return (
