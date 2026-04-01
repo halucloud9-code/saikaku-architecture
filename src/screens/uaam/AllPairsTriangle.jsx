@@ -356,6 +356,8 @@ function buildScoreMap(scores, maxSub) {
  * zones        → 表示するゾーン（null = 全表示）
  */
 export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, zones = null }) {
+  // ヘッダー表示を zones から派生（mirror に依存しない）
+  const isLatent = zones && zones.includes('potential') && !zones.includes('active');
   const smap = useMemo(() => buildScoreMap(scores, maxSub), [scores, maxSub]);
   const [tip, setTip] = useState(null);
 
@@ -408,20 +410,20 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
 
       {/* ── ヘッダー ── */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.14em', color: mirror ? '#7A4A7A' : '#B8960C', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
-          {mirror ? 'Activation Matrix — Latent Zone' : 'Activation Matrix — Active Zone'}
+        <div style={{ fontSize: 11, letterSpacing: '0.14em', color: isLatent ? '#7A4A7A' : '#B8960C', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+          {isLatent ? 'Activation Matrix — Latent Zone' : 'Activation Matrix — Active Zone'}
         </div>
         <h2 style={{
           fontFamily: "'Noto Serif JP', Georgia, serif",
           fontSize: 22, fontWeight: 700, color: '#1A1A1A',
           margin: 0, letterSpacing: '0.02em',
-        }}>{mirror ? '潜在発動領域' : '才覚発動領域'}</h2>
+        }}>{isLatent ? '潜在発動領域' : '才覚発動領域'}</h2>
         <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0', fontWeight: 400 }}>
-          {mirror
-            ? '16素子 × 120ペア — POTENTIAL & DORMANT ゾーン'
+          {isLatent
+            ? '16素子 × 120ペア — POTENTIAL ゾーン'
             : '16素子 × 120ペア — FULL & ACTIVE ゾーン'}
         </p>
-        <div style={{ width: 48, height: 2, background: mirror ? 'linear-gradient(90deg,#7A4A7A,#C480C4)' : 'linear-gradient(90deg,#B8960C,#E8C547)', marginTop: 12, borderRadius: 1 }} />
+        <div style={{ width: 48, height: 2, background: isLatent ? 'linear-gradient(90deg,#7A4A7A,#C480C4)' : 'linear-gradient(90deg,#B8960C,#E8C547)', marginTop: 12, borderRadius: 1 }} />
       </div>
 
       {/* ── TOP5 ランキング ── */}
