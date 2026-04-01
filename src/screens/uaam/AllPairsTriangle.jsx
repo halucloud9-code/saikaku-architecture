@@ -842,65 +842,56 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                 {/* セル */}
                 {ORDERED.map((colKey, j) => {
                   // ── 対角 ──
+                  // ── 対角 ── テキストなし・枠のみ
                   if (i === j) {
-                    const sc = smap[rowKey]; // 0〜20
+                    const sc = smap[rowKey];
                     const ratio = sc / 20;
-                    const borderOpacity = 0.25 + ratio * 0.75; // 低スコア=薄 → 高スコア=濃
-                    const borderWidth = Math.round(1 + ratio * 2); // 1px〜3px
+                    const borderOpacity = 0.25 + ratio * 0.75;
+                    const borderWidth = Math.round(1 + ratio * 2);
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
                         background: 'transparent',
                         border: `${borderWidth}px solid ${toRgba(AXIS_HEX[grp], borderOpacity)}`,
                         borderRadius: 4,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 8, color: AXIS_HEX[grp], fontWeight: 700,
-                      }}>
-                        {SUB_JP[rowKey].slice(0, 2)}
-                      </div>
+                      }} />
                     );
                   }
 
-                  // ── 右上三角（j > i）: NATURAL + PRO ──
+                  // ── 右上三角（j > i）: NATURAL + PRO ── テキストなし
                   if (j > i) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
                     const show = z === 'natural' || z === 'pro';
                     const bg   = show ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB)) : '#F0EEEA';
-                    const lbl  = show ? pairShort(rowKey, colKey) : '';
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
                         background: bg, borderRadius: 4,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 7, color: '#fff', fontWeight: 700,
                         cursor: show ? 'pointer' : 'default',
                         transition: 'transform 0.12s',
                       }}
                         onMouseEnter={e => { if (show) { e.currentTarget.style.transform = 'scale(1.25)'; setTip({ kA: rowKey, kB: colKey, z, sA, sB, x: e.clientX, y: e.clientY }); } }}
                         onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
-                      >{lbl}</div>
+                      />
                     );
                   }
 
-                  // ── 左下三角（j < i）: ACTIVE + POTENTIAL ──
+                  // ── 左下三角（j < i）: ACTIVE（黄緑）+ POTENTIAL（橙）── テキストなし
                   const sA = smap[colKey], sB = smap[rowKey];
                   const z  = getZone(sA, sB);
                   const show = z === 'active' || z === 'potential';
-                  const bg   = show ? toRgba(ZONE_HEX['potential'], zAlpha('potential', sA, sB)) : '#F0EEEA';
-                  const lbl  = show ? pairShort(colKey, rowKey) : '';
+                  const bg   = show ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB)) : '#F0EEEA'; // ← z を使う（バグ修正）
                   return (
                     <div key={colKey} style={{
                       width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
                       background: bg, borderRadius: 4,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 7, color: '#fff', fontWeight: 700,
                       cursor: show ? 'pointer' : 'default',
                       transition: 'transform 0.12s',
                     }}
                       onMouseEnter={e => { if (show) { e.currentTarget.style.transform = 'scale(1.25)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
-                    >{lbl}</div>
+                    />
                   );
                 })}
               </div>
@@ -926,7 +917,11 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
             boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
             pointerEvents: 'none', minWidth: 190,
           }}>
-            <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 14, fontWeight: 700, color: '#1A1A1A', marginBottom: 6 }}>
+            {/* ペア名（120項目）を大きく表示 */}
+            <div style={{ fontSize: 18, fontWeight: 800, color: zc, marginBottom: 4, fontFamily: "'Noto Serif JP', serif" }}>
+              {pairShort(tip.kA, tip.kB)}
+            </div>
+            <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 12, color: '#666', marginBottom: 6 }}>
               {SUB_JP[tip.kA]} × {SUB_JP[tip.kB]}
             </div>
             <div style={{
