@@ -824,12 +824,18 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                 {ORDERED.map((colKey, j) => {
                   // ── 対角 ──
                   if (i === j) {
+                    const sc = smap[rowKey]; // 0〜20
+                    const ratio = sc / 20;
+                    const borderOpacity = 0.25 + ratio * 0.75; // 低スコア=薄 → 高スコア=濃
+                    const borderWidth = Math.round(1 + ratio * 2); // 1px〜3px
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
-                        background: AXIS_LIGHT[grp], borderRadius: 4,
+                        background: 'transparent',
+                        border: `${borderWidth}px solid ${toRgba(AXIS_HEX[grp], borderOpacity)}`,
+                        borderRadius: 4,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 8, color: '#fff', fontWeight: 700,
+                        fontSize: 8, color: AXIS_HEX[grp], fontWeight: 700,
                       }}>
                         {SUB_JP[rowKey].slice(0, 2)}
                       </div>
