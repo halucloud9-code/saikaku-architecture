@@ -528,7 +528,7 @@ const FOUR_AXES = [
   { key: 'competency', jp: '技', en: 'Competency', color: '#A07A18',
     subs: ['critical','creativity','communication','collaboration'],
     subJp: ['批判思考','創造性','伝える力','協働'] },
-  { key: 'impact',     jp: '衝', en: 'Impact',     color: '#8B3A28',
+  { key: 'impact',     jp: '衝', en: 'Impact',     color: '#C0614A',
     subs: ['idea','innovation','implementation','influence'],
     subJp: ['アイデア','変革','実装','影響'] },
 ];
