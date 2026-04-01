@@ -516,6 +516,104 @@ function MainFanChart({ scores }) {
 }
 
 /* ============================================================
+ * FourAxisGrid — 志/知/技/衝 × 2×2 ミニレーダー
+ * ============================================================ */
+const FOUR_AXES = [
+  { key: 'mindset',    jp: '志', en: 'MindSet',   color: '#2C5F8A',
+    subs: ['meaning','mindfulness','mindshift','mastery'],
+    subJp: ['意味','気づき','意識転換','熟達'] },
+  { key: 'literacy',   jp: '知', en: 'Literacy',   color: '#1E7A4A',
+    subs: ['learning','logical','life','leadership'],
+    subJp: ['学習','論理','社会実装','リーダー'] },
+  { key: 'competency', jp: '技', en: 'Competency', color: '#A07A18',
+    subs: ['critical','creativity','communication','collaboration'],
+    subJp: ['批判思考','創造性','伝える力','協働'] },
+  { key: 'impact',     jp: '衝', en: 'Impact',     color: '#8B3A28',
+    subs: ['idea','innovation','implementation','influence'],
+    subJp: ['アイデア','変革','実装','影響'] },
+];
+
+function MiniRadar({ axis, scores }) {
+  const S = 160, cx = S / 2, cy = S / 2, R = 48;
+  // 上・右・下・左 の角度
+  const angles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+  const rawScores = axis.subs.map(sub => scores?.[axis.key]?.subs?.[sub] ?? 0);
+  const maxSub = 20;
+  const pts = rawScores.map((sc, i) => {
+    const r = (sc / maxSub) * R;
+    return { x: cx + r * Math.cos(angles[i]), y: cy + r * Math.sin(angles[i]) };
+  });
+  const poly = pts.map(p => `${p.x},${p.y}`).join(' ');
+  const gridPoly = (p) => angles.map(a => `${cx + R * p * Math.cos(a)},${cy + R * p * Math.sin(a)}`).join(' ');
+  const labelR = R + 22;
+  const anchors = ['middle', 'start', 'middle', 'end'];
+  const baselines = ['auto', 'middle', 'hanging', 'middle'];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 4px' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: axis.color, letterSpacing: '0.06em', marginBottom: 2 }}>
+        {axis.jp} <span style={{ fontSize: 10, opacity: 0.65 }}>{axis.en}</span>
+      </div>
+      <svg width={S} height={S} style={{ overflow: 'visible' }}>
+        {/* グリッド */}
+        {[0.25, 0.5, 0.75, 1].map(p => (
+          <polygon key={p} points={gridPoly(p)} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth={0.5} />
+        ))}
+        {/* 軸線 */}
+        {angles.map((a, i) => (
+          <line key={i} x1={cx} y1={cy}
+            x2={cx + R * Math.cos(a)} y2={cy + R * Math.sin(a)}
+            stroke="rgba(0,0,0,0.10)" strokeWidth={0.5} />
+        ))}
+        {/* スコアポリゴン */}
+        <polygon points={poly} fill={axis.color + '38'} stroke={axis.color} strokeWidth={1.8} />
+        {/* スコア点 */}
+        {pts.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r={3} fill={axis.color} />
+        ))}
+        {/* ラベル */}
+        {angles.map((a, i) => (
+          <text key={i}
+            x={cx + labelR * Math.cos(a)}
+            y={cy + labelR * Math.sin(a)}
+            textAnchor={anchors[i]}
+            dominantBaseline={baselines[i]}
+            fontSize={9} fill={axis.color} fontWeight={600}>
+            {axis.subJp[i]}
+          </text>
+        ))}
+        {/* スコア値 */}
+        {pts.map((p, i) => (
+          <text key={i}
+            x={p.x + (i === 1 ? 6 : i === 3 ? -6 : 0)}
+            y={p.y + (i === 0 ? -6 : i === 2 ? 6 : 0)}
+            textAnchor={anchors[i]} fontSize={9} fill={axis.color} fontWeight={800}>
+            {rawScores[i]}
+          </text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function FourAxisGrid({ scores }) {
+  return (
+    <div className="uaam-chart pdf-section" style={{
+      background: '#FFFFFF', borderRadius: 16,
+      padding: '24px 20px', marginBottom: 20,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      border: '1px solid #E8E0D4',
+    }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {FOUR_AXES.map(axis => (
+          <MiniRadar key={axis.key} axis={axis} scores={scores} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
  * 才覚発動領域チャート（Canvas 扇形）
  * 参照: SaikkakuActivityDomain.jsx — GRIFFON_CODE_v5 準拠
  *
@@ -1418,8 +1516,8 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           </Section>
         ))}
 
-        {/* ===== 才覚発動領域マトリクス ===== */}
-        <ActivityDomainChart scores={scores} />
+        {/* ===== 4軸グリッド（志/知/技/衝） ===== */}
+        <FourAxisGrid scores={scores} />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
