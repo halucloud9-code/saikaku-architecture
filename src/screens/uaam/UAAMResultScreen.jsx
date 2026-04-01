@@ -541,7 +541,8 @@ function MiniRadar({ axis, scores }) {
   const pct = Math.round((total / maxTotal) * 100);
   const maxScore = Math.max(...rawScores, 1);
 
-  const S = 190, cx = S / 2, cy = S / 2, R = 58;
+  // viewBox ベース座標（width="100%" でスケール）
+  const S = 220, cx = S / 2, cy = S / 2, R = 72;
   const angles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI]; // 上・右・下・左
   const pts = rawScores.map((sc, i) => ({
     x: cx + (sc / maxSub) * R * Math.cos(angles[i]),
@@ -549,12 +550,13 @@ function MiniRadar({ axis, scores }) {
   }));
   const poly = pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
 
-  // ラベル設定（上・右・下・左）
-  const labelCfg = [
-    { lx: cx, ly: cy - R - 28, anchor: 'middle', baseline: 'auto' },
-    { lx: cx + R + 30, ly: cy, anchor: 'start',  baseline: 'middle' },
-    { lx: cx, ly: cy + R + 28, anchor: 'middle', baseline: 'hanging' },
-    { lx: cx - R - 30, ly: cy, anchor: 'end',    baseline: 'middle' },
+  // ラベル座標（上・右・下・左）
+  const LP = 26;
+  const lbPos = [
+    { x: cx,          y: cy - R - LP, anchor: 'middle', dir: 'top' },
+    { x: cx + R + LP, y: cy,          anchor: 'start',  dir: 'h' },
+    { x: cx,          y: cy + R + LP, anchor: 'middle', dir: 'bottom' },
+    { x: cx - R - LP, y: cy,          anchor: 'end',    dir: 'h' },
   ];
 
   return (
@@ -562,40 +564,40 @@ function MiniRadar({ axis, scores }) {
       background: '#FFFFFF',
       borderRadius: 16,
       border: `1px solid ${axis.color}28`,
-      padding: '16px 14px 14px',
+      padding: '14px 14px 10px',
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      boxShadow: `0 2px 12px ${axis.color}14`,
+      boxShadow: `0 2px 14px ${axis.color}16`,
     }}>
       {/* ── ヘッダー ── */}
-      <div style={{ width: '100%', marginBottom: 10 }}>
+      <div style={{ width: '100%', marginBottom: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 18, fontWeight: 800, color: axis.color }}>
+          <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 22, fontWeight: 800, color: axis.color, lineHeight: 1 }}>
             {axis.jp}
-            <span style={{ fontSize: 11, fontWeight: 500, marginLeft: 6, opacity: 0.60, fontFamily: 'sans-serif' }}>{axis.en}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 7, opacity: 0.55, fontFamily: 'sans-serif', letterSpacing: '0.04em' }}>{axis.en}</span>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: axis.color, fontFamily: "'Outfit', sans-serif" }}>
-            {pct}<span style={{ fontSize: 11, fontWeight: 400, opacity: 0.6 }}>%</span>
+          <div style={{ fontSize: 24, fontWeight: 800, color: axis.color, fontFamily: "'Outfit', sans-serif", lineHeight: 1 }}>
+            {pct}<span style={{ fontSize: 13, fontWeight: 400, opacity: 0.55 }}>%</span>
           </div>
         </div>
         {/* スコアバー */}
-        <div style={{ height: 4, background: axis.color + '18', borderRadius: 2, marginTop: 8, overflow: 'hidden' }}>
+        <div style={{ height: 5, background: axis.color + '18', borderRadius: 3, marginTop: 9, overflow: 'hidden' }}>
           <div style={{
             height: '100%', width: `${pct}%`,
-            background: `linear-gradient(90deg, ${axis.color}80, ${axis.color})`,
-            borderRadius: 2,
+            background: `linear-gradient(90deg, ${axis.color}70, ${axis.color})`,
+            borderRadius: 3,
           }} />
         </div>
-        <div style={{ fontSize: 10, color: axis.color, opacity: 0.55, textAlign: 'right', marginTop: 3, fontFamily: "'Outfit', sans-serif" }}>
+        <div style={{ fontSize: 11, color: axis.color, opacity: 0.50, textAlign: 'right', marginTop: 4, fontFamily: "'Outfit', sans-serif" }}>
           {total} / {maxTotal}
         </div>
       </div>
 
-      {/* ── SVGレーダー ── */}
-      <svg width={S} height={S} style={{ overflow: 'visible' }}>
+      {/* ── SVGレーダー（viewBox でレスポンシブ） ── */}
+      <svg viewBox={`0 0 ${S} ${S}`} width="100%" style={{ overflow: 'visible', display: 'block' }}>
         <defs>
-          <radialGradient id={`rg-${axis.key}`}>
+          <radialGradient id={`rg-${axis.key}`} cx="50%" cy="50%" r="50%">
             <stop offset="0%"   stopColor={axis.color} stopOpacity="0.55" />
-            <stop offset="100%" stopColor={axis.color} stopOpacity="0.10" />
+            <stop offset="100%" stopColor={axis.color} stopOpacity="0.08" />
           </radialGradient>
         </defs>
 
@@ -603,9 +605,9 @@ function MiniRadar({ axis, scores }) {
         {[0.25, 0.5, 0.75, 1].map(r => (
           <circle key={r} cx={cx} cy={cy} r={R * r}
             fill={r === 1 ? axis.color + '06' : 'none'}
-            stroke={r === 1 ? axis.color + '30' : 'rgba(0,0,0,0.07)'}
-            strokeWidth={r === 1 ? 1 : 0.5}
-            strokeDasharray={r < 1 ? '3 3' : 'none'} />
+            stroke={r === 1 ? axis.color + '35' : 'rgba(0,0,0,0.08)'}
+            strokeWidth={r === 1 ? 1.2 : 0.6}
+            strokeDasharray={r < 1 ? '3 4' : 'none'} />
         ))}
 
         {/* 軸線 */}
@@ -619,37 +621,49 @@ function MiniRadar({ axis, scores }) {
         {/* データポリゴン */}
         <polygon points={poly} fill={`url(#rg-${axis.key})`} />
         <polygon points={poly} fill="none"
-          stroke={axis.color} strokeWidth={2.2} strokeLinejoin="round" />
+          stroke={axis.color} strokeWidth={2.4} strokeLinejoin="round" />
 
         {/* スコアドット */}
         {pts.map((p, i) => {
           const isTop = rawScores[i] === maxScore;
           return (
-            <circle key={i} cx={p.x} cy={p.y} r={isTop ? 5 : 3.5}
+            <circle key={i} cx={p.x} cy={p.y} r={isTop ? 6 : 4}
               fill={isTop ? axis.color : '#FFFFFF'}
-              stroke={axis.color} strokeWidth={isTop ? 0 : 1.8} />
+              stroke={axis.color} strokeWidth={isTop ? 0 : 2} />
           );
         })}
 
         {/* 外周ラベル（素子名 + スコア） */}
-        {labelCfg.map((cfg, i) => {
+        {lbPos.map((lb, i) => {
           const isTop = rawScores[i] === maxScore;
+          // top: テキスト下端をlbに揃え、上に積む
+          // bottom: テキスト上端をlbに揃え、下に積む
+          // h(左右): テキストをlbのy中心に縦スタック
+          const nameY  = lb.dir === 'top'    ? lb.y - 3
+                       : lb.dir === 'bottom' ? lb.y + 3
+                       : lb.y - 10;
+          const scoreY = lb.dir === 'top'    ? lb.y + 14
+                       : lb.dir === 'bottom' ? lb.y + 19
+                       : lb.y + 10;
+          const nameBase  = lb.dir === 'top' ? 'auto' : lb.dir === 'bottom' ? 'hanging' : 'auto';
+          const scoreBase = lb.dir === 'top' ? 'auto' : lb.dir === 'bottom' ? 'hanging' : 'auto';
+
           return (
             <g key={i}>
-              <text x={cfg.lx} y={cfg.ly - (i === 2 ? 0 : i === 0 ? 2 : 0)}
-                textAnchor={cfg.anchor}
-                dominantBaseline={i === 0 ? 'auto' : i === 2 ? 'hanging' : 'middle'}
-                fontSize={10} fontWeight={isTop ? 700 : 500}
-                fill={isTop ? axis.color : 'rgba(0,0,0,0.45)'}>
+              {/* 素子名 */}
+              <text x={lb.x} y={nameY}
+                textAnchor={lb.anchor}
+                dominantBaseline={nameBase}
+                fontSize={12} fontWeight={isTop ? 700 : 500}
+                fill={isTop ? axis.color : 'rgba(0,0,0,0.48)'}>
                 {axis.subJp[i]}
               </text>
-              <text
-                x={cfg.lx}
-                y={i === 0 ? cfg.ly + 13 : i === 2 ? cfg.ly + 13 : cfg.ly + 14}
-                textAnchor={cfg.anchor}
-                dominantBaseline={i === 0 ? 'auto' : i === 2 ? 'hanging' : 'middle'}
-                fontSize={13} fontWeight={800}
-                fill={isTop ? axis.color : 'rgba(0,0,0,0.35)'}
+              {/* スコア数値 */}
+              <text x={lb.x} y={scoreY}
+                textAnchor={lb.anchor}
+                dominantBaseline={scoreBase}
+                fontSize={15} fontWeight={800}
+                fill={isTop ? axis.color : 'rgba(0,0,0,0.32)'}
                 fontFamily="'Outfit', sans-serif">
                 {rawScores[i]}
               </text>
@@ -669,7 +683,7 @@ function FourAxisGrid({ scores }) {
       boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       border: '1px solid #E8E0D4',
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {FOUR_AXES.map(axis => (
           <MiniRadar key={axis.key} axis={axis} scores={scores} />
         ))}
