@@ -417,7 +417,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
           fontFamily: "'Noto Serif JP', Georgia, serif",
           fontSize: 22, fontWeight: 700, color: '#1A1A1A',
           margin: 0, letterSpacing: '0.02em',
-        }}>{isLatent ? '潜在発動領域' : '才覚発動領域'}</h2>
+        }}>才覚発動領域</h2>
         <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0', fontWeight: 400 }}>
           {isLatent
             ? '16素子 × 120ペア — POTENTIAL ゾーン'
