@@ -533,31 +533,41 @@ const FOUR_AXES = [
     subJp: ['アイデア','変革','実装','影響'] },
 ];
 
+/* ---------- 扇形セクター path ヘルパー ---------- */
+function sectorPath(cx, cy, r, startDeg, endDeg) {
+  const s = startDeg * Math.PI / 180;
+  const e = endDeg   * Math.PI / 180;
+  const x1 = +(cx + r * Math.cos(s)).toFixed(2);
+  const y1 = +(cy + r * Math.sin(s)).toFixed(2);
+  const x2 = +(cx + r * Math.cos(e)).toFixed(2);
+  const y2 = +(cy + r * Math.sin(e)).toFixed(2);
+  const large = (endDeg - startDeg > 180) ? 1 : 0;
+  return `M${cx},${cy} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} Z`;
+}
+
 function MiniRadar({ axis, scores }) {
   const rawScores = axis.subs.map(sub => scores?.[axis.key]?.subs?.[sub] ?? 0);
   const maxSub = 20;
-  const total = rawScores.reduce((a, b) => a + b, 0);
+  const total   = rawScores.reduce((a, b) => a + b, 0);
   const maxTotal = maxSub * 4;
-  const pct = Math.round((total / maxTotal) * 100);
+  const pct      = Math.round((total / maxTotal) * 100);
   const maxScore = Math.max(...rawScores, 1);
+  const topIdx   = rawScores.indexOf(maxScore);
 
-  // viewBox ベース座標（width="100%" でスケール）
-  const S = 220, cx = S / 2, cy = S / 2, R = 72;
-  const angles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI]; // 上・右・下・左
-  const pts = rawScores.map((sc, i) => ({
-    x: cx + (sc / maxSub) * R * Math.cos(angles[i]),
-    y: cy + (sc / maxSub) * R * Math.sin(angles[i]),
-  }));
-  const poly = pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+  const S = 210, cx = S / 2, cy = S / 2, R = 76;
 
-  // ラベル座標（上・右・下・左）
-  const LP = 26;
-  const lbPos = [
-    { x: cx,          y: cy - R - LP, anchor: 'middle', dir: 'top' },
-    { x: cx + R + LP, y: cy,          anchor: 'start',  dir: 'h' },
-    { x: cx,          y: cy + R + LP, anchor: 'middle', dir: 'bottom' },
-    { x: cx - R - LP, y: cy,          anchor: 'end',    dir: 'h' },
+  // 4扇形（各90°、時計回り）
+  // i=0:NE(-90°→0°)  i=1:SE(0°→90°)  i=2:SW(90°→180°)  i=3:NW(180°→270°)
+  const SECTORS = [
+    { start: -90, end:   0 },
+    { start:   0, end:  90 },
+    { start:  90, end: 180 },
+    { start: 180, end: 270 },
   ];
+
+  // 外周ラベル位置: 各セクターの開始点(N/E/S/W)
+  const CARD_DEG = [-90, 0, 90, 180]; // N,E,S,W
+  const LP = R + 20;
 
   return (
     <div style={{
@@ -571,103 +581,102 @@ function MiniRadar({ axis, scores }) {
       {/* ── ヘッダー ── */}
       <div style={{ width: '100%', marginBottom: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 22, fontWeight: 800, color: axis.color, lineHeight: 1 }}>
-            {axis.jp}
-            <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 7, opacity: 0.55, fontFamily: 'sans-serif', letterSpacing: '0.04em' }}>{axis.en}</span>
+          <div style={{ lineHeight: 1 }}>
+            <span style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 22, fontWeight: 800, color: axis.color }}>{axis.jp}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 7, opacity: 0.55, color: axis.color, letterSpacing: '0.04em' }}>{axis.en}</span>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: axis.color, fontFamily: "'Outfit', sans-serif", lineHeight: 1 }}>
-            {pct}<span style={{ fontSize: 13, fontWeight: 400, opacity: 0.55 }}>%</span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: axis.color, fontFamily: "'Outfit', sans-serif", lineHeight: 1 }}>
+            {pct}<span style={{ fontSize: 12, fontWeight: 400, opacity: 0.55 }}>%</span>
           </div>
+        </div>
+        {/* トップ素子名 */}
+        <div style={{ fontSize: 12, fontWeight: 600, color: axis.color, opacity: 0.78, marginTop: 3 }}>
+          {axis.subJp[topIdx]}
         </div>
         {/* スコアバー */}
-        <div style={{ height: 5, background: axis.color + '18', borderRadius: 3, marginTop: 9, overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: `${pct}%`,
-            background: `linear-gradient(90deg, ${axis.color}70, ${axis.color})`,
-            borderRadius: 3,
-          }} />
+        <div style={{ height: 4, background: axis.color + '18', borderRadius: 2, marginTop: 7, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${axis.color}70, ${axis.color})`, borderRadius: 2 }} />
         </div>
-        <div style={{ fontSize: 11, color: axis.color, opacity: 0.50, textAlign: 'right', marginTop: 4, fontFamily: "'Outfit', sans-serif" }}>
+        <div style={{ fontSize: 10, color: axis.color, opacity: 0.48, textAlign: 'right', marginTop: 3, fontFamily: "'Outfit', sans-serif" }}>
           {total} / {maxTotal}
         </div>
       </div>
 
-      {/* ── SVGレーダー（viewBox でレスポンシブ） ── */}
+      {/* ── SVG扇形チャート（viewBox レスポンシブ） ── */}
       <svg viewBox={`0 0 ${S} ${S}`} width="100%" style={{ overflow: 'visible', display: 'block' }}>
-        <defs>
-          <radialGradient id={`rg-${axis.key}`} cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor={axis.color} stopOpacity="0.55" />
-            <stop offset="100%" stopColor={axis.color} stopOpacity="0.08" />
-          </radialGradient>
-        </defs>
-
         {/* 同心円グリッド */}
-        {[0.25, 0.5, 0.75, 1].map(r => (
+        {[0.33, 0.66, 1].map(r => (
           <circle key={r} cx={cx} cy={cy} r={R * r}
-            fill={r === 1 ? axis.color + '06' : 'none'}
-            stroke={r === 1 ? axis.color + '35' : 'rgba(0,0,0,0.08)'}
-            strokeWidth={r === 1 ? 1.2 : 0.6}
-            strokeDasharray={r < 1 ? '3 4' : 'none'} />
+            fill="none"
+            stroke={r === 1 ? axis.color + '28' : 'rgba(0,0,0,0.07)'}
+            strokeWidth={r === 1 ? 1 : 0.5}
+            strokeDasharray={r < 1 ? '2 3' : 'none'} />
         ))}
 
-        {/* 軸線 */}
-        {angles.map((a, i) => (
-          <line key={i}
-            x1={cx} y1={cy}
-            x2={cx + R * Math.cos(a)} y2={cy + R * Math.sin(a)}
-            stroke="rgba(0,0,0,0.10)" strokeWidth={0.8} />
+        {/* 背景扇形（全半径・薄色） */}
+        {SECTORS.map((s, i) => (
+          <path key={i} d={sectorPath(cx, cy, R, s.start, s.end)}
+            fill={axis.color} fillOpacity={0.07} />
         ))}
 
-        {/* データポリゴン */}
-        <polygon points={poly} fill={`url(#rg-${axis.key})`} />
-        <polygon points={poly} fill="none"
-          stroke={axis.color} strokeWidth={2.4} strokeLinejoin="round" />
-
-        {/* スコアドット */}
-        {pts.map((p, i) => {
+        {/* スコア扇形 */}
+        {SECTORS.map((s, i) => {
+          const r = Math.max(6, (rawScores[i] / maxSub) * R);
           const isTop = rawScores[i] === maxScore;
+          const baseOpa = 0.38 + (rawScores[i] / maxSub) * 0.28;
           return (
-            <circle key={i} cx={p.x} cy={p.y} r={isTop ? 6 : 4}
-              fill={isTop ? axis.color : '#FFFFFF'}
-              stroke={axis.color} strokeWidth={isTop ? 0 : 2} />
+            <path key={i} d={sectorPath(cx, cy, r, s.start, s.end)}
+              fill={axis.color} fillOpacity={isTop ? 0.80 : baseOpa} />
           );
         })}
 
-        {/* 外周ラベル（素子名 + スコア） */}
-        {lbPos.map((lb, i) => {
-          const isTop = rawScores[i] === maxScore;
-          // top: テキスト下端をlbに揃え、上に積む
-          // bottom: テキスト上端をlbに揃え、下に積む
-          // h(左右): テキストをlbのy中心に縦スタック
-          const nameY  = lb.dir === 'top'    ? lb.y - 3
-                       : lb.dir === 'bottom' ? lb.y + 3
-                       : lb.y - 10;
-          const scoreY = lb.dir === 'top'    ? lb.y + 14
-                       : lb.dir === 'bottom' ? lb.y + 19
-                       : lb.y + 10;
-          const nameBase  = lb.dir === 'top' ? 'auto' : lb.dir === 'bottom' ? 'hanging' : 'auto';
-          const scoreBase = lb.dir === 'top' ? 'auto' : lb.dir === 'bottom' ? 'hanging' : 'auto';
+        {/* 区切り白線（扇形の上に重ねる） */}
+        {CARD_DEG.map((deg, i) => {
+          const rad = deg * Math.PI / 180;
+          return <line key={i}
+            x1={cx} y1={cy}
+            x2={+(cx + R * Math.cos(rad)).toFixed(2)}
+            y2={+(cy + R * Math.sin(rad)).toFixed(2)}
+            stroke="rgba(255,255,255,0.88)" strokeWidth={2} />;
+        })}
 
+        {/* スコアテキスト（扇形内部） */}
+        {SECTORS.map((s, i) => {
+          const mid = ((s.start + s.end) / 2) * Math.PI / 180;
+          const isTop = rawScores[i] === maxScore;
+          const textR = R * 0.56;
+          const tx = +(cx + textR * Math.cos(mid)).toFixed(2);
+          const ty = +(cy + textR * Math.sin(mid)).toFixed(2);
+          const fill = isTop ? '#FFFFFF' : axis.color;
+          const opa  = isTop ? 1 : 0.85;
           return (
             <g key={i}>
-              {/* 素子名 */}
-              <text x={lb.x} y={nameY}
-                textAnchor={lb.anchor}
-                dominantBaseline={nameBase}
-                fontSize={12} fontWeight={isTop ? 700 : 500}
-                fill={isTop ? axis.color : 'rgba(0,0,0,0.48)'}>
-                {axis.subJp[i]}
-              </text>
-              {/* スコア数値 */}
-              <text x={lb.x} y={scoreY}
-                textAnchor={lb.anchor}
-                dominantBaseline={scoreBase}
-                fontSize={15} fontWeight={800}
-                fill={isTop ? axis.color : 'rgba(0,0,0,0.32)'}
+              <text x={tx} y={ty - 7} textAnchor="middle" dominantBaseline="middle"
+                fontSize={11} fontWeight={700} fill={fill} fillOpacity={opa}
                 fontFamily="'Outfit', sans-serif">
-                {rawScores[i]}
+                {rawScores[i]}/20
+              </text>
+              <text x={tx} y={ty + 7} textAnchor="middle" dominantBaseline="middle"
+                fontSize={10} fontWeight={500} fill={fill} fillOpacity={opa * 0.85}>
+                {Math.round((rawScores[i] / maxSub) * 100)}%
               </text>
             </g>
+          );
+        })}
+
+        {/* 外周ラベル（N/E/S/W） */}
+        {CARD_DEG.map((deg, i) => {
+          const rad = deg * Math.PI / 180;
+          const lx = +(cx + LP * Math.cos(rad)).toFixed(2);
+          const ly = +(cy + LP * Math.sin(rad)).toFixed(2);
+          const isTop = i === topIdx;
+          return (
+            <text key={i} x={lx} y={ly}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize={11} fontWeight={isTop ? 700 : 500}
+              fill={isTop ? axis.color : axis.color + 'AA'}>
+              {axis.subJp[i]}
+            </text>
           );
         })}
       </svg>
