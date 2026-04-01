@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
 import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
-import AllPairsTriangle from './AllPairsTriangle';
+import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
 
 /* ============================================================
@@ -1424,15 +1424,8 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
 
-        {/* ===== 正方形マトリックス（左：POTENTIAL+DORMANT ／ 右：FULL+ACTIVE） ===== */}
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <div style={{ flex: '1 1 480px', minWidth: 0 }}>
-            <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['potential']} mirror={false} />
-          </div>
-          <div style={{ flex: '1 1 480px', minWidth: 0 }}>
-            <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['full', 'active']} mirror={false} />
-          </div>
-        </div>
+        {/* ===== 16×16 正方形対称マトリクス（右上：FULL+ACTIVE ／ 左下：POTENTIAL） ===== */}
+        <SymmetricMatrix scores={scores} maxSub={MAX_SUB} />
 
         {/* ===== 発動分析パネル ===== */}
         <ActivationPanel scores={

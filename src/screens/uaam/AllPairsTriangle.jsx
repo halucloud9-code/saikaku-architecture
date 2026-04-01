@@ -737,3 +737,191 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// SymmetricMatrix — 16×16 正方形対称マトリクス
+//   左下 ◤ = POTENTIAL（合計30以上）
+//   右上 ◥ = FULL + ACTIVE（16×16以上）
+//   対角 ■ = 素子ラベル
+// ─────────────────────────────────────────────────────────────
+export function SymmetricMatrix({ scores, maxSub = 20 }) {
+  const smap = useMemo(() => buildScoreMap(scores, maxSub), [scores, maxSub]);
+  const [tip, setTip] = useState(null);
+
+  const SCELL = 34, SGAP = 2;
+  const LABEL_W = 40;
+
+  return (
+    <div className="uaam-chart pdf-section" style={{
+      background: '#FFFFFF', borderRadius: 16,
+      padding: '32px 28px', marginBottom: 20,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      border: '1px solid #E8E0D4',
+    }}>
+      {/* ── ヘッダー ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.14em', color: '#6A3A8A', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+          Activation Matrix — Symmetric View
+        </div>
+        <h2 style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 22, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
+          才覚発動領域
+        </h2>
+        <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0' }}>
+          右上 ◥ FULL &amp; ACTIVE（16×16以上）　左下 ◤ POTENTIAL（合計30+）
+        </p>
+        <div style={{ width: 48, height: 2, background: 'linear-gradient(90deg,#7A4A7A,#B8960C)', marginTop: 12, borderRadius: 1 }} />
+      </div>
+
+      {/* ── 凡例 ── */}
+      <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
+        {[
+          { zone: 'full',      label: 'FULL ✦',   desc: '両才覚20×20' },
+          { zone: 'active',    label: 'ACTIVE',    desc: '両才覚16以上' },
+          { zone: 'potential', label: 'POTENTIAL', desc: '合計30以上（左下）' },
+        ].map(({ zone, label, desc }) => (
+          <div key={zone} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 12, height: 12, borderRadius: 3, background: ZONE_HEX[zone] }} />
+            <span style={{ fontSize: 11, color: '#555', fontWeight: 600 }}>{label}</span>
+            <span style={{ fontSize: 10, color: '#999' }}>{desc}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── マトリクス本体 ── */}
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'inline-block' }}>
+
+          {/* 列ラベル（上部） */}
+          <div style={{ display: 'flex', marginLeft: LABEL_W + SGAP, marginBottom: SGAP }}>
+            {ORDERED.map(colKey => (
+              <div key={colKey} style={{
+                width: SCELL, marginRight: SGAP, flexShrink: 0,
+                textAlign: 'center', fontSize: 9, fontWeight: 600,
+                color: AXIS_LIGHT[CODE_GRP[colKey]], lineHeight: 1.2, paddingBottom: 2,
+              }}>
+                {SUB_JP[colKey].slice(0, 2)}
+              </div>
+            ))}
+          </div>
+
+          {/* 行 */}
+          {ORDERED.map((rowKey, i) => {
+            const grp = CODE_GRP[rowKey];
+            return (
+              <div key={rowKey} style={{ display: 'flex', marginBottom: SGAP, alignItems: 'center' }}>
+
+                {/* 行ラベル */}
+                <div style={{
+                  width: LABEL_W, marginRight: SGAP, flexShrink: 0,
+                  fontSize: 10, fontWeight: 600,
+                  color: AXIS_HEX[grp],
+                  textAlign: 'right', paddingRight: 6,
+                }}>
+                  {SUB_JP[rowKey].slice(0, 3)}
+                </div>
+
+                {/* セル */}
+                {ORDERED.map((colKey, j) => {
+                  // ── 対角 ──
+                  if (i === j) {
+                    return (
+                      <div key={colKey} style={{
+                        width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
+                        background: AXIS_LIGHT[grp], borderRadius: 4,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 8, color: '#fff', fontWeight: 700,
+                      }}>
+                        {SUB_JP[rowKey].slice(0, 2)}
+                      </div>
+                    );
+                  }
+
+                  // ── 右上三角（j > i）: FULL + ACTIVE ──
+                  if (j > i) {
+                    const sA = smap[rowKey], sB = smap[colKey];
+                    const z  = getZone(sA, sB);
+                    const show = z === 'full' || z === 'active';
+                    const bg   = show ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB)) : '#F0EEEA';
+                    const lbl  = show ? pairShort(rowKey, colKey) : '';
+                    return (
+                      <div key={colKey} style={{
+                        width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
+                        background: bg, borderRadius: 4,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 7, color: '#fff', fontWeight: 700,
+                        cursor: show ? 'pointer' : 'default',
+                        transition: 'transform 0.12s',
+                      }}
+                        onMouseEnter={e => { if (show) { e.currentTarget.style.transform = 'scale(1.25)'; setTip({ kA: rowKey, kB: colKey, z, sA, sB, x: e.clientX, y: e.clientY }); } }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
+                      >{lbl}</div>
+                    );
+                  }
+
+                  // ── 左下三角（j < i）: POTENTIAL ──
+                  const sA = smap[colKey], sB = smap[rowKey];
+                  const z  = getZone(sA, sB);
+                  const show = z === 'potential';
+                  const bg   = show ? toRgba(ZONE_HEX['potential'], zAlpha('potential', sA, sB)) : '#F0EEEA';
+                  const lbl  = show ? pairShort(colKey, rowKey) : '';
+                  return (
+                    <div key={colKey} style={{
+                      width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
+                      background: bg, borderRadius: 4,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 7, color: '#fff', fontWeight: 700,
+                      cursor: show ? 'pointer' : 'default',
+                      transition: 'transform 0.12s',
+                    }}
+                      onMouseEnter={e => { if (show) { e.currentTarget.style.transform = 'scale(1.25)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
+                    >{lbl}</div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── ツールチップ ── */}
+      {tip && (() => {
+        const zc  = ZONE_HEX[tip.z];
+        const blk = getBlock(tip.kA, tip.kB);
+        let x = tip.x + 16, y = tip.y - 50;
+        if (typeof window !== 'undefined') {
+          if (x + 220 > window.innerWidth) x = tip.x - 230;
+          if (y < 8) y = tip.y + 16;
+        }
+        return (
+          <div style={{
+            position: 'fixed', left: x, top: y, zIndex: 9999,
+            background: '#FFFFFF', border: '1px solid #E8E0D4',
+            borderRadius: 12, padding: '12px 16px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            pointerEvents: 'none', minWidth: 190,
+          }}>
+            <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 14, fontWeight: 700, color: '#1A1A1A', marginBottom: 6 }}>
+              {SUB_JP[tip.kA]} × {SUB_JP[tip.kB]}
+            </div>
+            <div style={{
+              display: 'inline-block', padding: '2px 10px', borderRadius: 20, marginBottom: 6,
+              background: toRgba(zc, 0.1), color: zc,
+              border: `1px solid ${toRgba(zc, 0.4)}`,
+              fontSize: 11, fontWeight: 700,
+            }}>{ZONE_LABEL[tip.z]}</div>
+            <div style={{ color: '#555', fontSize: 12, lineHeight: 1.8 }}>
+              <div>{tip.sA} + {tip.sB} = <span style={{ color: zc, fontWeight: 800, fontSize: 14 }}>{tip.sA + tip.sB}</span></div>
+              {blk && <div style={{ color: '#AAA', fontSize: 11 }}>{blk.name} / {blk.jp}</div>}
+              {pairDef(tip.kA, tip.kB) && (
+                <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #F0EAE0', color: '#444', fontSize: 11, lineHeight: 1.5 }}>
+                  {pairDef(tip.kA, tip.kB)}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
