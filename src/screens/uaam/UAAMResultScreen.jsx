@@ -566,8 +566,10 @@ function MiniRadar({ axis, scores }) {
     { start:  135, end:  225 },
   ];
 
-  // 外周ラベル位置: 各セクターの開始点(45°左回転)
-  const CARD_DEG = [-135, -45, 45, 135]; // NW,NE,SE,SW
+  // 仕切り線: 45°左回転済み (NW,NE,SE,SW)
+  const CARD_DEG = [-135, -45, 45, 135];
+  // 外周ラベル: セクター中央 12/3/6/9 o'clock配置
+  const LABEL_DEG = [-90, 0, 90, 180];
   const LP = R + 20;
 
   return (
@@ -665,8 +667,8 @@ function MiniRadar({ axis, scores }) {
           );
         })}
 
-        {/* 外周ラベル（N/E/S/W） */}
-        {CARD_DEG.map((deg, i) => {
+        {/* 外周ラベル: 12/3/6/9 o'clock配置 */}
+        {LABEL_DEG.map((deg, i) => {
           const rad = deg * Math.PI / 180;
           const lx = +(cx + LP * Math.cos(rad)).toFixed(2);
           const ly = +(cy + LP * Math.sin(rad)).toFixed(2);
