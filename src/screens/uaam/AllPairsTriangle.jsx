@@ -909,26 +909,37 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 左下三角（j < i）: ACTIVE 上位10ペアのみ ──
+                  // ── 左下三角（j < i）: 全ペア表示（ACTIVE上位10=強調、他=薄表示、dormant=スコア表示）──
                   if (j < i) {
                     const sA = smap[colKey], sB = smap[rowKey];
                     const z  = getZone(sA, sB);
                     const key = `${colKey}|${rowKey}`;
-                    const show = activeTop10Set.has(key);
-                    const bg = show
-                      ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB))
-                      : 'rgba(160,152,136,0.03)';
+                    const isTop10 = activeTop10Set.has(key);
+                    const isDormant = z === 'dormant';
+                    const alpha = isTop10 ? zAlpha(z, sA, sB) : isDormant ? 0 : zAlpha(z, sA, sB) * 0.35;
+                    const bg = isDormant
+                      ? 'rgba(160,152,136,0.06)'
+                      : toRgba(ZONE_HEX[z], alpha);
+                    const canInteract = !isDormant;
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
                         background: bg, borderRadius: 3,
-                        cursor: show ? 'pointer' : 'default',
+                        cursor: canInteract ? 'pointer' : 'default',
                         transition: 'transform 0.12s',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        position: 'relative',
                       }}
-                        onMouseEnter={show ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
-                        onMouseMove={show ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
-                        onMouseLeave={show ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
-                      />
+                        onMouseEnter={canInteract ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
+                        onMouseMove={canInteract ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
+                        onMouseLeave={canInteract ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
+                      >
+                        {isDormant && (
+                          <span style={{ fontSize: 6, color: 'rgba(160,152,136,0.45)', fontFamily: "'Outfit', sans-serif", lineHeight: 1, userSelect: 'none' }}>
+                            {sA + sB}
+                          </span>
+                        )}
+                      </div>
                     );
                   }
 
