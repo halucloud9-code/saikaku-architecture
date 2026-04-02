@@ -785,12 +785,12 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
     return pairs.sort((a, b) => b.sum - a.sum);
   }, [smap]);
 
-  // 右上用: ACTIVE上位2ペアのSet（同ポイント含む）
+  // 右上用: ACTIVE上位3ペアのSet（同ポイント含む）
   const activeTop2Set = useMemo(() => {
     const activeSorted = activePairs.filter(p => p.z === 'active');
     if (activeSorted.length === 0) return new Set();
-    // 2位のスコアを取得（同ポイント含む）
-    const cutoffScore = activeSorted.length >= 2 ? activeSorted[1].sum : activeSorted[0].sum;
+    // 3位のスコアを取得（同ポイント含む）
+    const cutoffScore = activeSorted.length >= 3 ? activeSorted[2].sum : activeSorted[activeSorted.length - 1].sum;
     const top = activeSorted.filter(p => p.sum >= cutoffScore);
     return new Set(top.map(p => `${p.kA}|${p.kB}`));
   }, [activePairs]);
