@@ -771,7 +771,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
   const SCELL = 28, SGAP = 2;
   const LABEL_W = 36;
 
-  // アクティブなペアをスコア合計順に取得（dormant除外）
+  // 全ペアをスコア合計順で取得
   const activePairs = useMemo(() => {
     const pairs = [];
     for (let i = 0; i < N - 1; i++) {
@@ -784,6 +784,14 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
     }
     return pairs.sort((a, b) => b.sum - a.sum);
   }, [smap]);
+
+  // 左下用: ACTIVEゾーン上位10ペアのSet
+  const activeTop10Set = useMemo(() => {
+    const top10 = activePairs
+      .filter(p => p.z === 'active')
+      .slice(0, 10);
+    return new Set(top10.map(p => `${p.kA}|${p.kB}`));
+  }, [activePairs]);
 
   const top5Pairs = activePairs.slice(0, 5);
 
@@ -879,21 +887,34 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 右上三角（j > i）: 非表示 ──
+                  // ── 右上三角（j > i）: NATURAL + PRO のみ ──
                   if (j > i) {
+                    const sA = smap[rowKey], sB = smap[colKey];
+                    const z  = getZone(sA, sB);
+                    const show = z === 'natural' || z === 'pro';
+                    const bg = show
+                      ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB))
+                      : 'rgba(160,152,136,0.03)';
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
-                        background: 'rgba(160,152,136,0.03)', borderRadius: 3,
-                      }} />
+                        background: bg, borderRadius: 3,
+                        cursor: show ? 'pointer' : 'default',
+                        transition: 'transform 0.12s',
+                      }}
+                        onMouseEnter={show ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: rowKey, kB: colKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
+                        onMouseMove={show ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
+                        onMouseLeave={show ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
+                      />
                     );
                   }
 
-                  // ── 左下三角（j < i）: 全ゾーンを色強度で表示 ──
+                  // ── 左下三角（j < i）: ACTIVE 上位10ペアのみ ──
                   if (j < i) {
                     const sA = smap[colKey], sB = smap[rowKey];
                     const z  = getZone(sA, sB);
-                    const show = z !== 'dormant';
+                    const key = `${colKey}|${rowKey}`;
+                    const show = activeTop10Set.has(key);
                     const bg = show
                       ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB))
                       : 'rgba(160,152,136,0.03)';
