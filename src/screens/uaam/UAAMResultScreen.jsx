@@ -568,7 +568,7 @@ function MiniRadar({ axis, scores }) {
 
   // 仕切り線: 45°左回転済み (NW,NE,SE,SW)
   const CARD_DEG = [-135, -45, 45, 135];
-  // 外周ラベル: セクター中央 12/3/6/9 o'clock配置
+  // 外周ラベル: 12時=top(-90), 3時=right(0), 6時=bottom(90), 9時=left(180)
   const LABEL_DEG = [-90, 0, 90, 180];
   const LP = R + 20;
 
