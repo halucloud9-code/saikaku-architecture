@@ -811,7 +811,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
           Ability Pair Matrix
         </div>
         <h2 style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 20, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
-          才覚ペア解析
+          才覚発動領域Matrix
         </h2>
         <div style={{ width: 56, height: 2, background: 'linear-gradient(90deg, #8B35C8, #1A6FD4, #7CB82F)', marginTop: 10, borderRadius: 1 }} />
       </div>
