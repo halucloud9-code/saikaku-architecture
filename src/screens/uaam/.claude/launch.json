@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vite-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/halu/グリフォンアプリ/saikaku-architecture",
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}
