@@ -1515,13 +1515,13 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
       <div className="pdf-content-wrapper" style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}>
 
-        {/* ===== Activation Type（最上部） ===== */}
+        {/* ===== 名前 + Activation Type + 今、発動している力（最上部） ===== */}
         <ActivationPanel scores={
           Object.values(scores || {}).reduce((acc, domain) => {
             if (domain?.subs) Object.assign(acc, domain.subs);
             return acc;
           }, {})
-        } threshold={13} userName={user.displayName} />
+        } threshold={13} userName={user.displayName} mode="top" />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
@@ -1539,6 +1539,14 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
         {/* ===== 16×16 正方形対称マトリクス（右上：FULL+ACTIVE ／ 左下：POTENTIAL） ===== */}
         <SymmetricMatrix scores={scores} maxSub={MAX_SUB} />
+
+        {/* ===== 次に動かす力（マトリクスの後） ===== */}
+        <ActivationPanel scores={
+          Object.values(scores || {}).reduce((acc, domain) => {
+            if (domain?.subs) Object.assign(acc, domain.subs);
+            return acc;
+          }, {})
+        } threshold={13} mode="bottom" />
 
         {/* ===== AI分析 ===== */}
         {analysis && (

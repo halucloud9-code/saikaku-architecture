@@ -69,10 +69,41 @@ const TEXT_PRIMARY   = '#1A1A1A';
 const TEXT_SECONDARY = '#333333';
 const TEXT_MUTED     = '#666666';
 
-export default function ActivationPanel({ scores, threshold = 13, userName }) {
+// mode: "top" = TypeBadge + 今、発動している力
+//       "bottom" = 次に動かす力のみ
+//       "all" = すべて（デフォルト互換）
+export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all' }) {
   if (!scores) return null;
   const { active, sleeping, type } = getActivationAnalysis(scores, threshold);
 
+  if (mode === 'top') {
+    return (
+      <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
+        <TypeBadge type={type} userName={userName} />
+        <PanelSection
+          emoji="✅"
+          title="今、発動している力"
+          items={active}
+          accentColor={ACCENT_GOLD}
+        />
+      </div>
+    );
+  }
+
+  if (mode === 'bottom') {
+    return (
+      <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
+        <PanelSection
+          emoji="🔑"
+          title="次に動かす力"
+          items={sleeping}
+          accentColor="#7A6A50"
+        />
+      </div>
+    );
+  }
+
+  // mode === 'all'
   return (
     <div style={{
       fontFamily: "'Outfit', 'Noto Sans JP', sans-serif",
