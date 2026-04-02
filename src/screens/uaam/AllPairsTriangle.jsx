@@ -916,7 +916,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     const key = `${colKey}|${rowKey}`;
                     const isTop10 = activeTop10Set.has(key);
                     const isDormant = z === 'dormant';
-                    const alpha = isTop10 ? zAlpha(z, sA, sB) : isDormant ? 0 : zAlpha(z, sA, sB) * 0.35;
+                    const alpha = isTop10 ? zAlpha(z, sA, sB) : isDormant ? 0 : zAlpha(z, sA, sB) * 0.70;
                     const bg = isDormant
                       ? 'rgba(160,152,136,0.06)'
                       : toRgba(ZONE_HEX[z], alpha);
