@@ -69,9 +69,9 @@ const TEXT_PRIMARY   = '#1A1A1A';
 const TEXT_SECONDARY = '#333333';
 const TEXT_MUTED     = '#666666';
 
-// mode: "top" = TypeBadge + 今、発動している力
-//       "bottom" = 次に動かす力のみ
-//       "all" = すべて（デフォルト互換）
+// mode: "top"    = TypeBadgeのみ（名前 + Activation Type）
+//       "bottom"  = ✅今、発動している力 + 🔑次に動かす力
+//       "all"     = すべて（デフォルト互換）
 export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all' }) {
   if (!scores) return null;
   const { active, sleeping, type } = getActivationAnalysis(scores, threshold);
@@ -80,12 +80,6 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
     return (
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
         <TypeBadge type={type} userName={userName} />
-        <PanelSection
-          emoji="✅"
-          title="今、発動している力"
-          items={active}
-          accentColor={ACCENT_GOLD}
-        />
       </div>
     );
   }
@@ -93,6 +87,12 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
   if (mode === 'bottom') {
     return (
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
+        <PanelSection
+          emoji="✅"
+          title="今、発動している力"
+          items={active}
+          accentColor={ACCENT_GOLD}
+        />
         <PanelSection
           emoji="🔑"
           title="次に動かす力"
