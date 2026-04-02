@@ -38,7 +38,7 @@ const SUB_META = [
   { key: 'leadership',    axis: 1, label: 'Leadership',    jp: 'リーダーシップ' },
   { key: 'critical',      axis: 2, label: 'Critical',      jp: '批判的思考' },
   { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造性' },
-  { key: 'communication', axis: 2, label: 'Communication', jp: '伝える力' },
+  { key: 'communication', axis: 2, label: 'Communication', jp: '表現力' },
   { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働' },
   { key: 'idea',           axis: 3, label: 'Idea',           jp: 'アイデア' },
   { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革' },

@@ -32,7 +32,7 @@ const AXIS_SHORT = ['志', '知', '技', '衝'];
 export const SUB_JP = {
   meaning:'意味', mindfulness:'気づき', mindshift:'意識転換', mastery:'熟達',
   learning:'学習', logical:'論理', life:'活用', leadership:'リーダーシップ',
-  critical:'批判的思考', creativity:'創造性', communication:'伝える力', collaboration:'協働',
+  critical:'批判的思考', creativity:'創造性', communication:'表現力', collaboration:'協働',
   idea:'アイデア', innovation:'変革', implementation:'実装', influence:'影響',
 };
 

@@ -34,7 +34,7 @@ const SUB_LABELS = {
 const SUB_JP = {
   meaning: '意味', mindfulness: '気づき', mindshift: '意識転換', mastery: '熟達',
   learning: '学習', logical: '論理', life: '活用', leadership: 'リーダーシップ',
-  critical: '批判的思考', creativity: '創造性', communication: '伝える力', collaboration: '協働',
+  critical: '批判的思考', creativity: '創造性', communication: '表現力', collaboration: '協働',
   idea: 'アイデア', innovation: '変革', implementation: '実装', influence: '影響',
 };
 
@@ -65,7 +65,7 @@ const SUB_ADVICE = {
   leadership:    'まず身近な場面で「自分から提案する」ことを意識しましょう。相手の話を最後まで聴き、全員が発言できる場を作ることがリーダーシップの第一歩です。',
   critical:      '情報を受け取ったとき「本当にそうか？根拠は？」と問う習慣を持ちましょう。賛成意見と反対意見の両方を調べることで批判的思考力が向上します。',
   creativity:    '日常のルーティンをあえて変えてみましょう。異分野の知識や全く関係のない経験を組み合わせてみることが創造性の源泉です。',
-  communication: '伝えたいことを「結論→理由→具体例」の順で整理してから話しましょう。相手が何を知りたいかを先に考えることで伝達力が格段に上がります。',
+  communication: '伝えたいことを「結論→理由→具体例」の順で整理してから話しましょう。相手が何を知りたいかを先に考えることで表現力が格段に上がります。',
   collaboration: '意見が異なる人の話を「なぜそう思うのか」まで聴く姿勢を意識しましょう。共通の目標を最初に確認し合うことが効果的な協働の起点です。',
   idea:          '日常の「不便」「違和感」「面白い」をメモする習慣をつけましょう。既存のものを新しい組み合わせで考えることがアイデア発想の基本です。',
   innovation:    '「もっと良くできないか」と現状を疑問視する視点を持ちましょう。小さな改善を繰り返すことが、やがて大きな変革につながります。',
@@ -524,7 +524,7 @@ const FOUR_AXES = [
     subJp: ['意味','気づき','意識転換','熟達'] },
   { key: 'competency', jp: '技', en: 'Competency', color: '#A07A18',
     subs: ['critical','creativity','communication','collaboration'],
-    subJp: ['批判思考','創造性','伝える力','協働'] },
+    subJp: ['批判思考','創造性','表現力','協働'] },
   { key: 'literacy',   jp: '知', en: 'Literacy',   color: '#1E7A4A',
     subs: ['learning','logical','life','leadership'],
     subJp: ['学習','論理','活用','リーダー'] },
@@ -1091,7 +1091,7 @@ function RadarChart16({ scores }) {
       { key: 'leadership',    jp: 'リーダーシップ', en: 'Leadership',     group: 'literacy' },
       { key: 'critical',      jp: '批判的思考',     en: 'Critical',       group: 'competency' },
       { key: 'creativity',    jp: '創造性',         en: 'Creativity',     group: 'competency' },
-      { key: 'communication', jp: '伝える力',       en: 'Communication',  group: 'competency' },
+      { key: 'communication', jp: '表現力',          en: 'Communication',  group: 'competency' },
       { key: 'collaboration', jp: '協働',           en: 'Collaboration',  group: 'competency' },
       { key: 'idea',          jp: 'アイデア',       en: 'Idea',           group: 'impact' },
       { key: 'innovation',    jp: '変革',           en: 'Innovation',     group: 'impact' },

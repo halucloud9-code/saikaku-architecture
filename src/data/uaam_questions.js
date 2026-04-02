@@ -60,7 +60,7 @@ export const UAAM_AXES = [
     subs: [
       { key: 'critical',      label: 'Critical（批判的思考）', description: '論理的に見抜く力' },
       { key: 'creativity',    label: 'Creativity（創造性）',   description: '新しいアイデアを生み出す力' },
-      { key: 'communication', label: 'Communication（伝える力）', description: '考えを伝え共感を得る力' },
+      { key: 'communication', label: 'Communication（表現力）', description: '考えを伝え共感を得る力' },
       { key: 'collaboration', label: 'Collaboration（協働）',  description: '多様な人と協働する力' },
     ],
   },
@@ -147,7 +147,7 @@ export const UAAM_QUESTIONS = [
   { id: 39, axis: 'competency', sub: 'creativity',    text: '一見関係のない要素を組み合わせて、新しいアイデアや形を生み出すことがある。', reverse: false },
   { id: 40, axis: 'competency', sub: 'creativity',    text: '突破口が見えない状況で、自分の発想を起点にチームが実際に動き出している。', reverse: false },
 
-  // ⑪ Communication（伝える力）：考えを伝え共感を得る力
+  // ⑪ Communication（表現力）：考えを伝え共感を得る力
   { id: 41, axis: 'competency', sub: 'communication', text: '自分の伝え方によって、相手の理解が深まったり、行動が変わったりすることが続いている。', reverse: false },
   { id: 42, axis: 'competency', sub: 'communication', text: '伝えたいことを一方的に話してしまい、相手がどう受け取ったかの確認が後回しになることがある。', reverse: true },
   { id: 43, axis: 'competency', sub: 'communication', text: '動く意志のある相手に対して、自分の言葉をきっかけに、相手が自発的に動き出す場面が繰り返しある。', reverse: false },
