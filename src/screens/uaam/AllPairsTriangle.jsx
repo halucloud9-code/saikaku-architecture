@@ -785,16 +785,10 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
     return pairs.sort((a, b) => b.sum - a.sum);
   }, [smap]);
 
-  // 右上用: ACTIVEペアの順位Map（上位から3段階濃淡）
-  const activeRankMap = useMemo(() => {
-    const activeSorted = activePairs.filter(p => p.z === 'active');
-    const total = activeSorted.length;
-    const map = new Map();
-    activeSorted.forEach((p, idx) => {
-      const tier = total === 0 ? 2 : Math.floor((idx / total) * 3); // 0=上位, 1=中位, 2=下位
-      map.set(`${p.kA}|${p.kB}`, tier);
-    });
-    return map;
+  // 右上用: ACTIVE上位2ペアのSet
+  const activeTop2Set = useMemo(() => {
+    const top2 = activePairs.filter(p => p.z === 'active').slice(0, 2);
+    return new Set(top2.map(p => `${p.kA}|${p.kB}`));
   }, [activePairs]);
 
   const top5Pairs = activePairs.slice(0, 5);
@@ -898,9 +892,8 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     let alpha = 0;
                     if (z === 'natural' || z === 'pro') {
                       alpha = zAlpha(z, sA, sB);
-                    } else if (z === 'active') {
-                      const tier = activeRankMap.get(`${rowKey}|${colKey}`) ?? 2;
-                      alpha = tier === 0 ? 0.85 : tier === 1 ? 0.55 : 0.28;
+                    } else if (z === 'active' && activeTop2Set.has(`${rowKey}|${colKey}`)) {
+                      alpha = zAlpha(z, sA, sB);
                     }
                     const show = alpha > 0;
                     const bg = show ? toRgba(ZONE_HEX[z], alpha) : 'rgba(160,152,136,0.03)';
