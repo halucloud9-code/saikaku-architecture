@@ -557,17 +557,17 @@ function MiniRadar({ axis, scores }) {
 
   const S = 210, cx = S / 2, cy = S / 2, R = 76;
 
-  // 4扇形（各90°、時計回り）
-  // i=0:NE(-90°→0°)  i=1:SE(0°→90°)  i=2:SW(90°→180°)  i=3:NW(180°→270°)
+  // 4扇形（各90°、時計回り）— 45°左回転済み
+  // i=0:N(-135°→-45°)  i=1:E(-45°→45°)  i=2:S(45°→135°)  i=3:W(135°→225°)
   const SECTORS = [
-    { start: -90, end:   0 },
-    { start:   0, end:  90 },
-    { start:  90, end: 180 },
-    { start: 180, end: 270 },
+    { start: -135, end:  -45 },
+    { start:  -45, end:   45 },
+    { start:   45, end:  135 },
+    { start:  135, end:  225 },
   ];
 
-  // 外周ラベル位置: 各セクターの開始点(N/E/S/W)
-  const CARD_DEG = [-90, 0, 90, 180]; // N,E,S,W
+  // 外周ラベル位置: 各セクターの開始点(45°左回転)
+  const CARD_DEG = [-135, -45, 45, 135]; // NW,NE,SE,SW
   const LP = R + 20;
 
   return (
