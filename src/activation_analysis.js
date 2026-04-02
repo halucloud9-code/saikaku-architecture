@@ -370,8 +370,26 @@ const TEMPLATES = {
 // 5. 発動分析メイン関数
 // =============================================
 // =============================================
-// 5b. マトリクスゾーン判定（AllPairsTriangle と同ロジック）
+// 5b. マトリクスゾーン判定 + ブロック判定
 // =============================================
+// ブロックグリッド（AllPairsTriangle と同ロジック）
+const _AXIS_GRP = {
+  meaning:0, mindfulness:0, mindshift:0, mastery:0,
+  learning:1, logical:1, life:1, leadership:1,
+  critical:2, creativity:2, communication:2, collaboration:2,
+  idea:3, innovation:3, implementation:3, influence:3,
+};
+const _BLOCK_GRID = [
+  ['ANCHOR',    'VISIONARY', 'BUILDER',   'CATALYST'],
+  ['VISIONARY', 'SAGE',      'CRAFTER',   'NAVIGATOR'],
+  ['BUILDER',   'CRAFTER',   'INVENTOR',  'STRIKER'],
+  ['CATALYST',  'NAVIGATOR', 'STRIKER',   'PIONEER'],
+];
+function _getBlockName(kA, kB) {
+  const gA = _AXIS_GRP[kA] ?? 0, gB = _AXIS_GRP[kB] ?? 0;
+  return _BLOCK_GRID[Math.min(gA, gB)][Math.max(gA, gB)];
+}
+
 function _getZone(sA, sB) {
   const sum = sA + sB;
   if (sA === 20 && sB === 20) return 'natural';
@@ -496,17 +514,28 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     };
   };
 
+  // ── 案C タイプ判定: メイン＋サブ（最上位ペアのブロック） ──
+  let mainType = null, subType = null;
+  for (const p of sleepingPairs) {
+    const bn = _getBlockName(p.kA, p.kB);
+    if (!mainType) { mainType = bn; }
+    else if (bn !== mainType && !subType) { subType = bn; break; }
+  }
+  const userType = { main: mainType, sub: subType };
+
   // フォールバック: ✅ が空の場合
   if (activeKeys.length === 0) {
     return {
       active:   sortDesc(ALL_KEYS.filter(k => sc(k) >= threshold)).slice(0, 3).map(k => toItem(k, 'active')),
       sleeping: topSleepingPairs,
+      type:     userType,
     };
   }
 
   return {
     active:   activeKeys.map(k => toItem(k, 'active')),
     sleeping: topSleepingPairs,
+    type:     userType,
   };
 }
 

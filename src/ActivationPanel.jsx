@@ -4,7 +4,26 @@
  */
 
 import { getActivationAnalysis } from './activation_analysis';
-import { pairShort, pairDef, SUB_JP as PAIR_SUB_JP, getBlock, ZONE_HEX as PAIR_ZONE_HEX, ZONE_LABEL } from './screens/uaam/AllPairsTriangle';
+import { pairShort, pairDef, SUB_JP as PAIR_SUB_JP, getBlock, ZONE_HEX as PAIR_ZONE_HEX, ZONE_LABEL, BLOCKS } from './screens/uaam/AllPairsTriangle';
+
+/* ── 才覚タイプ定義（10ブロック） ── */
+const TYPE_JP = {
+  VISIONARY: '構想家', BUILDER:  '創造者', CATALYST: '触媒',
+  ANCHOR:    '軸人',   SAGE:     '賢者',   CRAFTER:  '匠',
+  NAVIGATOR: '羅針盤', INVENTOR: '発明家', STRIKER:  '実践家', PIONEER: '開拓者',
+};
+const TYPE_DESC = {
+  VISIONARY: 'まだ誰も見えていない未来を設計する。志と知が統合されているとき、問いの質が変わる。',
+  BUILDER:   '志と技が連動している。アイデアを形にするまで諦めない。頭の中の設計図を現実に変換する。',
+  CATALYST:  '志と衝動が一体化している。場に入ると何かが動き始める。変化の引き金を引く存在。',
+  ANCHOR:    '核となる価値観が確立されている。ブレない軸が周囲に安心と信頼を生む。場を安定させる存在。',
+  SAGE:      '知の統合力が高い。表面ではなく本質を見抜く。深い洞察と言語化で複雑な状況に光を当てる。',
+  CRAFTER:   '知と技が高い精度で連動している。分析→設計→実装を一人でやりきれる問題解決のプロ。',
+  NAVIGATOR: '知と衝動が統合されている。情報を即行動に変換する。霧の中でも最短ルートを見つけていく。',
+  INVENTOR:  '技の核が統合されている。ゼロから仕組みを生み出す力を持つ。誰も作ったことのないものを作る。',
+  STRIKER:   '技と衝動が連動している。動きながら精度を上げる。行動の速度そのものが武器になっている。',
+  PIONEER:   '衝動の核が統合されている。誰も行かない場所に最初に踏み込む。その背中が道になる。',
+};
 
 /* Case B: パートナーキー → 日本語表示名 */
 const PARTNER_JP = {
@@ -52,13 +71,14 @@ const TEXT_MUTED     = '#666666';
 
 export default function ActivationPanel({ scores, threshold = 13 }) {
   if (!scores) return null;
-  const { active, sleeping } = getActivationAnalysis(scores, threshold);
+  const { active, sleeping, type } = getActivationAnalysis(scores, threshold);
 
   return (
     <div style={{
       fontFamily: "'Outfit', 'Noto Sans JP', sans-serif",
       maxWidth: 640, margin: '0 auto',
     }}>
+      <TypeBadge type={type} />
       <PanelSection
         emoji="✅"
         title="今、発動している力"
@@ -71,6 +91,82 @@ export default function ActivationPanel({ scores, threshold = 13 }) {
         items={sleeping}
         accentColor="#7A6A50"
       />
+    </div>
+  );
+}
+
+/* ── 才覚タイプバッジ ── */
+function TypeBadge({ type }) {
+  if (!type?.main) return null;
+  const mainBlock = BLOCKS.find(b => b.name === type.main);
+  const subBlock  = BLOCKS.find(b => b.name === type.sub);
+  const mainColor = mainBlock?.color || '#8B35C8';
+  const subColor  = subBlock?.color  || '#888';
+
+  return (
+    <div style={{
+      marginBottom: 24,
+      padding: '18px 20px',
+      background: '#FFFFFF',
+      borderRadius: 14,
+      border: `1px solid ${mainColor}30`,
+      borderTop: `3px solid ${mainColor}`,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    }}>
+      {/* ラベル */}
+      <div style={{
+        fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+        marginBottom: 10, fontWeight: 700, textTransform: 'uppercase',
+      }}>Activation Type</div>
+
+      {/* メイン × サブ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        {/* メインタイプ */}
+        <div>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+            color: mainColor, marginBottom: 2,
+          }}>{type.main}</div>
+          <div style={{
+            fontSize: 22, fontWeight: 800, color: TEXT_PRIMARY,
+            fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1,
+          }}>{TYPE_JP[type.main] || type.main}</div>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
+            {mainBlock?.jp}
+          </div>
+        </div>
+
+        {/* × 区切り */}
+        {subBlock && (
+          <div style={{ fontSize: 20, color: '#CCBBAA', fontWeight: 300, lineHeight: 1 }}>×</div>
+        )}
+
+        {/* サブタイプ */}
+        {subBlock && (
+          <div>
+            <div style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+              color: subColor, marginBottom: 2,
+            }}>{type.sub}</div>
+            <div style={{
+              fontSize: 18, fontWeight: 700, color: TEXT_SECONDARY,
+              fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1,
+            }}>{TYPE_JP[type.sub] || type.sub}</div>
+            <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
+              {subBlock.jp}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* タイプ説明 */}
+      <p style={{
+        fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.8,
+        margin: '12px 0 0', paddingTop: 10,
+        borderTop: `1px solid ${BORDER}`,
+      }}>
+        {TYPE_DESC[type.main] || ''}
+      </p>
     </div>
   );
 }
