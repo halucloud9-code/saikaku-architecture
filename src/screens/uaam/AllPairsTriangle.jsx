@@ -785,12 +785,16 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
     return pairs.sort((a, b) => b.sum - a.sum);
   }, [smap]);
 
-  // 左下用: ACTIVEゾーン上位10ペアのSet
-  const activeTop10Set = useMemo(() => {
-    const top10 = activePairs
-      .filter(p => p.z === 'active')
-      .slice(0, 10);
-    return new Set(top10.map(p => `${p.kA}|${p.kB}`));
+  // 右上用: ACTIVEペアの順位Map（上位から3段階濃淡）
+  const activeRankMap = useMemo(() => {
+    const activeSorted = activePairs.filter(p => p.z === 'active');
+    const total = activeSorted.length;
+    const map = new Map();
+    activeSorted.forEach((p, idx) => {
+      const tier = total === 0 ? 2 : Math.floor((idx / total) * 3); // 0=上位, 1=中位, 2=下位
+      map.set(`${p.kA}|${p.kB}`, tier);
+    });
+    return map;
   }, [activePairs]);
 
   const top5Pairs = activePairs.slice(0, 5);
@@ -887,14 +891,19 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 右上三角（j > i）: NATURAL + PRO のみ ──
+                  // ── 右上三角（j > i）: NATURAL + PRO（全表示）+ ACTIVE（3段階濃淡）──
                   if (j > i) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
-                    const show = z === 'natural' || z === 'pro';
-                    const bg = show
-                      ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB))
-                      : 'rgba(160,152,136,0.03)';
+                    let alpha = 0;
+                    if (z === 'natural' || z === 'pro') {
+                      alpha = zAlpha(z, sA, sB);
+                    } else if (z === 'active') {
+                      const tier = activeRankMap.get(`${rowKey}|${colKey}`) ?? 2;
+                      alpha = tier === 0 ? 0.85 : tier === 1 ? 0.55 : 0.28;
+                    }
+                    const show = alpha > 0;
+                    const bg = show ? toRgba(ZONE_HEX[z], alpha) : 'rgba(160,152,136,0.03)';
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
@@ -909,30 +918,25 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 左下三角（j < i）: 全ペア表示（ACTIVE上位10=強調、他=薄表示、dormant=スコア表示）──
+                  // ── 左下三角（j < i）: 全ゾーン表示（dormant=スコア表示）──
                   if (j < i) {
                     const sA = smap[colKey], sB = smap[rowKey];
                     const z  = getZone(sA, sB);
-                    const key = `${colKey}|${rowKey}`;
-                    const isTop10 = activeTop10Set.has(key);
                     const isDormant = z === 'dormant';
-                    const alpha = isTop10 ? zAlpha(z, sA, sB) : isDormant ? 0 : zAlpha(z, sA, sB) * 0.70;
                     const bg = isDormant
                       ? 'rgba(160,152,136,0.06)'
-                      : toRgba(ZONE_HEX[z], alpha);
-                    const canInteract = !isDormant;
+                      : toRgba(ZONE_HEX[z], zAlpha(z, sA, sB));
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
                         background: bg, borderRadius: 3,
-                        cursor: canInteract ? 'pointer' : 'default',
+                        cursor: !isDormant ? 'pointer' : 'default',
                         transition: 'transform 0.12s',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        position: 'relative',
                       }}
-                        onMouseEnter={canInteract ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
-                        onMouseMove={canInteract ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
-                        onMouseLeave={canInteract ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
+                        onMouseEnter={!isDormant ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
+                        onMouseMove={!isDormant ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
+                        onMouseLeave={!isDormant ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
                       >
                         {isDormant && (
                           <span style={{ fontSize: 6, color: 'rgba(160,152,136,0.45)', fontFamily: "'Outfit', sans-serif", lineHeight: 1, userSelect: 'none' }}>
