@@ -1513,38 +1513,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
       <div className="pdf-content-wrapper" style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}>
 
-        {/* ===== タイトル ===== */}
-        <Section style={{ textAlign: 'center', padding: '32px 24px' }}>
-          <div style={{
-            fontSize: 11, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.15em',
-            textTransform: 'uppercase', marginBottom: 8,
-          }}>Universal Ability Assessment Model</div>
-          <h1 style={{
-            fontFamily: "'Noto Serif JP', Georgia, serif",
-            fontSize: 24, fontWeight: 700, color: TEXT_PRIMARY, margin: '0 0 16px',
-          }}>{user.displayName}</h1>
-          <div style={{
-            display: 'inline-block', background: `${ACCENT_GOLD}10`,
-            border: `1px solid ${ACCENT_GOLD}30`, borderRadius: 8, padding: '10px 24px',
-          }}>
-            <div style={{
-              fontSize: 22, fontWeight: 800, color: ACCENT_GOLD,
-              fontFamily: "'Noto Serif JP', Georgia, serif",
-            }}>{topType.name}</div>
-            <div style={{
-              fontSize: 13, color: TEXT_MUTED, marginTop: 4,
-              fontFamily: NUM_FONT,
-            }}>
-              Score: <span style={{ fontWeight: 700, color: ACCENT_GOLD }}>{displayDomain(topType.score)}</span>
-              <span style={{ color: TEXT_MUTED }}> / {DISPLAY_CROSS}</span>
-            </div>
-          </div>
-          {analysis?.type_description && (
-            <p style={{
-              fontSize: 14, color: TEXT_SECONDARY, marginTop: 16, lineHeight: 1.8,
-            }}>{analysis.type_description}</p>
-          )}
-        </Section>
+        {/* ===== タイトル ＋ Activation Type は ActivationPanel に統合 ===== */}
 
 
 
@@ -1571,7 +1540,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             if (domain?.subs) Object.assign(acc, domain.subs);
             return acc;
           }, {})
-        } threshold={13} />
+        } threshold={13} userName={user.displayName} />
 
         {/* ===== AI分析 ===== */}
         {analysis && (

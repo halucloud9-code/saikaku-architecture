@@ -69,7 +69,7 @@ const TEXT_PRIMARY   = '#1A1A1A';
 const TEXT_SECONDARY = '#333333';
 const TEXT_MUTED     = '#666666';
 
-export default function ActivationPanel({ scores, threshold = 13 }) {
+export default function ActivationPanel({ scores, threshold = 13, userName }) {
   if (!scores) return null;
   const { active, sleeping, type } = getActivationAnalysis(scores, threshold);
 
@@ -78,7 +78,7 @@ export default function ActivationPanel({ scores, threshold = 13 }) {
       fontFamily: "'Outfit', 'Noto Sans JP', sans-serif",
       maxWidth: 640, margin: '0 auto',
     }}>
-      <TypeBadge type={type} />
+      <TypeBadge type={type} userName={userName} />
       <PanelSection
         emoji="✅"
         title="今、発動している力"
@@ -96,7 +96,7 @@ export default function ActivationPanel({ scores, threshold = 13 }) {
 }
 
 /* ── 才覚タイプバッジ ── */
-function TypeBadge({ type }) {
+function TypeBadge({ type, userName }) {
   if (!type?.main) return null;
   const mainBlock = BLOCKS.find(b => b.name === type.main);
   const subBlock  = BLOCKS.find(b => b.name === type.sub);
@@ -113,7 +113,20 @@ function TypeBadge({ type }) {
       borderTop: `3px solid ${mainColor}`,
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
     }}>
-      {/* ラベル */}
+      {/* 名前 + UAAM ラベル */}
+      {userName && (
+        <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
+          }}>Universal Ability Assessment Model</div>
+          <div style={{
+            fontFamily: "'Noto Serif JP', Georgia, serif",
+            fontSize: 20, fontWeight: 700, color: TEXT_PRIMARY,
+          }}>{userName}</div>
+        </div>
+      )}
+      {/* Activation Type ラベル */}
       <div style={{
         fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
         marginBottom: 10, fontWeight: 700, textTransform: 'uppercase',
