@@ -762,7 +762,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
             height: 52,
             boxSizing: 'border-box',
             borderRadius: 12,
-            border: 'none',
+            border: '1px solid rgba(196,146,42,0.2)',
             background: hoverPdf
               ? 'linear-gradient(135deg, #C4922A, #A87A1E)'
               : 'rgba(196,146,42,0.12)',
@@ -775,7 +775,6 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
             justifyContent: 'center',
             gap: 8,
             transition: 'all 0.3s ease',
-            border: '1px solid rgba(196,146,42,0.2)',
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

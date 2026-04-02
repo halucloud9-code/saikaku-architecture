@@ -64,7 +64,6 @@ const BLOCK_HEX = {
   NAVIGATOR: '#107060',  // 知×衝  エメラルド
   STRIKER:   '#C05010',  // 技×衝  オレンジ
 };
-const ZONE_LABEL = { natural:'NATURAL ✦', pro:'PRO', active:'ACTIVE', potential:'POTENTIAL', dormant:'—' };
 const ZONE_DESC  = {
   full:      '両才覚が満点（20×20）— 完全解放発動状態',
   active:    '両才覚が高水準（16×16以上）— 才覚発動状態',
