@@ -485,7 +485,8 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     const zo = ZONE_ORDER_MAP[a.zone] - ZONE_ORDER_MAP[b.zone];
     return zo !== 0 ? zo : b.sum - a.sum;
   });
-  const topSleepingPairs = sleepingPairs.slice(0, 3);
+  // 全ペアを返す（スペクトラム型UI で全表示）
+  const topSleepingPairs = sleepingPairs;
 
   // ── アイテム生成（✅ 個別キー用）──
   const toItem = (key, status) => {

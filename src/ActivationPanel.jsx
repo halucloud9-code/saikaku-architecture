@@ -218,6 +218,12 @@ function TypeBadge({ type, userName }) {
 function PanelSection({ emoji, title, items, accentColor }) {
   if (!items || items.length === 0) return null;
 
+  const pairItems = items.filter(item => item.isPair);
+  const cardItems = items.filter(item => !item.isPair);
+  const maxSum = pairItems.length > 0
+    ? Math.max(...pairItems.map(p => p.sum))
+    : 40;
+
   return (
     <div style={{ marginBottom: 28 }}>
       {/* セクションヘッダー */}
@@ -234,101 +240,97 @@ function PanelSection({ emoji, title, items, accentColor }) {
           fontFamily: "'Noto Serif JP', serif",
           letterSpacing: '0.03em',
         }}>{title}</span>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {items.map((item, i) =>
-          item.isPair
-            ? <PairCard key={`${item.kA}-${item.kB}`} item={item} />
-            : <Card key={item.name || i} item={item} />
+        {pairItems.length > 0 && (
+          <span style={{
+            fontSize: 10, color: accentColor, marginLeft: 'auto',
+            fontWeight: 700, background: accentColor + '18',
+            padding: '2px 8px', borderRadius: 9999,
+          }}>全{pairItems.length}件</span>
         )}
       </div>
+
+      {/* ペアアイテム: スペクトラム型コンテナ */}
+      {pairItems.length > 0 && (
+        <div style={{
+          background: '#FFFFFF',
+          border: `1px solid ${BORDER}`,
+          borderRadius: 12,
+          overflow: 'hidden',
+          marginBottom: cardItems.length > 0 ? 10 : 0,
+        }}>
+          {pairItems.map((item, i) => (
+            <PairCard
+              key={`${item.kA}-${item.kB}`}
+              item={item}
+              maxSum={maxSum}
+              isLast={i === pairItems.length - 1}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 通常カード */}
+      {cardItems.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {cardItems.map((item, i) => (
+            <Card key={item.name || i} item={item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ── ペア表示カード（🔑 次に動かす力 用）── */
-function PairCard({ item }) {
-  const { kA, kB, zone, scoreA, scoreB, sum } = item;
+/* ── ペア表示カード — スペクトラム型（🔑 次に動かす力 用）── */
+function PairCard({ item, maxSum = 40, isLast = false }) {
+  const { kA, kB, zone, sum } = item;
   const shortName = pairShort(kA, kB);
   const desc      = pairDef(kA, kB);
-  const blk       = getBlock(kA, kB);
   const zoneColor = PAIR_ZONE_HEX[zone] || '#888';
-  const zoneLbl   = ZONE_LABEL[zone] || zone.toUpperCase();
   const nameA     = PAIR_SUB_JP[kA] || kA;
   const nameB     = PAIR_SUB_JP[kB] || kB;
+  const pct       = Math.min((sum / maxSum) * 100, 100);
 
   return (
     <div style={{
-      background: '#FFFFFF',
-      border: `1px solid ${BORDER}`,
-      borderLeft: `4px solid ${zoneColor}`,
-      borderRadius: 10,
-      padding: '14px 16px',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+      padding: '10px 14px',
+      borderBottom: isLast ? 'none' : `1px solid ${BORDER}`,
     }}>
-      {/* ヘッダー行: ショートネーム + ゾーンバッジ */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+      {/* 行1: 力の名前 + ペア素子 + スコア */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
         <span style={{
-          fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY,
-          fontFamily: "'Noto Serif JP', serif",
+          fontSize: 14, fontWeight: 800, color: TEXT_PRIMARY,
+          fontFamily: "'Noto Serif JP', serif", letterSpacing: '0.02em',
+          flexShrink: 0,
         }}>{shortName}</span>
         <span style={{
-          background: zoneColor,
-          color: '#fff',
-          fontSize: 10, fontWeight: 700,
-          padding: '2px 8px', borderRadius: 9999,
-          letterSpacing: '0.06em',
-          marginLeft: 'auto',
-        }}>{zoneLbl}</span>
-      </div>
-
-      {/* ペア名 */}
-      <div style={{
-        fontSize: 12, fontWeight: 600, color: zoneColor,
-        marginBottom: 6,
-      }}>{nameA} × {nameB}</div>
-
-      {/* スコア + ブロック */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        marginBottom: 8,
-      }}>
+          fontSize: 11, color: TEXT_MUTED, flex: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{nameA} × {nameB}</span>
         <span style={{
-          fontSize: 13, fontWeight: 700, color: TEXT_SECONDARY,
-          fontFamily: "'Outfit', sans-serif",
-        }}>{scoreA} + {scoreB} = <span style={{ color: zoneColor }}>{sum}</span></span>
-        {blk && (
-          <span style={{
-            fontSize: 10, color: TEXT_MUTED, marginLeft: 'auto',
-            fontWeight: 600, letterSpacing: '0.04em',
-          }}>{blk.name} / {blk.jp}</span>
-        )}
+          fontSize: 12, fontWeight: 700, color: zoneColor,
+          fontFamily: "'Outfit', sans-serif", flexShrink: 0,
+        }}>{sum}pt</span>
       </div>
 
-      {/* ペア説明 */}
+      {/* 強度バー */}
+      <div style={{
+        height: 3, background: '#EDE8E0', borderRadius: 2,
+        marginBottom: 5, overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%', width: `${pct}%`, borderRadius: 2,
+          background: `linear-gradient(90deg, ${zoneColor}77, ${zoneColor})`,
+          transition: 'width 0.6s ease',
+        }} />
+      </div>
+
+      {/* 説明文 */}
       {desc && (
         <p style={{
-          fontSize: 13, color: TEXT_SECONDARY,
-          lineHeight: 1.7, margin: 0,
-          marginBottom: blk && BLOCK_ACTION[blk.name] ? 10 : 0,
+          fontSize: 12, color: TEXT_SECONDARY,
+          margin: 0, lineHeight: 1.6,
         }}>{desc}</p>
-      )}
-
-      {/* Case B: ブロック別ワンポイントアクション */}
-      {blk && BLOCK_ACTION[blk.name] && (
-        <div style={{
-          marginTop: 2,
-          padding: '8px 12px',
-          background: zoneColor + '10',
-          borderRadius: 6,
-          borderLeft: `3px solid ${zoneColor}`,
-        }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: zoneColor, letterSpacing: '0.08em' }}>▶ ACTION</span>
-          <p style={{ fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7, margin: '4px 0 0' }}>
-            {BLOCK_ACTION[blk.name]}
-          </p>
-        </div>
       )}
     </div>
   );
