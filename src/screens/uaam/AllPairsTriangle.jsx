@@ -759,71 +759,67 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
 }
 
 // ─────────────────────────────────────────────────────────────
-// SymmetricMatrix — 16×16 正方形対称マトリクス
-//   左下 ◤ = POTENTIAL（合計30以上）
-//   右上 ◥ = FULL + ACTIVE（16×16以上）
-//   対角 ■ = 素子ラベル
+// SymmetricMatrix — 16×16 上三角マトリクス（最適化版）
+//   右上▲ = 全ゾーン（NATURAL/PRO/ACTIVE/POTENTIAL）を色強度で表示
+//   左下▽ = 非表示（視覚ノイズ除去）
+//   対角  = 素子ラベル
 // ─────────────────────────────────────────────────────────────
 export function SymmetricMatrix({ scores, maxSub = 20 }) {
   const smap = useMemo(() => buildScoreMap(scores, maxSub), [scores, maxSub]);
   const [tip, setTip] = useState(null);
 
-  const SCELL = 34, SGAP = 2;
-  const LABEL_W = 40;
+  const SCELL = 28, SGAP = 2;
+  const LABEL_W = 36;
 
-  // ACTIVE TOP10（合計値が高い順、タイ含む）
-  const activeTop10Set = useMemo(() => {
+  // アクティブなペアをスコア合計順に取得（dormant除外）
+  const activePairs = useMemo(() => {
     const pairs = [];
     for (let i = 0; i < N - 1; i++) {
       for (let j = i + 1; j < N; j++) {
         const kA = ORDERED[i], kB = ORDERED[j];
         const sA = smap[kA], sB = smap[kB];
-        if (getZone(sA, sB) === 'active') {
-          pairs.push({ kA, kB, sum: sA + sB });
-        }
+        const z = getZone(sA, sB);
+        if (z !== 'dormant') pairs.push({ kA, kB, sA, sB, z, sum: sA + sB });
       }
     }
-    pairs.sort((a, b) => b.sum - a.sum);
-    if (pairs.length === 0) return new Set();
-    const cutoff = pairs[Math.min(9, pairs.length - 1)].sum;
-    return new Set(pairs.filter(p => p.sum >= cutoff).map(p => `${p.kA}|${p.kB}`));
+    return pairs.sort((a, b) => b.sum - a.sum);
   }, [smap]);
+
+  const top5Pairs = activePairs.slice(0, 5);
 
   return (
     <div className="uaam-chart pdf-section" style={{
       background: 'linear-gradient(145deg, #FDFAF5 0%, #FFFFFF 50%, #F8F4EF 100%)',
       borderRadius: 16,
-      padding: '32px 28px', marginBottom: 20,
+      padding: '28px 24px', marginBottom: 20,
       boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
       border: '1px solid #E8E0D4',
     }}>
       {/* ── ヘッダー ── */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.14em', color: '#7A4A9A', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
           Ability Pair Matrix
         </div>
-        <h2 style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 22, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
+        <h2 style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 20, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
           才覚ペア解析
         </h2>
-        <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0' }}>
-          右上 ◥ FULL &amp; ACTIVE（16×16以上）　左下 ◤ POTENTIAL（合計30+）
-        </p>
-        <div style={{ width: 64, height: 2, background: 'linear-gradient(90deg, #8B35C8, #1A6FD4, #7CB82F)', marginTop: 12, borderRadius: 1 }} />
+        <div style={{ width: 56, height: 2, background: 'linear-gradient(90deg, #8B35C8, #1A6FD4, #7CB82F)', marginTop: 10, borderRadius: 1 }} />
       </div>
 
-      {/* ── 凡例 ── */}
-      <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
+      {/* ── コンパクト凡例（1行）── */}
+      <div style={{ display: 'flex', gap: 14, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {[
-          { zone: 'natural', label: 'NATURAL ✦', desc: '20×20（右）' },
-          { zone: 'pro',     label: 'PRO',        desc: '両才覚16以上 or 15以上合計32+（右）' },
-          { zone: 'active',  label: 'ACTIVE',     desc: '両才覚12以上 合計31まで TOP10（左・黄緑）' },
-        ].map(({ zone, label, desc }) => (
-          <div key={zone} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 12, height: 12, borderRadius: 3, background: ZONE_HEX[zone] }} />
-            <span style={{ fontSize: 11, color: '#555', fontWeight: 600 }}>{label}</span>
-            <span style={{ fontSize: 10, color: '#999' }}>{desc}</span>
+          { z: 'natural',   label: 'NATURAL ✦' },
+          { z: 'pro',       label: 'PRO' },
+          { z: 'active',    label: 'ACTIVE' },
+          { z: 'potential', label: 'POTENTIAL' },
+        ].map(({ z, label }) => (
+          <div key={z} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 9, height: 9, borderRadius: 2, background: ZONE_HEX[z], flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: ZONE_HEX[z], fontWeight: 700, letterSpacing: '0.04em' }}>{label}</span>
           </div>
         ))}
+        <span style={{ fontSize: 10, color: '#BBB', marginLeft: 4 }}>— セルにマウスで詳細</span>
       </div>
 
       {/* ── マトリクス本体 ── */}
@@ -835,7 +831,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
             {ORDERED.map(colKey => (
               <div key={colKey} style={{
                 width: SCELL, marginRight: SGAP, flexShrink: 0,
-                textAlign: 'center', fontSize: 9, fontWeight: 600,
+                textAlign: 'center', fontSize: 8, fontWeight: 600,
                 color: AXIS_LIGHT[CODE_GRP[colKey]], lineHeight: 1.2, paddingBottom: 2,
               }}>
                 {SUB_JP[colKey].slice(0, 2)}
@@ -852,17 +848,17 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                 {/* 行ラベル */}
                 <div style={{
                   width: LABEL_W, marginRight: SGAP, flexShrink: 0,
-                  fontSize: 10, fontWeight: 600,
+                  fontSize: 9, fontWeight: 600,
                   color: AXIS_HEX[grp],
-                  textAlign: 'right', paddingRight: 6,
+                  textAlign: 'right', paddingRight: 5,
                 }}>
                   {SUB_JP[rowKey].slice(0, 3)}
                 </div>
 
                 {/* セル */}
                 {ORDERED.map((colKey, j) => {
-                  // ── 対角 ──
-                  // ── 対角 ── 16項目の素子名表示・枠グラデ
+
+                  // ── 対角 ── スコア強度で枠太さが変わる
                   if (i === j) {
                     const sc = smap[rowKey];
                     const ratio = sc / 20;
@@ -875,7 +871,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                         border: `${borderWidth}px solid ${toRgba(AXIS_HEX[grp], borderOpacity)}`,
                         borderRadius: 4,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 8, fontWeight: 700, color: AXIS_HEX[grp],
+                        fontSize: 7, fontWeight: 700, color: AXIS_HEX[grp],
                         lineHeight: 1.1, textAlign: 'center',
                       }}>
                         {SUB_JP[rowKey].slice(0, 3)}
@@ -883,49 +879,35 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 右上三角（j > i）: NATURAL + PRO ── テキストなし
+                  // ── 右上三角（j > i）: 全ゾーンを色強度で表示 ──
                   if (j > i) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
-                    const show = z === 'natural' || z === 'pro';
-                    // 非アクティブ: スコア合計に応じたスムーズな薄グラデ
+                    const show = z !== 'dormant';
                     const dimRatio = Math.max(0, Math.min(1, (sA + sB - 16) / 24));
                     const bg = show
                       ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB))
-                      : toRgba('#A09888', 0.06 + dimRatio * 0.14);
+                      : toRgba('#A09888', 0.03 + dimRatio * 0.05);
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
-                        background: bg, borderRadius: 4,
+                        background: bg, borderRadius: 3,
                         cursor: show ? 'pointer' : 'default',
                         transition: 'transform 0.12s',
                       }}
-                        onMouseEnter={e => { if (show) { e.currentTarget.style.transform = 'scale(1.25)'; setTip({ kA: rowKey, kB: colKey, z, sA, sB, x: e.clientX, y: e.clientY }); } }}
-                        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
+                        onMouseEnter={show ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: rowKey, kB: colKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
+                        onMouseMove={show ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
+                        onMouseLeave={show ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
                       />
                     );
                   }
 
-                  // ── 左下三角（j < i）: ACTIVE TOP10（黄緑）のみ ──
-                  const sA = smap[colKey], sB = smap[rowKey];
-                  const z  = getZone(sA, sB);
-                  const pairKey = `${colKey}|${rowKey}`;
-                  const show = z === 'active' && activeTop10Set.has(pairKey);
-                  // 非アクティブ: スコア合計に応じたスムーズな薄グラデ
-                  const dimRatioL = Math.max(0, Math.min(1, (sA + sB - 16) / 24));
-                  const bg = show
-                    ? toRgba(ZONE_HEX['active'], zAlpha('active', sA, sB))
-                    : toRgba('#A09888', 0.06 + dimRatioL * 0.14);
+                  // ── 左下三角（j < i）: 非表示（ほぼ透明）──
                   return (
                     <div key={colKey} style={{
                       width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
-                      background: bg, borderRadius: 4,
-                      cursor: show ? 'pointer' : 'default',
-                      transition: 'transform 0.12s',
-                    }}
-                      onMouseEnter={e => { if (show) { e.currentTarget.style.transform = 'scale(1.25)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } }}
-                      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
-                    />
+                      background: 'rgba(160,152,136,0.03)', borderRadius: 3,
+                    }} />
                   );
                 })}
               </div>
@@ -933,6 +915,43 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
           })}
         </div>
       </div>
+
+      {/* ── TOP 5 発動ペア ── */}
+      {top5Pairs.length > 0 && (
+        <div style={{ marginTop: 20, borderTop: '1px solid #EDEAE4', paddingTop: 16 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#AAA', textTransform: 'uppercase', marginBottom: 10 }}>
+            Top 5 Active Pairs
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
+            {top5Pairs.map((p, rank) => {
+              const zc  = ZONE_HEX[p.z];
+              const blk = getBlock(p.kA, p.kB);
+              return (
+                <div key={`${p.kA}-${p.kB}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: rank === 0 ? '#B8960C' : '#CCC', minWidth: 14, textAlign: 'center' }}>
+                    {rank + 1}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: zc }}>
+                        {pairShort(p.kA, p.kB)}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#999' }}>
+                        {SUB_JP[p.kA]} × {SUB_JP[p.kB]}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <div style={{ height: 3, borderRadius: 2, background: zc, width: `${(p.sum / 40) * 80}px`, minWidth: 8 }} />
+                      <span style={{ fontSize: 10, color: '#888', fontFamily: "'Outfit', sans-serif" }}>{p.sum}</span>
+                      {blk && <span style={{ fontSize: 9, color: '#CCC' }}>{blk.name}</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── ツールチップ ── */}
       {tip && (() => {
@@ -951,7 +970,6 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
             boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
             pointerEvents: 'none', minWidth: 190,
           }}>
-            {/* ペア名（120項目）を大きく表示 */}
             <div style={{ fontSize: 18, fontWeight: 800, color: zc, marginBottom: 4, fontFamily: "'Noto Serif JP', serif" }}>
               {pairShort(tip.kA, tip.kB)}
             </div>

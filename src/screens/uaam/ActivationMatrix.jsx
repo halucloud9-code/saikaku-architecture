@@ -396,14 +396,14 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         ctx.font = `800 20px "DM Sans", sans-serif`;
         ctx.fillStyle = '#2A2520';
         ctx.fillText(points[i].raw + '', lx + nudge, ly - 10);
+        const numW20 = ctx.measureText(points[i].raw + '').width;
         ctx.restore();
         if (topRank >= 0) {
           ctx.font = `700 9px "DM Sans", sans-serif`;
           ctx.fillStyle = '#C4922A';
-          const numW = ctx.measureText(points[i].raw + '').width;
-          const bx = align === 'left' ? lx + nudge + numW + 4
-            : align === 'right' ? lx + nudge - numW - 4
-            : lx + nudge + numW / 2 + 4;
+          const bx = align === 'left' ? lx + nudge + numW20 + 4
+            : align === 'right' ? lx + nudge - numW20 - 4
+            : lx + nudge + numW20 / 2 + 4;
           ctx.fillText('#' + (topRank + 1), bx, ly - 18);
         }
         ctx.font = `700 11px "Noto Serif JP", serif`;
