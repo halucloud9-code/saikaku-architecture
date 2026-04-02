@@ -1614,47 +1614,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
                   ))}
                 </Section>
               )}
-              {analysis.growth_areas?.length > 0 && (
-                <Section style={{ marginBottom: 0 }}>
-                  <SectionHeader title="成長ポイント" subtitle="Growth Areas" color={ACCENT_GOLD} />
-                  {analysis.growth_areas.map((g, i) => (
-                    <div key={i} style={{
-                      display: 'flex', gap: 10, alignItems: 'flex-start',
-                      padding: '10px 0',
-                      borderBottom: i < analysis.growth_areas.length - 1 ? `1px solid ${BORDER}` : 'none',
-                    }}>
-                      <span style={{
-                        fontSize: 13, fontWeight: 700, color: ACCENT_GOLD,
-                        flexShrink: 0, width: 22,
-                      }}>▲</span>
-                      <span style={{ fontSize: 14, color: TEXT_SECONDARY, lineHeight: 1.7 }}>{g}</span>
-                    </div>
-                  ))}
-                </Section>
-              )}
-            </div>
-
-            {/* Action Suggestions */}
-            {analysis.action_suggestions?.length > 0 && (
-              <Section>
-                <SectionHeader title="アクション提案" subtitle="Action Suggestions — 次のステップ" color={AXIS_COLORS.mindset} />
-                {analysis.action_suggestions.map((a, i) => (
-                  <div key={i} style={{
-                    display: 'flex', gap: 12, alignItems: 'flex-start',
-                    padding: '12px 0',
-                    borderBottom: i < analysis.action_suggestions.length - 1 ? `1px solid ${BORDER}` : 'none',
-                  }}>
-                    <span style={{
-                      background: AXIS_COLORS.mindset,
-                      color: WHITE, fontSize: 11, fontWeight: 700,
-                      width: 24, height: 24, borderRadius: 6,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>{i + 1}</span>
-                    <span style={{ fontSize: 14, color: TEXT_SECONDARY, lineHeight: 1.7, paddingTop: 2 }}>{a}</span>
-                  </div>
-                ))}
-              </Section>
-            )}
           </>
         )}
 
