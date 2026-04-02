@@ -879,15 +879,14 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 右上三角（j > i）: 全ゾーンを色強度で表示 ──
+                  // ── 右上三角（j > i）: NATURAL + PRO のみ表示 ──
                   if (j > i) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
-                    const show = z !== 'dormant';
-                    const dimRatio = Math.max(0, Math.min(1, (sA + sB - 16) / 24));
+                    const show = z === 'natural' || z === 'pro';
                     const bg = show
                       ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB))
-                      : toRgba('#A09888', 0.03 + dimRatio * 0.05);
+                      : 'rgba(160,152,136,0.03)';
                     return (
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
@@ -902,13 +901,27 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 左下三角（j < i）: 非表示（ほぼ透明）──
-                  return (
-                    <div key={colKey} style={{
-                      width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
-                      background: 'rgba(160,152,136,0.03)', borderRadius: 3,
-                    }} />
-                  );
+                  // ── 左下三角（j < i）: ACTIVE + POTENTIAL のみ表示 ──
+                  {
+                    const sA = smap[colKey], sB = smap[rowKey];
+                    const z  = getZone(sA, sB);
+                    const show = z === 'active' || z === 'potential';
+                    const bg = show
+                      ? toRgba(ZONE_HEX[z], zAlpha(z, sA, sB))
+                      : 'rgba(160,152,136,0.03)';
+                    return (
+                      <div key={colKey} style={{
+                        width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
+                        background: bg, borderRadius: 3,
+                        cursor: show ? 'pointer' : 'default',
+                        transition: 'transform 0.12s',
+                      }}
+                        onMouseEnter={show ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
+                        onMouseMove={show ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
+                        onMouseLeave={show ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
+                      />
+                    );
+                  }
                 })}
               </div>
             );
