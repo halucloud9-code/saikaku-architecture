@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
 import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
-import AllPairsTriangle from './AllPairsTriangle';
+import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
 
 /* ============================================================
@@ -33,8 +33,8 @@ const SUB_LABELS = {
 
 const SUB_JP = {
   meaning: '意味', mindfulness: '気づき', mindshift: '意識転換', mastery: '熟達',
-  learning: '学習', logical: '論理', life: '社会実装', leadership: 'リーダーシップ',
-  critical: '批判的思考', creativity: '創造性', communication: '伝える力', collaboration: '協働',
+  learning: '学習', logical: '論理', life: '活用', leadership: 'リーダーシップ',
+  critical: '批判的思考', creativity: '創造性', communication: '表現力', collaboration: '協働',
   idea: 'アイデア', innovation: '変革', implementation: '実装', influence: '影響',
 };
 
@@ -61,11 +61,11 @@ const SUB_ADVICE = {
   mastery:       '一つのスキルに集中して取り組む時間を確保しましょう。毎回「前回よりここを改善する」と小さな目標を持つことで着実に熟達していきます。',
   learning:      '毎日15分の読書や新しい知識のインプットを習慣化しましょう。学んだことを誰かに説明する「アウトプット」が定着の鍵です。',
   logical:       '複雑な問題に直面したら、まず要素を分解して紙に書き出しましょう。「原因→結果」の因果関係を図にすることで論理的思考力が鍛えられます。',
-  life:          '学んだ知識を実生活の小さな課題解決に適用してみましょう。「知っている」から「使える」への転換が社会実装力の本質です。',
+  life:          '学んだ知識を実生活の小さな課題解決に適用してみましょう。「知っている」から「使える」への転換が活用力の本質です。',
   leadership:    'まず身近な場面で「自分から提案する」ことを意識しましょう。相手の話を最後まで聴き、全員が発言できる場を作ることがリーダーシップの第一歩です。',
   critical:      '情報を受け取ったとき「本当にそうか？根拠は？」と問う習慣を持ちましょう。賛成意見と反対意見の両方を調べることで批判的思考力が向上します。',
   creativity:    '日常のルーティンをあえて変えてみましょう。異分野の知識や全く関係のない経験を組み合わせてみることが創造性の源泉です。',
-  communication: '伝えたいことを「結論→理由→具体例」の順で整理してから話しましょう。相手が何を知りたいかを先に考えることで伝達力が格段に上がります。',
+  communication: '伝えたいことを「結論→理由→具体例」の順で整理してから話しましょう。相手が何を知りたいかを先に考えることで表現力が格段に上がります。',
   collaboration: '意見が異なる人の話を「なぜそう思うのか」まで聴く姿勢を意識しましょう。共通の目標を最初に確認し合うことが効果的な協働の起点です。',
   idea:          '日常の「不便」「違和感」「面白い」をメモする習慣をつけましょう。既存のものを新しい組み合わせで考えることがアイデア発想の基本です。',
   innovation:    '「もっと良くできないか」と現状を疑問視する視点を持ちましょう。小さな改善を繰り返すことが、やがて大きな変革につながります。',
@@ -73,26 +73,7 @@ const SUB_ADVICE = {
   influence:     '言葉だけでなく自分の行動で示すことを意識しましょう。約束を守り、一貫した姿勢を積み重ねることが周囲への影響力の基盤となります。',
 };
 
-/**
- * スコアスケール自動検出
- * 64問版: 1-5点×4問 = MAX_SUB=20, MAX_AXIS=80
- * 旧48問版: MAX_SUB=15, MAX_AXIS=60（後方互換）
- * 旧サーバー版: MAX_SUB=12, MAX_AXIS=48（後方互換）
- */
-function detectScale(scores) {
-  if (!scores) return { maxSub: 20, maxAxis: 80 };
-  let maxFound = 0;
-  for (const axis of Object.values(scores)) {
-    if (axis?.subs) {
-      for (const v of Object.values(axis.subs)) {
-        if (v > maxFound) maxFound = v;
-      }
-    }
-  }
-  if (maxFound > 15) return { maxSub: 20, maxAxis: 80 };
-  if (maxFound > 12) return { maxSub: 15, maxAxis: 60 };
-  return { maxSub: 12, maxAxis: 48 };
-}
+// 64問版固定: 1-5点×4問 = MAX_SUB=20, MAX_AXIS=80
 
 // デフォルト値（コンポーネント外で使う箇所用）
 let MAX_AXIS = 80;
@@ -535,6 +516,193 @@ function MainFanChart({ scores }) {
 }
 
 /* ============================================================
+ * FourAxisGrid — 志/知/技/衝 × 2×2 ミニレーダー
+ * ============================================================ */
+const FOUR_AXES = [
+  { key: 'mindset',    jp: '志', en: 'MindSet',   color: '#2C5F8A',
+    subs: ['meaning','mindfulness','mindshift','mastery'],
+    subJp: ['意味','気づき','意識転換','熟達'] },
+  { key: 'competency', jp: '技', en: 'Competency', color: '#A07A18',
+    subs: ['critical','creativity','communication','collaboration'],
+    subJp: ['批判思考','創造性','表現力','協働'] },
+  { key: 'literacy',   jp: '知', en: 'Literacy',   color: '#1E7A4A',
+    subs: ['learning','logical','life','leadership'],
+    subJp: ['学習','論理','活用','リーダー'] },
+  { key: 'impact',     jp: '衝', en: 'Impact',     color: '#C0614A',
+    subs: ['idea','innovation','implementation','influence'],
+    subJp: ['アイデア','変革','実装','影響'] },
+];
+
+/* ---------- 扇形セクター path ヘルパー ---------- */
+function sectorPath(cx, cy, r, startDeg, endDeg) {
+  const s = startDeg * Math.PI / 180;
+  const e = endDeg   * Math.PI / 180;
+  const x1 = +(cx + r * Math.cos(s)).toFixed(2);
+  const y1 = +(cy + r * Math.sin(s)).toFixed(2);
+  const x2 = +(cx + r * Math.cos(e)).toFixed(2);
+  const y2 = +(cy + r * Math.sin(e)).toFixed(2);
+  const large = (endDeg - startDeg > 180) ? 1 : 0;
+  return `M${cx},${cy} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} Z`;
+}
+
+function MiniRadar({ axis, scores }) {
+  const rawScores = axis.subs.map(sub => scores?.[axis.key]?.subs?.[sub] ?? 0);
+  const maxSub = 20;
+  const total   = rawScores.reduce((a, b) => a + b, 0);
+  const maxTotal = maxSub * 4;
+  const pct      = Math.round((total / maxTotal) * 100);
+  const maxScore = Math.max(...rawScores, 1);
+  const topIdx   = rawScores.indexOf(maxScore); // ラベル用（先頭1つ）
+  const isTopScore = (i) => rawScores[i] === maxScore; // 同点複数対応
+
+  const S = 210, cx = S / 2, cy = S / 2, R = 76;
+
+  // 4扇形（各90°、時計回り）
+  // i=0:NE(-90°→0°)  i=1:SE(0°→90°)  i=2:SW(90°→180°)  i=3:NW(180°→270°)
+  const SECTORS = [
+    { start: -90, end:   0 },
+    { start:   0, end:  90 },
+    { start:  90, end: 180 },
+    { start: 180, end: 270 },
+  ];
+
+  // 外周ラベル位置: 各セクターの開始点(N/E/S/W)
+  const CARD_DEG = [-90, 0, 90, 180]; // N,E,S,W
+  const LP = R + 20;
+
+  return (
+    <div style={{
+      background: '#FFFFFF',
+      borderRadius: 16,
+      border: `1px solid ${axis.color}28`,
+      padding: '14px 14px 10px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      boxShadow: `0 2px 14px ${axis.color}16`,
+    }}>
+      {/* ── ヘッダー ── */}
+      <div style={{ width: '100%', marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <div style={{ lineHeight: 1 }}>
+            <span style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 22, fontWeight: 800, color: axis.color }}>{axis.jp}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 7, opacity: 0.55, color: axis.color, letterSpacing: '0.04em' }}>{axis.en}</span>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: axis.color, fontFamily: "'Outfit', sans-serif", lineHeight: 1 }}>
+            {pct}<span style={{ fontSize: 12, fontWeight: 400, opacity: 0.55 }}>%</span>
+          </div>
+        </div>
+        {/* トップ素子名 */}
+        <div style={{ fontSize: 12, fontWeight: 600, color: axis.color, opacity: 0.78, marginTop: 3 }}>
+          {axis.subJp[topIdx]}
+        </div>
+        {/* スコアバー */}
+        <div style={{ height: 4, background: axis.color + '18', borderRadius: 2, marginTop: 7, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${axis.color}70, ${axis.color})`, borderRadius: 2 }} />
+        </div>
+        <div style={{ fontSize: 10, color: axis.color, opacity: 0.48, textAlign: 'right', marginTop: 3, fontFamily: "'Outfit', sans-serif" }}>
+          {total} / {maxTotal}
+        </div>
+      </div>
+
+      {/* ── SVG扇形チャート（viewBox レスポンシブ） ── */}
+      <svg viewBox={`0 0 ${S} ${S}`} width="100%" style={{ overflow: 'visible', display: 'block' }}>
+        {/* 同心円グリッド */}
+        {[0.33, 0.66, 1].map(r => (
+          <circle key={r} cx={cx} cy={cy} r={R * r}
+            fill="none"
+            stroke={r === 1 ? axis.color + '28' : 'rgba(0,0,0,0.07)'}
+            strokeWidth={r === 1 ? 1 : 0.5}
+            strokeDasharray={r < 1 ? '2 3' : 'none'} />
+        ))}
+
+        {/* 背景扇形（全半径・薄色） */}
+        {SECTORS.map((s, i) => (
+          <path key={i} d={sectorPath(cx, cy, R, s.start, s.end)}
+            fill={axis.color} fillOpacity={0.07} />
+        ))}
+
+        {/* スコア扇形 */}
+        {SECTORS.map((s, i) => {
+          const r = Math.max(6, (rawScores[i] / maxSub) * R);
+          const top = isTopScore(i);
+          const baseOpa = 0.38 + (rawScores[i] / maxSub) * 0.28;
+          return (
+            <path key={i} d={sectorPath(cx, cy, r, s.start, s.end)}
+              fill={axis.color} fillOpacity={top ? 0.80 : baseOpa} />
+          );
+        })}
+
+        {/* 区切り白線（扇形の上に重ねる） */}
+        {CARD_DEG.map((deg, i) => {
+          const rad = deg * Math.PI / 180;
+          return <line key={i}
+            x1={cx} y1={cy}
+            x2={+(cx + R * Math.cos(rad)).toFixed(2)}
+            y2={+(cy + R * Math.sin(rad)).toFixed(2)}
+            stroke="rgba(255,255,255,0.88)" strokeWidth={2} />;
+        })}
+
+        {/* スコアテキスト（扇形内部） */}
+        {SECTORS.map((s, i) => {
+          const mid = ((s.start + s.end) / 2) * Math.PI / 180;
+          const top = isTopScore(i);
+          const textR = R * 0.56;
+          const tx = +(cx + textR * Math.cos(mid)).toFixed(2);
+          const ty = +(cy + textR * Math.sin(mid)).toFixed(2);
+          const fill = top ? '#FFFFFF' : axis.color;
+          const opa  = top ? 1 : 0.85;
+          return (
+            <g key={i}>
+              <text x={tx} y={ty - 7} textAnchor="middle" dominantBaseline="middle"
+                fontSize={11} fontWeight={700} fill={fill} fillOpacity={opa}
+                fontFamily="'Outfit', sans-serif">
+                {rawScores[i]}/20
+              </text>
+              <text x={tx} y={ty + 7} textAnchor="middle" dominantBaseline="middle"
+                fontSize={10} fontWeight={500} fill={fill} fillOpacity={opa * 0.85}>
+                {Math.round((rawScores[i] / maxSub) * 100)}%
+              </text>
+            </g>
+          );
+        })}
+
+        {/* 外周ラベル（N/E/S/W） */}
+        {CARD_DEG.map((deg, i) => {
+          const rad = deg * Math.PI / 180;
+          const lx = +(cx + LP * Math.cos(rad)).toFixed(2);
+          const ly = +(cy + LP * Math.sin(rad)).toFixed(2);
+          const top = isTopScore(i);
+          return (
+            <text key={i} x={lx} y={ly}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize={11} fontWeight={top ? 700 : 500}
+              fill={top ? axis.color : axis.color + 'AA'}>
+              {axis.subJp[i]}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function FourAxisGrid({ scores }) {
+  return (
+    <div className="uaam-chart pdf-section" style={{
+      background: '#FFFFFF', borderRadius: 16,
+      padding: '24px 20px', marginBottom: 20,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      border: '1px solid #E8E0D4',
+    }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {FOUR_AXES.map(axis => (
+          <MiniRadar key={axis.key} axis={axis} scores={scores} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
  * 才覚発動領域チャート（Canvas 扇形）
  * 参照: SaikkakuActivityDomain.jsx — GRIFFON_CODE_v5 準拠
  *
@@ -920,11 +1088,11 @@ function RadarChart16({ scores }) {
       { key: 'mastery',       jp: '熟達',           en: 'Mastery',        group: 'mindset' },
       { key: 'learning',      jp: '学習',           en: 'Learning',       group: 'literacy' },
       { key: 'logical',       jp: '論理',           en: 'Logical',        group: 'literacy' },
-      { key: 'life',          jp: '社会実装',       en: 'Life',           group: 'literacy' },
+      { key: 'life',          jp: '活用',           en: 'Life',           group: 'literacy' },
       { key: 'leadership',    jp: 'リーダーシップ', en: 'Leadership',     group: 'literacy' },
       { key: 'critical',      jp: '批判的思考',     en: 'Critical',       group: 'competency' },
       { key: 'creativity',    jp: '創造性',         en: 'Creativity',     group: 'competency' },
-      { key: 'communication', jp: '伝える力',       en: 'Communication',  group: 'competency' },
+      { key: 'communication', jp: '表現力',          en: 'Communication',  group: 'competency' },
       { key: 'collaboration', jp: '協働',           en: 'Collaboration',  group: 'competency' },
       { key: 'idea',          jp: 'アイデア',       en: 'Idea',           group: 'impact' },
       { key: 'innovation',    jp: '変革',           en: 'Innovation',     group: 'impact' },
@@ -942,7 +1110,7 @@ function RadarChart16({ scores }) {
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
     const n = 16;
     const step = (2 * Math.PI) / n;
-    const startAngle = -Math.PI / 2;
+    const startAngle = -Math.PI / 2; // サブ項目配置（意味=12時スタート）
 
     const getPoint = (i, val) => {
       const angle = startAngle + i * step;
@@ -1153,11 +1321,12 @@ function RadarChart16({ scores }) {
     }
 
     // === グループラベル（志・知・技・衝）===
+    // グループラベル: 12/3/6/9時に固定
     const groupLabels = [
-      { jp: '志', en: 'Mindset',    angle: startAngle + 1.5 * step, color: GC.mindset.stroke },
-      { jp: '知', en: 'Literacy',   angle: startAngle + 5.5 * step, color: GC.literacy.stroke },
-      { jp: '技', en: 'Competency', angle: startAngle + 9.5 * step, color: GC.competency.stroke },
-      { jp: '衝', en: 'Impact',     angle: startAngle + 13.5 * step,color: GC.impact.stroke },
+      { jp: '志', en: 'WHY',   angle: -Math.PI / 2,      color: GC.mindset.stroke },
+      { jp: '知', en: 'THINK', angle: 0,                 color: GC.literacy.stroke },
+      { jp: '技', en: 'HOW',   angle:  Math.PI / 2,      color: GC.competency.stroke },
+      { jp: '衝', en: 'ACT',   angle:  Math.PI,          color: GC.impact.stroke },
     ];
     groupLabels.forEach(({ jp, en, angle, color }) => {
       const gr = R + 80;
@@ -1288,10 +1457,9 @@ function RadarChart16({ scores }) {
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
   const { scores, analysis, vAnswers, answers } = result;
 
-  // スケール自動検出（サーバー0-12 vs クライアント0-15）
-  const scale = detectScale(scores);
-  MAX_SUB = scale.maxSub;
-  MAX_AXIS = scale.maxAxis;
+  // 20点固定
+  MAX_SUB = 20;
+  MAX_AXIS = 80;
   MAX_CROSS = MAX_AXIS * MAX_AXIS;
   DISPLAY_CROSS = MAX_CROSS / 2;
 
@@ -1378,76 +1546,24 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           )}
         </Section>
 
-        {/* ===== 総合スコア（4色扇形） ===== */}
-        <Section>
-          <SectionHeader title="志知技衝 総合スコア" subtitle="MLCI Total Score" />
-          <MainFanChart scores={scores} />
 
-          {/* V問スコア（小さく数字のみ） */}
-          {vAnswers && (
-            <div style={{
-              display: 'flex', justifyContent: 'center', gap: 10, marginTop: 14,
-            }}>
-              {(() => {
-                const v3Diff = (vAnswers['V3'] != null && answers?.[61] != null)
-                  ? Math.abs(vAnswers['V3'] - answers[61])
-                  : null;
-                const items = [
-                  { label: 'V1', value: vAnswers['V1'] },
-                  { label: 'V2', value: vAnswers['V2'] },
-                  { label: 'V3', value: v3Diff },
-                ];
-                return items.map(({ label, value }) => (
-                  <span key={label} style={{
-                    fontSize: 10, color: TEXT_MUTED, fontFamily: NUM_FONT, letterSpacing: '0.02em',
-                  }}>
-                    {label}.{value ?? '-'}
-                  </span>
-                ));
-              })()}
-            </div>
-          )}
-        </Section>
-
-        {/* ===== サブ項目 扇形チャート x4 ===== */}
-        {subRadars.map(({ axis, data, order }) => (
-          <Section key={axis.key} style={{ marginBottom: 16 }}>
-            <SectionHeader
-              title={`${axis.label}（${axis.english}）`}
-              subtitle={axis.description}
-              color={AXIS_COLORS[axis.key]}
-            />
-
-            {/* 軸スコア */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              marginBottom: 12, padding: '8px 0',
-            }}>
-              <span style={{
-                fontSize: 32, fontWeight: 900, color: AXIS_COLORS[axis.key],
-                fontFamily: NUM_FONT,
-              }}>{scores[axis.key]?.total || 0}</span>
-              <span style={{ fontSize: 14, color: TEXT_MUTED, fontFamily: NUM_FONT }}>/ {MAX_AXIS}</span>
-            </div>
-
-            <SubFanChart
-              axis={axis}
-              data={data}
-              order={order}
-              axisColor={AXIS_COLORS[axis.key]}
-            />
-          </Section>
-        ))}
-
-        {/* ===== 才覚発動領域マトリクス ===== */}
-        <ActivityDomainChart scores={scores} />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
 
-        {/* ===== 全ペア三角マトリックス（右：FULL+ACTIVE ／ 左：POTENTIAL+DORMANT） ===== */}
-        <AllPairsTriangle scores={scores} maxSub={MAX_SUB} zones={['full', 'active']} />
-        <AllPairsTriangle scores={scores} maxSub={MAX_SUB} mirror={true} zones={['potential', 'dormant']} />
+        {/* ===== Activation Matrix — 4ミニレーダー ===== */}
+        <div style={{ marginBottom: 6, paddingLeft: 4, marginTop: 20 }}>
+          <div style={{
+            fontFamily: "'Noto Serif JP', Georgia, serif",
+            fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
+          }}>MLCI Activation Profile</div>
+          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚4軸プロファイル</div>
+          <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
+        </div>
+        <FourAxisGrid scores={scores} />
+
+        {/* ===== 16×16 正方形対称マトリクス（右上：FULL+ACTIVE ／ 左下：POTENTIAL） ===== */}
+        <SymmetricMatrix scores={scores} maxSub={MAX_SUB} />
 
         {/* ===== 発動分析パネル ===== */}
         <ActivationPanel scores={
