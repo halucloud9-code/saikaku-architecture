@@ -1614,6 +1614,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
                   ))}
                 </Section>
               )}
+            </div>
           </>
         )}
 
