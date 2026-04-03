@@ -30,10 +30,10 @@ const AXIS_JP    = ['志 MindSet', '知 Literacy', '技 Competency', '衝 Impact
 const AXIS_SHORT = ['志', '知', '技', '衝'];
 
 export const SUB_JP = {
-  meaning:'意味', mindfulness:'気づき', mindshift:'意識転換', mastery:'熟達',
-  learning:'学習', logical:'論理', life:'活用', leadership:'リーダーシップ',
-  critical:'批判的思考', creativity:'創造性', communication:'表現力', collaboration:'協働',
-  idea:'アイデア', innovation:'変革', implementation:'実装', influence:'影響',
+  meaning:'基軸力', mindfulness:'認知力', mindshift:'転換力', mastery:'熟達力',
+  learning:'謙学力', logical:'論理力', life:'活用力', leadership:'統率力',
+  critical:'本質力', creativity:'創造力', communication:'伝達力', collaboration:'協働力',
+  idea:'構想力', innovation:'変革力', implementation:'実装力', influence:'影響力',
 };
 
 // 既存 AXIS_COLORS に統一

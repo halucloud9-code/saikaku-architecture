@@ -6,6 +6,15 @@
 import { getActivationAnalysis } from './activation_analysis';
 import { pairShort, pairDef, SUB_JP as PAIR_SUB_JP, getBlock, ZONE_HEX as PAIR_ZONE_HEX, ZONE_LABEL, BLOCKS } from './screens/uaam/AllPairsTriangle';
 
+/* ── ゾーン別スタイル（バーグラデーション用） ── */
+const ZONE_BAR = {
+  natural:  'linear-gradient(90deg,#C484F077,#8B35C8)',
+  pro:      'linear-gradient(90deg,#6AABF077,#1A6FD4)',
+  active:   'linear-gradient(90deg,#8DC85077,#5A9E20)',
+  potential:'linear-gradient(90deg,#F0A05077,#D07020)',
+};
+const ZONE_DISPLAY_ORDER = ['natural','pro','active','potential'];
+
 /* ── 才覚タイプ定義（10ブロック） ── */
 const TYPE_JP = {
   VISIONARY: '構想家', BUILDER:  '創造者', CATALYST: '触媒',
@@ -27,10 +36,10 @@ const TYPE_DESC = {
 
 /* Case B: パートナーキー → 日本語表示名 */
 const PARTNER_JP = {
-  meaning:'根幹力', mindfulness:'受容力', mindshift:'転換力', mastery:'熟達力',
+  meaning:'基軸力', mindfulness:'認知力', mindshift:'転換力', mastery:'熟達力',
   learning:'謙学力', logical:'論理力', life:'活用力', leadership:'統率力',
-  critical:'本質力', creativity:'創造力', communication:'表現力', collaboration:'協働力',
-  idea:'起動力', innovation:'革新力', implementation:'実装力', influence:'影響力',
+  critical:'本質力', creativity:'創造力', communication:'伝達力', collaboration:'協働力',
+  idea:'構想力', innovation:'変革力', implementation:'実装力', influence:'影響力',
 };
 
 /* Case B: ペアブロック別ワンポイントアクション */
@@ -220,69 +229,73 @@ function PanelSection({ emoji, title, items, accentColor }) {
 
   const pairItems = items.filter(item => item.isPair);
   const cardItems = items.filter(item => !item.isPair);
-  const maxSum = pairItems.length > 0
-    ? Math.max(...pairItems.map(p => p.sum))
-    : 40;
+  const maxSum    = pairItems.length > 0 ? Math.max(...pairItems.map(p => p.sum)) : 40;
+
+  // ゾーン別グループ（NATURAL→PRO→ACTIVE→POTENTIAL順）
+  const grouped = ZONE_DISPLAY_ORDER
+    .map(z => ({ zone: z, pairs: pairItems.filter(p => p.zone === z) }))
+    .filter(g => g.pairs.length > 0);
 
   return (
     <div style={{ marginBottom: 28 }}>
       {/* セクションヘッダー */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 14,
-        paddingBottom: 8,
+        marginBottom: 14, paddingBottom: 8,
         borderBottom: `2px solid ${accentColor}30`,
       }}>
         <span style={{ fontSize: 18 }}>{emoji}</span>
         <span style={{
-          fontSize: 15, fontWeight: 700,
-          color: accentColor,
-          fontFamily: "'Noto Serif JP', serif",
-          letterSpacing: '0.03em',
+          fontSize: 15, fontWeight: 700, color: accentColor,
+          fontFamily: "'Noto Serif JP', serif", letterSpacing: '0.03em',
         }}>{title}</span>
         {pairItems.length > 0 && (
           <span style={{
-            fontSize: 10, color: accentColor, marginLeft: 'auto',
-            fontWeight: 700, background: accentColor + '18',
-            padding: '2px 8px', borderRadius: 9999,
+            fontSize: 10, color: accentColor, marginLeft: 'auto', fontWeight: 700,
+            background: accentColor + '18', padding: '2px 8px', borderRadius: 9999,
           }}>全{pairItems.length}件</span>
         )}
       </div>
 
-      {/* ペアアイテム: スペクトラム型コンテナ */}
-      {pairItems.length > 0 && (
-        <div style={{
-          background: '#FFFFFF',
-          border: `1px solid ${BORDER}`,
-          borderRadius: 12,
-          overflow: 'hidden',
-          marginBottom: cardItems.length > 0 ? 10 : 0,
-        }}>
-          {pairItems.map((item, i) => (
-            <PairCard
-              key={`${item.kA}-${item.kB}`}
-              item={item}
-              maxSum={maxSum}
-              isLast={i === pairItems.length - 1}
-            />
-          ))}
-        </div>
-      )}
+      {/* ペアアイテム: ゾーン別 2列グリッド */}
+      {grouped.map(({ zone, pairs }) => {
+        const zc  = PAIR_ZONE_HEX[zone] || '#888';
+        const lbl = ZONE_LABEL[zone] || zone.toUpperCase();
+        return (
+          <div key={zone} style={{ marginBottom: 10 }}>
+            {/* ゾーンラベル行 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: zc, flexShrink: 0 }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: zc, letterSpacing: '0.08em' }}>{lbl}</span>
+              <div style={{ flex: 1, height: 1, background: zc + '22' }} />
+              <span style={{ fontSize: 10, color: '#BBB' }}>{pairs.length}件</span>
+            </div>
+            {/* 2列グリッド */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
+              background: BORDER, borderRadius: 10, overflow: 'hidden',
+              border: `1px solid ${BORDER}`,
+            }}>
+              {pairs.map((item) => (
+                <PairCard key={`${item.kA}-${item.kB}`} item={item} maxSum={maxSum} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
 
-      {/* 通常カード */}
+      {/* 通常カード（非ペア） */}
       {cardItems.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {cardItems.map((item, i) => (
-            <Card key={item.name || i} item={item} />
-          ))}
+          {cardItems.map((item, i) => <Card key={item.name || i} item={item} />)}
         </div>
       )}
     </div>
   );
 }
 
-/* ── ペア表示カード — スペクトラム型（🔑 次に動かす力 用）── */
-function PairCard({ item, maxSum = 40, isLast = false }) {
+/* ── ペア表示カード — 2列グリッド・ゾーン別スペクトラム型 ── */
+function PairCard({ item, maxSum = 40 }) {
   const { kA, kB, zone, sum } = item;
   const shortName = pairShort(kA, kB);
   const desc      = pairDef(kA, kB);
@@ -290,47 +303,36 @@ function PairCard({ item, maxSum = 40, isLast = false }) {
   const nameA     = PAIR_SUB_JP[kA] || kA;
   const nameB     = PAIR_SUB_JP[kB] || kB;
   const pct       = Math.min((sum / maxSum) * 100, 100);
+  const barGrad   = ZONE_BAR[zone] || `linear-gradient(90deg,${zoneColor}77,${zoneColor})`;
 
   return (
-    <div style={{
-      padding: '10px 14px',
-      borderBottom: isLast ? 'none' : `1px solid ${BORDER}`,
-    }}>
-      {/* 行1: 力の名前 + ペア素子 + スコア */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-        <span style={{
-          fontSize: 14, fontWeight: 800, color: TEXT_PRIMARY,
-          fontFamily: "'Noto Serif JP', serif", letterSpacing: '0.02em',
-          flexShrink: 0,
-        }}>{shortName}</span>
-        <span style={{
-          fontSize: 11, color: TEXT_MUTED, flex: 1,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{nameA} × {nameB}</span>
-        <span style={{
-          fontSize: 12, fontWeight: 700, color: zoneColor,
-          fontFamily: "'Outfit', sans-serif", flexShrink: 0,
-        }}>{sum}pt</span>
+    <div style={{ padding: '11px 12px', background: '#FFFFFF', position: 'relative', overflow: 'hidden' }}>
+      {/* 左端ゾーンライン */}
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: zoneColor }} />
+
+      {/* 名前 + スコア */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2, paddingLeft: 7 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: TEXT_PRIMARY, letterSpacing: '0.01em' }}>
+          {shortName}
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: zoneColor, fontFamily: "'Outfit', sans-serif" }}>
+          {sum}pt
+        </span>
+      </div>
+
+      {/* ペア素子 */}
+      <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 5, paddingLeft: 7, lineHeight: 1.2 }}>
+        {nameA} × {nameB}
       </div>
 
       {/* 強度バー */}
-      <div style={{
-        height: 3, background: '#EDE8E0', borderRadius: 2,
-        marginBottom: 5, overflow: 'hidden',
-      }}>
-        <div style={{
-          height: '100%', width: `${pct}%`, borderRadius: 2,
-          background: `linear-gradient(90deg, ${zoneColor}77, ${zoneColor})`,
-          transition: 'width 0.6s ease',
-        }} />
+      <div style={{ height: 3, background: '#EDE8E0', borderRadius: 9999, marginBottom: 6, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 9999, background: barGrad, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
       </div>
 
       {/* 説明文 */}
       {desc && (
-        <p style={{
-          fontSize: 12, color: TEXT_SECONDARY,
-          margin: 0, lineHeight: 1.6,
-        }}>{desc}</p>
+        <p style={{ fontSize: 11, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6, paddingLeft: 7 }}>{desc}</p>
       )}
     </div>
   );

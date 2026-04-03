@@ -28,22 +28,22 @@ const AXIS_META = [
 ];
 
 const SUB_META = [
-  { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '意味' },
-  { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '気づき' },
-  { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '意識転換' },
-  { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達' },
-  { key: 'learning',      axis: 1, label: 'Learning',      jp: '学習' },
-  { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理' },
-  { key: 'life',          axis: 1, label: 'Life',          jp: '活用' },
-  { key: 'leadership',    axis: 1, label: 'Leadership',    jp: 'リーダーシップ' },
-  { key: 'critical',      axis: 2, label: 'Critical',      jp: '批判的思考' },
-  { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造性' },
-  { key: 'communication', axis: 2, label: 'Communication', jp: '表現力' },
-  { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働' },
-  { key: 'idea',           axis: 3, label: 'Idea',           jp: 'アイデア' },
-  { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革' },
-  { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装' },
-  { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響' },
+  { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '基軸力' },
+  { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '認知力' },
+  { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '転換力' },
+  { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達力' },
+  { key: 'learning',      axis: 1, label: 'Learning',      jp: '謙学力' },
+  { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理力' },
+  { key: 'life',          axis: 1, label: 'Life',          jp: '活用力' },
+  { key: 'leadership',    axis: 1, label: 'Leadership',    jp: '統率力' },
+  { key: 'critical',      axis: 2, label: 'Critical',      jp: '本質力' },
+  { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造力' },
+  { key: 'communication', axis: 2, label: 'Communication', jp: '伝達力' },
+  { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働力' },
+  { key: 'idea',           axis: 3, label: 'Idea',           jp: '構想力' },
+  { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革力' },
+  { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装力' },
+  { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力' },
 ];
 
 function getAngle(i) {

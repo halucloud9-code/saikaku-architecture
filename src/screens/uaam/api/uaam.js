@@ -53,28 +53,28 @@ const UAAM_SYSTEM_PROMPT = `あなたはUAAM（Universal Ability Assessment Mode
 
 【4軸の定義】
 ■ 志 -MindSet-（4M）
-  Meaning（意味）：行動の軸をつくる力
-  Mindfulness（気づき）：今に意識を向け、変化を受け入れる力
-  Mindshift（意識転換）：固定観念を手放し、新しい可能性を見出す力
-  Mastery（熟達）：実践と反復で学びを定着させる力
+  Meaning（基軸力）：行動の軸をつくる力
+  Mindfulness（認知力）：今に意識を向け、変化を受け入れる力
+  Mindshift（転換力）：固定観念を手放し、新しい可能性を見出す力
+  Mastery（熟達力）：実践と反復で学びを定着させる力
 
 ■ 知 -Literacy-（4L）
-  Learning（学習）：学び方を学ぶ力
-  Logical（論理）：論理的に理解し伝える力
-  Life（社会実装）：学びを社会実装へ落とし込む力
-  Leadership（リーダーシップ）：知を広げ、他者を導く力
+  Learning（謙学力）：学び方を学ぶ力
+  Logical（論理力）：論理的に理解し伝える力
+  Life（活用力）：学びを社会実装へ落とし込む力
+  Leadership（統率力）：知を広げ、他者を導く力
 
 ■ 技 -Competency-（4C）
-  Critical（批判的思考）：論理的に見抜く力
-  Creativity（創造性）：新しいアイデアを生み出す力
-  Communication（伝える力）：考えを伝え共感を得る力
-  Collaboration（協働）：多様な人と協働する力
+  Critical（本質力）：論理的に見抜く力
+  Creativity（創造力）：新しいアイデアを生み出す力
+  Communication（伝達力）：考えを伝え共感を得る力
+  Collaboration（協働力）：多様な人と協働する力
 
 ■ 衝 -Impact-（4I）
-  Idea（アイデア）：熱狂できるテーマを見出す力
-  Innovation（変革）：知識と技能を形にする力
-  Implementation（実装）：社会に実装する力
-  Influence（影響）：変化を広げ文化として根づかせる力
+  Idea（構想力）：熱狂できるテーマを見出す力
+  Innovation（変革力）：知識と技能を形にする力
+  Implementation（実装力）：社会に実装する力
+  Influence（影響力）：変化を広げ文化として根づかせる力
 
 【分析ルール】
 ・スコアの高低差から、その人固有のパターンを読み取る

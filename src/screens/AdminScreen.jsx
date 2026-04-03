@@ -282,16 +282,16 @@ function UserModal({ user: u, onClose, onDelete, onSave }) {
 const AXIS_META = [
   { key: 'mindset',   label: '志', color: '#4A6FA5',
     subs: ['meaning','mindfulness','mindshift','mastery'],
-    subLabels: ['根幹力','受容力','転換力','熟達力'] },
+    subLabels: ['基軸力','認知力','転換力','熟達力'] },
   { key: 'literacy',  label: '知', color: '#2E8B57',
     subs: ['learning','logical','life','leadership'],
     subLabels: ['謙学力','論理力','活用力','統率力'] },
   { key: 'competency',label: '技', color: '#C4922A',
     subs: ['critical','creativity','communication','collaboration'],
-    subLabels: ['本質力','創造力','表現力','協働力'] },
+    subLabels: ['本質力','創造力','伝達力','協働力'] },
   { key: 'impact',    label: '衝', color: '#A84432',
     subs: ['idea','innovation','implementation','influence'],
-    subLabels: ['起動力','革新力','実装力','影響力'] },
+    subLabels: ['構想力','変革力','実装力','影響力'] },
 ];
 
 function UAAMModal({ user: u, onClose, onDelete }) {

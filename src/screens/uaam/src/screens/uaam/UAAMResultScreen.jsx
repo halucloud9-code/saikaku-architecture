@@ -32,10 +32,10 @@ const SUB_LABELS = {
 };
 
 const SUB_JP = {
-  meaning: '意味', mindfulness: '気づき', mindshift: '意識転換', mastery: '熟達',
-  learning: '学習', logical: '論理', life: '活用', leadership: 'リーダーシップ',
-  critical: '批判的思考', creativity: '創造性', communication: '表現力', collaboration: '協働',
-  idea: 'アイデア', innovation: '変革', implementation: '実装', influence: '影響',
+  meaning: '基軸力', mindfulness: '認知力', mindshift: '転換力', mastery: '熟達力',
+  learning: '謙学力', logical: '論理力', life: '活用力', leadership: '統率力',
+  critical: '本質力', creativity: '創造力', communication: '伝達力', collaboration: '協働力',
+  idea: '構想力', innovation: '変革力', implementation: '実装力', influence: '影響力',
 };
 
 const QUADRANT_DEFS = [
@@ -65,7 +65,7 @@ const SUB_ADVICE = {
   leadership:    'まず身近な場面で「自分から提案する」ことを意識しましょう。相手の話を最後まで聴き、全員が発言できる場を作ることがリーダーシップの第一歩です。',
   critical:      '情報を受け取ったとき「本当にそうか？根拠は？」と問う習慣を持ちましょう。賛成意見と反対意見の両方を調べることで批判的思考力が向上します。',
   creativity:    '日常のルーティンをあえて変えてみましょう。異分野の知識や全く関係のない経験を組み合わせてみることが創造性の源泉です。',
-  communication: '伝えたいことを「結論→理由→具体例」の順で整理してから話しましょう。相手が何を知りたいかを先に考えることで表現力が格段に上がります。',
+  communication: '伝えたいことを「結論→理由→具体例」の順で整理してから話しましょう。相手が何を知りたいかを先に考えることで伝達力が格段に上がります。',
   collaboration: '意見が異なる人の話を「なぜそう思うのか」まで聴く姿勢を意識しましょう。共通の目標を最初に確認し合うことが効果的な協働の起点です。',
   idea:          '日常の「不便」「違和感」「面白い」をメモする習慣をつけましょう。既存のものを新しい組み合わせで考えることがアイデア発想の基本です。',
   innovation:    '「もっと良くできないか」と現状を疑問視する視点を持ちましょう。小さな改善を繰り返すことが、やがて大きな変革につながります。',
@@ -521,16 +521,16 @@ function MainFanChart({ scores }) {
 const FOUR_AXES = [
   { key: 'mindset',    jp: '志', en: 'MindSet',   color: '#2C5F8A',
     subs: ['meaning','mindfulness','mindshift','mastery'],
-    subJp: ['意味','気づき','意識転換','熟達'] },
+    subJp: ['基軸力','認知力','転換力','熟達力'] },
   { key: 'competency', jp: '技', en: 'Competency', color: '#A07A18',
     subs: ['critical','creativity','communication','collaboration'],
-    subJp: ['批判思考','創造性','表現力','協働'] },
+    subJp: ['本質力','創造力','伝達力','協働力'] },
   { key: 'literacy',   jp: '知', en: 'Literacy',   color: '#1E7A4A',
     subs: ['learning','logical','life','leadership'],
-    subJp: ['学習','論理','活用','リーダー'] },
+    subJp: ['謙学力','論理力','活用力','統率力'] },
   { key: 'impact',     jp: '衝', en: 'Impact',     color: '#C0614A',
     subs: ['idea','innovation','implementation','influence'],
-    subJp: ['アイデア','変革','実装','影響'] },
+    subJp: ['構想力','変革力','実装力','影響力'] },
 ];
 
 /* ---------- 扇形セクター path ヘルパー ---------- */
@@ -1084,22 +1084,22 @@ function RadarChart16({ scores }) {
     const R = 260;
 
     const axes = [
-      { key: 'meaning',       jp: '意味',           en: 'Meaning',        group: 'mindset' },
-      { key: 'mindfulness',   jp: '気づき',         en: 'Mindfulness',    group: 'mindset' },
-      { key: 'mindshift',     jp: '意識転換',       en: 'Mindshift',      group: 'mindset' },
-      { key: 'mastery',       jp: '熟達',           en: 'Mastery',        group: 'mindset' },
-      { key: 'learning',      jp: '学習',           en: 'Learning',       group: 'literacy' },
-      { key: 'logical',       jp: '論理',           en: 'Logical',        group: 'literacy' },
-      { key: 'life',          jp: '活用',           en: 'Life',           group: 'literacy' },
-      { key: 'leadership',    jp: 'リーダーシップ', en: 'Leadership',     group: 'literacy' },
-      { key: 'critical',      jp: '批判的思考',     en: 'Critical',       group: 'competency' },
-      { key: 'creativity',    jp: '創造性',         en: 'Creativity',     group: 'competency' },
-      { key: 'communication', jp: '表現力',          en: 'Communication',  group: 'competency' },
-      { key: 'collaboration', jp: '協働',           en: 'Collaboration',  group: 'competency' },
-      { key: 'idea',          jp: 'アイデア',       en: 'Idea',           group: 'impact' },
-      { key: 'innovation',    jp: '変革',           en: 'Innovation',     group: 'impact' },
-      { key: 'implementation',jp: '実装',           en: 'Implementation', group: 'impact' },
-      { key: 'influence',     jp: '影響',           en: 'Influence',      group: 'impact' },
+      { key: 'meaning',       jp: '基軸力',  en: 'Meaning',        group: 'mindset' },
+      { key: 'mindfulness',   jp: '認知力',  en: 'Mindfulness',    group: 'mindset' },
+      { key: 'mindshift',     jp: '転換力',  en: 'Mindshift',      group: 'mindset' },
+      { key: 'mastery',       jp: '熟達力',  en: 'Mastery',        group: 'mindset' },
+      { key: 'learning',      jp: '謙学力',  en: 'Learning',       group: 'literacy' },
+      { key: 'logical',       jp: '論理力',  en: 'Logical',        group: 'literacy' },
+      { key: 'life',          jp: '活用力',  en: 'Life',           group: 'literacy' },
+      { key: 'leadership',    jp: '統率力',  en: 'Leadership',     group: 'literacy' },
+      { key: 'critical',      jp: '本質力',  en: 'Critical',       group: 'competency' },
+      { key: 'creativity',    jp: '創造力',  en: 'Creativity',     group: 'competency' },
+      { key: 'communication', jp: '伝達力',  en: 'Communication',  group: 'competency' },
+      { key: 'collaboration', jp: '協働力',  en: 'Collaboration',  group: 'competency' },
+      { key: 'idea',          jp: '構想力',  en: 'Idea',           group: 'impact' },
+      { key: 'innovation',    jp: '変革力',  en: 'Innovation',     group: 'impact' },
+      { key: 'implementation',jp: '実装力',  en: 'Implementation', group: 'impact' },
+      { key: 'influence',     jp: '影響力',  en: 'Influence',      group: 'impact' },
     ];
 
     const GC = {

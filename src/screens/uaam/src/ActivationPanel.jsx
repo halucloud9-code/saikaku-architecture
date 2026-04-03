@@ -27,10 +27,10 @@ const TYPE_DESC = {
 
 /* Case B: パートナーキー → 日本語表示名 */
 const PARTNER_JP = {
-  meaning:'根幹力', mindfulness:'受容力', mindshift:'転換力', mastery:'熟達力',
+  meaning:'基軸力', mindfulness:'認知力', mindshift:'転換力', mastery:'熟達力',
   learning:'謙学力', logical:'論理力', life:'活用力', leadership:'統率力',
-  critical:'本質力', creativity:'創造力', communication:'表現力', collaboration:'協働力',
-  idea:'起動力', innovation:'革新力', implementation:'実装力', influence:'影響力',
+  critical:'本質力', creativity:'創造力', communication:'伝達力', collaboration:'協働力',
+  idea:'構想力', innovation:'変革力', implementation:'実装力', influence:'影響力',
 };
 
 /* Case B: ペアブロック別ワンポイントアクション */

@@ -13,8 +13,8 @@
 // 1. 英語subキー → 日本語表示名
 // =============================================
 const LABEL_MAP = {
-  meaning:        '根幹力',
-  mindfulness:    '受容力',
+  meaning:        '基軸力',
+  mindfulness:    '認知力',
   mindshift:      '転換力',
   mastery:        '熟達力',
   learning:       '謙学力',
@@ -23,10 +23,10 @@ const LABEL_MAP = {
   leadership:     '統率力',
   critical:       '本質力',
   creativity:     '創造力',
-  communication:  '表現力',
+  communication:  '伝達力',
   collaboration:  '協働力',
-  idea:           '起動力',
-  innovation:     '革新力',
+  idea:           '構想力',
+  innovation:     '変革力',
   implementation: '実装力',
   influence:      '影響力',
 };
@@ -294,7 +294,7 @@ const TEMPLATES = {
   },
   idea: {
     peak: {
-      message: '起動力が全開にある。日常の違和感が即座に発想の種に変わっている。アイデアが止まらない状態だ。',
+      message: '構想力が全開にある。日常の違和感が即座に発想の種に変わっている。アイデアが止まらない状態だ。',
       action: '今浮かんでいるアイデアの中から1つ選び、24時間以内に最初の1アクションを起こす',
     },
     high: {

@@ -13,8 +13,8 @@
 // 1. 英語subキー → 日本語表示名
 // =============================================
 const LABEL_MAP = {
-  meaning:        '根幹力',
-  mindfulness:    '受容力',
+  meaning:        '基軸力',
+  mindfulness:    '認知力',
   mindshift:      '転換力',
   mastery:        '熟達力',
   learning:       '謙学力',
@@ -23,10 +23,10 @@ const LABEL_MAP = {
   leadership:     '統率力',
   critical:       '本質力',
   creativity:     '創造力',
-  communication:  '表現力',
+  communication:  '伝達力',
   collaboration:  '協働力',
-  idea:           '起動力',
-  innovation:     '革新力',
+  idea:           '構想力',
+  innovation:     '変革力',
   implementation: '実装力',
   influence:      '影響力',
 };
@@ -258,15 +258,15 @@ const TEMPLATES = {
   },
   communication: {
     peak: {
-      message: '表現力が最大値にある。相手の理解度に合わせて言葉を変えながら、伝わったかを確認できている。',
+      message: '伝達力が最大値にある。相手の理解度に合わせて言葉を変えながら、伝わったかを確認できている。',
       action: '一番難しい相手に、最も複雑な内容を伝える機会を意図的につくってみる',
     },
     high: {
-      message: '表現力が安定している。相手に合わせて表現を調整できている。',
+      message: '伝達力が安定している。相手に合わせて表現を調整できている。',
       action: '次の説明後に「どの部分が一番伝わりましたか」と相手に確認してみる',
     },
     edge: {
-      message: '表現力が発動し始めている。「言った」より「伝わったか」を意識し始めている。',
+      message: '伝達力が発動し始めている。「言った」より「伝わったか」を意識し始めている。',
       action: '次に伝えるとき「結論→理由→具体例」の順で1分以内に話す練習をする',
     },
     sleeping: {
@@ -294,7 +294,7 @@ const TEMPLATES = {
   },
   idea: {
     peak: {
-      message: '起動力が全開にある。日常の違和感が即座に発想の種に変わっている。アイデアが止まらない状態だ。',
+      message: '構想力が全開にある。日常の違和感が即座に発想の種に変わっている。アイデアが止まらない状態だ。',
       action: '今浮かんでいるアイデアの中から1つ選び、24時間以内に最初の1アクションを起こす',
     },
     high: {
@@ -485,8 +485,7 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     const zo = ZONE_ORDER_MAP[a.zone] - ZONE_ORDER_MAP[b.zone];
     return zo !== 0 ? zo : b.sum - a.sum;
   });
-  // 全ペアを返す（スペクトラム型UI で全表示）
-  const topSleepingPairs = sleepingPairs;
+  const topSleepingPairs = sleepingPairs.slice(0, 3);
 
   // ── アイテム生成（✅ 個別キー用）──
   const toItem = (key, status) => {
