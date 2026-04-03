@@ -216,6 +216,29 @@ export default async function handler(req, res) {
   // スコア計算
   const scores = calculateScores(answers, QUESTIONS);
 
+  // 才覚領域データを取得
+  let saikakuData = null;
+  try {
+    const saikakuDoc = await db.collection('results').doc(decoded.uid).get();
+    if (saikakuDoc.exists) {
+      const d = saikakuDoc.data();
+      saikakuData = {
+        kakuchiiki: d.selectedKakuchiiki || '',
+        value: d.inputValueTop5 || d.inputValue || '',
+        talent: d.inputTalentTop5 || d.inputTalent || '',
+        passion: d.inputPassionTop5 || d.inputPassion || '',
+      };
+    }
+  } catch (e) { console.warn('[UAAM] 才覚データ取得失敗:', e.message); }
+
+  const saikakuSection = saikakuData && saikakuData.kakuchiiki ? `
+━━━ 才覚領域データ ━━━
+才覚領域名: ${saikakuData.kakuchiiki}
+価値観: ${saikakuData.value}
+才能: ${saikakuData.talent}
+情熱: ${saikakuData.passion}
+` : '';
+
   // Claude API 呼び出し用のユーザーメッセージ
   const userMsg = `以下のUAAM診断結果を分析してください。
 ━━━ 志 -MindSet-（4M）━━━
