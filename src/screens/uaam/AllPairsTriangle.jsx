@@ -1077,9 +1077,6 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
           </div>
         </div>
       )}
-          </div>
-        </div>
-      )}
 
       {/* ── ツールチップ ── */}
       {tip && (() => {
