@@ -6,17 +6,16 @@ rm -f .git/index.lock .git/HEAD.lock
 
 echo "=== ステージング ==="
 git add \
-  src/screens/uaam/AllPairsTriangle.jsx \
-  src/screens/uaam/src/screens/uaam/AllPairsTriangle.jsx \
+  src/screens/uaam/UAAMResultScreen.jsx \
+  src/screens/uaam/src/screens/uaam/UAAMResultScreen.jsx \
   commit-names.command
 
 echo "=== コミット ==="
-git commit -m "fix: AllPairsTriangle の未定義参照エラーを修正（ローディングエラー解消）
+git commit -m "fix: UAAMResultScreen を安定動作バージョンに戻す（エラー解消）
 
-PAIR_ZONE_DEFS_CONST・PairZoneWindow が未定義のまま参照されていたため
-React ErrorBoundary が発火し「予期しないエラー」が表示されていた問題を修正
-Top 10 Active Pairs グリッド表示に戻して安定動作を確保
-両ファイル（src/screens/uaam/ と src/screens/uaam/src/screens/uaam/）を同期
+前回コミットの花びら型レーダー変更でエラーが発生していたため
+最後に正常動作していたバージョン（70d800d）のUAAMResultScreenに戻す
+AllPairsTriangle（Top10表示）は引き続き維持
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 

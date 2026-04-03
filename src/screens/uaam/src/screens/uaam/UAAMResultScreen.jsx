@@ -1115,20 +1115,11 @@ function RadarChart16({ scores }) {
 
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
     const n = 16;
-    // === 花びら型配置 — グループ間に30°ギャップ ===
-    const subStep  = 20 * Math.PI / 180;  // グループ内スポーク間隔 20°
-    const gapAngle = 30 * Math.PI / 180;  // グループ間ギャップ 30°
-    // グループ中心が12/3/6/9時になるよう startAngle を調整
-    const startAngle = -Math.PI / 2 - 1.5 * subStep;
-
-    const getAngle = (i) => {
-      const g = Math.floor(i / 4);  // グループ 0–3
-      const p = i % 4;               // グループ内位置 0–3
-      return startAngle + g * (3 * subStep + gapAngle) + p * subStep;
-    };
+    const step = (2 * Math.PI) / n;
+    const startAngle = -Math.PI / 2; // 元の配置（スポーク位置変更なし）
 
     const getPoint = (i, val) => {
-      const angle = getAngle(i);
+      const angle = startAngle + i * step;
       const r = (val / MAX_SUB) * R;
       return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
     };
@@ -1194,8 +1185,8 @@ function RadarChart16({ scores }) {
     // === 扇形セクション背景（グループ領域を明確化）===
     const groupOrder = ['mindset', 'literacy', 'competency', 'impact'];
     groupOrder.forEach((grp, gi) => {
-      const a1 = getAngle(gi * 4) - subStep * 0.5;
-      const a2 = getAngle(gi * 4 + 3) + subStep * 0.5;
+      const a1 = startAngle + gi * 4 * step - step * 0.5;
+      const a2 = startAngle + (gi + 1) * 4 * step - step * 0.5;
 
       // ① グラデーション扇形フィル
       const secGrad = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R);
@@ -1227,8 +1218,21 @@ function RadarChart16({ scores }) {
       });
     });
 
-    // === データ塗りつぶし（花びら型 — グループ別独立扇形）===
-    // グループ別カラー塗りつぶし（各グループが独立した扇形ポリゴン）
+    // === データ塗りつぶし（全16軸をつなぐ一体型）===
+    // まず全体を一つのポリゴンで薄く描画
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const p = getPoint(i, data[i]);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    const allGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+    allGrad.addColorStop(0, 'rgba(255,255,255,0.05)');
+    allGrad.addColorStop(1, 'rgba(255,255,255,0.02)');
+    ctx.fillStyle = allGrad;
+    ctx.fill();
+
+    // グループ別カラー塗りつぶし（扇形マスクではなくグループ頂点を結ぶ）
     groupOrder.forEach((grp, gi) => {
       const startIdx = gi * 4;
       ctx.beginPath();
@@ -1265,6 +1269,17 @@ function RadarChart16({ scores }) {
       ctx.stroke();
       ctx.restore();
     });
+
+    // === 全16頂点を結ぶ外周線 ===
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const p = getPoint(i, data[i]);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     // === データポイント（グロー＋大きめ）===
     for (let i = 0; i < n; i++) {
@@ -1535,16 +1550,19 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           }, {})
         } threshold={13} userName={user.displayName} mode="top" />
 
-        {/* ===== 才覚発動領域 — 16軸花びら型レーダー ===== */}
-        <div style={{ marginBottom: 6, paddingLeft: 4, marginTop: 8 }}>
+        {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
+        <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
+
+        {/* ===== Activation Matrix — 4ミニレーダー ===== */}
+        <div style={{ marginBottom: 6, paddingLeft: 4, marginTop: 20 }}>
           <div style={{
             fontFamily: "'Noto Serif JP', Georgia, serif",
             fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
-          }}>才覚発動領域</div>
-          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>16軸 Activation Radar</div>
+          }}>MLCI Activation Profile</div>
+          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚4軸プロファイル</div>
           <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
         </div>
-        <RadarChart16 scores={scores} />
+        <FourAxisGrid scores={scores} />
 
         {/* ===== ✅ 今、発動している力（MLCI直下） ===== */}
         <ActivationPanel scores={
