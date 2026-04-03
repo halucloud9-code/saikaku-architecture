@@ -260,7 +260,7 @@ function UserModal({ user: u, onClose, onDelete, onSave }) {
             ].filter(({ val }) => val).map(({ label, val, color }) => (
               <div key={label} style={{ background: '#F5F0E8', borderRadius: 10, padding: '14px 18px', marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '0.1em', marginBottom: 6 }}>{label}</div>
-                <p style={{ fontSize: 13, color: '#2A2520', lineHeight: 1.8, margin: 0, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{val}</p>
+                <p style={{ fontSize: 13, color: '#2A2520', lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>{val}</p>
               </div>
             ))}
 
