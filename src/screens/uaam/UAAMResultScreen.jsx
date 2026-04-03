@@ -1146,8 +1146,8 @@ function RadarChart16({ scores }) {
     [3, 6, 9, 12, 15].forEach((v, vi) => {
       for (let gi = 0; gi < 4; gi++) {
         ctx.beginPath();
-        for (let j = 0; j <= 4; j++) {
-          const p = getPoint((gi * 4 + j) % n, v);
+        for (let j = 0; j < 4; j++) {
+          const p = getPoint(gi * 4 + j, v);
           j === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
         }
         ctx.closePath();

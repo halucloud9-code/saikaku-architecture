@@ -11,13 +11,14 @@ git add \
   commit-names.command
 
 echo "=== コミット ==="
-git commit -m "feat: 花びら型レーダー実装 + Top10 タップ展開UI
+git commit -m "feat: Top10 ZoneWindowスタイル化 + 花びら型グリッドバグ修正
 
-- RadarChart16: step/startAngle → subStep(20°)/gapAngle(30°)/getAngle(i) に置き換え
-- グリッド描画を4グループ独立弧に変更（花びら型）
-- セクター背景・ラベルの全角度計算を getAngle(i) ベースに統一
-- AllPairsTriangle: Top 10 Active Pairs カードをタップで展開/閉じる対応
-  - 展開時に各才覚スコア・合計・ブロック名・定義文を表示
+- Top10 Active Pairs カードを ZoneWindow と完全同一スタイルに統一
+  - borderTop 3px カラー / border 1.5px 半透明 / 背景カラーチント
+  - ランクバッジ・ゾーンタグ・スコアタグ
+  - タップで表示 ▾ / タップで閉じる ▴ / box-shadow アニメーション
+  - 展開：各才覚名+スコア・ブロック名・定義文
+- RadarChart16 グリッド描画バグ修正（j<=4 → j<4 で余分な点を除去）
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
