@@ -1027,10 +1027,10 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                       { axes: u.talentAxes,  color: '#C4922A', top5: u.inputTalentTop5  || u.inputTalent  },
                       { axes: u.passionAxes, color: '#A84432', top5: u.inputPassionTop5 || u.inputPassion },
                     ].map(({ axes, color, top5 }, i) => (
-                      <td key={i} style={{ padding: '12px 16px' }}>
+                      <td key={i} style={{ padding: '12px 16px', maxWidth: 180 }}>
                         {/* AIが生成した3軸タグ */}
                         {axes ? (
-                          <div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                             {['axis1', 'axis2', 'axis3'].map((k) => (
                               <span
                                 key={k}
@@ -1052,10 +1052,10 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                         ) : (
                           <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
                         )}
-                        {/* ユーザーが入力した5つ */}
+                        {/* ユーザーが入力した5つ（最大3つ表示） */}
                         {top5 && (
-                          <div style={{ marginTop: 4 }}>
-                            {top5.split(/[,、，\n]/).map((s) => s.trim()).filter(Boolean).map((item, j) => (
+                          <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                            {top5.split(/[,、，\n]/).map((s) => s.trim()).filter(Boolean).slice(0, 3).map((item, j) => (
                               <span
                                 key={j}
                                 style={{
@@ -1082,9 +1082,9 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                       { val: u.inputQ2, color: '#7B5EA7' },
                       { val: u.inputQ3, color: '#7B5EA7' },
                     ].map(({ val, color }, qi) => (
-                      <td key={`q${qi}`} style={{ padding: '12px 16px', maxWidth: 200 }}>
+                      <td key={`q${qi}`} style={{ padding: '12px 16px', maxWidth: 160 }}>
                         {val
-                          ? <span style={{ fontSize: 12, color: '#2A2520', lineHeight: 1.6, display: 'block', whiteSpace: 'pre-wrap' }}>{val}</span>
+                          ? <span style={{ fontSize: 12, color: '#2A2520', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{val}</span>
                           : <span style={{ color: '#D4C9B0', fontSize: 12 }}>—</span>
                         }
                       </td>
