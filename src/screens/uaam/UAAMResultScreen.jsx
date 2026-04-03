@@ -86,7 +86,11 @@ const AXIS_COLORS = { mindset: '#2C5F8A', literacy: '#1E7A4A', competency: '#A07
 /* ============================================================
  * タイプ判定
  * ============================================================ */
-function determineType(scores) {
+function determineType(scores, analysis) {
+  if (analysis?.primary_type) {
+    return { name: analysis.primary_type, secondary: analysis.secondary_type || '' };
+  }
+
   const d = (k) => scores[k]?.domainTotal || 0;
   const types = [
     { name: '構想力タイプ', score: Math.round(d('mindset') * d('literacy')) },
@@ -1505,7 +1509,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
   // 妥当性チェック（V問フラグ判定）
   const validityResult = (vAnswers && answers) ? checkValidity(vAnswers, answers) : null;
 
-  const topType = determineType(scores);
+  const topType = determineType(scores, analysis);
   const subRadars = UAAM_AXES.map(axis => {
     const subs = scores[axis.key]?.subs || {};
     const order = SUB_ORDER[axis.key];
