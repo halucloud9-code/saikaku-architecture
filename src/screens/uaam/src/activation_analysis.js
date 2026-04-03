@@ -258,15 +258,15 @@ const TEMPLATES = {
   },
   communication: {
     peak: {
-      message: '表現力が最大値にある。相手の理解度に合わせて言葉を変えながら、伝わったかを確認できている。',
+      message: '伝達力が最大値にある。相手の理解度に合わせて言葉を変えながら、伝わったかを確認できている。',
       action: '一番難しい相手に、最も複雑な内容を伝える機会を意図的につくってみる',
     },
     high: {
-      message: '表現力が安定している。相手に合わせて表現を調整できている。',
+      message: '伝達力が安定している。相手に合わせて表現を調整できている。',
       action: '次の説明後に「どの部分が一番伝わりましたか」と相手に確認してみる',
     },
     edge: {
-      message: '表現力が発動し始めている。「言った」より「伝わったか」を意識し始めている。',
+      message: '伝達力が発動し始めている。「言った」より「伝わったか」を意識し始めている。',
       action: '次に伝えるとき「結論→理由→具体例」の順で1分以内に話す練習をする',
     },
     sleeping: {
@@ -467,16 +467,16 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     }
   }
 
-  // ── 🔑 次に動かす力（最大3）──
-  // 120ペア全体から NATURAL→PRO→ACTIVE 順、同ゾーン内は合計スコア降順で上位3ペアを選ぶ
-  const ZONE_ORDER_MAP = { natural: 0, pro: 1, active: 2 };
+  // ── 🔑 次に動かす力（ゾーン優先・上位10）──
+  // NATURAL→PRO→ACTIVE→POTENTIAL 順、同ゾーン内は合計スコア降順で上位10ペアを選ぶ
+  const ZONE_ORDER_MAP = { natural: 0, pro: 1, active: 2, potential: 3 };
   const sleepingPairs = [];
   for (let i = 0; i < ALL_KEYS.length - 1; i++) {
     for (let j = i + 1; j < ALL_KEYS.length; j++) {
       const kA = ALL_KEYS[i], kB = ALL_KEYS[j];
       const sA = sc(kA), sB = sc(kB);
       const z = _getZone(sA, sB);
-      if (z === 'natural' || z === 'pro' || z === 'active') {
+      if (z !== 'dormant') {
         sleepingPairs.push({ kA, kB, zone: z, scoreA: sA, scoreB: sB, sum: sA + sB, isPair: true });
       }
     }
@@ -485,7 +485,7 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     const zo = ZONE_ORDER_MAP[a.zone] - ZONE_ORDER_MAP[b.zone];
     return zo !== 0 ? zo : b.sum - a.sum;
   });
-  const topSleepingPairs = sleepingPairs.slice(0, 3);
+  const topSleepingPairs = sleepingPairs.slice(0, 10);
 
   // ── アイテム生成（✅ 個別キー用）──
   const toItem = (key, status) => {

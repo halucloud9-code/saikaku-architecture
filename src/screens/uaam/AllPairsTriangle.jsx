@@ -91,210 +91,210 @@ export const BLOCKS = [
 
 // ── ペア定義 (120ペア) ────────────────────────────────
 const PAIR_DEFS = {
-  // ━ 志×志 ANCHOR ━
-  'meaning|mindfulness':     '在り方を起点に今この瞬間に集中する力',
-  'meaning|mindshift':       '在り方を軸に固定観念を破る力',
-  'meaning|mastery':         '目的に向け実践を反復する力',
-  'mindfulness|mindshift':   '気づきを意識転換のトリガーにする力',
-  'mindfulness|mastery':     '気づきを習慣化し成長に変える力',
-  'mindshift|mastery':       '新視点の発見を反復で定着させる力',
-  // ━ 志×知 VISIONARY ━
-  'meaning|learning':        '在り方を起点に純粋に学ぶ力',
-  'meaning|logical':         '目的を論理的に言語化する力',
-  'meaning|life':            '在り方を現場の成果に変える力',
-  'meaning|leadership':      '在り方でチームを動かす力',
-  'mindfulness|learning':    '気づきを新しい知識へ変換する力',
-  'mindfulness|logical':     '現在の状況を論理的に把握する力',
-  'mindfulness|life':        '気づきを即座に現場で活かす力',
-  'mindfulness|leadership':  '人の変化に気づき育てる力',
-  'mindshift|learning':      '先入観を捨て本質を学ぶ力',
-  'mindshift|logical':       '新視点を論理的に組み立てる力',
-  'mindshift|life':          '発想転換を現場で形にする力',
-  'mindshift|leadership':    '変化をチームに起こす力',
-  'mastery|learning':        '深い学びを反復で完全定着させる力',
-  'mastery|logical':         '熟達した知識を論理的に整理する力',
-  'mastery|life':            '熟練の技を現場で再現する力',
-  'mastery|leadership':      '熟達した力で人を育てる力',
-  // ━ 知×知 SAGE ━
-  'learning|logical':        '事実を整理し論理的に伝える力',
-  'learning|life':           '学びを現場の結果に変える力',
-  'learning|leadership':     '学びを人育てに転化する力',
-  'logical|life':            '論理的思考を実際の成果につなげる力',
-  'logical|leadership':      '論理で人を動かすリーダー力',
-  'life|leadership':         '現場で人を育て結果を出す力',
-  // ━ 志×技 BUILDER ━
-  'meaning|critical':        '在り方を軸に本質を見抜く力',
-  'meaning|creativity':      '目的を起点に新しい価値を創る力',
-  'meaning|communication':   '在り方を言葉で伝える力',
-  'meaning|collaboration':   '在り方でチームを束ねる力',
-  'mindfulness|critical':    '状況を鋭く観察し本質を捉える力',
-  'mindfulness|creativity':  '微細な変化に気づき新発想を生む力',
-  'mindfulness|communication':'相手の状態に気づき的確に伝える力',
-  'mindfulness|collaboration':'場の空気を読み協働を促進する力',
-  'mindshift|critical':      '既存の枠を疑い本質を問い直す力',
-  'mindshift|creativity':    '固定観念を破り創造的に発想する力',
-  'mindshift|communication': '新しい視点を説得力を持って伝える力',
-  'mindshift|collaboration': '多様な価値観を受け入れ協働する力',
-  'mastery|critical':        '深い経験から本質的な問いを立てる力',
-  'mastery|creativity':      '蓄積された知恵から革新を生む力',
-  'mastery|communication':   '熟練の知識をわかりやすく伝える力',
-  'mastery|collaboration':   '熟達した力を多様なチームで発揮する力',
-  // ━ 知×技 CRAFTER ━
-  'learning|critical':       '事実を基に批判的に分析する力',
-  'learning|creativity':     '多様な知識から新発想を生む力',
-  'learning|communication':  '学んだことをわかりやすく伝える力',
-  'learning|collaboration':  '学びを他者と分かち合う力',
-  'logical|critical':        '論理的な思考で本質を見抜く力',
-  'logical|creativity':      '論理的思考と創造性を融合する力',
-  'logical|communication':   '論理的に伝え相手を的確に動かす力',
-  'logical|collaboration':   '論理共有でチームの方向を揃える力',
-  'life|critical':           '現場の課題を論理的に特定する力',
-  'life|creativity':         '現場で新しい解決策を生み出す力',
-  'life|communication':      '現場の成果を説得力を持って伝える力',
-  'life|collaboration':      '現場で多様な人と協力し成果を出す力',
-  'leadership|critical':     '組織の問題を構造的に見抜く力',
-  'leadership|creativity':   'リーダーとして新しいビジョンを描く力',
-  'leadership|communication':'人を動かす言葉でリードする力',
-  'leadership|collaboration':'多様な人をまとめて成果を生む力',
-  // ━ 技×技 INVENTOR ━
-  'critical|creativity':     '本質を見抜き新しい価値を生む力',
-  'critical|communication':  '論理的な思考を分かりやすく伝える力',
-  'critical|collaboration':  '本質を共有し多様な人と協力する力',
-  'creativity|communication':'新しいアイデアを魅力的に伝える力',
-  'creativity|collaboration':'創造性を他者と共に発揮する力',
-  'communication|collaboration':'伝える力と協働で大きな成果を生む力',
-  // ━ 志×衝 CATALYST ━
-  'meaning|idea':            '在り方から熱狂テーマを生む力',
-  'meaning|innovation':      '目的を起点に変革を起こす力',
-  'meaning|implementation':  '在り方を社会に実装する力',
-  'meaning|influence':       '在り方を文化として広める力',
-  'mindfulness|idea':        '日常の微細な変化から着想する力',
-  'mindfulness|innovation':  '現状の限界に気づき変革する力',
-  'mindfulness|implementation':'実装の問題点に早く気づく力',
-  'mindfulness|influence':   '変化の兆候に気づき影響を与える力',
-  'mindshift|idea':          '枠を外して全く新しい発想をする力',
-  'mindshift|innovation':    '既存を疑い新しい形を作る力',
-  'mindshift|implementation':'新アプローチで実装を突破する力',
-  'mindshift|influence':     '思考の転換を文化として広める力',
-  'mastery|idea':            '深い知恵から新しいテーマを見出す力',
-  'mastery|innovation':      '実力を活かして変革を牽引する力',
-  'mastery|implementation':  '熟練の技で確実に形にする力',
-  'mastery|influence':       '熟達の姿勢が文化として根づく力',
-  // ━ 知×衝 NAVIGATOR ━
-  'learning|idea':           '広範な知識から新テーマを発見する力',
-  'learning|innovation':     '学びを変革の原動力にする力',
-  'learning|implementation': '学んだ知識を現場で実装する力',
-  'learning|influence':      '学びを通じて周囲に影響を与える力',
-  'logical|idea':            '論理的思考から新発想を生む力',
-  'logical|innovation':      '論理的に変革の道筋を描く力',
-  'logical|implementation':  '論理的アプローチで確実に実装する力',
-  'logical|influence':       '論理的な言葉で長期的に影響を与える力',
-  'life|idea':               '現場の課題から新アイデアを生む力',
-  'life|innovation':         '現場で変革を実現する力',
-  'life|implementation':     '現場で実際に機能する形を作る力',
-  'life|influence':          '現場での成果が文化として広がる力',
-  'leadership|idea':         '組織の熱狂テーマを見出す力',
-  'leadership|innovation':   'リーダーとして変革を起こす力',
-  'leadership|implementation':'チームで確実に実装を完遂する力',
-  'leadership|influence':    'リーダーの在り方が文化として根づく力',
-  // ━ 技×衝 STRIKER ━
-  'critical|idea':           '本質的な問いから革新的発想を生む力',
-  'critical|innovation':     '問題の核心を見抜き変革を起こす力',
-  'critical|implementation': '論理的に検証しながら実装する力',
-  'critical|influence':      '本質的な問いで周囲の思考を変える力',
-  'creativity|idea':         '創造的発想から熱狂テーマを見出す力',
-  'creativity|innovation':   '創造性を発揮して変革を実現する力',
-  'creativity|implementation':'創造的なアイデアを実際の形にする力',
-  'creativity|influence':    '創造物を文化として広める力',
-  'communication|idea':      '熱狂テーマを言葉で伝播させる力',
-  'communication|innovation':'変革のビジョンを伝え人を動かす力',
-  'communication|implementation':'実装の内容を効果的に伝える力',
-  'communication|influence': '言葉の力で長期的に影響を与える力',
-  'collaboration|idea':      '多様な視点から新テーマを生む力',
-  'collaboration|innovation':'チームで協力して変革を起こす力',
-  'collaboration|implementation':'協力して確実に実装を完遂する力',
-  'collaboration|influence': '協働の文化を社会に広める力',
-  // ━ 衝×衝 PIONEER ━
-  'idea|innovation':         '熱狂テーマを変革の形に落とし込む力',
-  'idea|implementation':     '情熱を社会に実装する力',
-  'idea|influence':          '自分の熱狂を文化として根づかせる力',
-  'innovation|implementation':'変革を現実に実装する力',
-  'innovation|influence':    '変革を文化として広げる力',
-  'implementation|influence':'実装した変化を社会に浸透させる力',
+  // ━ 志×志 ANCHOR（基×基）━
+  'meaning|mindfulness':     '軸が定まっているから、どんな価値観も受け入れられる力',
+  'meaning|mindshift':       'ぶれない軸があるから、状況に応じて判断を即座に切り替える力',
+  'meaning|mastery':         '在り方に沿って、同じ道を深く掘り続ける力',
+  'mindfulness|mindshift':   '受け取ったものを固定せず、次の形に変える力',
+  'mindfulness|mastery':     '時間をかけて受け取り、自分の中に根づかせる力',
+  'mindshift|mastery':       '変え続けながらも、確かな技として積み上げる力',
+  // ━ 志×知 VISIONARY（基×知）━
+  'meaning|learning':        '在り方を磨くために、自分を省みて問い続ける力',
+  'meaning|logical':         '在り方の大切さを自分の言葉で整理し、説く力',
+  'meaning|life':            '在り方を常に意識し、日々の判断や行動に生かす力',
+  'meaning|leadership':      '在り方を旗として掲げ、人と力を束ねる力',
+  'mindfulness|learning':    '異なる意見を受け取るほど、自分の問いが深まる力',
+  'mindfulness|logical':     '受け取ったものを整理し、自分の論理に組み替える力',
+  'mindfulness|life':        '受け取ったものをその場で試し、成果に変える力',
+  'mindfulness|leadership':  '相手の立場を受け入れながら、場の方向を整える力',
+  'mindshift|learning':      '視点を転換し、自分の偏りに気づく力',
+  'mindshift|logical':       '視点を変えながら、新しい論理を構築する力',
+  'mindshift|life':          '転換した発想を、即座に現場に投入する力',
+  'mindshift|leadership':    '変化の方向をチームと共有し、全員を新しい軸に揃える力',
+  'mastery|learning':        '熟達しているからこそ、まだ知らないことに気づける力',
+  'mastery|logical':         '長年の経験を解体し、再現できる論理として伝える力',
+  'mastery|life':            '体に染みた技を、状況に応じて最適な形で使い切る力',
+  'mastery|leadership':      '積み重ねた実績が、言葉より先に人を動かす力',
+  // ━ 知×知 SAGE（知×知）━
+  'learning|logical':        '自分の知識に慢心せず、より正確な論理を組み立てる力',
+  'learning|life':           '学んだことを正解と思わず、現場で検証し続ける力',
+  'learning|leadership':     '自分にないものを認めるから、他者の強みを引き出して束ねる力',
+  'logical|life':            '論理で整理したことを、実際の行動に変換する力',
+  'logical|leadership':      '論理の筋道を共有することで、バラバラな人を一つの方向に揃える力',
+  'life|leadership':         '自分が実践して得た知見で、チームを動かす力',
+  // ━ 志×技 BUILDER（基×技）━
+  'meaning|critical':        '在り方を持つからこそ、何があっても物事の本質を見極める力',
+  'meaning|creativity':      '在り方を起点に、まだ存在しないものを生み出す力',
+  'meaning|communication':   '在り方に込めた想いを、言葉にして人の心に届ける力',
+  'meaning|collaboration':   '在り方を共有することで、自然と人が集まり動く力',
+  'mindfulness|critical':    '異なる視点を受け取るほど、本質が浮かび上がる力',
+  'mindfulness|creativity':  '受け取った多様な刺激を組み合わせ、独自のものを生み出す力',
+  'mindfulness|communication':'相手の言葉を深く受け取り、伝える力へと変える力',
+  'mindfulness|collaboration':'相手を丸ごと受け入れることで、協力関係が生まれる力',
+  'mindshift|critical':      '視点を変えるたびに、本質の解像度を高める力',
+  'mindshift|creativity':    '常識を転換した瞬間に、新しいアイデアが生まれる力',
+  'mindshift|communication': '伝わらないと気づいたら、表現を即座に変える力',
+  'mindshift|collaboration': 'チームの枠を超えた組み合わせから、予想外の力を引き出す力',
+  'mastery|critical':        '積み上げた経験が、本質を瞬時に見抜かせる力',
+  'mastery|creativity':      '熟達した先にしか見えない景色から、誰も作れなかったものを創る力',
+  'mastery|communication':   '熟達した技と知恵を、次の世代に手渡す力',
+  'mastery|collaboration':   '熟達した存在がいることで、チーム全体の底が上がる力',
+  // ━ 知×技 CRAFTER（知×技）━
+  'learning|critical':       '自分の知識に慢心せず問い続けるから、物事の本質を常に見据えられる力',
+  'learning|creativity':     '自分が完全だと思っていないから、まだ見ぬアイデアへの入り口を開ける力',
+  'learning|communication':  '自分の理解の限界を知っているから、人から学んだことを本質として届ける力',
+  'learning|collaboration':  '足りない自分を認めるから、他者の力を最大限に引き出せる力',
+  'logical|critical':        '感情を抜いて論理で整理するから、複雑な問題の核心を掴める力',
+  'logical|creativity':      '論理の筋道を丁寧に追うから、矛盾の隙間に新しい解を見つける力',
+  'logical|communication':   '思考の道筋を言語化するから、相手の腑に落ちる説明になる力',
+  'logical|collaboration':   '論理を共有することで、バラバラな人を同じ方向に揃える力',
+  'life|critical':           '実際に試しながら進むから、理論では気づけない本質に触れる力',
+  'life|creativity':         '現場の手応えを積み重ねるから、現場からしか生まれないものを生み出す力',
+  'life|communication':      '自分が実践したことを言葉にするから、聞いた人が動き出せる話になる力',
+  'life|collaboration':      '実践から得た知見を惜しみなく渡すから、チームの行動が加速する力',
+  'leadership|critical':     '多様な知識と経験を統合することで、物事のつながりを本質から見抜く力',
+  'leadership|creativity':   '異質なものを束ねるから、一つの要素では生まれない突破口を開ける力',
+  'leadership|communication':'全体像を把握しているから、誰にとっても意味が通じる言葉で届けられる力',
+  'leadership|collaboration':'人の持ち味を見抜いて束ねるから、一人では到達できない場所へチームを導く力',
+  // ━ 技×技 INVENTOR（技×技）━
+  'critical|creativity':     '表面を削ぎ落とした先にある核から、新しいものを生む力',
+  'critical|communication':  '本質だけを抽出して、相手に過不足なく届ける力',
+  'critical|collaboration':  '全員が本質を共有することで、協力が自然に加速する力',
+  'creativity|communication':'創ったものの価値を言語化して、世界に届ける力',
+  'creativity|collaboration':'一人では生まれない創造を、他者との交差から生む力',
+  'communication|collaboration':'考えを伝えて理解しあうことで、バラバラな力がひとつに束なる力',
+  // ━ 志×衝 CATALYST（基×衝）━
+  'meaning|idea':            '在り方が定まっているから、踏み出す一歩が新しい時代の起点になる力',
+  'meaning|innovation':      '在り方を軸に持っているから、常識を超えた新しい秩序を生み出す力',
+  'meaning|implementation':  '在り方に沿って動き続けるから、思い描いたものを最後まで実現させる力',
+  'meaning|influence':       '在り方で生き続けているから、言葉より先に周囲を動かす力',
+  'mindfulness|idea':        '相手の言葉を受け取った瞬間に、それを新たな一歩へ変える力',
+  'mindfulness|innovation':  '自分と違う価値観を丸ごと受け取ることで、予期しなかった革新が生まれる力',
+  'mindfulness|implementation':'受け取ったものを咀嚼し、すぐに動ける形へ変える力',
+  'mindfulness|influence':   '相手を深く受け取った状態で動くことで、その姿が周囲に自然と波及する力',
+  'mindshift|idea':          '視点が変わった瞬間を逃さず、新しい時代の一歩へ転じる力',
+  'mindshift|innovation':    '常識の外側から見続けているから、誰も気づかなかった枠を破る力',
+  'mindshift|implementation':'転換した発想を、その熱のまま現実に打ち込む力',
+  'mindshift|influence':     '自らの変化を体で示すことで、周囲の変化を促す力',
+  'mastery|idea':            '積み上げた経験を土台に、社会を動かす一歩を迷いなく踏み出す力',
+  'mastery|innovation':      '深く知り尽くしているからこそ、本質から新たな革新を立ち上げる力',
+  'mastery|implementation':  '熟達した技術をもとに、構想を確実に形にしきる力',
+  'mastery|influence':       '積み重ねた実績が、言葉を超えて周囲に影響を及ぼす力',
+  // ━ 知×衝 NAVIGATOR（知×衝）━
+  'learning|idea':           '自分の知識に慢心せず問い続けるから、誰も気づいていない可能性の扉から、世界を動かす一歩を踏み出せる力',
+  'learning|innovation':     '自分の理解が不完全だと知っているから、既存の枠を手放して、新しい秩序を生み出せる力',
+  'learning|implementation': '過信をせず進むから、試しながら修正しながら最後まで形にしきれる力',
+  'learning|influence':      '自分の知識をひけらかさないから、その在り方が静かに周囲の心を動かす力',
+  'logical|idea':            '論理で状況を整理しているから、動き出すべき瞬間と方向を見誤らずに一歩を踏み出せる力',
+  'logical|innovation':      '論理的に物事を見れるから、感情ではなく根拠で、時代の流れを変えられる力',
+  'logical|implementation':  '論理で設計図を引いてから動くから、構想を途中で止めずに、最後まで実装し切る力',
+  'logical|influence':       '論理が明快だから、腑に落ちた人から、行動の波が次々と広がる力',
+  'life|idea':               '考えるより先に動く習慣があるから、誰より先に、時代の起点に立つ力',
+  'life|innovation':         '実際に動いて体感しているから、現場の手応えが、変革の火種になる力',
+  'life|implementation':     '手を動かし続けてきたから、止まらずに構想を、現実に落とし込む力',
+  'life|influence':          '自分が実際に動いている背中を見て、周囲が動き出す力',
+  'leadership|idea':         '知識と経験を束ねているから、踏み出す一歩が時代の大きな流れを起動させる力',
+  'leadership|innovation':   '異なる知識と経験を統合しているから、誰も気づかなかった場所に、変革の突破口を開く力',
+  'leadership|implementation':'全体像を握っているから、複雑な構想でも矛盾を出さずに完成させる力',
+  'leadership|influence':    '人と知識を束ねているから、一人では届かない場所まで、影響の波を広げる力',
+  // ━ 技×衝 STRIKER（技×衝）━
+  'critical|idea':           '本質が見えているから、未知の世界でも迷わず踏み出せる力',
+  'critical|innovation':     '本質を掴んでいるから、表面ではなく根っこから世界を変える力',
+  'critical|implementation': '何が核心かを知っているから、余計なものを削ぎ落として最後まで形にしきる力',
+  'critical|influence':      '本質だけを届けることで、人の心に深く響く力',
+  'creativity|idea':         'まだ誰も見ていない世界を頭の中で描けるから、踏み出す一歩が新しい時代の扉を開ける力',
+  'creativity|innovation':   '存在しないものを創り続けることで、革新を起こす力',
+  'creativity|implementation':'頭の中のビジョンを鮮明に描き切れるから、そのまま止まらず現実に落とし込む力',
+  'creativity|influence':    '世界にまだなかったものを創り出すから、見た人の常識を揺さぶる力',
+  'communication|idea':      '相手の心が動く言葉を選び、人の人生を変える一歩を生み出す力',
+  'communication|innovation':'相手が受け取れる形で言葉を届けるから、その言葉がその人の在り方を変えていく力',
+  'communication|implementation':'思いを言葉に変換することで、迷わず最後まで実装できる力',
+  'communication|influence': '相手に届く言葉を選び続けることで、人の行動に変化を生む力',
+  'collaboration|idea':      '人の持ち味を見抜いて束ねるから、一人では立てない場所に最初の一歩を踏み出せる力',
+  'collaboration|innovation':'異なる強みをひとつに集中させるから、一人では届かない変革の扉をこじ開ける力',
+  'collaboration|implementation':'誰が何をすべきかを見極めて配置するから、チームが一体となって構想を最後まで完成させる力',
+  'collaboration|influence': '一人ひとりの持ち味を最大限に引き出して束ねるから、その合力が社会を動かす力',
+  // ━ 衝×衝 PIONEER（衝×衝）━
+  'idea|innovation':         '最初の一歩が、新しい時代のきっかけになる力',
+  'idea|implementation':     '動き出す勢いのまま、止まらず形にしきる力',
+  'idea|influence':          '自分が動いたことで、周囲が動き出す力',
+  'innovation|implementation':'革新したことを、止まらずに形にしきる力',
+  'innovation|influence':    '革新的な行動が、影響を与え広げていく力',
+  'implementation|influence':'形にしたものが動き始めることで、周囲を巻き込んでいく力',
 };
 
 // ── 120ペア 3文字ショートネーム ──────────────────────────
 const PAIR_SHORT = {
-  // ━ 志×志 ANCHOR ━
-  'meaning|mindfulness':    '集中力', 'meaning|mindshift':      '転換力',
-  'meaning|mastery':        '反復力', 'mindfulness|mindshift':  '覚察力',
-  'mindfulness|mastery':    '習慣力', 'mindshift|mastery':      '定着力',
-  // ━ 志×知 VISIONARY ━
-  'meaning|learning':       '探求力', 'meaning|logical':        '言語力',
-  'meaning|life':           '結実力', 'meaning|leadership':     '牽引力',
-  'mindfulness|learning':   '変換力', 'mindfulness|logical':    '把握力',
-  'mindfulness|life':       '即応力', 'mindfulness|leadership': '育成力',
-  'mindshift|learning':     '本質力', 'mindshift|logical':      '構築力',
-  'mindshift|life':         '具現力', 'mindshift|leadership':   '変革力',
-  'mastery|learning':       '深化力', 'mastery|logical':        '整理力',
-  'mastery|life':           '再現力', 'mastery|leadership':     '人育力',
-  // ━ 志×技 BUILDER ━
-  'meaning|critical':       '洞察力', 'meaning|creativity':     '創造力',
-  'meaning|communication':  '伝達力', 'meaning|collaboration':  '統率力',
-  'mindfulness|critical':   '観察力', 'mindfulness|creativity': '発想力',
-  'mindfulness|communication':'共感力','mindfulness|collaboration':'促進力',
-  'mindshift|critical':     '批判力', 'mindshift|creativity':   '革新力',
-  'mindshift|communication':'説得力', 'mindshift|collaboration':'包容力',
-  'mastery|critical':       '探問力', 'mastery|creativity':     '知恵力',
-  'mastery|communication':  '解説力', 'mastery|collaboration':  '発揮力',
-  // ━ 知×知 SAGE ━
-  'learning|logical':       '論述力', 'learning|life':          '実践力',
-  'learning|leadership':    '転化力', 'logical|life':           '連結力',
-  'logical|leadership':     '論動力', 'life|leadership':        '実育力',
-  // ━ 知×技 CRAFTER ━
-  'learning|critical':      '分析力', 'learning|creativity':    '融合力',
-  'learning|communication': '翻訳力', 'learning|collaboration': '共有力',
-  'logical|critical':       '論察力', 'logical|creativity':     '論創力',
-  'logical|communication':  '論伝力', 'logical|collaboration':  '整合力',
-  'life|critical':          '特定力', 'life|creativity':        '解決力',
-  'life|communication':     '証伝力', 'life|collaboration':     '協業力',
-  'leadership|critical':    '構造力', 'leadership|creativity':  '展望力',
-  'leadership|communication':'感化力','leadership|collaboration':'統合力',
-  // ━ 技×技 INVENTOR ━
-  'critical|creativity':    '価値力', 'critical|communication': '明快力',
-  'critical|collaboration': '核共力', 'creativity|communication':'表現力',
-  'creativity|collaboration':'共創力','communication|collaboration':'連携力',
-  // ━ 志×衝 CATALYST ━
-  'meaning|idea':           '熱狂力', 'meaning|innovation':     '起革力',
-  'meaning|implementation': '実装力', 'meaning|influence':      '文化力',
-  'mindfulness|idea':       '着想力', 'mindfulness|innovation': '限革力',
-  'mindfulness|implementation':'先察力','mindfulness|influence': '先見力',
-  'mindshift|idea':         '脱枠力', 'mindshift|innovation':   '破壊力',
-  'mindshift|implementation':'突破力', 'mindshift|influence':   '伝播力',
-  'mastery|idea':           '洗練力', 'mastery|innovation':     '牽変力',
-  'mastery|implementation': '形成力', 'mastery|influence':      '根着力',
-  // ━ 知×衝 NAVIGATOR ━
-  'learning|idea':          '発見力', 'learning|innovation':    '原動力',
-  'learning|implementation':'知実力', 'learning|influence':     '学影力',
-  'logical|idea':           '論発力', 'logical|innovation':     '設計力',
-  'logical|implementation': '確実力', 'logical|influence':      '論影力',
-  'life|idea':              '現場力', 'life|innovation':        '現革力',
-  'life|implementation':    '機能力', 'life|influence':         '波及力',
-  'leadership|idea':        '触媒力', 'leadership|innovation':  '革創力',
-  'leadership|implementation':'完遂力','leadership|influence':  '風土力',
-  // ━ 技×衝 STRIKER ━
-  'critical|idea':          '問革力', 'critical|innovation':    '核心力',
-  'critical|implementation':'検証力', 'critical|influence':     '啓発力',
-  'creativity|idea':        '創見力', 'creativity|innovation':  '創変力',
-  'creativity|implementation':'具形力','creativity|influence':  '創文力',
-  'communication|idea':     '熱伝力', 'communication|innovation':'共鳴力',
-  'communication|implementation':'効伝力','communication|influence':'影響力',
-  'collaboration|idea':     '多視力', 'collaboration|innovation':'協革力',
-  'collaboration|implementation':'協実力','collaboration|influence':'普及力',
-  // ━ 衝×衝 PIONEER ━
-  'idea|innovation':        '具革力', 'idea|implementation':    '情実力',
-  'idea|influence':         '根文力', 'innovation|implementation':'実現力',
-  'innovation|influence':   '革文力', 'implementation|influence':'浸透力',
+  // ━ 志×志 ANCHOR（基×基）━
+  'meaning|mindfulness':    '基認力', 'meaning|mindshift':      '基転力',
+  'meaning|mastery':        '基熟力', 'mindfulness|mindshift':  '認転力',
+  'mindfulness|mastery':    '認熟力', 'mindshift|mastery':      '転熟力',
+  // ━ 志×知 VISIONARY（基×知）━
+  'meaning|learning':       '基謙力', 'meaning|logical':        '基論力',
+  'meaning|life':           '基活力', 'meaning|leadership':     '基統力',
+  'mindfulness|learning':   '認謙力', 'mindfulness|logical':    '認論力',
+  'mindfulness|life':       '認活力', 'mindfulness|leadership': '認統力',
+  'mindshift|learning':     '転謙力', 'mindshift|logical':      '転論力',
+  'mindshift|life':         '転活力', 'mindshift|leadership':   '転統力',
+  'mastery|learning':       '熟謙力', 'mastery|logical':        '熟論力',
+  'mastery|life':           '熟活力', 'mastery|leadership':     '熟統力',
+  // ━ 志×技 BUILDER（基×技）━
+  'meaning|critical':       '基本力', 'meaning|creativity':     '基創力',
+  'meaning|communication':  '基伝力', 'meaning|collaboration':  '基協力',
+  'mindfulness|critical':   '認本力', 'mindfulness|creativity': '認創力',
+  'mindfulness|communication':'認伝力','mindfulness|collaboration':'認協力',
+  'mindshift|critical':     '転本力', 'mindshift|creativity':   '転創力',
+  'mindshift|communication':'転伝力', 'mindshift|collaboration':'転協力',
+  'mastery|critical':       '熟本力', 'mastery|creativity':     '熟創力',
+  'mastery|communication':  '熟伝力', 'mastery|collaboration':  '熟協力',
+  // ━ 知×知 SAGE（知×知）━
+  'learning|logical':       '謙論力', 'learning|life':          '謙活力',
+  'learning|leadership':    '謙統力', 'logical|life':           '論活力',
+  'logical|leadership':     '論統力', 'life|leadership':        '活統力',
+  // ━ 知×技 CRAFTER（知×技）━
+  'learning|critical':      '謙本力', 'learning|creativity':    '謙創力',
+  'learning|communication': '謙伝力', 'learning|collaboration': '謙協力',
+  'logical|critical':       '論本力', 'logical|creativity':     '論創力',
+  'logical|communication':  '論伝力', 'logical|collaboration':  '論協力',
+  'life|critical':          '活本力', 'life|creativity':        '活創力',
+  'life|communication':     '活伝力', 'life|collaboration':     '活協力',
+  'leadership|critical':    '統本力', 'leadership|creativity':  '統創力',
+  'leadership|communication':'統伝力','leadership|collaboration':'統協力',
+  // ━ 技×技 INVENTOR（技×技）━
+  'critical|creativity':    '本創力', 'critical|communication': '本伝力',
+  'critical|collaboration': '本協力', 'creativity|communication':'創伝力',
+  'creativity|collaboration':'創協力','communication|collaboration':'伝協力',
+  // ━ 志×衝 CATALYST（基×衝）━
+  'meaning|idea':           '基構力', 'meaning|innovation':     '基革力',
+  'meaning|implementation': '基装力', 'meaning|influence':      '基響力',
+  'mindfulness|idea':       '認構力', 'mindfulness|innovation': '認革力',
+  'mindfulness|implementation':'認装力','mindfulness|influence': '認響力',
+  'mindshift|idea':         '転構力', 'mindshift|innovation':   '転革力',
+  'mindshift|implementation':'転装力', 'mindshift|influence':   '転響力',
+  'mastery|idea':           '熟構力', 'mastery|innovation':     '熟革力',
+  'mastery|implementation': '熟装力', 'mastery|influence':      '熟響力',
+  // ━ 知×衝 NAVIGATOR（知×衝）━
+  'learning|idea':          '謙構力', 'learning|innovation':    '謙革力',
+  'learning|implementation':'謙装力', 'learning|influence':     '謙響力',
+  'logical|idea':           '論構力', 'logical|innovation':     '論革力',
+  'logical|implementation': '論装力', 'logical|influence':      '論響力',
+  'life|idea':              '活構力', 'life|innovation':        '活革力',
+  'life|implementation':    '活装力', 'life|influence':         '活響力',
+  'leadership|idea':        '統構力', 'leadership|innovation':  '統革力',
+  'leadership|implementation':'統装力','leadership|influence':  '統響力',
+  // ━ 技×衝 STRIKER（技×衝）━
+  'critical|idea':          '本構力', 'critical|innovation':    '本革力',
+  'critical|implementation':'本装力', 'critical|influence':     '本響力',
+  'creativity|idea':        '創構力', 'creativity|innovation':  '創革力',
+  'creativity|implementation':'創装力','creativity|influence':  '創響力',
+  'communication|idea':     '伝構力', 'communication|innovation':'伝革力',
+  'communication|implementation':'伝装力','communication|influence':'伝響力',
+  'collaboration|idea':     '協構力', 'collaboration|innovation':'協革力',
+  'collaboration|implementation':'協装力','collaboration|influence':'協響力',
+  // ━ 衝×衝 PIONEER（衝×衝）━
+  'idea|innovation':        '構革力', 'idea|implementation':    '構装力',
+  'idea|influence':         '構響力', 'innovation|implementation':'革装力',
+  'innovation|influence':   '革響力', 'implementation|influence':'装響力',
 };
 
 export function pairShort(kA, kB) {
@@ -785,17 +785,36 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
     return pairs.sort((a, b) => b.sum - a.sum);
   }, [smap]);
 
-  // 右上用: ACTIVE上位3ペアのSet（同ポイント含む）
-  const activeTop2Set = useMemo(() => {
-    const activeSorted = activePairs.filter(p => p.z === 'active');
-    if (activeSorted.length === 0) return new Set();
-    // 3位のスコアを取得（同ポイント含む）
-    const cutoffScore = activeSorted.length >= 3 ? activeSorted[2].sum : activeSorted[activeSorted.length - 1].sum;
-    const top = activeSorted.filter(p => p.sum >= cutoffScore);
-    return new Set(top.map(p => `${p.kA}|${p.kB}`));
+  // 右上三角 表示セットを構築:
+  // ① NATURAL + PRO → 全て表示（10超えてもOK）
+  // ② 10未満なら ACTIVE（sum降順）で埋める
+  // ③ それでも10未満なら POTENTIAL（sum降順）で埋める
+  const shownRightSet = useMemo(() => {
+    const shown = new Set();
+    // ① NATURAL + PRO 全部
+    for (const p of activePairs) {
+      if (p.z === 'natural' || p.z === 'pro') shown.add(`${p.kA}|${p.kB}`);
+    }
+    // ② ACTIVE で10まで埋める
+    if (shown.size < 10) {
+      const actives = activePairs.filter(p => p.z === 'active');
+      for (const p of actives) {
+        if (shown.size >= 10) break;
+        shown.add(`${p.kA}|${p.kB}`);
+      }
+    }
+    // ③ POTENTIAL で10まで埋める（activePairsにはpotentialも含まれる）
+    if (shown.size < 10) {
+      const potentials = [...activePairs].sort((a, b) => b.sum - a.sum).filter(p => p.z === 'potential');
+      for (const p of potentials) {
+        if (shown.size >= 10) break;
+        shown.add(`${p.kA}|${p.kB}`);
+      }
+    }
+    return shown;
   }, [activePairs]);
 
-  const top5Pairs = activePairs.slice(0, 5);
+  const top10Pairs = activePairs.slice(0, 10);
 
   return (
     <div className="uaam-chart pdf-section" style={{
@@ -889,17 +908,12 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 右上三角（j > i）: NATURAL + PRO（全表示）+ ACTIVE（3段階濃淡）──
+                  // ── 右上三角（j > i）: shownRightSet に含まれるペアのみ表示 ──
                   if (j > i) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
-                    let alpha = 0;
-                    if (z === 'natural' || z === 'pro') {
-                      alpha = zAlpha(z, sA, sB);
-                    } else if (z === 'active' && activeTop2Set.has(`${rowKey}|${colKey}`)) {
-                      alpha = zAlpha(z, sA, sB);
-                    }
-                    const show = alpha > 0;
+                    const show = shownRightSet.has(`${rowKey}|${colKey}`);
+                    const alpha = show ? zAlpha(z, sA, sB) : 0;
                     const bg = show ? toRgba(ZONE_HEX[z], alpha) : 'rgba(160,152,136,0.03)';
                     return (
                       <div key={colKey} style={{
@@ -952,14 +966,14 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
         </div>
       </div>
 
-      {/* ── TOP 5 発動ペア ── */}
-      {top5Pairs.length > 0 && (
+      {/* ── TOP 10 発動ペア ── */}
+      {top10Pairs.length > 0 && (
         <div style={{ marginTop: 20, borderTop: '1px solid #EDEAE4', paddingTop: 16 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#AAA', textTransform: 'uppercase', marginBottom: 10 }}>
-            Top 5 Active Pairs
+            Top 10 Active Pairs
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
-            {top5Pairs.map((p, rank) => {
+            {top10Pairs.map((p, rank) => {
               const zc  = ZONE_HEX[p.z];
               const blk = getBlock(p.kA, p.kB);
               return (

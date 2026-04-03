@@ -467,16 +467,16 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     }
   }
 
-  // ── 🔑 次に動かす力（最大3）──
-  // 120ペア全体から NATURAL→PRO→ACTIVE 順、同ゾーン内は合計スコア降順で上位3ペアを選ぶ
-  const ZONE_ORDER_MAP = { natural: 0, pro: 1, active: 2 };
+  // ── 🔑 次に動かす力（ゾーン優先・上位10）──
+  // NATURAL→PRO→ACTIVE→POTENTIAL 順、同ゾーン内は合計スコア降順で上位10ペアを選ぶ
+  const ZONE_ORDER_MAP = { natural: 0, pro: 1, active: 2, potential: 3 };
   const sleepingPairs = [];
   for (let i = 0; i < ALL_KEYS.length - 1; i++) {
     for (let j = i + 1; j < ALL_KEYS.length; j++) {
       const kA = ALL_KEYS[i], kB = ALL_KEYS[j];
       const sA = sc(kA), sB = sc(kB);
       const z = _getZone(sA, sB);
-      if (z === 'natural' || z === 'pro' || z === 'active') {
+      if (z !== 'dormant') {
         sleepingPairs.push({ kA, kB, zone: z, scoreA: sA, scoreB: sB, sum: sA + sB, isPair: true });
       }
     }
@@ -485,7 +485,7 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     const zo = ZONE_ORDER_MAP[a.zone] - ZONE_ORDER_MAP[b.zone];
     return zo !== 0 ? zo : b.sum - a.sum;
   });
-  const topSleepingPairs = sleepingPairs.slice(0, 3);
+  const topSleepingPairs = sleepingPairs.slice(0, 10);
 
   // ── アイテム生成（✅ 個別キー用）──
   const toItem = (key, status) => {
