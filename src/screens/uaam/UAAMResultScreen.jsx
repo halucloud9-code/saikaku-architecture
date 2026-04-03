@@ -1115,11 +1115,19 @@ function RadarChart16({ scores }) {
 
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
     const n = 16;
-    const step = (2 * Math.PI) / n;
-    const startAngle = -Math.PI / 2; // 元の配置（スポーク位置変更なし）
+    // === 花びら型レーダー角度設定 ===
+    const subStep   = 20 * Math.PI / 180;   // グループ内スポーク間隔 20°
+    const gapAngle  = 30 * Math.PI / 180;   // グループ間ギャップ 30°
+    const petalStart = -Math.PI / 2 - 1.5 * subStep; // 最初のスポーク開始角
+
+    const getAngle = (i) => {
+      const g = Math.floor(i / 4);
+      const p = i % 4;
+      return petalStart + g * (3 * subStep + gapAngle) + p * subStep;
+    };
 
     const getPoint = (i, val) => {
-      const angle = startAngle + i * step;
+      const angle = getAngle(i);
       const r = (val / MAX_SUB) * R;
       return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
     };
@@ -1134,25 +1142,27 @@ function RadarChart16({ scores }) {
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // === グリッド（5段階 3,6,9,12,15）===
+    // === グリッド（5段階 3,6,9,12,15）花びら型：グループごとに独立弧 ===
     [3, 6, 9, 12, 15].forEach((v, vi) => {
-      ctx.beginPath();
-      for (let i = 0; i <= n; i++) {
-        const p = getPoint(i % n, v);
-        i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
-      }
-      ctx.closePath();
-      if (vi === 4) {
-        ctx.strokeStyle = 'rgba(255,215,0,0.25)';
-        ctx.lineWidth = 1.8;
+      for (let gi = 0; gi < 4; gi++) {
+        ctx.beginPath();
+        for (let j = 0; j <= 4; j++) {
+          const p = getPoint((gi * 4 + j) % n, v);
+          j === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        if (vi === 4) {
+          ctx.strokeStyle = 'rgba(255,215,0,0.25)';
+          ctx.lineWidth = 1.8;
+          ctx.setLineDash([]);
+        } else {
+          ctx.strokeStyle = `rgba(255,255,255,${0.04 + vi * 0.02})`;
+          ctx.lineWidth = 0.7;
+          ctx.setLineDash(vi % 2 === 0 ? [4, 6] : []);
+        }
+        ctx.stroke();
         ctx.setLineDash([]);
-      } else {
-        ctx.strokeStyle = `rgba(255,255,255,${0.04 + vi * 0.02})`;
-        ctx.lineWidth = 0.7;
-        ctx.setLineDash(vi % 2 === 0 ? [4, 6] : []);
       }
-      ctx.stroke();
-      ctx.setLineDash([]);
 
       // グリッド数値（右上に小さく表示）
       if (vi > 0) {
@@ -1185,8 +1195,8 @@ function RadarChart16({ scores }) {
     // === 扇形セクション背景（グループ領域を明確化）===
     const groupOrder = ['mindset', 'literacy', 'competency', 'impact'];
     groupOrder.forEach((grp, gi) => {
-      const a1 = startAngle + gi * 4 * step - step * 0.5;
-      const a2 = startAngle + (gi + 1) * 4 * step - step * 0.5;
+      const a1 = getAngle(gi * 4) - subStep * 0.5;
+      const a2 = getAngle(gi * 4 + 3) + subStep * 0.5;
 
       // ① グラデーション扇形フィル
       const secGrad = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R);
@@ -1309,7 +1319,7 @@ function RadarChart16({ scores }) {
 
     // === ラベル ===
     for (let i = 0; i < n; i++) {
-      const angle = startAngle + i * step;
+      const angle = getAngle(i);
       const grp = axes[i].group;
       const score = data[i];
 

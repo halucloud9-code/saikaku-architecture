@@ -764,6 +764,7 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
 export function SymmetricMatrix({ scores, maxSub = 20 }) {
   const smap = useMemo(() => buildScoreMap(scores, maxSub), [scores, maxSub]);
   const [tip, setTip] = useState(null);
+  const [expandedPair, setExpandedPair] = useState(null);
 
   const SCELL = 28, SGAP = 2;
   const LABEL_W = 36;
@@ -971,33 +972,104 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#EDEAE4', borderRadius: 10, overflow: 'hidden', border: '1px solid #EDEAE4' }}>
             {top10Pairs.map((p, rank) => {
+              const pairKey = `${p.kA}|${p.kB}`;
+              const isExpanded = expandedPair === pairKey;
               const zc = ZONE_HEX[p.z];
               const blk = getBlock(p.kA, p.kB);
+              const def = pairDef(p.kA, p.kB);
               return (
-                <div key={`${p.kA}|${p.kB}`} style={{
-                  background: '#FDFAF5', padding: '10px 12px',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                }}>
-                  <div style={{
-                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                    background: toRgba(zc, 0.15), border: `1.5px solid ${toRgba(zc, 0.5)}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 9, fontWeight: 800, color: zc,
-                  }}>{rank + 1}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1A1A', fontFamily: "'Noto Serif JP', serif" }}>
-                      {pairShort(p.kA, p.kB)}
+                <div
+                  key={pairKey}
+                  onClick={() => setExpandedPair(isExpanded ? null : pairKey)}
+                  style={{
+                    background: isExpanded ? toRgba(zc, 0.06) : '#FDFAF5',
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    borderLeft: isExpanded ? `3px solid ${zc}` : '3px solid transparent',
+                    transition: 'background 0.15s, border-color 0.15s',
+                    userSelect: 'none',
+                  }}
+                >
+                  {/* ── 常に表示される行 ── */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                      background: toRgba(zc, 0.15), border: `1.5px solid ${toRgba(zc, 0.5)}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 9, fontWeight: 800, color: zc,
+                    }}>{rank + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1A1A', fontFamily: "'Noto Serif JP', serif" }}>
+                        {pairShort(p.kA, p.kB)}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#888', marginTop: 1 }}>
+                        {blk ? blk.jp : ''} · {p.sA + p.sB}pt
+                      </div>
                     </div>
-                    <div style={{ fontSize: 10, color: '#888', marginTop: 1 }}>
-                      {blk ? blk.jp : ''} · {p.sA + p.sB}pt
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+                      <div style={{
+                        padding: '2px 7px', borderRadius: 20,
+                        background: toRgba(zc, 0.1), color: zc,
+                        border: `1px solid ${toRgba(zc, 0.3)}`,
+                        fontSize: 9, fontWeight: 700,
+                      }}>{ZONE_LABEL[p.z]}</div>
+                      <div style={{ fontSize: 8, color: '#BBB', letterSpacing: '0.03em' }}>
+                        {isExpanded ? '閉じる ▴' : 'タップで表示 ▾'}
+                      </div>
                     </div>
                   </div>
-                  <div style={{
-                    padding: '2px 7px', borderRadius: 20,
-                    background: toRgba(zc, 0.1), color: zc,
-                    border: `1px solid ${toRgba(zc, 0.3)}`,
-                    fontSize: 9, fontWeight: 700, flexShrink: 0,
-                  }}>{ZONE_LABEL[p.z]}</div>
+
+                  {/* ── 展開コンテンツ ── */}
+                  {isExpanded && (
+                    <div style={{
+                      marginTop: 10, paddingTop: 10,
+                      borderTop: `1px solid ${toRgba(zc, 0.2)}`,
+                    }}>
+                      {/* スコア行 */}
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                        {[
+                          { key: p.kA, score: p.sA },
+                          { key: p.kB, score: p.sB },
+                        ].map(({ key, score }) => (
+                          <div key={key} style={{
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            background: toRgba(zc, 0.08), borderRadius: 6,
+                            padding: '3px 8px',
+                          }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: zc, fontFamily: "'Noto Serif JP', serif" }}>
+                              {SUB_JP[key]}
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#1A1A1A' }}>{score}</span>
+                            <span style={{ fontSize: 9, color: '#AAA' }}>pt</span>
+                          </div>
+                        ))}
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 3,
+                          background: toRgba(zc, 0.15), borderRadius: 6,
+                          padding: '3px 8px',
+                        }}>
+                          <span style={{ fontSize: 9, color: '#888' }}>合計</span>
+                          <span style={{ fontSize: 13, fontWeight: 900, color: zc }}>{p.sA + p.sB}</span>
+                          <span style={{ fontSize: 9, color: '#AAA' }}>pt</span>
+                        </div>
+                      </div>
+                      {/* ブロック名 */}
+                      {blk && (
+                        <div style={{ fontSize: 10, color: '#777', marginBottom: def ? 6 : 0 }}>
+                          {blk.name} / {blk.jp}
+                        </div>
+                      )}
+                      {/* 定義文 */}
+                      {def && (
+                        <div style={{
+                          fontSize: 11, color: '#444', lineHeight: 1.6,
+                          paddingTop: 6, borderTop: `1px solid ${toRgba(zc, 0.15)}`,
+                        }}>
+                          {def}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
