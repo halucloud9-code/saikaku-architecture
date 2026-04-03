@@ -89,7 +89,9 @@ const UAAM_SYSTEM_PROMPT = `あなたはUAAM（Universal Ability Assessment Mode
 余分なテキスト・マークダウン・コードブロック禁止。
 
 {
-  "type_name": "あなたの能力タイプ名（8〜20文字、映像的表現）",
+  "primary_type": "ANCHOR/SAGE/INVENTOR/PIONEER/VISIONARY/BUILDER/CATALYST/CRAFTER/NAVIGATOR/STRIKERから最も近い1つ",
+  "secondary_type": "2番目に近い1つ",
+  "type_name": "あなたの能力タイプ名（8〜20文字）",
   "type_description": "タイプの一行説明（30文字以内）",
   "axis_analysis": {
     "mindset": "志(MindSet)の分析（2〜3行、4Mサブ項目のスコア差に言及）",
