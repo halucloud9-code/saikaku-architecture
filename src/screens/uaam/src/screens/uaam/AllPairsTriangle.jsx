@@ -1060,16 +1060,43 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
         </div>
       </div>
 
-      {/* ── 発動ペア ゾーン別 ── */}
-      {activePairs.length > 0 && (
+      {/* ── Top 10 Active Pairs ── */}
+      {top10Pairs.length > 0 && (
         <div style={{ marginTop: 20, borderTop: '1px solid #EDEAE4', paddingTop: 16 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#AAA', textTransform: 'uppercase', marginBottom: 12 }}>
-            Active Pairs by Zone
+            Top 10 Active Pairs
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {PAIR_ZONE_DEFS_CONST.map(zd => {
-              const zonePairs = activePairs.filter(p => p.z === zd.key);
-              return <PairZoneWindow key={zd.key} zoneDef={zd} pairs={zonePairs} />;
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#EDEAE4', borderRadius: 10, overflow: 'hidden', border: '1px solid #EDEAE4' }}>
+            {top10Pairs.map((p, rank) => {
+              const zc = ZONE_HEX[p.z];
+              const blk = getBlock(p.kA, p.kB);
+              return (
+                <div key={`${p.kA}|${p.kB}`} style={{
+                  background: '#FDFAF5', padding: '10px 12px',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    background: toRgba(zc, 0.15), border: `1.5px solid ${toRgba(zc, 0.5)}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 9, fontWeight: 800, color: zc,
+                  }}>{rank + 1}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1A1A', fontFamily: "'Noto Serif JP', serif" }}>
+                      {pairShort(p.kA, p.kB)}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#888', marginTop: 1 }}>
+                      {blk ? blk.jp : ''} · {p.sA + p.sB}pt
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '2px 7px', borderRadius: 20,
+                    background: toRgba(zc, 0.1), color: zc,
+                    border: `1px solid ${toRgba(zc, 0.3)}`,
+                    fontSize: 9, fontWeight: 700, flexShrink: 0,
+                  }}>{ZONE_LABEL[p.z]}</div>
+                </div>
+              );
             })}
           </div>
         </div>
