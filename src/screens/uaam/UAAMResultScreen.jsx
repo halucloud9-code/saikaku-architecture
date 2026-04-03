@@ -1639,7 +1639,31 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
               </Section>
             )}
 
-{analysis.saikaku_integration && (
+            {/* 才覚統合分析 */}
+            {(analysis.saikaku_integration || false) ? (
+              <Section>
+                <SectionHeader title="才覚統合分析" subtitle="Integration" />
+                {[
+                  { key: "activation_core", label: "才覚発動の核心", color: "#C4922A" },
+                  { key: "mission_direction", label: "使命の方向性", color: "#4A6FA5" },
+                  { key: "flow_route", label: "最短フロールート", color: "#1E7A4A" },
+                ].map(({ key, label, color }) => (
+                  analysis.saikaku_integration[key] && (
+                    <div key={key} style={{ borderLeft: "3px solid " + color, padding: "14px 18px", marginBottom: 14 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 8 }}>{label}</div>
+                      <p style={{ fontSize: 14, margin: 0, lineHeight: 1.9 }}>{analysis.saikaku_integration[key]}</p>
+                    </div>
+                  )
+                ))}
+              </Section>
+            ) : (
+              <Section>
+                <SectionHeader title="才覚統合分析" subtitle="Integration" />
+                <p style={{ fontSize: 14, color: TEXT_SECONDARY, marginBottom: 0, lineHeight: 1.9 }}>
+                  既存の保存済みデータには才覚統合分析が含まれていないため、表示できません。新規診断を実行すると統合分析が利用可能になります。
+                </p>
+              </Section>
+            )}
               <Section>
                 <SectionHeader title="才覚統合分析" subtitle="Integration" />
                 {[

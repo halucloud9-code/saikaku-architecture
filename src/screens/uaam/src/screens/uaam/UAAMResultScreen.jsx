@@ -86,16 +86,19 @@ const AXIS_COLORS = { mindset: '#2C5F8A', literacy: '#1E7A4A', competency: '#A07
 /* ============================================================
  * タイプ判定
  * ============================================================ */
-function determineType(scores) {
+function determineType(scores, analysis) {
+  if (analysis?.primary_type) {
+    return { name: analysis.primary_type, secondary: analysis.secondary_type || '' };
+  }
   const d = (k) => scores[k]?.domainTotal || 0;
   const types = [
-    { name: '構想力タイプ', score: Math.round(d('mindset') * d('literacy')) },
-    { name: '統率力タイプ', score: Math.round(d('mindset') * d('impact')) },
-    { name: '実装力タイプ', score: Math.round(d('literacy') * d('competency')) },
-    { name: '変革力タイプ', score: Math.round(d('impact') * d('competency')) },
+    { name: 'VISIONARY', score: Math.round(d('mindset') * d('literacy')) },
+    { name: 'CATALYST', score: Math.round(d('mindset') * d('impact')) },
+    { name: 'CRAFTER', score: Math.round(d('literacy') * d('competency')) },
+    { name: 'STRIKER', score: Math.round(d('impact') * d('competency')) },
   ];
   types.sort((a, b) => b.score - a.score);
-  return types[0];
+  return { name: types[0].name, secondary: types[1].name };
 }
 
 /* ============================================================
@@ -1495,7 +1498,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
   // 妥当性チェック（V問フラグ判定）
   const validityResult = (vAnswers && answers) ? checkValidity(vAnswers, answers) : null;
 
-  const topType = determineType(scores);
+  const topType = determineType(scores, analysis);
   const subRadars = UAAM_AXES.map(axis => {
     const subs = scores[axis.key]?.subs || {};
     const order = SUB_ORDER[axis.key];
@@ -1622,6 +1625,32 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
                   fontSize: 15, color: TEXT_PRIMARY, lineHeight: 2.0, margin: 0,
                   paddingLeft: 16, borderLeft: `2px solid ${BORDER}`,
                 }}>{analysis.narrative}</p>
+              </Section>
+            )}
+
+            {/* 才覚統合分析 */}
+            {(analysis.saikaku_integration || false) ? (
+              <Section>
+                <SectionHeader title="才覚統合分析" subtitle="Integration" />
+                {[
+                  { key: "activation_core", label: "才覚発動の核心", color: "#C4922A" },
+                  { key: "mission_direction", label: "使命の方向性", color: "#4A6FA5" },
+                  { key: "flow_route", label: "最短フロールート", color: "#1E7A4A" },
+                ].map(({ key, label, color }) => (
+                  analysis.saikaku_integration[key] && (
+                    <div key={key} style={{ borderLeft: "3px solid " + color, padding: "14px 18px", marginBottom: 14 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 8 }}>{label}</div>
+                      <p style={{ fontSize: 14, margin: 0, lineHeight: 1.9 }}>{analysis.saikaku_integration[key]}</p>
+                    </div>
+                  )
+                ))}
+              </Section>
+            ) : (
+              <Section>
+                <SectionHeader title="才覚統合分析" subtitle="Integration" />
+                <p style={{ fontSize: 14, color: TEXT_SECONDARY, marginBottom: 0, lineHeight: 1.9 }}>
+                  既存の保存済みデータには才覚統合分析が含まれていないため、表示できません。新規診断を実行すると統合分析が利用可能になります。
+                </p>
               </Section>
             )}
 
