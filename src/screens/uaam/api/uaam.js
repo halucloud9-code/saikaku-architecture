@@ -201,6 +201,7 @@ export default async function handler(req, res) {
   }
 
   const answeredCount = Object.keys(answers).length;
+  // 64問チェックを維持（67問はVスコアを含む別カウントのため、ここは64問基準）
   if (answeredCount < 64) {
     return res.status(400).json({ error: `全64問に回答してください（現在${answeredCount}問）` });
   }

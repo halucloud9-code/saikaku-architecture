@@ -93,13 +93,13 @@ function determineType(scores, analysis) {
 
   const d = (k) => scores[k]?.domainTotal || 0;
   const types = [
-    { name: '構想力タイプ', score: Math.round(d('mindset') * d('literacy')) },
-    { name: '統率力タイプ', score: Math.round(d('mindset') * d('impact')) },
-    { name: '実装力タイプ', score: Math.round(d('literacy') * d('competency')) },
-    { name: '変革力タイプ', score: Math.round(d('impact') * d('competency')) },
+    { name: 'VISIONARY', score: Math.round(d('mindset') * d('literacy')) },
+    { name: 'CATALYST', score: Math.round(d('mindset') * d('impact')) },
+    { name: 'CRAFTER', score: Math.round(d('literacy') * d('competency')) },
+    { name: 'STRIKER', score: Math.round(d('impact') * d('competency')) },
   ];
   types.sort((a, b) => b.score - a.score);
-  return types[0];
+  return { name: types[0].name, secondary: types[1].name };
 }
 
 /* ============================================================
