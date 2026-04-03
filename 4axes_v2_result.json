@@ -1,0 +1,394 @@
+[
+  {
+    "name": "守永博貴",
+    "kakuchiiki": "愛する人たちの未来を戦略で拓く、人生設計師",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 14,
+      "mindshift": 15,
+      "mastery": 12,
+      "learning": 16,
+      "logical": 17,
+      "life": 14,
+      "leadership": 16,
+      "critical": 15,
+      "creativity": 13,
+      "communication": 16,
+      "collaboration": 17,
+      "idea": 14,
+      "innovation": 13,
+      "implementation": 12,
+      "influence": 15
+    },
+    "axes": {
+      "志": 59,
+      "知": 63,
+      "技": 61,
+      "衝": 54
+    }
+  },
+  {
+    "name": "宇田川昌美",
+    "kakuchiiki": "一体感を統合し、人の覚醒を導く存在",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 17,
+      "mindshift": 16,
+      "mastery": 14,
+      "learning": 16,
+      "logical": 13,
+      "life": 14,
+      "leadership": 16,
+      "critical": 18,
+      "creativity": 15,
+      "communication": 14,
+      "collaboration": 17,
+      "idea": 13,
+      "innovation": 15,
+      "implementation": 12,
+      "influence": 15
+    },
+    "axes": {
+      "志": 65,
+      "知": 59,
+      "技": 64,
+      "衝": 55
+    }
+  },
+  {
+    "name": "坂口友亮",
+    "kakuchiiki": "人生の地図を描き、次世代に手渡す者",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 14,
+      "mindshift": 15,
+      "mastery": 13,
+      "learning": 16,
+      "logical": 17,
+      "life": 15,
+      "leadership": 17,
+      "critical": 16,
+      "creativity": 12,
+      "communication": 16,
+      "collaboration": 14,
+      "idea": 13,
+      "innovation": 12,
+      "implementation": 15,
+      "influence": 17
+    },
+    "axes": {
+      "志": 60,
+      "知": 65,
+      "技": 58,
+      "衝": 57
+    }
+  },
+  {
+    "name": "鈴木栄子",
+    "kakuchiiki": "蜂と共に地球を癒し、純粋な生命を育む人",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 14,
+      "mindshift": 12,
+      "mastery": 16,
+      "learning": 15,
+      "logical": 11,
+      "life": 14,
+      "leadership": 10,
+      "critical": 15,
+      "creativity": 13,
+      "communication": 12,
+      "collaboration": 13,
+      "idea": 14,
+      "innovation": 13,
+      "implementation": 15,
+      "influence": 11
+    },
+    "axes": {
+      "志": 60,
+      "知": 50,
+      "技": 53,
+      "衝": 53
+    }
+  },
+  {
+    "name": "原田祐介",
+    "kakuchiiki": "愛情で人の可能性を言語化し、未来への道筋を構築する概念建築家",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 16,
+      "mindshift": 17,
+      "mastery": 14,
+      "learning": 15,
+      "logical": 19,
+      "life": 16,
+      "leadership": 17,
+      "critical": 19,
+      "creativity": 17,
+      "communication": 18,
+      "collaboration": 17,
+      "idea": 15,
+      "innovation": 16,
+      "implementation": 17,
+      "influence": 16
+    },
+    "axes": {
+      "志": 65,
+      "知": 67,
+      "技": 71,
+      "衝": 64
+    }
+  },
+  {
+    "name": "根本輝尚",
+    "kakuchiiki": "仲間と共に歩む道を照らし、一人ひとりの可能性を育て上げる人",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 16,
+      "mindshift": 14,
+      "mastery": 13,
+      "learning": 15,
+      "logical": 14,
+      "life": 13,
+      "leadership": 17,
+      "critical": 14,
+      "creativity": 12,
+      "communication": 16,
+      "collaboration": 17,
+      "idea": 12,
+      "innovation": 11,
+      "implementation": 13,
+      "influence": 16
+    },
+    "axes": {
+      "志": 61,
+      "知": 59,
+      "技": 59,
+      "衝": 52
+    }
+  },
+  {
+    "name": "澤井洸蕎チャーリー",
+    "kakuchiiki": "愛する者を護りながら、人の魂を目覚めさせる場を創る者",
+    "scores": {
+      "meaning": 17,
+      "mindfulness": 13,
+      "mindshift": 14,
+      "mastery": 11,
+      "learning": 14,
+      "logical": 10,
+      "life": 12,
+      "leadership": 13,
+      "critical": 14,
+      "creativity": 15,
+      "communication": 11,
+      "collaboration": 14,
+      "idea": 13,
+      "innovation": 14,
+      "implementation": 12,
+      "influence": 12
+    },
+    "axes": {
+      "志": 55,
+      "知": 49,
+      "技": 54,
+      "衝": 51
+    }
+  },
+  {
+    "name": "飯塚玄氣",
+    "kakuchiiki": "魂の叡智を言語化し、世界に調和の文明を織り上げる者",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 16,
+      "mindshift": 14,
+      "mastery": 12,
+      "learning": 15,
+      "logical": 17,
+      "life": 13,
+      "leadership": 16,
+      "critical": 17,
+      "creativity": 15,
+      "communication": 18,
+      "collaboration": 17,
+      "idea": 14,
+      "innovation": 13,
+      "implementation": 11,
+      "influence": 15
+    },
+    "axes": {
+      "志": 60,
+      "知": 61,
+      "技": 67,
+      "衝": 53
+    }
+  },
+  {
+    "name": "道又正人",
+    "kakuchiiki": "真理を優しさで包み込む覚醒メソッド創造者",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 17,
+      "mindshift": 16,
+      "mastery": 14,
+      "learning": 16,
+      "logical": 17,
+      "life": 15,
+      "leadership": 16,
+      "critical": 18,
+      "creativity": 17,
+      "communication": 18,
+      "collaboration": 15,
+      "idea": 13,
+      "innovation": 15,
+      "implementation": 12,
+      "influence": 15
+    },
+    "axes": {
+      "志": 65,
+      "知": 64,
+      "技": 68,
+      "衝": 55
+    }
+  },
+  {
+    "name": "島田知幸",
+    "kakuchiiki": "天地の氣を循環させ、大地を蘇らせる者",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 15,
+      "mindshift": 16,
+      "mastery": 13,
+      "learning": 17,
+      "logical": 12,
+      "life": 14,
+      "leadership": 15,
+      "critical": 18,
+      "creativity": 16,
+      "communication": 11,
+      "collaboration": 14,
+      "idea": 13,
+      "innovation": 17,
+      "implementation": 12,
+      "influence": 13
+    },
+    "axes": {
+      "志": 62,
+      "知": 58,
+      "技": 59,
+      "衝": 55
+    }
+  },
+  {
+    "name": "塚原厚",
+    "kakuchiiki": "使命の枠組みで世界を浸す者",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 14,
+      "mindshift": 16,
+      "mastery": 12,
+      "learning": 15,
+      "logical": 17,
+      "life": 13,
+      "leadership": 16,
+      "critical": 18,
+      "creativity": 17,
+      "communication": 14,
+      "collaboration": 11,
+      "idea": 18,
+      "innovation": 17,
+      "implementation": 14,
+      "influence": 15
+    },
+    "axes": {
+      "志": 60,
+      "知": 61,
+      "技": 60,
+      "衝": 64
+    }
+  },
+  {
+    "name": "谷口　尚子",
+    "kakuchiiki": "自由な魂で成長の扉を開く導き手",
+    "scores": {
+      "meaning": 17,
+      "mindfulness": 14,
+      "mindshift": 18,
+      "mastery": 12,
+      "learning": 15,
+      "logical": 10,
+      "life": 13,
+      "leadership": 16,
+      "critical": 11,
+      "creativity": 17,
+      "communication": 13,
+      "collaboration": 14,
+      "idea": 18,
+      "innovation": 16,
+      "implementation": 12,
+      "influence": 15
+    },
+    "axes": {
+      "志": 61,
+      "知": 54,
+      "技": 55,
+      "衝": 61
+    }
+  },
+  {
+    "name": "藤原宗賢",
+    "kakuchiiki": "宇宙の法則を優しく伝える教育者",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 17,
+      "mindshift": 14,
+      "mastery": 12,
+      "learning": 16,
+      "logical": 13,
+      "life": 14,
+      "leadership": 15,
+      "critical": 15,
+      "creativity": 13,
+      "communication": 17,
+      "collaboration": 16,
+      "idea": 12,
+      "innovation": 11,
+      "implementation": 11,
+      "influence": 14
+    },
+    "axes": {
+      "志": 61,
+      "知": 58,
+      "技": 61,
+      "衝": 48
+    }
+  },
+  {
+    "name": "浜口奈々",
+    "kakuchiiki": "魂を解き放ち、世界を熱狂の嵐に変える者",
+    "scores": {
+      "meaning": 18,
+      "mindfulness": 14,
+      "mindshift": 16,
+      "mastery": 12,
+      "learning": 15,
+      "logical": 11,
+      "life": 13,
+      "leadership": 17,
+      "critical": 19,
+      "creativity": 16,
+      "communication": 14,
+      "collaboration": 15,
+      "idea": 15,
+      "innovation": 17,
+      "implementation": 13,
+      "influence": 18
+    },
+    "axes": {
+      "志": 60,
+      "知": 56,
+      "技": 64,
+      "衝": 63
+    }
+  }
+]
