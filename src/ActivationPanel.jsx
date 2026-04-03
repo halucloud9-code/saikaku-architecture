@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { getActivationAnalysis } from './activation_analysis';
+import { getActivationAnalysis, TEMPLATES } from './activation_analysis';
 import { pairShort, pairDef, SUB_JP as PAIR_SUB_JP, getBlock, ZONE_HEX as PAIR_ZONE_HEX, ZONE_LABEL, BLOCKS } from './screens/uaam/AllPairsTriangle';
 
 /* ── ゾーン別スタイル（バーグラデーション用） ── */
@@ -95,20 +95,41 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
   }
 
   if (mode === 'active-only') {
-    const { allPairs = [] } = getActivationAnalysis(scores, threshold);
-    const maxSum = allPairs.length > 0 ? Math.max(...allPairs.map(p => p.sum)) : 40;
-
-    /* ゾーン別スコア範囲 */
-    const ZONE_RANGE = {
-      natural:   '20',
-      pro:       '16–19',
-      active:    '12–15',
-      potential: '10–11',
+    /* 16素子をゾーン別に分類 */
+    const ALL_SUBS = [
+      'meaning','mindfulness','mindshift','mastery',
+      'learning','logical','life','leadership',
+      'critical','creativity','communication','collaboration',
+      'idea','innovation','implementation','influence',
+    ];
+    const AXIS_OF = {
+      meaning:'志',mindfulness:'志',mindshift:'志',mastery:'志',
+      learning:'知',logical:'知',life:'知',leadership:'知',
+      critical:'技',creativity:'技',communication:'技',collaboration:'技',
+      idea:'衝',innovation:'衝',implementation:'衝',influence:'衝',
     };
-    const ZONE_ORDER = ['natural', 'pro', 'active', 'potential'];
-    const grouped = ZONE_ORDER
-      .map(z => ({ zone: z, pairs: allPairs.filter(p => p.zone === z) }))
-      .filter(g => g.pairs.length > 0);
+    const ZONE_DEFS = [
+      { key:'natural',  label:'NATURAL ✦', range:'20',    color: PAIR_ZONE_HEX.natural  },
+      { key:'pro',      label:'PRO',        range:'16–19', color: PAIR_ZONE_HEX.pro      },
+      { key:'active',   label:'ACTIVE',     range:'12–15', color: PAIR_ZONE_HEX.active   },
+      { key:'potential',label:'POTENTIAL',  range:'10–11', color: PAIR_ZONE_HEX.potential },
+    ];
+    const subZone = (sc) => {
+      if (sc === 20) return 'natural';
+      if (sc >= 16)  return 'pro';
+      if (sc >= 12)  return 'active';
+      if (sc >= 10)  return 'potential';
+      return null;
+    };
+    const byZone = {};
+    ZONE_DEFS.forEach(z => { byZone[z.key] = []; });
+    ALL_SUBS.forEach(key => {
+      const sc = scores?.[key] ?? 0;
+      const z  = subZone(sc);
+      if (z) byZone[z].push({ key, jp: PAIR_SUB_JP[key] || key, axis: AXIS_OF[key], score: sc });
+    });
+    ZONE_DEFS.forEach(z => byZone[z.key].sort((a, b) => b.score - a.score));
+    const total = Object.values(byZone).reduce((s, a) => s + a.length, 0);
 
     return (
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
@@ -126,45 +147,15 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
           <span style={{
             fontSize: 10, color: ACCENT_GOLD, marginLeft: 'auto', fontWeight: 700,
             background: ACCENT_GOLD + '18', padding: '2px 8px', borderRadius: 9999,
-          }}>全{allPairs.length}件</span>
+          }}>{total} / 16</span>
         </div>
 
-        {/* ゾーン別グループ */}
-        {grouped.map(({ zone, pairs }) => {
-          const zc  = PAIR_ZONE_HEX[zone] || '#888';
-          const lbl = ZONE_LABEL[zone] || zone.toUpperCase();
-          const rng = ZONE_RANGE[zone] || '';
-          return (
-            <div key={zone} style={{ marginBottom: 12 }}>
-              {/* ゾーンヘッダー */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: zc, flexShrink: 0 }} />
-                <span style={{ fontSize: 11, fontWeight: 800, color: zc, letterSpacing: '0.08em' }}>{lbl}</span>
-                <span style={{
-                  fontSize: 10, color: zc, fontWeight: 600,
-                  background: zc + '15', padding: '1px 6px', borderRadius: 9999,
-                }}>{rng}pt</span>
-                <div style={{ flex: 1, height: 1, background: zc + '22' }} />
-                <span style={{ fontSize: 10, color: '#BBB' }}>{pairs.length}件</span>
-              </div>
-              {/* 2列グリッド（タップ展開） */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
-                background: BORDER, borderRadius: 10, overflow: 'hidden',
-                border: `1px solid ${BORDER}`,
-              }}>
-                {pairs.map((item) => (
-                  <PairCard
-                    key={`${item.kA}-${item.kB}`}
-                    item={item}
-                    maxSum={maxSum}
-                    expandable
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        {/* 4ゾーン窓 — 2×2グリッド */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {ZONE_DEFS.map(zd => (
+            <ZoneWindow key={zd.key} zoneDef={zd} subs={byZone[zd.key]} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -365,6 +356,130 @@ function PanelSection({ emoji, title, items, accentColor }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {cardItems.map((item, i) => <Card key={item.name || i} item={item} />)}
         </div>
+      )}
+    </div>
+  );
+}
+
+/* スコア → TEMPLATESのtierキー */
+function _scoreTier(score) {
+  if (score >= 18) return 'peak';
+  if (score >= 14) return 'high';
+  return 'edge';
+}
+
+/* ── ゾーン窓（今、発動している力 / active-only） ── */
+function ZoneWindow({ zoneDef, subs }) {
+  const [open, setOpen] = useState(false);
+  const { label, range, color } = zoneDef;
+  const has = subs.length > 0;
+
+  return (
+    <div
+      onClick={has ? () => setOpen(o => !o) : undefined}
+      style={{
+        borderRadius: 14,
+        border: `1.5px solid ${has ? color + '55' : '#E8E0D4'}`,
+        borderTop: `3px solid ${has ? color : '#DDD8D0'}`,
+        background: has ? color + '07' : '#FAF7F3',
+        padding: '14px 14px 12px',
+        cursor: has ? 'pointer' : 'default',
+        userSelect: 'none',
+        minHeight: 100,
+        boxShadow: open
+          ? `0 6px 20px ${color}22, 0 2px 8px rgba(0,0,0,0.06)`
+          : '0 1px 4px rgba(0,0,0,0.05)',
+        transition: 'box-shadow 0.2s ease',
+      }}
+    >
+      {/* ゾーン名 + 件数バッジ */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+        <span style={{
+          fontSize: 11, fontWeight: 900, letterSpacing: '0.07em',
+          color: has ? color : '#C8C0B8',
+        }}>{label}</span>
+        {has && (
+          <span style={{
+            fontSize: 11, fontWeight: 800, color: color,
+            background: color + '20', padding: '1px 7px',
+            borderRadius: 9999, minWidth: 22, textAlign: 'center',
+          }}>{subs.length}</span>
+        )}
+      </div>
+
+      {/* スコア範囲タグ */}
+      <div style={{
+        fontSize: 10, fontWeight: 700,
+        color: has ? color : '#C0B8B0',
+        background: has ? color + '14' : '#F0EBE3',
+        display: 'inline-flex', alignItems: 'center', gap: 2,
+        padding: '2px 8px', borderRadius: 9999, marginBottom: 8,
+      }}>
+        {range} <span style={{ fontSize: 9, opacity: 0.75 }}>pt</span>
+      </div>
+
+      {/* 展開：素子リスト + 説明文 */}
+      {has && open && (
+        <div style={{ marginTop: 2 }}>
+          <div style={{ height: 1, background: color + '25', marginBottom: 8 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {subs.map(sub => {
+              const tier = _scoreTier(sub.score);
+              const desc = TEMPLATES[sub.key]?.[tier]?.message || '';
+              return (
+                <div key={sub.key}>
+                  {/* 素子ヘッダー行 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    {/* 軸バッジ */}
+                    <span style={{
+                      fontSize: 9, fontWeight: 800,
+                      color: BLOCK_COLOR[sub.axis]?.badge || '#888',
+                      background: BLOCK_COLOR[sub.axis]?.light || '#EEE',
+                      border: `1px solid ${(BLOCK_COLOR[sub.axis]?.badge || '#888')}28`,
+                      padding: '1px 5px', borderRadius: 4,
+                      flexShrink: 0, minWidth: 18, textAlign: 'center',
+                    }}>{sub.axis}</span>
+                    {/* 素子名 */}
+                    <span style={{
+                      fontSize: 13, fontWeight: 700, color: TEXT_PRIMARY, flex: 1,
+                      fontFamily: "'Noto Serif JP', serif",
+                    }}>{sub.jp}</span>
+                    {/* スコア */}
+                    <span style={{
+                      fontSize: 15, fontWeight: 900, color: color,
+                      fontFamily: "'DM Sans', 'Outfit', sans-serif",
+                      minWidth: 24, textAlign: 'right',
+                    }}>{sub.score}</span>
+                  </div>
+                  {/* 説明文 */}
+                  {desc && (
+                    <p style={{
+                      fontSize: 11, color: TEXT_SECONDARY, margin: 0,
+                      lineHeight: 1.7, paddingLeft: 28,
+                      borderLeft: `2px solid ${color}30`,
+                    }}>{desc}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* 閉じるヒント */}
+          <div style={{ fontSize: 9, color: '#CCBBAA', marginTop: 10, textAlign: 'right', letterSpacing: '0.02em' }}>
+            タップで閉じる ▴
+          </div>
+        </div>
+      )}
+
+      {/* 折りたたみヒント */}
+      {has && !open && (
+        <div style={{ fontSize: 9, color: color + '99', letterSpacing: '0.03em', fontWeight: 600 }}>
+          タップで表示 ▾
+        </div>
+      )}
+
+      {/* 該当なし */}
+      {!has && (
+        <div style={{ fontSize: 10, color: '#CCC', fontStyle: 'italic' }}>— 該当なし</div>
       )}
     </div>
   );

@@ -1116,7 +1116,7 @@ function RadarChart16({ scores }) {
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
     const n = 16;
     const step = (2 * Math.PI) / n;
-    const startAngle = -Math.PI / 2 - 1.5 * step; // 各グループ4本を軸中心に対称配置（志=12時中心）
+    const startAngle = -Math.PI / 2; // 元の配置（スポーク位置変更なし）
 
     const getPoint = (i, val) => {
       const angle = startAngle + i * step;
@@ -1182,17 +1182,40 @@ function RadarChart16({ scores }) {
       ctx.stroke();
     }
 
-    // === セクション背景（薄いパイ）===
+    // === 扇形セクション背景（グループ領域を明確化）===
     const groupOrder = ['mindset', 'literacy', 'competency', 'impact'];
     groupOrder.forEach((grp, gi) => {
       const a1 = startAngle + gi * 4 * step - step * 0.5;
       const a2 = startAngle + (gi + 1) * 4 * step - step * 0.5;
+
+      // ① グラデーション扇形フィル
+      const secGrad = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R);
+      secGrad.addColorStop(0,   `${GC[grp].stroke}00`);
+      secGrad.addColorStop(0.5, `${GC[grp].stroke}10`);
+      secGrad.addColorStop(1,   `${GC[grp].stroke}22`);
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.arc(cx, cy, R, a1, a2);
       ctx.closePath();
-      ctx.fillStyle = `${GC[grp].stroke}08`;
+      ctx.fillStyle = secGrad;
       ctx.fill();
+
+      // ② 外周アーク（色付き帯）
+      ctx.beginPath();
+      ctx.arc(cx, cy, R + 6, a1 + 0.04, a2 - 0.04);
+      ctx.strokeStyle = `${GC[grp].stroke}55`;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      // ③ セクター境界線（中心→外）
+      [a1, a2].forEach(angle => {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + (R + 10) * Math.cos(angle), cy + (R + 10) * Math.sin(angle));
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
     });
 
     // === データ塗りつぶし（全16軸をつなぐ一体型）===
