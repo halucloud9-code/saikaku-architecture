@@ -964,109 +964,119 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
         </div>
       </div>
 
-      {/* ── Top 10 Active Pairs ── */}
+      {/* ── Top 10 Active Pairs ── ゾーン別ZoneWindowカード */}
       {top10Pairs.length > 0 && (
         <div style={{ marginTop: 20, borderTop: '1px solid #EDEAE4', paddingTop: 16 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#AAA', textTransform: 'uppercase', marginBottom: 12 }}>
             Top 10 Active Pairs
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {top10Pairs.map((p, rank) => {
-              const pairKey = `${p.kA}|${p.kB}`;
-              const isExpanded = expandedPair === pairKey;
-              const zc = ZONE_HEX[p.z];
-              const blk = getBlock(p.kA, p.kB);
-              const def = pairDef(p.kA, p.kB);
-              const sum = p.sA + p.sB;
-              return (
-                <div
-                  key={pairKey}
-                  onClick={() => setExpandedPair(isExpanded ? null : pairKey)}
-                  style={{
-                    borderRadius: 14,
-                    border: `1.5px solid ${zc}55`,
-                    borderTop: `3px solid ${zc}`,
-                    background: zc + '07',
-                    padding: '14px 14px 12px',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                    minHeight: 100,
-                    boxShadow: isExpanded
-                      ? `0 6px 20px ${zc}22, 0 2px 8px rgba(0,0,0,0.06)`
-                      : '0 1px 4px rgba(0,0,0,0.05)',
-                    transition: 'box-shadow 0.2s ease',
-                  }}
-                >
-                  {/* ペア名 + ランクバッジ（ZoneWindowと同じ構造）*/}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 900, letterSpacing: '0.07em', color: zc,
-                    }}>{pairShort(p.kA, p.kB)}</span>
-                    <span style={{
-                      fontSize: 11, fontWeight: 800, color: zc,
-                      background: zc + '20', padding: '1px 7px',
-                      borderRadius: 9999, minWidth: 22, textAlign: 'center',
-                    }}>{rank + 1}</span>
-                  </div>
-
-                  {/* スコアタグ（ZoneWindowのスコア範囲タグと同じ構造）*/}
-                  <div style={{
-                    fontSize: 10, fontWeight: 700, color: zc,
-                    background: zc + '14',
-                    display: 'inline-flex', alignItems: 'center', gap: 2,
-                    padding: '2px 8px', borderRadius: 9999, marginBottom: 8,
-                  }}>
-                    {sum} <span style={{ fontSize: 9, opacity: 0.75 }}>pt</span>
-                  </div>
-
-                  {/* 展開コンテンツ */}
-                  {isExpanded && (
-                    <div style={{ marginTop: 2 }}>
-                      <div style={{ height: 1, background: zc + '25', marginBottom: 8 }} />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {[{ key: p.kA, score: p.sA }, { key: p.kB, score: p.sB }].map(({ key, score }) => (
-                          <div key={key}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                              <span style={{
-                                fontSize: 13, fontWeight: 700, color: '#2A2520',
-                                flex: 1, fontFamily: "'Noto Serif JP', serif",
-                              }}>{SUB_JP[key]}</span>
-                              <span style={{
-                                fontSize: 15, fontWeight: 900, color: zc,
-                                minWidth: 24, textAlign: 'right',
-                                fontFamily: "'DM Sans', 'Outfit', sans-serif",
-                              }}>{score}</span>
-                            </div>
-                          </div>
-                        ))}
-                        {blk && (
-                          <div style={{ fontSize: 10, color: '#7A7060' }}>
-                            {blk.name} / {blk.jp}
-                          </div>
-                        )}
-                        {def && (
-                          <p style={{
-                            fontSize: 11, color: '#555', margin: 0,
-                            lineHeight: 1.7, paddingLeft: 8,
-                            borderLeft: `2px solid ${zc}30`,
-                          }}>{def}</p>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 9, color: '#CCBBAA', marginTop: 10, textAlign: 'right', letterSpacing: '0.02em' }}>
-                        タップで閉じる ▴
-                      </div>
+            {(() => {
+              const zoneOrder = ['natural', 'pro', 'active', 'potential'];
+              const byZone = {};
+              top10Pairs.forEach((p, rank) => {
+                if (!byZone[p.z]) byZone[p.z] = [];
+                byZone[p.z].push({ ...p, rank });
+              });
+              return zoneOrder.filter(z => byZone[z]).map(z => {
+                const pairs = byZone[z];
+                const zc = ZONE_HEX[z];
+                const scores = pairs.map(p => p.sA + p.sB);
+                const minS = Math.min(...scores), maxS = Math.max(...scores);
+                const rangeStr = minS === maxS ? `${minS}` : `${minS}–${maxS}`;
+                const isExpanded = expandedPair === z;
+                return (
+                  <div
+                    key={z}
+                    onClick={() => setExpandedPair(isExpanded ? null : z)}
+                    style={{
+                      borderRadius: 14,
+                      border: `1.5px solid ${zc}55`,
+                      borderTop: `3px solid ${zc}`,
+                      background: zc + '07',
+                      padding: '14px 14px 12px',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      minHeight: 100,
+                      boxShadow: isExpanded
+                        ? `0 6px 20px ${zc}22, 0 2px 8px rgba(0,0,0,0.06)`
+                        : '0 1px 4px rgba(0,0,0,0.05)',
+                      transition: 'box-shadow 0.2s ease',
+                    }}
+                  >
+                    {/* ゾーン名 + 件数バッジ（ZoneWindow完全一致）*/}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                      <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.07em', color: zc }}>
+                        {ZONE_LABEL[z]}
+                      </span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 800, color: zc,
+                        background: zc + '20', padding: '1px 7px',
+                        borderRadius: 9999, minWidth: 22, textAlign: 'center',
+                      }}>{pairs.length}</span>
                     </div>
-                  )}
-
-                  {/* 折りたたみヒント（ZoneWindowと同じ）*/}
-                  {!isExpanded && (
-                    <div style={{ fontSize: 9, color: zc + '99', letterSpacing: '0.03em', fontWeight: 600 }}>
-                      タップで表示 ▾
+                    {/* スコアレンジ（ZoneWindow完全一致）*/}
+                    <div style={{
+                      fontSize: 10, fontWeight: 700, color: zc,
+                      background: zc + '14',
+                      display: 'inline-flex', alignItems: 'center', gap: 2,
+                      padding: '2px 8px', borderRadius: 9999, marginBottom: 8,
+                    }}>
+                      {rangeStr} <span style={{ fontSize: 9, opacity: 0.75 }}>pt</span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                    {/* 展開: ペア一覧（ZoneWindowのsub item構造）*/}
+                    {isExpanded && (
+                      <div style={{ marginTop: 2 }}>
+                        <div style={{ height: 1, background: zc + '25', marginBottom: 8 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {pairs.map(({ kA, kB, sA, sB, rank }) => {
+                            const def = pairDef(kA, kB);
+                            return (
+                              <div key={`${kA}|${kB}`}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: def ? 4 : 0 }}>
+                                  <span style={{
+                                    fontSize: 9, fontWeight: 800, color: zc,
+                                    background: zc + '20', padding: '1px 5px',
+                                    borderRadius: 4, flexShrink: 0, minWidth: 18, textAlign: 'center',
+                                  }}>{rank + 1}</span>
+                                  <span style={{
+                                    fontSize: 13, fontWeight: 700, color: '#2A2520',
+                                    flex: 1, fontFamily: "'Noto Serif JP', serif",
+                                  }}>{pairShort(kA, kB)}</span>
+                                  <span style={{
+                                    fontSize: 15, fontWeight: 900, color: zc,
+                                    minWidth: 24, textAlign: 'right',
+                                    fontFamily: "'DM Sans', 'Outfit', sans-serif",
+                                  }}>{sA + sB}</span>
+                                </div>
+                                {def && (
+                                  <p style={{
+                                    fontSize: 11, color: '#7A7060', margin: 0,
+                                    lineHeight: 1.7, paddingLeft: 28,
+                                    borderLeft: `2px solid ${zc}30`,
+                                  }}>{def}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div style={{ fontSize: 9, color: '#CCBBAA', marginTop: 10, textAlign: 'right', letterSpacing: '0.02em' }}>
+                          タップで閉じる ▴
+                        </div>
+                      </div>
+                    )}
+                    {!isExpanded && (
+                      <div style={{ fontSize: 9, color: zc + '99', letterSpacing: '0.03em', fontWeight: 600 }}>
+                        タップで表示 ▾
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
           </div>
         </div>
       )}
