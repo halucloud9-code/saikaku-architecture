@@ -1550,11 +1550,8 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           }, {})
         } threshold={13} userName={user.displayName} mode="top" />
 
-        {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
-        <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
-
-        {/* ===== Activation Matrix — 4ミニレーダー ===== */}
-        <div style={{ marginBottom: 6, paddingLeft: 4, marginTop: 20 }}>
+        {/* ===== MLCI Activation Profile — 4軸ミニレーダー（独立チャート）===== */}
+        <div style={{ marginBottom: 6, paddingLeft: 4, marginTop: 8 }}>
           <div style={{
             fontFamily: "'Noto Serif JP', Georgia, serif",
             fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
