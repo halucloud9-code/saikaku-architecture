@@ -104,7 +104,12 @@ const UAAM_SYSTEM_PROMPT = `あなたはUAAM（Universal Ability Assessment Mode
   "strengths": ["強み1", "強み2", "強み3"],
   "growth_areas": ["成長ポイント1", "成長ポイント2", "成長ポイント3"],
   "narrative": "総合的なナラティブ（5〜8行。この人だけの物語を描く。スコアのパターンから読み取れる行動傾向、思考パターン、潜在的な可能性を具体的に描写する）",
-  "action_suggestions": ["今日からできるアクション1", "アクション2", "アクション3"]
+  "action_suggestions": ["今日からできるアクション1", "アクション2", "アクション3"],
+  "saikaku_integration": {
+    "activation_core": "才覚発動の核心（2〜3行）",
+    "mission_direction": "使命の方向性（2〜3行）",
+    "flow_route": "最短フロールート（2〜3行）"
+  }
 }`;
 
 // 64問の質問定義（サーバーサイド用）— 各サブカテゴリ4問（Q1通常, Q2逆転, Q3通常, Q4通常）
