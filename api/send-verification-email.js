@@ -86,9 +86,7 @@ export default async function handler(req, res) {
   try {
     // Firebase Admin で確認リンクを生成
     const link = await getAuth().generateEmailVerificationLink(email, {
-      url: `${process.env.VITE_FIREBASE_AUTH_DOMAIN
-        ? `https://${process.env.VITE_FIREBASE_AUTH_DOMAIN}`
-        : 'https://saikaku-architecture.vercel.app'}/`,
+      url: 'https://saikaku-architecture.vercel.app/',
       handleCodeInApp: false,
     });
 
