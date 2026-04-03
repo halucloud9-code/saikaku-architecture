@@ -520,15 +520,19 @@ function MainFanChart({ scores }) {
  * ============================================================ */
 const FOUR_AXES = [
   { key: 'mindset',    jp: '志', en: 'MindSet',   color: '#2C5F8A',
+    desc: 'なぜ生き、どこへ向かうのかを定める、存在の軸。',
     subs: ['meaning','mindfulness','mindshift','mastery'],
     subJp: ['基軸力','認知力','転換力','熟達力'] },
   { key: 'competency', jp: '技', en: 'Competency', color: '#A07A18',
+    desc: '志と知を現実に体現し、価値へ変える実践の力。',
     subs: ['critical','creativity','communication','collaboration'],
     subJp: ['本質力','創造力','伝達力','協働力'] },
   { key: 'literacy',   jp: '知', en: 'Literacy',   color: '#1E7A4A',
+    desc: '物事の本質と構造を見抜き、知恵へ昇華する力。',
     subs: ['learning','logical','life','leadership'],
     subJp: ['謙学力','論理力','活用力','統率力'] },
   { key: 'impact',     jp: '衝', en: 'Impact',     color: '#C0614A',
+    desc: '内なる力を集中させ、変化を広げる推進の力。',
     subs: ['idea','innovation','implementation','influence'],
     subJp: ['構想力','変革力','実装力','影響力'] },
 ];
@@ -592,9 +596,9 @@ function MiniRadar({ axis, scores }) {
             {pct}<span style={{ fontSize: 12, fontWeight: 400, opacity: 0.55 }}>%</span>
           </div>
         </div>
-        {/* トップ素子名 */}
-        <div style={{ fontSize: 12, fontWeight: 600, color: axis.color, opacity: 0.78, marginTop: 3 }}>
-          {axis.subJp[topIdx]}
+        {/* 軸説明文 */}
+        <div style={{ fontSize: 11, color: axis.color, opacity: 0.70, marginTop: 3, lineHeight: 1.5 }}>
+          {axis.desc}
         </div>
         {/* スコアバー */}
         <div style={{ height: 4, background: axis.color + '18', borderRadius: 2, marginTop: 7, overflow: 'hidden' }}>
@@ -1537,16 +1541,18 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         </div>
         <FourAxisGrid scores={scores} />
 
-        {/* ===== 16×16 正方形対称マトリクス（右上：FULL+ACTIVE ／ 左下：POTENTIAL） ===== */}
-        <SymmetricMatrix scores={scores} maxSub={MAX_SUB} />
-
-        {/* ===== 次に動かす力（マトリクスの後） ===== */}
+        {/* ===== ✅ 今、発動している力（MLCI直下） ===== */}
         <ActivationPanel scores={
           Object.values(scores || {}).reduce((acc, domain) => {
             if (domain?.subs) Object.assign(acc, domain.subs);
             return acc;
           }, {})
-        } threshold={13} mode="bottom" />
+        } threshold={13} mode="active-only" />
+
+        {/* ===== 16×16 正方形対称マトリクス（右上：FULL+ACTIVE ／ 左下：POTENTIAL） ===== */}
+        <SymmetricMatrix scores={scores} maxSub={MAX_SUB} />
+
+        {/* 次に動かす力は AllPairsTriangle の TOP 10 カードに統合済み */}
 
         {/* ===== AI分析 ===== */}
         {analysis && (

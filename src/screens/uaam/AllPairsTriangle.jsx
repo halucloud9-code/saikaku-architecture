@@ -327,28 +327,25 @@ function getZone(sA, sB) {
 }
 
 function zAlpha(z, sA, sB) {
-  if (z === 'natural') return 0.92; // 20×20 — やや透明度を持たせて統一感
+  if (z === 'natural') return 1.0; // 20×20 — 最大発動
 
   const sum = sA + sB;
-  // ease-out曲線（低スコアで急上昇→高スコアで緩やか）
-  const easeOut = (r) => 1 - Math.pow(1 - r, 2);
+  // リニアスケール: 1点差でも目に見える変化を確保
+  const linear = (val, min, max) => Math.max(0, Math.min(1, (val - min) / (max - min)));
 
   if (z === 'pro') {
-    // 合計32（薄）→ 合計40（濃）
-    const ratio = easeOut(Math.max(0, Math.min(1, (sum - 32) / 8)));
-    return 0.30 + ratio * 0.62; // 0.30〜0.92
+    // 合計32（最小）→ 合計40（最大）: 0.18〜1.0（1点差≈0.10変化）
+    return 0.18 + linear(sum, 32, 40) * 0.82;
   }
   if (z === 'active') {
-    // 合計24=12+12（薄）→ 合計31（濃）
-    const ratio = easeOut(Math.max(0, Math.min(1, (sum - 24) / 7)));
-    return 0.32 + ratio * 0.58; // 0.32〜0.90
+    // 合計24=12+12（最小）→ 合計31（最大）: 0.10〜0.88（1点差≈0.11変化）
+    return 0.10 + linear(sum, 24, 31) * 0.78;
   }
   if (z === 'potential') {
-    // 合計22（薄）→ 合計30（濃）
-    const ratio = easeOut(Math.max(0, Math.min(1, (sum - 22) / 8)));
-    return 0.22 + ratio * 0.53; // 0.22〜0.75
+    // 合計22（最小）→ 合計30（最大）: 0.05〜0.55（1点差≈0.06変化）
+    return 0.05 + linear(sum, 22, 30) * 0.50;
   }
-  return 0.08;
+  return 0.06;
 }
 
 export function getBlock(kA, kB) {
@@ -969,33 +966,59 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
       {/* ── TOP 10 発動ペア ── */}
       {top10Pairs.length > 0 && (
         <div style={{ marginTop: 20, borderTop: '1px solid #EDEAE4', paddingTop: 16 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#AAA', textTransform: 'uppercase', marginBottom: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#AAA', textTransform: 'uppercase', marginBottom: 12 }}>
             Top 10 Active Pairs
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#EDEAE4', borderRadius: 10, overflow: 'hidden', border: '1px solid #EDEAE4' }}>
             {top10Pairs.map((p, rank) => {
               const zc  = ZONE_HEX[p.z];
               const blk = getBlock(p.kA, p.kB);
+              const def = pairDef(p.kA, p.kB);
+              const maxSum = 40;
+              const pct = Math.min((p.sum / maxSum) * 100, 100);
               return (
-                <div key={`${p.kA}-${p.kB}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: rank === 0 ? '#B8960C' : '#CCC', minWidth: 14, textAlign: 'center' }}>
-                    {rank + 1}
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: zc }}>
-                        {pairShort(p.kA, p.kB)}
-                      </span>
-                      <span style={{ fontSize: 10, color: '#999' }}>
-                        {SUB_JP[p.kA]} × {SUB_JP[p.kB]}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <div style={{ height: 3, borderRadius: 2, background: zc, width: `${(p.sum / 40) * 80}px`, minWidth: 8 }} />
-                      <span style={{ fontSize: 10, color: '#888', fontFamily: "'Outfit', sans-serif" }}>{p.sum}</span>
-                      {blk && <span style={{ fontSize: 9, color: '#CCC' }}>{blk.name}</span>}
+                <div key={`${p.kA}-${p.kB}`} style={{
+                  background: '#FFFFFF', padding: '12px 14px',
+                  position: 'relative', overflow: 'hidden',
+                }}>
+                  {/* 左端ゾーンライン */}
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: zc }} />
+                  {/* 順位バッジ */}
+                  <div style={{
+                    position: 'absolute', top: 8, right: 10,
+                    fontSize: 9, fontWeight: 700,
+                    color: rank === 0 ? '#B8960C' : '#CCCCCC',
+                    fontFamily: "'Outfit', sans-serif",
+                  }}>{rank + 1}</div>
+
+                  {/* 名前 + スコア */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 8, marginBottom: 2, paddingRight: 20 }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: '#1A1A1A', letterSpacing: '0.01em' }}>
+                      {pairShort(p.kA, p.kB)}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: zc, fontFamily: "'Outfit', sans-serif" }}>
+                      {p.sum}pt
+                    </span>
+                  </div>
+
+                  {/* サブ名 */}
+                  <div style={{ paddingLeft: 8, fontSize: 10, color: '#999', marginBottom: 6 }}>
+                    {SUB_JP[p.kA]} × {SUB_JP[p.kB]}
+                  </div>
+
+                  {/* スコアバー */}
+                  <div style={{ paddingLeft: 8, marginBottom: 7 }}>
+                    <div style={{ height: 3, borderRadius: 2, background: zc + '22', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg,${zc}88,${zc})`, borderRadius: 2 }} />
                     </div>
                   </div>
+
+                  {/* 説明文 */}
+                  {def && (
+                    <div style={{ paddingLeft: 8, fontSize: 11, color: '#555', lineHeight: 1.6 }}>
+                      {def}
+                    </div>
+                  )}
                 </div>
               );
             })}

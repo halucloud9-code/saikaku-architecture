@@ -389,12 +389,12 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         ctx.fillText(points[i].pct + '%', lx + nudge, ly + 19);
 
       } else if (zone === 'active') {
-        // Active: 大きい数値 + ゴールドグロー
+        // Active: 軸カラーで大きい数値 + 軸色グロー
         ctx.save();
-        ctx.shadowColor = `rgba(196,146,42,0.55)`;
-        ctx.shadowBlur = 12;
+        ctx.shadowColor = `rgba(${c[0]},${c[1]},${c[2]},0.6)`;
+        ctx.shadowBlur = 14;
         ctx.font = `800 20px "DM Sans", sans-serif`;
-        ctx.fillStyle = '#2A2520';
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
         ctx.fillText(points[i].raw + '', lx + nudge, ly - 10);
         const numW20 = ctx.measureText(points[i].raw + '').width;
         ctx.restore();
@@ -406,11 +406,11 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
             : lx + nudge + numW20 / 2 + 4;
           ctx.fillText('#' + (topRank + 1), bx, ly - 18);
         }
-        ctx.font = `700 11px "Noto Serif JP", serif`;
-        ctx.fillStyle = '#2A2520';
+        ctx.font = `800 11px "Noto Serif JP", serif`;
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
         ctx.fillText(points[i].jp, lx + nudge, ly + 6);
         ctx.font = `600 9px "DM Sans", sans-serif`;
-        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.9)`;
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.75)`;
         ctx.fillText(points[i].pct + '%', lx + nudge, ly + 19);
 
       } else if (zone === 'potential') {
