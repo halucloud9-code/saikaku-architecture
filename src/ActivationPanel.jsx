@@ -3,6 +3,7 @@
  * 発動分析パネル — ユーザー画面 & 管理画面 共用コンポーネント
  */
 
+import { useState } from 'react';
 import { getActivationAnalysis } from './activation_analysis';
 import { pairShort, pairDef, SUB_JP as PAIR_SUB_JP, getBlock, ZONE_HEX as PAIR_ZONE_HEX, ZONE_LABEL, BLOCKS } from './screens/uaam/AllPairsTriangle';
 
@@ -94,14 +95,76 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
   }
 
   if (mode === 'active-only') {
+    const { allPairs = [] } = getActivationAnalysis(scores, threshold);
+    const maxSum = allPairs.length > 0 ? Math.max(...allPairs.map(p => p.sum)) : 40;
+
+    /* ゾーン別スコア範囲 */
+    const ZONE_RANGE = {
+      natural:   '20',
+      pro:       '16–19',
+      active:    '12–15',
+      potential: '10–11',
+    };
+    const ZONE_ORDER = ['natural', 'pro', 'active', 'potential'];
+    const grouped = ZONE_ORDER
+      .map(z => ({ zone: z, pairs: allPairs.filter(p => p.zone === z) }))
+      .filter(g => g.pairs.length > 0);
+
     return (
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
-        <PanelSection
-          emoji="✅"
-          title="今、発動している力"
-          items={active}
-          accentColor={ACCENT_GOLD}
-        />
+        {/* ヘッダー */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          marginBottom: 14, paddingBottom: 8,
+          borderBottom: `2px solid ${ACCENT_GOLD}30`,
+        }}>
+          <span style={{ fontSize: 18 }}>✅</span>
+          <span style={{
+            fontSize: 15, fontWeight: 700, color: ACCENT_GOLD,
+            fontFamily: "'Noto Serif JP', serif", letterSpacing: '0.03em',
+          }}>今、発動している力</span>
+          <span style={{
+            fontSize: 10, color: ACCENT_GOLD, marginLeft: 'auto', fontWeight: 700,
+            background: ACCENT_GOLD + '18', padding: '2px 8px', borderRadius: 9999,
+          }}>全{allPairs.length}件</span>
+        </div>
+
+        {/* ゾーン別グループ */}
+        {grouped.map(({ zone, pairs }) => {
+          const zc  = PAIR_ZONE_HEX[zone] || '#888';
+          const lbl = ZONE_LABEL[zone] || zone.toUpperCase();
+          const rng = ZONE_RANGE[zone] || '';
+          return (
+            <div key={zone} style={{ marginBottom: 12 }}>
+              {/* ゾーンヘッダー */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: zc, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 800, color: zc, letterSpacing: '0.08em' }}>{lbl}</span>
+                <span style={{
+                  fontSize: 10, color: zc, fontWeight: 600,
+                  background: zc + '15', padding: '1px 6px', borderRadius: 9999,
+                }}>{rng}pt</span>
+                <div style={{ flex: 1, height: 1, background: zc + '22' }} />
+                <span style={{ fontSize: 10, color: '#BBB' }}>{pairs.length}件</span>
+              </div>
+              {/* 2列グリッド（タップ展開） */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
+                background: BORDER, borderRadius: 10, overflow: 'hidden',
+                border: `1px solid ${BORDER}`,
+              }}>
+                {pairs.map((item) => (
+                  <PairCard
+                    key={`${item.kA}-${item.kB}`}
+                    item={item}
+                    maxSum={maxSum}
+                    expandable
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -308,7 +371,8 @@ function PanelSection({ emoji, title, items, accentColor }) {
 }
 
 /* ── ペア表示カード — 2列グリッド・ゾーン別スペクトラム型 ── */
-function PairCard({ item, maxSum = 40 }) {
+function PairCard({ item, maxSum = 40, expandable = false }) {
+  const [open, setOpen] = useState(false);
   const { kA, kB, zone, sum } = item;
   const shortName = pairShort(kA, kB);
   const desc      = pairDef(kA, kB);
@@ -317,9 +381,18 @@ function PairCard({ item, maxSum = 40 }) {
   const nameB     = PAIR_SUB_JP[kB] || kB;
   const pct       = Math.min((sum / maxSum) * 100, 100);
   const barGrad   = ZONE_BAR[zone] || `linear-gradient(90deg,${zoneColor}77,${zoneColor})`;
+  const showDesc  = !expandable || open;
 
   return (
-    <div style={{ padding: '11px 12px', background: '#FFFFFF', position: 'relative', overflow: 'hidden' }}>
+    <div
+      onClick={expandable ? () => setOpen(o => !o) : undefined}
+      style={{
+        padding: '10px 12px', background: '#FFFFFF',
+        position: 'relative', overflow: 'hidden',
+        cursor: expandable ? 'pointer' : 'default',
+        userSelect: 'none',
+      }}
+    >
       {/* 左端ゾーンライン */}
       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: zoneColor }} />
 
@@ -334,18 +407,25 @@ function PairCard({ item, maxSum = 40 }) {
       </div>
 
       {/* ペア素子 */}
-      <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 5, paddingLeft: 7, lineHeight: 1.2 }}>
+      <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, paddingLeft: 7, lineHeight: 1.2 }}>
         {nameA} × {nameB}
       </div>
 
       {/* 強度バー */}
-      <div style={{ height: 3, background: '#EDE8E0', borderRadius: 9999, marginBottom: 6, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 9999, background: barGrad, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
+      <div style={{ height: 3, background: '#EDE8E0', borderRadius: 9999, overflow: 'hidden', marginBottom: showDesc ? 5 : 3 }}>
+        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 9999, background: barGrad }} />
       </div>
 
-      {/* 説明文 */}
-      {desc && (
+      {/* 説明文（expandable時はタップで表示） */}
+      {showDesc && desc && (
         <p style={{ fontSize: 11, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6, paddingLeft: 7 }}>{desc}</p>
+      )}
+
+      {/* タップヒント */}
+      {expandable && !open && (
+        <div style={{ fontSize: 9, color: '#CCBBAA', paddingLeft: 7, marginTop: 1, letterSpacing: '0.02em' }}>
+          タップで詳細 ▾
+        </div>
       )}
     </div>
   );

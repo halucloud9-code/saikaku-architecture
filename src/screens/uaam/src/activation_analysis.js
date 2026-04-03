@@ -394,7 +394,8 @@ function _getZone(sA, sB) {
   const sum = sA + sB;
   if (sA === 20 && sB === 20) return 'natural';
   if ((sA >= 16 && sB >= 16) || (sA >= 15 && sB >= 15 && sum >= 32)) return 'pro';
-  if (sA >= 12 && sB >= 12 && sum <= 31) return 'active';
+  if (sA >= 12 && sB >= 12) return 'active';
+  if (sA >= 10 && sB >= 10) return 'potential';
   return 'dormant';
 }
 
@@ -528,6 +529,7 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
     return {
       active:   sortDesc(ALL_KEYS.filter(k => sc(k) >= threshold)).slice(0, 3).map(k => toItem(k, 'active')),
       sleeping: topSleepingPairs,
+      allPairs: sleepingPairs,
       type:     userType,
     };
   }
@@ -535,6 +537,7 @@ function getActivationAnalysis(subcategoryScores, threshold = 13) {
   return {
     active:   activeKeys.map(k => toItem(k, 'active')),
     sleeping: topSleepingPairs,
+    allPairs: sleepingPairs,
     type:     userType,
   };
 }
