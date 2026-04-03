@@ -977,6 +977,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
               const zc = ZONE_HEX[p.z];
               const blk = getBlock(p.kA, p.kB);
               const def = pairDef(p.kA, p.kB);
+              const sum = p.sA + p.sB;
               return (
                 <div
                   key={pairKey}
@@ -989,64 +990,57 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     padding: '14px 14px 12px',
                     cursor: 'pointer',
                     userSelect: 'none',
+                    minHeight: 100,
                     boxShadow: isExpanded
                       ? `0 6px 20px ${zc}22, 0 2px 8px rgba(0,0,0,0.06)`
                       : '0 1px 4px rgba(0,0,0,0.05)',
                     transition: 'box-shadow 0.2s ease',
                   }}
                 >
-                  {/* ペア名 + ランクバッジ */}
+                  {/* ペア名 + ランクバッジ（ZoneWindowと同じ構造）*/}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                     <span style={{
-                      fontSize: 12, fontWeight: 800, color: zc,
-                      fontFamily: "'Noto Serif JP', serif", letterSpacing: '0.03em',
-                      flex: 1, marginRight: 6,
-                    }}>
-                      {pairShort(p.kA, p.kB)}
-                    </span>
+                      fontSize: 11, fontWeight: 900, letterSpacing: '0.07em', color: zc,
+                    }}>{pairShort(p.kA, p.kB)}</span>
                     <span style={{
                       fontSize: 11, fontWeight: 800, color: zc,
                       background: zc + '20', padding: '1px 7px',
-                      borderRadius: 9999, minWidth: 22, textAlign: 'center', flexShrink: 0,
+                      borderRadius: 9999, minWidth: 22, textAlign: 'center',
                     }}>{rank + 1}</span>
                   </div>
 
-                  {/* ゾーンタグ + スコア */}
-                  <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <div style={{
-                      fontSize: 9, fontWeight: 700, color: zc,
-                      background: zc + '14', padding: '2px 8px', borderRadius: 9999,
-                    }}>{ZONE_LABEL[p.z]}</div>
-                    <div style={{
-                      fontSize: 10, fontWeight: 700, color: zc,
-                      background: zc + '14',
-                      display: 'inline-flex', alignItems: 'center', gap: 2,
-                      padding: '2px 8px', borderRadius: 9999,
-                    }}>
-                      {p.sA + p.sB}<span style={{ fontSize: 9, opacity: 0.75, marginLeft: 1 }}>pt</span>
-                    </div>
+                  {/* スコアタグ（ZoneWindowのスコア範囲タグと同じ構造）*/}
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: zc,
+                    background: zc + '14',
+                    display: 'inline-flex', alignItems: 'center', gap: 2,
+                    padding: '2px 8px', borderRadius: 9999, marginBottom: 8,
+                  }}>
+                    {sum} <span style={{ fontSize: 9, opacity: 0.75 }}>pt</span>
                   </div>
 
                   {/* 展開コンテンツ */}
                   {isExpanded && (
                     <div style={{ marginTop: 2 }}>
                       <div style={{ height: 1, background: zc + '25', marginBottom: 8 }} />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {[{ key: p.kA, score: p.sA }, { key: p.kB, score: p.sB }].map(({ key, score }) => (
-                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{
-                              fontSize: 12, fontWeight: 700, color: '#1A1A1A',
-                              flex: 1, fontFamily: "'Noto Serif JP', serif",
-                            }}>{SUB_JP[key]}</span>
-                            <span style={{
-                              fontSize: 15, fontWeight: 900, color: zc,
-                              minWidth: 24, textAlign: 'right',
-                              fontFamily: "'DM Sans', 'Outfit', sans-serif",
-                            }}>{score}</span>
+                          <div key={key}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <span style={{
+                                fontSize: 13, fontWeight: 700, color: '#2A2520',
+                                flex: 1, fontFamily: "'Noto Serif JP', serif",
+                              }}>{SUB_JP[key]}</span>
+                              <span style={{
+                                fontSize: 15, fontWeight: 900, color: zc,
+                                minWidth: 24, textAlign: 'right',
+                                fontFamily: "'DM Sans', 'Outfit', sans-serif",
+                              }}>{score}</span>
+                            </div>
                           </div>
                         ))}
                         {blk && (
-                          <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>
+                          <div style={{ fontSize: 10, color: '#7A7060' }}>
                             {blk.name} / {blk.jp}
                           </div>
                         )}
@@ -1064,7 +1058,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     </div>
                   )}
 
-                  {/* 折りたたみヒント */}
+                  {/* 折りたたみヒント（ZoneWindowと同じ）*/}
                   {!isExpanded && (
                     <div style={{ fontSize: 9, color: zc + '99', letterSpacing: '0.03em', fontWeight: 600 }}>
                       タップで表示 ▾

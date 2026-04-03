@@ -11,14 +11,13 @@ git add \
   commit-names.command
 
 echo "=== コミット ==="
-git commit -m "feat: Top10 ZoneWindowスタイル化 + 花びら型グリッドバグ修正
+git commit -m "feat: Top10 カードを ZoneWindow と完全一致構造に統一
 
-- Top10 Active Pairs カードを ZoneWindow と完全同一スタイルに統一
-  - borderTop 3px カラー / border 1.5px 半透明 / 背景カラーチント
-  - ランクバッジ・ゾーンタグ・スコアタグ
-  - タップで表示 ▾ / タップで閉じる ▴ / box-shadow アニメーション
-  - 展開：各才覚名+スコア・ブロック名・定義文
-- RadarChart16 グリッド描画バグ修正（j<=4 → j<4 で余分な点を除去）
+- ペア名: fontSize 11 / fontWeight 900 / letterSpacing 0.07em（ZoneWindow完全一致）
+- ランクバッジ: ZoneWindowの件数バッジと同一スタイル
+- スコアタグ: ゾーンタグ削除し合計ptのみ（ZoneWindowのrange tagと同一構造）
+- minHeight 100 追加
+- 展開時: 各才覚名+スコア・ブロック名・定義文（ZoneWindowのsub item構造）
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
