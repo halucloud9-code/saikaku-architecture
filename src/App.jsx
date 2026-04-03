@@ -51,9 +51,33 @@ export default function App() {
   const [error, setError] = useState('');
   const [uaamResult, setUaamResult] = useState(() => {
     if (devMode === 'uaam') {
-      const dummyAnswers = {};
-      for (let i = 1; i <= 48; i++) dummyAnswers[i] = Math.floor(Math.random() * 5) + 1;
-      const scores = calculateScores(dummyAnswers);
+      // ── haru固定シードデータ（2026/4/4 診断結果） ──
+      const scores = {
+        mindset: {
+          total: 68, max: 80, percentage: 85,
+          subs: { meaning: 19, mindfulness: 15, mindshift: 17, mastery: 17 },
+          domainSubs: { meaning: 19, mindfulness: 15, mindshift: 17, mastery: 17 },
+          domainTotal: 68,
+        },
+        literacy: {
+          total: 65, max: 80, percentage: 81,
+          subs: { learning: 16, logical: 17, life: 17, leadership: 15 },
+          domainSubs: { learning: 16, logical: 17, life: 17, leadership: 15 },
+          domainTotal: 65,
+        },
+        competency: {
+          total: 63, max: 80, percentage: 79,
+          subs: { critical: 18, creativity: 14, communication: 15, collaboration: 16 },
+          domainSubs: { critical: 18, creativity: 14, communication: 15, collaboration: 16 },
+          domainTotal: 63,
+        },
+        impact: {
+          total: 63, max: 80, percentage: 79,
+          subs: { idea: 18, innovation: 16, implementation: 15, influence: 14 },
+          domainSubs: { idea: 18, innovation: 16, implementation: 15, influence: 14 },
+          domainTotal: 63,
+        },
+      };
       return {
         scores,
         analysis: {
