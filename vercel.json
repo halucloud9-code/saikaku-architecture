@@ -1,4 +1,5 @@
 {
+  "installCommand": "npm install --force",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
   "functions": {
