@@ -1725,5 +1725,4 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
       </div>
     </div>
   );
-}> ^C
-@halucloud9-code ➜ /workspaces/saikaku-architecture (main) $
+}
