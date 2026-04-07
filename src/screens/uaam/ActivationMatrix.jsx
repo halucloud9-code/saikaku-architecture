@@ -301,7 +301,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       if (pt.life > 1) { pt.life = 0; pt.idx = Math.floor(Math.random() * N); }
 
       const dp = getDataPoint(pt.idx);
-      const angle = getAngle(pt.idx) + pt.offset;
+      const angle = getPetalAngle(pt.idx) + pt.offset;
       const dist = pt.life * 30;
       const px = dp.x + Math.cos(angle) * dist;
       const py = dp.y + Math.sin(angle) * dist;

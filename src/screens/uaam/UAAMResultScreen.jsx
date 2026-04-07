@@ -1664,22 +1664,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
                 </p>
               </Section>
             )}
-              <Section>
-                <SectionHeader title="才覚統合分析" subtitle="Integration" />
-                {[
-                  { key: "activation_core", label: "才覚発動の核心", color: "#C4922A" },
-                  { key: "mission_direction", label: "使命の方向性", color: "#4A6FA5" },
-                  { key: "flow_route", label: "最短フロールート", color: "#1E7A4A" },
-                ].map(({ key, label, color }) => (
-                  analysis.saikaku_integration[key] && (
-                    <div key={key} style={{ borderLeft: "3px solid " + color, padding: "14px 18px", marginBottom: 14 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 8 }}>{label}</div>
-                      <p style={{ fontSize: 14, margin: 0, lineHeight: 1.9 }}>{analysis.saikaku_integration[key]}</p>
-                    </div>
-                  )
-                ))}
-              </Section>
-            )}
 
             {/* Strengths / Growth */}
             <div style={{
