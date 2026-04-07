@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
-import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
+import { UAAM_AXES, checkValidity, getVFlags } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';

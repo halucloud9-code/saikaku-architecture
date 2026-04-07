@@ -46,8 +46,19 @@ const SUB_META = [
   { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力' },
 ];
 
+// 旧: 均等16分割（被り発生）
 function getAngle(i) {
   return (Math.PI * 2 * i) / N - Math.PI * 3 / 4;
+}
+
+// 新: 花びら設計 — 4グループ × 22°間隔、グループ間24°ギャップ
+const PETAL_ALPHA = 22 * Math.PI / 180;
+const PETAL_CENTERS = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+
+function getPetalAngle(i) {
+  const g = Math.floor(i / 4);
+  const a = i % 4;
+  return PETAL_CENTERS[g] + (a - 1.5) * PETAL_ALPHA;
 }
 
 function lerpColor(c1, c2, t) {
@@ -151,131 +162,135 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     ctx.beginPath(); ctx.moveTo(cx + R * 1.3, cy - R * 1.3); ctx.lineTo(cx - R * 1.3, cy + R * 1.3); ctx.stroke();
     ctx.restore();
 
-    // === グリッドリング（繊細・上品）===
+    // === 花びらグリッドリング（グループ別弧）===
     [0.25, 0.5, 0.75, 1.0].forEach((p, ri) => {
       const gr = R * p * ep;
-      const breathOffset = breath * 1.5 * (1 - p);
-      ctx.beginPath();
-      for (let i = 0; i <= N; i++) {
-        const angle = getAngle(i % N);
-        const x = cx + Math.cos(angle) * (gr + breathOffset);
-        const y = cy + Math.sin(angle) * (gr + breathOffset);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      const alpha = p === 1 ? 0.12 : 0.06 + ri * 0.015;
-      ctx.strokeStyle = `rgba(42,37,32,${alpha * ep})`;
-      ctx.lineWidth = p === 1 ? 1 : 0.5;
-      ctx.stroke();
+      AXIS_META.forEach((axis, gi) => {
+        const a1 = getPetalAngle(gi * 4);
+        const a2 = getPetalAngle(gi * 4 + 3);
+        const c = axis.color;
+        const alpha = (p === 1 ? 0.18 : 0.07 + ri * 0.02) * ep;
+        ctx.beginPath();
+        ctx.arc(cx, cy, gr, a1, a2);
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+        ctx.lineWidth = p === 1 ? 1.2 : 0.6;
+        ctx.stroke();
+      });
     });
 
-    // === ゾーン閾値リング (Active threshold: 16/20 = 0.8) ===
+    // === ゾーン閾値弧（Activeライン 16/20=0.8）===
     const thresholdR = R * 0.8 * ep;
     ctx.save();
-    ctx.setLineDash([4, 6]);
-    ctx.beginPath();
-    for (let i = 0; i <= N; i++) {
-      const angle = getAngle(i % N);
-      const x = cx + Math.cos(angle) * thresholdR;
-      const y = cy + Math.sin(angle) * thresholdR;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.strokeStyle = `rgba(196,146,42,${0.3 * ep})`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    ctx.setLineDash([3, 5]);
+    AXIS_META.forEach((axis, gi) => {
+      const a1 = getPetalAngle(gi * 4);
+      const a2 = getPetalAngle(gi * 4 + 3);
+      const c = axis.color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, thresholdR, a1, a2);
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.45 * ep})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
     ctx.setLineDash([]);
     ctx.restore();
 
-    // === スポーク ===
+    // === スポーク（グループ内のみ）===
     for (let i = 0; i < N; i++) {
-      const angle = getAngle(i);
+      const angle = getPetalAngle(i);
       const outerX = cx + Math.cos(angle) * R * ep;
       const outerY = cy + Math.sin(angle) * R * ep;
       const grad = ctx.createLinearGradient(cx, cy, outerX, outerY);
       const c = AXIS_META[SUB_META[i].axis].color;
+      const isEdge = i % 4 === 0 || i % 4 === 3; // グループ境界軸
       grad.addColorStop(0, 'rgba(42,37,32,0)');
-      grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},${(i % 4 === 0 ? 0.2 : 0.05) * ep})`);
+      grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},${(isEdge ? 0.18 : 0.06) * ep})`);
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(outerX, outerY);
       ctx.strokeStyle = grad;
-      ctx.lineWidth = i % 4 === 0 ? 1 : 0.5;
+      ctx.lineWidth = isEdge ? 0.8 : 0.4;
       ctx.stroke();
     }
 
-    // === セクター淡色 ===
-    AXIS_META.forEach((axis, ai) => {
-      const a1 = getAngle(ai * 4);
-      const a2 = getAngle((ai + 1) * 4);
+    // === セクター淡色（花びら扇形）===
+    AXIS_META.forEach((axis, gi) => {
+      const a1 = getPetalAngle(gi * 4);
+      const a2 = getPetalAngle(gi * 4 + 3);
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.arc(cx, cy, R * ep, a1, a2);
       ctx.closePath();
       const c = axis.color;
-      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.025 * ep})`;
+      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.03 * ep})`;
       ctx.fill();
     });
 
-    // === データポリゴン ===
+    // === データポリゴン（花びら4枚・グループ独立）===
     const getDataPoint = (i) => {
-      const angle = getAngle(i);
+      const angle = getPetalAngle(i);
       const dr = points[i].ratio * R * ep;
       return { x: cx + Math.cos(angle) * dr, y: cy + Math.sin(angle) * dr };
     };
 
-    // ゴールドグロー外周
-    ctx.save();
-    ctx.shadowColor = `rgba(196,146,42,${0.25 + breath * 0.12})`;
-    ctx.shadowBlur = 16 + breath * 8;
-    ctx.beginPath();
-    for (let i = 0; i < N; i++) {
-      const p = getDataPoint(i);
-      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
-    }
-    ctx.closePath();
-    ctx.strokeStyle = `rgba(196,146,42,${0.45 * ep})`;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.restore();
-
-    // 軸ごとのグラデーション塗り
-    AXIS_META.forEach((axis, ai) => {
-      const startI = ai * 4;
+    // ★ 花びら4枚をそれぞれ独立して描画（グループ間は繋がない）
+    AXIS_META.forEach((axis, gi) => {
+      const startI = gi * 4;
       const c = axis.color;
 
+      // ── ゴールドグロー（この花びら分）──
+      ctx.save();
+      ctx.shadowColor = `rgba(196,146,42,${0.2 + breath * 0.1})`;
+      ctx.shadowBlur = 14 + breath * 7;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      for (let j = 0; j <= 4; j++) {
-        const idx = (startI + j) % N;
-        const dp = getDataPoint(idx);
+      for (let j = 0; j < 4; j++) {
+        const dp = getDataPoint(startI + j);
         ctx.lineTo(dp.x, dp.y);
       }
       ctx.closePath();
+      ctx.strokeStyle = `rgba(196,146,42,${0.4 * ep})`;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      ctx.restore();
 
+      // ── グラデーション塗り ──
       const fillGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-      fillGrad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${0.04 * ep})`);
-      fillGrad.addColorStop(0.6, `rgba(${c[0]},${c[1]},${c[2]},${(0.14 + breath * 0.06) * ep})`);
-      fillGrad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},${(0.28 + breath * 0.08) * ep})`);
+      fillGrad.addColorStop(0,   `rgba(${c[0]},${c[1]},${c[2]},${0.05 * ep})`);
+      fillGrad.addColorStop(0.55, `rgba(${c[0]},${c[1]},${c[2]},${(0.16 + breath * 0.06) * ep})`);
+      fillGrad.addColorStop(1,   `rgba(${c[0]},${c[1]},${c[2]},${(0.3 + breath * 0.08) * ep})`);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      for (let j = 0; j < 4; j++) {
+        const dp = getDataPoint(startI + j);
+        ctx.lineTo(dp.x, dp.y);
+      }
+      ctx.closePath();
       ctx.fillStyle = fillGrad;
       ctx.fill();
+
+      // ── 外縁ストローク（グループ内の3辺のみ・他グループとは繋がない）──
+      for (let j = 0; j < 3; j++) {
+        const p1 = getDataPoint(startI + j);
+        const p2 = getDataPoint(startI + j + 1);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.7 * ep})`;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+      // 花びら両側辺（中心→端点）
+      [0, 3].forEach(j => {
+        const dp = getDataPoint(startI + j);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(dp.x, dp.y);
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.25 * ep})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      });
     });
-
-    // 輪郭ストローク（軸色グラデーション）
-    for (let i = 0; i < N; i++) {
-      const p1 = getDataPoint(i);
-      const p2 = getDataPoint((i + 1) % N);
-      const c1 = AXIS_META[SUB_META[i].axis].color;
-      const c2 = AXIS_META[SUB_META[(i + 1) % N].axis].color;
-      const mc = lerpColor(c1, c2, 0.5);
-
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.strokeStyle = `rgba(${mc[0]},${mc[1]},${mc[2]},${0.65 * ep})`;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
 
     // === パーティクル ===
     st.particles.forEach(pt => {
@@ -359,10 +374,11 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       ctx.fill();
     }
 
-    // === ラベル（ゾーンベース）===
-    const labelR = R + 26;
+    // === ラベル（ゾーンベース・花びら配置）===
+    // 各花びら内に収まる配置 — getPetalAngle で軸角を算出
+    const labelR = R + 22;
     for (let i = 0; i < N; i++) {
-      const angle = getAngle(i);
+      const angle = getPetalAngle(i);
       const lx = cx + Math.cos(angle) * labelR * ep;
       const ly = cy + Math.sin(angle) * labelR * ep;
       const c = points[i].color;
@@ -442,10 +458,12 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       }
     }
 
-    // === 軸漢字ラベル（各グループ中央角度・最外周配置）===
-    const kanjiR = Math.min(R + 85, Math.min(W / 2, H / 2) - 14);
-    AXIS_META.forEach((axis, ai) => {
-      const midAngle = getAngle(ai * 4 + 2);
+    // === 軸漢字ラベル（花びら中心方向 = 4方位の外端）===
+    // PETAL_CENTERS[gi] = -π/2(上), 0(右), π/2(下), π(左) を使用
+    // → getAngle(ai*4+2) 不使用：被りの根本原因だったため廃止
+    const kanjiR = Math.min(R + 82, Math.min(W / 2, H / 2) - 16);
+    AXIS_META.forEach((axis, gi) => {
+      const midAngle = PETAL_CENTERS[gi]; // 4方位: 上/右/下/左
       const targetX = cx + Math.cos(midAngle) * kanjiR;
       const targetY = cy + Math.sin(midAngle) * kanjiR;
       const kx = targetX * ep + cx * (1 - ep);
@@ -528,7 +546,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     let closest = -1;
     let closestDist = 30;
     for (let i = 0; i < N; i++) {
-      const angle = getAngle(i);
+      const angle = getPetalAngle(i);
       const dr = points[i].ratio * R * ep;
       const px = cx + Math.cos(angle) * dr;
       const py = cy + Math.sin(angle) * dr;

@@ -3,6 +3,7 @@ import { auth, signOutUser } from '../firebase';
 import { Chart, computePcts, CHART_COLORS } from '../utils/chartUtils';
 import ActivationPanel from '../ActivationPanel';
 import ActivationMatrix from './uaam/ActivationMatrix';
+import { getVFlags } from '../data/uaam_questions';
 
 function MiniDonut({ axes, colors }) {
   const canvasRef = useRef(null);
@@ -377,24 +378,44 @@ function UAAMModal({ user: u, onClose, onDelete }) {
 
         {/* Vフラグ警告 */}
         {(() => {
-          const v = u.vAnswers || {};
-          const warns = [];
-          if (v['V1'] === 5 && v['V2'] === 5) warns.push({ text: 'V1&V2=5：客観視の精度に課題の可能性', color: '#A84432', bg: '#FFF5F5' });
-          else {
-            if (v['V1'] === 5) warns.push({ text: 'V1=5：自己評価が高め傾向', color: '#C4922A', bg: '#FFFBF0' });
-            if (v['V2'] === 5) warns.push({ text: 'V2=5：自己評価が高め傾向', color: '#C4922A', bg: '#FFFBF0' });
-          }
-          const v3 = v['V3']; const q46 = u.answers?.[46] ?? u.answers?.['46'];
-          if (v3 != null && q46 != null && Math.abs(v3 - q46) >= 2) warns.push({ text: `V3差=${Math.abs(v3-q46)}：回答一貫性にブレあり`, color: '#4A6FA5', bg: '#F0F4FF' });
-          return warns.length > 0 ? (
-            <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {warns.map((w, i) => (
-                <div key={i} style={{ background: w.bg, border: `1px solid ${w.color}40`, borderRadius: 8, padding: '8px 14px', fontSize: 12, color: w.color, fontWeight: 600 }}>
-                  ⚠ {w.text}
-                </div>
-              ))}
+          const { flags: vf, totalPts, level } = getVFlags(u.vAnswers || {});
+          const flagEmoji = (id) => {
+            if (vf[id] === 'critical') return '🏴🏴';
+            if (vf[id] === 'warning')  return '🏴';
+            return null;
+          };
+          const hasAny = vf['V1'] !== 'none' || vf['V2'] !== 'none' || vf['V3'] !== 'none';
+          const lvColors = ['','#7A7060','#7A7060','#C4922A','#C4922A','#A84432','#A84432'];
+          const lvBgs   = ['','#F5F0E8','#F5F0E8','#FFFBF0','#FFFBF0','#FFF5F5','#FFF5F5'];
+          if (!hasAny) return (
+            <div style={{ marginBottom: 20, background: '#F0F8F4', border: '1px solid #2E8B5740', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: '#2E8B57', fontWeight: 600 }}>
+              ✓ 回答信頼性 ◎ ― Lv.1（フラグなし）
             </div>
-          ) : null;
+          );
+          return (
+            <div style={{ marginBottom: 20, background: lvBgs[level], border: `1px solid ${lvColors[level]}40`, borderRadius: 8, padding: '10px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                {['V1','V2','V3'].map(id => (
+                  <span key={id} style={{ fontSize: 13, fontWeight: 700, color: vf[id] !== 'none' ? lvColors[level] : '#B0A898' }}>
+                    {id}{flagEmoji(id) || ''}
+                  </span>
+                ))}
+                <span style={{
+                  marginLeft: 'auto', background: lvColors[level], color: '#fff',
+                  borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700,
+                }}>
+                  Lv.{level}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: lvColors[level], marginTop: 6, opacity: 0.85 }}>
+                合計{totalPts}pt
+                {level >= 5 && ' ― コーチング介入を強く推奨'}
+                {level === 4 && ' ― 客観視をコーチングテーマに'}
+                {level === 3 && ' ― 特定領域を深掘りする'}
+                {level === 2 && ' ― 参考程度に留意'}
+              </div>
+            </div>
+          );
         })()}
 
         {/* 4軸スコア */}
@@ -681,15 +702,12 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       list = list.filter((u) => {
         const v = u.vAnswers;
         if (!v) return false;
-        if (vFilter === 'v1_high') return v['V1'] === 5;
-        if (vFilter === 'v2_high') return v['V2'] === 5;
-        if (vFilter === 'critical') return v['V1'] === 5 && v['V2'] === 5;
-        if (vFilter === 'v3_diff') {
-          const v3 = v['V3'];
-          const q46 = u.answers?.[46] ?? u.answers?.['46'];
-          if (v3 == null || q46 == null) return false;
-          return Math.abs(v3 - q46) >= 2;
-        }
+        const { flags: vf, level } = getVFlags(v);
+        if (vFilter === 'v1_flag') return vf['V1'] !== 'none';
+        if (vFilter === 'v2_flag') return vf['V2'] !== 'none';
+        if (vFilter === 'v3_flag') return vf['V3'] !== 'none';
+        if (vFilter === 'critical') return level >= 5;
+        if (vFilter === 'any_flag') return level >= 2;
         return true;
       });
     }
@@ -1203,10 +1221,11 @@ export default function AdminScreen({ user, onBack, onLogout }) {
               }}
             >
               <option value="all">全件表示</option>
-              <option value="v1_high">V1=5（盛り傾向）</option>
-              <option value="v2_high">V2=5（盛り傾向）</option>
-              <option value="critical">V1&V2=5（要注意）</option>
-              <option value="v3_diff">V3差≥2（一貫性ブレ）</option>
+              <option value="any_flag">🏴 フラグあり（Lv.2以上）</option>
+              <option value="critical">🏴🏴 要注意（Lv.5以上）</option>
+              <option value="v1_flag">V1フラグあり</option>
+              <option value="v2_flag">V2フラグあり</option>
+              <option value="v3_flag">V3フラグあり</option>
             </select>
           </div>
         </div>
@@ -1244,7 +1263,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
-                  {['', '名前', '志', '知', '技', '衝', 'V1', 'V2', 'V3差', 'タイプ', '診断日'].map((h) => (
+                  {['', '名前', '志', '知', '技', '衝', 'Vフラグ', 'Lv', 'タイプ', '診断日'].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -1265,12 +1284,9 @@ export default function AdminScreen({ user, onBack, onLogout }) {
               <tbody>
                 {filteredUaam.map((u, idx) => {
                   const v = u.vAnswers || {};
-                  const v3 = v['V3'];
-                  const q46 = u.answers?.[46] ?? u.answers?.['46'];
-                  const v3Diff = (v3 != null && q46 != null) ? Math.abs(v3 - q46) : null;
-                  const v1is5 = v['V1'] === 5;
-                  const v2is5 = v['V2'] === 5;
-                  const isCritical = v1is5 && v2is5;
+                  const { flags: vf, level: vLv } = getVFlags(v);
+                  const isCritical = vLv >= 5;
+                  const flagStr = (id) => vf[id] === 'critical' ? '🏴🏴' : vf[id] === 'warning' ? '🏴' : '';
 
                   return (
                     <tr
@@ -1333,37 +1349,28 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                           </td>
                         );
                       })}
-                      {/* V1 */}
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                        <span style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: v1is5 ? '#A84432' : '#7A7060',
-                        }}>
-                          {v['V1'] ?? '—'}
+                      {/* Vフラグ */}
+                      <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 11, letterSpacing: '0.05em', color: isCritical ? '#A84432' : '#7A7060' }}>
+                          {['V1','V2','V3'].map(id => (
+                            <span key={id} style={{ marginRight: 3 }}>
+                              {id}{flagStr(id)}
+                            </span>
+                          ))}
                         </span>
                       </td>
-                      {/* V2 */}
+                      {/* Lv */}
                       <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                         <span style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: 14,
+                          display: 'inline-block',
+                          background: isCritical ? '#A84432' : vLv >= 3 ? '#C4922A' : '#B0A898',
+                          color: '#fff',
+                          borderRadius: 4,
+                          padding: '1px 6px',
+                          fontSize: 11,
                           fontWeight: 700,
-                          color: v2is5 ? '#A84432' : '#7A7060',
                         }}>
-                          {v['V2'] ?? '—'}
-                        </span>
-                      </td>
-                      {/* V3差 */}
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                        <span style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: v3Diff != null && v3Diff >= 2 ? '#A84432' : '#7A7060',
-                        }}>
-                          {v3Diff != null ? v3Diff : '—'}
+                          Lv.{vLv}
                         </span>
                       </td>
                       {/* タイプ名 */}

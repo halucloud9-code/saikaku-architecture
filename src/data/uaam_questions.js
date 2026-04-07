@@ -190,77 +190,102 @@ export const UAAM_QUESTIONS = [
  * 妥当性チェック項目（V問）
  * スコア計算には含めない。バイアス検出・一貫性チェック用。
  * シャッフル時に通常問と混ぜて配置する。
- * reverse: true の項目はスコア解釈時に反転（score 1 = 実質的な高自己評価 = インフレーション信号）
+ *
+ * 【設計思想】
+ * 64問とは「異質な次元」—— 行動・成果ではなくメタ認知を問う。
+ * 正直な回答者は自然に3〜5をつける。
+ * raw 1（全く当てはまらない）= 盲点ゼロ宣言 = インフレ信号（🏴🏴）
+ * raw 2（あまり当てはまらない）= 軽微傾向（🏴）
+ *
+ * V1：自己認知の盲点
+ * V2：他者評価とのズレ認識
+ * V3：やり方の限界認識
  */
 export const VALIDITY_QUESTIONS = [
-  { id: 'V1', text: '自分が正しいと思って行動したのに、あとから振り返ると的外れだったことがある。', type: 'inflation', reverse: true },
-  { id: 'V2', text: '良かれと思ってやったことが、結果的に誰かの迷惑になっていたことがある。', type: 'inflation', reverse: true },
-  { id: 'V3', text: '自分が影響を与えたつもりでいたが、相手にとってはそこまで大きな存在ではなかったと気づいたことがある。', type: 'consistency', reverse: true, compareWith: { questionId: 61 } },
+  { id: 'V1', text: '自分でも気づいていない思い込みや盲点が、まだあると思っている。', type: 'inflation', reverse: true },
+  { id: 'V2', text: '自分への評価と、周囲からの評価が、完全には一致していないと感じることがある。', type: 'inflation', reverse: true },
+  { id: 'V3', text: '自分のやり方が通じない相手や状況が、確実に存在する。', type: 'consistency', reverse: true },
 ];
 
 /**
- * 妥当性チェックの判定ロジック
- * @param {Object} answers - V問の回答 { V1: score, V2: score, V3: score }
- * @param {Object} mainAnswers - 本問の回答 { questionId: score }
- * @returns {Object} - フラグ情報
+ * V問フラグ計算（raw スコアから🏴/🏴🏴を判定）
+ * @param {Object} vAnswers - { V1: score, V2: score, V3: score }
+ * @returns {Object} - { flags: {V1,V2,V3}, totalPts, level }
  *
- * V1・V2 は reverse: true のため、raw score 1（=「全く当てはまらない」）が
- * 実質的な最高自己評価（ミスを一切認識しない）= インフレーション信号となる。
+ * 判定ルール（全V問共通）:
+ *   raw 1 → 🏴🏴（critical: 2pt）
+ *   raw 2 → 🏴（warning: 1pt）
+ *   raw 3〜5 → フラグなし（0pt）
+ *
+ * 合計ポイントによる6段階レベル:
+ *   0pt → Lv.1 / 1pt → Lv.2 / 2pt → Lv.3
+ *   3pt → Lv.4 / 4〜5pt → Lv.5 / 6pt → Lv.6
+ */
+export function getVFlags(vAnswers) {
+  const flags = {};
+  let totalPts = 0;
+  ['V1', 'V2', 'V3'].forEach((id) => {
+    const raw = vAnswers?.[id];
+    if (raw === 1) { flags[id] = 'critical'; totalPts += 2; }
+    else if (raw === 2) { flags[id] = 'warning'; totalPts += 1; }
+    else { flags[id] = 'none'; }
+  });
+  let level;
+  if (totalPts === 0) level = 1;
+  else if (totalPts === 1) level = 2;
+  else if (totalPts === 2) level = 3;
+  else if (totalPts === 3) level = 4;
+  else if (totalPts <= 5) level = 5;
+  else level = 6;
+  return { flags, totalPts, level };
+}
+
+/**
+ * 妥当性チェックの判定ロジック
+ * @param {Object} vAnswers - V問の回答 { V1: score, V2: score, V3: score }
+ * @param {Object} mainAnswers - 本問の回答 { questionId: score }（後方互換のため残す）
+ * @returns {Object} - フラグ情報
  */
 export function checkValidity(vAnswers, mainAnswers) {
+  const { flags: vFlags, totalPts, level } = getVFlags(vAnswers);
   const flags = [];
 
-  // reverse: true の V 問は有効スコアを反転して評価する（score 1 → effective 5）
-  const effectiveV1 = VALIDITY_QUESTIONS.find((v) => v.id === 'V1').reverse
-    ? 6 - (vAnswers['V1'] ?? 3)
-    : (vAnswers['V1'] ?? 3);
-  const effectiveV2 = VALIDITY_QUESTIONS.find((v) => v.id === 'V2').reverse
-    ? 6 - (vAnswers['V2'] ?? 3)
-    : (vAnswers['V2'] ?? 3);
-
-  const v1is5 = effectiveV1 === 5;
-  const v2is5 = effectiveV2 === 5;
-  const bothInflated = v1is5 && v2is5;
-
-  // 盛り検出：critical（両方5）が出たらwarning（片方5）は吸収される
-  if (bothInflated) {
+  if (level >= 6) {
     flags.push({
       level: 'critical',
       type: 'inflation_strong',
       message: '客観視の精度に課題',
-      detail: 'V1・V2ともに最高評価。フィードバック時に「客観視の精度」をコーチングテーマとして扱うことを推奨します。',
+      detail: 'V1・V2・V3すべて最低評価。コーチング介入を強く推奨します。',
     });
-  } else if (v1is5 || v2is5) {
+  } else if (level >= 5) {
+    flags.push({
+      level: 'critical',
+      type: 'inflation_strong',
+      message: '自己評価インフレ傾向強',
+      detail: `合計${totalPts}pt。結果の解釈に補正が必要な可能性があります。`,
+    });
+  } else if (level >= 4) {
     flags.push({
       level: 'warning',
       type: 'inflation',
-      message: '自己評価が高め傾向',
-      detail: `${v1is5 ? 'V1' : 'V2'}が最高評価。回答に社会的望ましさバイアスの可能性があります。`,
+      message: '自己評価に歪みの可能性',
+      detail: `合計${totalPts}pt。客観視をコーチングテーマとして扱うことを推奨します。`,
     });
-  }
-
-  // 一貫性検出：V3 と Influence Q1 (id:61) の差が±2以上
-  // V3 も reverse: true のため有効スコアで比較する
-  const v3Raw = vAnswers['V3'];
-  const v3Score = v3Raw != null
-    ? (VALIDITY_QUESTIONS.find((v) => v.id === 'V3').reverse ? 6 - v3Raw : v3Raw)
-    : null;
-  const influenceQ1Score = mainAnswers[61];
-  if (v3Score != null && influenceQ1Score != null) {
-    const diff = Math.abs(v3Score - influenceQ1Score);
-    if (diff >= 2) {
-      flags.push({
-        level: 'info',
-        type: 'consistency',
-        message: '回答一貫性にブレあり',
-        detail: `V3(有効:${v3Score}) と Influence Q1 id:61(${influenceQ1Score}) の差が${diff}。回答の集中度にばらつきがある可能性があります。`,
-      });
-    }
+  } else if (level >= 2) {
+    flags.push({
+      level: 'info',
+      type: 'mild',
+      message: 'わずかな傾向あり',
+      detail: `合計${totalPts}pt。参考程度に留意してください。`,
+    });
   }
 
   return {
     hasFlags: flags.length > 0,
     flags,
+    vFlags,
+    totalPts,
+    level,
   };
 }
 

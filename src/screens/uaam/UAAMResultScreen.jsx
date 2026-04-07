@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
-import { UAAM_AXES, checkValidity } from '../../data/uaam_questions';
+import { UAAM_AXES, checkValidity, getVFlags } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
@@ -1706,6 +1706,42 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             </div>
           </>
         )}
+
+        {/* ===== V問フラグ（参加者向け：目立たない表示） ===== */}
+        {vAnswers && (() => {
+          const { flags } = getVFlags(vAnswers);
+          const FlagSvg = ({ color }) => (
+            <svg width="7" height="10" viewBox="0 0 7 10" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+              <rect x="0" y="0" width="1.4" height="10" fill={color} rx="0.5"/>
+              <path d="M1.4 0.5L6.5 3L1.4 5.5V0.5Z" fill={color}/>
+            </svg>
+          );
+          const VFlag = ({ id }) => {
+            const f = flags[id];
+            if (f === 'none') return <FlagSvg color="#DDD7CE" />;
+            if (f === 'warning') return (
+              <span style={{ display: 'inline-flex', gap: 2 }}>
+                <FlagSvg color="#C4B8A8" />
+              </span>
+            );
+            return (
+              <span style={{ display: 'inline-flex', gap: 2 }}>
+                <FlagSvg color="#B0A294" />
+                <FlagSvg color="#B0A294" />
+              </span>
+            );
+          };
+          return (
+            <div className="no-print" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+              gap: 6, marginBottom: 12, opacity: 0.7,
+            }}>
+              <VFlag id="V1" />
+              <VFlag id="V2" />
+              <VFlag id="V3" />
+            </div>
+          );
+        })()}
 
         {/* ===== ボタン ===== */}
         <div className="no-print" style={{ display: 'flex', gap: 12, marginTop: 8, marginBottom: 40 }}>
