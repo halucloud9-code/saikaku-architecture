@@ -386,8 +386,8 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       const zone = getZone(points[i].raw);
       const topRank = top3.findIndex(t => t.idx === i);
       const cos = Math.cos(angle);
-      const align = cos > 0.15 ? 'left' : cos < -0.15 ? 'right' : 'center';
-      const nudge = cos > 0.15 ? 8 : cos < -0.15 ? -8 : 0;
+      const align = cos > 0.3 ? 'left' : cos < -0.3 ? 'right' : 'center';
+      const nudge = cos > 0.3 ? 8 : cos < -0.3 ? -8 : 0;
 
       ctx.textAlign = align;
       ctx.textBaseline = 'middle';
