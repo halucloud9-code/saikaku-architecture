@@ -1499,7 +1499,33 @@ function RadarChart16({ scores }) {
  * メインコンポーネント
  * ============================================================ */
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
-  const { scores, analysis, vAnswers, answers } = result;
+  const { scores, vAnswers, answers } = result;
+  // 統合分析は state で管理（バックフィル後に更新できるように）
+  const [analysis, setAnalysis] = useState(result.analysis || null);
+  const [integrating, setIntegrating] = useState(false);
+  const [integrateError, setIntegrateError] = useState('');
+
+  const runIntegration = async () => {
+    setIntegrating(true);
+    setIntegrateError('');
+    try {
+      const { getAuth } = await import('firebase/auth');
+      const idToken = await getAuth().currentUser?.getIdToken();
+      if (!idToken) throw new Error('ログインが必要です');
+      const res = await fetch('/api/integrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '統合分析に失敗しました');
+      setAnalysis(prev => ({ ...prev, saikaku_integration: data.integration }));
+    } catch (e) {
+      setIntegrateError(e.message);
+    } finally {
+      setIntegrating(false);
+    }
+  };
 
   // 20点固定
   MAX_SUB = 20;
@@ -1637,10 +1663,32 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
               </div>
             ) : (
               <Section>
-                <SectionHeader title="才覚統合分析" subtitle="才覚領域 × UAAM Integration" />
-                <p style={{ fontSize: 14, color: TEXT_SECONDARY, marginBottom: 0, lineHeight: 1.9 }}>
-                  才覚領域診断を先に完了すると、次回のUAAM診断時に才覚×UAAM統合分析が自動生成されます。
+                <SectionHeader title="才覚発動統合分析" subtitle="才覚領域 × UAAM Integration" />
+                <p style={{ fontSize: 14, color: TEXT_SECONDARY, marginBottom: 16, lineHeight: 1.9 }}>
+                  才覚領域データとUAAMスコアを統合した「才覚発動統合分析」を生成できます。
                 </p>
+                <button
+                  onClick={runIntegration}
+                  disabled={integrating}
+                  style={{
+                    width: '100%', padding: '14px 0',
+                    background: integrating
+                      ? '#E8E0D4'
+                      : 'linear-gradient(135deg, #0D2137 0%, #1A3A52 100%)',
+                    color: integrating ? TEXT_MUTED : '#fff',
+                    border: 'none', borderRadius: 10,
+                    fontSize: 14, fontWeight: 700, cursor: integrating ? 'not-allowed' : 'pointer',
+                    fontFamily: "'Noto Serif JP', serif",
+                    transition: 'opacity 0.2s',
+                  }}
+                >
+                  {integrating ? '⏳ 統合分析を生成中...' : '⚡ 才覚×UAAM 統合発動分析を生成する'}
+                </button>
+                {integrateError && (
+                  <p style={{ fontSize: 12, color: '#922B21', marginTop: 8, textAlign: 'center' }}>
+                    {integrateError}
+                  </p>
+                )}
               </Section>
             )}
 

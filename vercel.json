@@ -8,6 +8,9 @@
     },
     "api/uaam.js": {
       "maxDuration": 120
+    },
+    "api/integrate.js": {
+      "maxDuration": 120
     }
   },
   "rewrites": [
