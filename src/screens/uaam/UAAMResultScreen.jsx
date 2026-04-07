@@ -1562,7 +1562,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             if (domain?.subs) Object.assign(acc, domain.subs);
             return acc;
           }, {})
-        } threshold={13} userName={user.displayName} mode="top" />
+        } threshold={13} userName={user.displayName} mode="top" vAnswers={vAnswers} />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />

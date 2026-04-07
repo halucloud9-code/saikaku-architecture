@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { getActivationAnalysis, TEMPLATES } from './activation_analysis';
 import { pairShort, pairDef, SUB_JP as PAIR_SUB_JP, getBlock, ZONE_HEX as PAIR_ZONE_HEX, ZONE_LABEL, BLOCKS } from './screens/uaam/AllPairsTriangle';
+import { getVFlags } from './data/uaam_questions';
 
 /* ── ゾーン別スタイル（バーグラデーション用） ── */
 const ZONE_BAR = {
@@ -82,14 +83,14 @@ const TEXT_MUTED     = '#666666';
 // mode: "top"    = TypeBadgeのみ（名前 + Activation Type）
 //       "bottom"  = ✅今、発動している力 + 🔑次に動かす力
 //       "all"     = すべて（デフォルト互換）
-export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all' }) {
+export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all', vAnswers }) {
   if (!scores) return null;
   const { active, sleeping, type } = getActivationAnalysis(scores, threshold);
 
   if (mode === 'top') {
     return (
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
-        <TypeBadge type={type} userName={userName} />
+        <TypeBadge type={type} userName={userName} vAnswers={vAnswers} />
       </div>
     );
   }
@@ -203,7 +204,7 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
 }
 
 /* ── 才覚タイプバッジ ── */
-function TypeBadge({ type, userName }) {
+function TypeBadge({ type, userName, vAnswers }) {
   if (!type?.main) return null;
   const mainBlock = BLOCKS.find(b => b.name === type.main);
   const subBlock  = BLOCKS.find(b => b.name === type.sub);
@@ -227,10 +228,36 @@ function TypeBadge({ type, userName }) {
             fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
             fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
           }}>Universal Ability Assessment Model</div>
-          <div style={{
-            fontFamily: "'Noto Serif JP', Georgia, serif",
-            fontSize: 20, fontWeight: 700, color: TEXT_PRIMARY,
-          }}>{userName}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{
+              fontFamily: "'Noto Serif JP', Georgia, serif",
+              fontSize: 20, fontWeight: 700, color: TEXT_PRIMARY,
+            }}>{userName}</div>
+            {/* V1/V2/V3 フラグ（名前の右端） */}
+            {vAnswers && (() => {
+              const { flags } = getVFlags(vAnswers);
+              const dot = (id) => {
+                const f = flags[id];
+                const color = f === 'critical' ? '#A84432' : f === 'warning' ? '#C4922A' : '#D4C9B0';
+                return (
+                  <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                    <div style={{
+                      width: 5, height: 5, borderRadius: '50%',
+                      background: color, opacity: f === 'none' ? 0.4 : 1,
+                    }} />
+                    <div style={{ fontSize: 7, color, fontWeight: 600, letterSpacing: 0, lineHeight: 1, opacity: f === 'none' ? 0.4 : 0.8 }}>
+                      {id}
+                    </div>
+                  </div>
+                );
+              };
+              return (
+                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                  {dot('V1')}{dot('V2')}{dot('V3')}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
       {/* Activation Type ラベル */}
