@@ -43,16 +43,16 @@ const SUB_META = [
   { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力', desc: '周囲の心を動かし、人と社会に変化と行動を促す力。' },
 ];
 
-// 四隅バッジ（グラフ外配置用 — position:absoluteなし）
-function CornerBadge({ g, align, delay }) {
+// 四隅バッジ
+function CornerBadge({ g, pos, align, delay }) {
   const c = g.color;
   return (
     <div style={{
+      position: 'absolute', ...pos,
       display: 'flex', flexDirection: 'column',
       alignItems: align === 'right' ? 'flex-end' : 'flex-start',
       animation: `amFadeIn 0.5s ease ${delay}s both`,
       pointerEvents: 'none',
-      padding: '0 6px',
     }}>
       {/* 漢字 */}
       <div style={{
@@ -677,20 +677,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
 
       {/* Canvas + 四隅バッジ — グリッドでグラフの外側に配置 */}
       {/* 配置: 衝=左上 / 志=右上 / 技=左下 / 知=右下 */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto',
-        gridTemplateRows: 'auto auto auto',
-        alignItems: 'center',
-        justifyItems: 'stretch',
-      }}>
-        {/* Row 1 */}
-        <CornerBadge g={groupTotals[3]} align="left"  delay={0.24} />{/* 衝 — 左上 */}
-        <div />
-        <CornerBadge g={groupTotals[0]} align="right" delay={0}    />{/* 志 — 右上 */}
-
-        {/* Row 2 — Canvas */}
-        <div />
+      <div style={{ position: 'relative' }}>
         <canvas
           ref={canvasRef}
           style={{ width: '100%', height: 'min(72vw, 480px)', display: 'block', cursor: 'pointer' }}
@@ -698,12 +685,14 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
           onMouseMove={e => handleInteraction(e, false)}
           onMouseLeave={() => setHoveredIdx(null)}
         />
-        <div />
-
-        {/* Row 3 */}
-        <CornerBadge g={groupTotals[2]} align="left"  delay={0.16} />{/* 技 — 左下 */}
-        <div />
-        <CornerBadge g={groupTotals[1]} align="right" delay={0.08} />{/* 知 — 右下 */}
+        {/* 衝 — 左上 */}
+        <CornerBadge g={groupTotals[3]} pos={{ top: '7%', left: '5%' }}  align="left"  delay={0.24} />
+        {/* 志 — 右上 */}
+        <CornerBadge g={groupTotals[0]} pos={{ top: '7%', right: '5%' }} align="right" delay={0}    />
+        {/* 技 — 左下 */}
+        <CornerBadge g={groupTotals[2]} pos={{ bottom: '7%', left: '5%' }}  align="left"  delay={0.16} />
+        {/* 知 — 右下 */}
+        <CornerBadge g={groupTotals[1]} pos={{ bottom: '7%', right: '5%' }} align="right" delay={0.08} />
       </div>
 
       {/* 詳細カード（クリック時）*/}
