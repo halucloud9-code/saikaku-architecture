@@ -131,6 +131,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
   const [hoveredIdx, setHoveredIdx]   = useState(null);
   const [barsReady, setBarsReady]     = useState(false);
   const [gridOpen, setGridOpen]       = useState(false);
+  const [detailOpen, setDetailOpen]   = useState(false);
   const stateRef = useRef({
     time: 0, startTime: null,
     ripples: [],     // { idx, t }
@@ -733,6 +734,38 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         </div>
       )}
 
+      {/* ── 詳細トグルボタン ── */}
+      <button
+        onClick={() => setDetailOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', gap: 8,
+          padding: '14px 20px',
+          background: detailOpen ? `rgba(196,146,42,0.06)` : PALETTE.surface,
+          borderTop: `1px solid ${PALETTE.border}`,
+          border: 'none', borderTop: `1px solid ${PALETTE.border}`,
+          cursor: 'pointer', outline: 'none',
+          transition: 'background 0.2s ease',
+        }}
+      >
+        <span style={{
+          fontSize: 12, fontWeight: 700, letterSpacing: '0.18em',
+          color: '#C4922A', opacity: detailOpen ? 1 : 0.75,
+          textTransform: 'uppercase',
+        }}>
+          {detailOpen ? 'スコア詳細を閉じる' : 'スコア詳細を見る'}
+        </span>
+        <span style={{
+          display: 'inline-block',
+          transform: detailOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 0.25s ease',
+          fontSize: 10, color: '#C4922A', opacity: 0.6,
+        }}>▼</span>
+      </button>
+
+      {detailOpen && (
+      <div style={{ animation: 'amFadeIn 0.25s ease' }}>
+
       {/* 16項目グリッド（プルダウン式）*/}
       <div style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}>
         {/* トグルヘッダー — 4グループカード */}
@@ -955,6 +988,9 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
           ))}
         </div>
       </div>
+
+      </div>
+      )} {/* /detailOpen */}
 
       <style>{`
         @keyframes amFadeIn  { from { opacity:0; transform:translateY(6px) }  to { opacity:1; transform:translateY(0) } }
