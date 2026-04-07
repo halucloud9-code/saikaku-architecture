@@ -25,22 +25,22 @@ const AXIS_META = [
 ];
 
 const SUB_META = [
-  { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '基軸力' },
-  { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '認知力' },
-  { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '転換力' },
-  { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達力' },
-  { key: 'learning',      axis: 1, label: 'Learning',      jp: '謙学力' },
-  { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理力' },
-  { key: 'life',          axis: 1, label: 'Life',          jp: '活用力' },
-  { key: 'leadership',    axis: 1, label: 'Leadership',    jp: '統率力' },
-  { key: 'critical',      axis: 2, label: 'Critical',      jp: '本質力' },
-  { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造力' },
-  { key: 'communication', axis: 2, label: 'Communication', jp: '伝達力' },
-  { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働力' },
-  { key: 'idea',           axis: 3, label: 'Idea',           jp: '構想力' },
-  { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革力' },
-  { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装力' },
-  { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力' },
+  { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '基軸力', desc: 'なぜ生き、どこへ向かうのかを定める、存在の軸。' },
+  { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '認知力', desc: '自己と環境を客観的に捉え、今この瞬間を正確に読む力。' },
+  { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '転換力', desc: '固定観念を手放し、新しい視点へと発想を切り替える力。' },
+  { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達力', desc: '一つの道を深く磨き続け、本物の技として昇華させる力。' },
+  { key: 'learning',      axis: 1, label: 'Learning',      jp: '謙学力', desc: '素直に問いを立て、知を吸収し続ける謙虚な学びの力。' },
+  { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理力', desc: '筋道を立てて考え、根拠と結論を正確につなぐ思考の力。' },
+  { key: 'life',          axis: 1, label: 'Life',          jp: '活用力', desc: '得た知識・経験を実生活と実践の場に活かし切る力。' },
+  { key: 'leadership',    axis: 1, label: 'Leadership',    jp: '統率力', desc: '人を信じ、方向を示し、チームを一つの意志へと束ねる力。' },
+  { key: 'critical',      axis: 2, label: 'Critical',      jp: '本質力', desc: '表面に惑わされず、物事の核心と真実を見抜く洞察の力。' },
+  { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造力', desc: '既存の枠を超え、新しい価値とアイデアを生み出す力。' },
+  { key: 'communication', axis: 2, label: 'Communication', jp: '伝達力', desc: '想いと情報を相手の心に届く言葉と表現に変換する力。' },
+  { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働力', desc: '違いを強さとして活かし、他者と共に大きな成果を生む力。' },
+  { key: 'idea',           axis: 3, label: 'Idea',           jp: '構想力', desc: '未来を描き、大局を掴み、実現へのシナリオを設計する力。' },
+  { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革力', desc: '現状の壁を打ち破り、新しい流れを自ら創り出す力。' },
+  { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装力', desc: '構想を具体的な行動と形に変え、現実へと落とし込む力。' },
+  { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力', desc: '周囲の心を動かし、人と社会に変化と行動を促す力。' },
 ];
 
 // 四隅バッジ（グラフ外配置用 — position:absoluteなし）
@@ -762,6 +762,15 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
               borderRadius: 2, transition: 'width 0.4s ease',
             }} />
           </div>
+          {activePoint.desc && (
+            <div style={{
+              fontSize: 12, color: PALETTE.text, lineHeight: 1.65,
+              marginBottom: 8, opacity: 0.78,
+              fontFamily: "'Noto Serif JP', serif",
+            }}>
+              {activePoint.desc}
+            </div>
+          )}
           <div style={{ fontSize: 11, color: PALETTE.textSub }}>
             {activePoint.raw}/{maxSub} pts — {AXIS_META[activePoint.axis].kanji} {AXIS_META[activePoint.axis].en}
             &ensp;|&ensp;{getZone(activePoint.raw).toUpperCase()}
