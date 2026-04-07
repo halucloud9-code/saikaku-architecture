@@ -1556,9 +1556,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
 
-        {/* ===== Activation Matrix — 4ミニレーダー ===== */}
-        <FourAxisGrid scores={scores} />
-
         {/* ===== ✅ 今、発動している力（MLCI直下） ===== */}
         <ActivationPanel scores={
           Object.values(scores || {}).reduce((acc, domain) => {
