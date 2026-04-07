@@ -43,6 +43,72 @@ const SUB_META = [
   { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力' },
 ];
 
+// 四隅バッジ（関数コンポーネント）
+function CornerBadge({ g, pos, align, delay }) {
+  const c = g.color;
+  return (
+    <div style={{
+      position: 'absolute', ...pos,
+      display: 'flex', flexDirection: 'column',
+      alignItems: align === 'right' ? 'flex-end' : 'flex-start',
+      animation: `amFadeIn 0.5s ease ${delay}s both`,
+      pointerEvents: 'none',
+    }}>
+      {/* 漢字 */}
+      <div style={{
+        fontFamily: "'Noto Serif JP', serif",
+        fontSize: 'clamp(22px, 5vw, 32px)',
+        fontWeight: 800,
+        color: `rgba(${c[0]},${c[1]},${c[2]},0.82)`,
+        lineHeight: 1,
+        letterSpacing: '0.04em',
+      }}>
+        {g.kanji}
+      </div>
+      {/* EN */}
+      <div style={{
+        fontSize: 'clamp(7px, 1.4vw, 9px)',
+        fontWeight: 600,
+        color: `rgba(${c[0]},${c[1]},${c[2]},0.55)`,
+        letterSpacing: '0.18em',
+        marginTop: 2,
+      }}>
+        {g.en}
+      </div>
+      {/* スコア */}
+      <div style={{
+        fontFamily: "'DM Sans', sans-serif",
+        fontSize: 'clamp(13px, 3vw, 18px)',
+        fontWeight: 700,
+        color: `rgba(${c[0]},${c[1]},${c[2]},0.9)`,
+        marginTop: 3,
+        lineHeight: 1,
+      }}>
+        {g.total}
+        <span style={{ fontSize: '0.55em', fontWeight: 400, color: `rgba(${c[0]},${c[1]},${c[2]},0.5)`, marginLeft: 2 }}>
+          /{g.max}
+        </span>
+      </div>
+      {/* ミニバー */}
+      <div style={{
+        width: 'clamp(28px, 6vw, 40px)',
+        height: 2,
+        background: `rgba(${c[0]},${c[1]},${c[2]},0.15)`,
+        borderRadius: 1,
+        marginTop: 4,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${g.pct}%`,
+          background: `rgba(${c[0]},${c[1]},${c[2]},0.6)`,
+          borderRadius: 1,
+        }} />
+      </div>
+    </div>
+  );
+}
+
 function getZone(raw) {
   if (raw >= 16) return 'active';
   if (raw >= 12) return 'potential';
@@ -90,6 +156,14 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
   const sorted  = useMemo(() => [...points].sort((a, b) => b.pct - a.pct), [points]);
   const top3    = useMemo(() => sorted.slice(0, 3), [sorted]);
   const bottom3 = useMemo(() => sorted.slice(-3).reverse(), [sorted]);
+
+  // グループ別合計スコア（四隅バッジ用）
+  const groupTotals = useMemo(() => AXIS_META.map((axis, gi) => {
+    const grp   = points.slice(gi * 4, gi * 4 + 4);
+    const total = grp.reduce((s, p) => s + p.raw, 0);
+    const pct   = Math.round(total / (maxSub * 4) * 100);
+    return { ...axis, total, pct, max: maxSub * 4 };
+  }), [points, maxSub]);
 
   useEffect(() => {
     stateRef.current.activeI = selectedIdx ?? hoveredIdx;
@@ -347,6 +421,45 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         ctx.fillText(axis.en, bx, by + 10);
 
         ctx.restore();
+
+        // ── グループ間ギャップ装飾（区切り線 + ダイヤ）──
+        const nextGi   = (gi + 1) % 4;
+        const nextSeg  = segAngles[nextGi * 4];
+        let gapStart   = lastSeg.end + SEG_GAP / 2;
+        let gapEnd     = nextSeg.start - SEG_GAP / 2;
+        if (gi === 3) gapEnd += Math.PI * 2; // 折り返し
+        const gapMid   = (gapStart + gapEnd) / 2;
+        const nc = AXIS_META[nextGi].color;
+
+        // ギャップ中央の細い放射線（2色グラデ）
+        const gLineOuter = cx + Math.cos(gapMid) * (R + 4);
+        const gLineInner = cx + Math.cos(gapMid) * INNER_R;
+        const gLineOy = cy + Math.sin(gapMid) * (R + 4);
+        const gLineIy = cy + Math.sin(gapMid) * INNER_R;
+        const gGrad = ctx.createLinearGradient(gLineInner, gLineIy, gLineOuter, gLineOy);
+        gGrad.addColorStop(0,   `rgba(${c[0]},${c[1]},${c[2]},${lineAlpha * 0.4})`);
+        gGrad.addColorStop(0.5, `rgba(196,146,42,${lineAlpha * 0.6})`);
+        gGrad.addColorStop(1,   `rgba(${nc[0]},${nc[1]},${nc[2]},${lineAlpha * 0.4})`);
+        ctx.beginPath();
+        ctx.moveTo(gLineInner, gLineIy);
+        ctx.lineTo(gLineOuter, gLineOy);
+        ctx.strokeStyle = gGrad;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // ギャップ中央のダイヤモンドマーク
+        const dR    = INNER_R + (R - INNER_R) * 0.5;
+        const dx2   = cx + Math.cos(gapMid) * dR;
+        const dy2   = cy + Math.sin(gapMid) * dR;
+        const ds    = 5 * lineAlpha;
+        ctx.save();
+        ctx.translate(dx2, dy2);
+        ctx.rotate(gapMid + Math.PI / 4);
+        ctx.beginPath();
+        ctx.rect(-ds / 2, -ds / 2, ds, ds);
+        ctx.fillStyle = `rgba(196,146,42,${lineAlpha * 0.55})`;
+        ctx.fill();
+        ctx.restore();
       });
     }
 
@@ -525,14 +638,26 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         </div>
       </div>
 
-      {/* Canvas */}
-      <canvas
-        ref={canvasRef}
-        style={{ width: '100%', height: 'min(92vw, 520px)', display: 'block', cursor: 'pointer' }}
-        onClick={e => handleInteraction(e, true)}
-        onMouseMove={e => handleInteraction(e, false)}
-        onMouseLeave={() => setHoveredIdx(null)}
-      />
+      {/* Canvas + 四隅バッジ */}
+      {/* 配置: 志=右上 / 知=右下 / 技=左下 / 衝=左上 */}
+      <div style={{ position: 'relative' }}>
+        <canvas
+          ref={canvasRef}
+          style={{ width: '100%', height: 'min(92vw, 520px)', display: 'block', cursor: 'pointer' }}
+          onClick={e => handleInteraction(e, true)}
+          onMouseMove={e => handleInteraction(e, false)}
+          onMouseLeave={() => setHoveredIdx(null)}
+        />
+
+        {/* 志 — 右上 */}
+        {CornerBadge({ g: groupTotals[0], pos: { top: '6%', right: '4%' }, align: 'right', delay: 0 })}
+        {/* 知 — 右下 */}
+        {CornerBadge({ g: groupTotals[1], pos: { bottom: '6%', right: '4%' }, align: 'right', delay: 0.08 })}
+        {/* 技 — 左下 */}
+        {CornerBadge({ g: groupTotals[2], pos: { bottom: '6%', left: '4%' }, align: 'left', delay: 0.16 })}
+        {/* 衝 — 左上 */}
+        {CornerBadge({ g: groupTotals[3], pos: { top: '6%', left: '4%' }, align: 'left', delay: 0.24 })}
+      </div>
 
       {/* 詳細カード（クリック時）*/}
       {activePoint && selectedIdx != null && (
