@@ -1,14 +1,39 @@
 # HANDOFF — 次スレッドへの引き継ぎ
 
 ## GitHub最新コミット
-`074628e` — fix: RadarChart16 startAngle を-π/2に戻す（sub-labelのずれ修正）
+`a0c14ff` — fix: uaam_resultsコレクションのFirestoreルール追加（本人のみ読み書き可）
 
 ## push方法
 - /tmp/saikaku-deploy からpush（ローカルの .git/index.lock 問題を回避）
 - tokenは .git/config の remote url に埋め込み済み
 - Vercel: push → 自動ビルド → https://saikaku-architecture.vercel.app
 
-## 今セッションで完了したこと
+## 🔴 次セッションで最初にやること
+1. `firebase deploy --only firestore:rules` が実行済みか確認（ハルが手動で実行する必要あり）
+2. 次フェーズ「領域専用の質問設計」に着手（4つの才覚発動領域：構想力/統率力/実装力/変革力）
+
+## 2026-04-07 セッションで完了したこと
+
+### バグ修正3件（全pushしてVercelデプロイ済み）
+1. **activation_analysis.js キー不一致修正** (`1646e03`)
+   - LABEL_MAP/BLOCK_MAP/TEMPLATES の先頭キーを修正: mindset→meaning, literacy→learning, competency→critical, impact→idea
+   - ActivationPanel の「? critical」表示バグが解消 → 「技→本質力」と正常表示
+2. **AdminScreen UAAMモーダル追加 + AXIS_METAサブキー修正** (`0273594`)
+   - ローカルにあったUAAMModalコンポーネントをpush
+   - AXIS_META subs配列のキー修正（同じ4キー不一致）
+   - 管理画面: 才覚領域63ユーザー、UAAM2ユーザー読み込み確認、モーダル表示OK
+3. **Firestoreルール追加** (`a0c14ff`)
+   - uaam_resultsコレクションに本人のみ読み書き可のルールを追加
+   - ⚠️ `firebase deploy --only firestore:rules` 未実行（ハルが手動で実行する必要あり）
+
+### 確認タスク（HANDOFF.md「🔴」3項目すべて完了）
+- ✅ ActivationPanel表示確認（saikaku-architecture.vercel.app/?dev=uaam）
+- ✅ AdminScreen → UAAMタブ → ユーザー行クリック → モーダル表示確認
+- ✅ Firestoreルール追加（デプロイは残）
+
+---
+
+## 前セッションまでの完了事項
 
 ### UAAMResultScreen.jsx
 1. **RadarChart16 startAngle**: `-π/2`（グループは12時スタート。グループラベルは独立固定）
