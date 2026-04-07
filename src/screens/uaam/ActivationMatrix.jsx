@@ -734,121 +734,104 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         </div>
       )}
 
-      {/* ── 詳細トグルボタン ── */}
-      <button
+      {/* ── 4グループカード（タップでプルダウン開閉）── */}
+      <div
         onClick={() => setDetailOpen(o => !o)}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', gap: 8,
-          padding: '14px 20px',
-          background: detailOpen ? `rgba(196,146,42,0.06)` : PALETTE.surface,
+          background: PALETTE.surface,
           borderTop: `1px solid ${PALETTE.border}`,
-          border: 'none', borderTop: `1px solid ${PALETTE.border}`,
-          cursor: 'pointer', outline: 'none',
-          transition: 'background 0.2s ease',
+          padding: '18px 16px 14px',
+          cursor: 'pointer',
+          userSelect: 'none',
         }}
       >
-        <span style={{
-          fontSize: 12, fontWeight: 700, letterSpacing: '0.18em',
-          color: '#C4922A', opacity: detailOpen ? 1 : 0.75,
-          textTransform: 'uppercase',
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          {groupTotals.map(g => {
+            const c = g.color;
+            return (
+              <div key={g.key} style={{
+                background: `rgba(${c[0]},${c[1]},${c[2]},0.05)`,
+                border: `1.5px solid rgba(${c[0]},${c[1]},${c[2]},0.2)`,
+                borderRadius: 14,
+                padding: '12px 14px',
+                display: 'flex', flexDirection: 'column', gap: 6,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{
+                      fontFamily: "'Noto Serif JP', serif", fontSize: 20, fontWeight: 800,
+                      color: `rgb(${c[0]},${c[1]},${c[2]})`, lineHeight: 1,
+                    }}>{g.kanji}</span>
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
+                      color: `rgba(${c[0]},${c[1]},${c[2]},0.6)`,
+                    }}>{g.en}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                    <span style={{
+                      fontFamily: NUM_FONT, fontSize: 22, fontWeight: 800,
+                      color: `rgba(${c[0]},${c[1]},${c[2]},0.9)`, lineHeight: 1,
+                    }}>{g.total}</span>
+                    <span style={{
+                      fontSize: 10, color: `rgba(${c[0]},${c[1]},${c[2]},0.45)`, fontWeight: 400,
+                    }}>/{g.max}</span>
+                  </div>
+                </div>
+                <div style={{
+                  height: 4, background: `rgba(${c[0]},${c[1]},${c[2]},0.12)`,
+                  borderRadius: 2, overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%', width: `${g.pct}%`,
+                    background: `linear-gradient(90deg, rgba(${c[0]},${c[1]},${c[2]},0.5), rgba(${c[0]},${c[1]},${c[2]},0.85))`,
+                    borderRadius: 2, transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
+                  }} />
+                </div>
+                <div style={{
+                  fontSize: 10, fontWeight: 600,
+                  color: `rgba(${c[0]},${c[1]},${c[2]},0.55)`, letterSpacing: '0.05em',
+                }}>{g.pct}%</div>
+              </div>
+            );
+          })}
+        </div>
+        {/* ▼ 開閉インジケーター */}
+        <div style={{
+          textAlign: 'center', marginTop: 10,
+          fontSize: 10, color: PALETTE.textSub, opacity: 0.5,
         }}>
-          {detailOpen ? 'スコア詳細を閉じる' : 'スコア詳細を見る'}
-        </span>
-        <span style={{
-          display: 'inline-block',
-          transform: detailOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-          transition: 'transform 0.25s ease',
-          fontSize: 10, color: '#C4922A', opacity: 0.6,
-        }}>▼</span>
-      </button>
+          <span style={{
+            display: 'inline-block',
+            transform: detailOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.25s ease',
+          }}>▼</span>
+        </div>
+      </div>
 
       {detailOpen && (
       <div style={{ animation: 'amFadeIn 0.25s ease' }}>
 
       {/* 16項目グリッド（プルダウン式）*/}
       <div style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}>
-        {/* トグルヘッダー — 4グループカード */}
-        <div style={{ padding: '18px 16px 0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-            {groupTotals.map(g => {
-              const c = g.color;
-              return (
-                <div key={g.key} style={{
-                  background: `rgba(${c[0]},${c[1]},${c[2]},0.05)`,
-                  border: `1.5px solid rgba(${c[0]},${c[1]},${c[2]},0.2)`,
-                  borderRadius: 14,
-                  padding: '12px 14px',
-                  display: 'flex', flexDirection: 'column', gap: 6,
-                }}>
-                  {/* ヘッダー行 */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                      <span style={{
-                        fontFamily: "'Noto Serif JP', serif", fontSize: 20, fontWeight: 800,
-                        color: `rgb(${c[0]},${c[1]},${c[2]})`, lineHeight: 1,
-                      }}>{g.kanji}</span>
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
-                        color: `rgba(${c[0]},${c[1]},${c[2]},0.6)`,
-                      }}>{g.en}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                      <span style={{
-                        fontFamily: NUM_FONT, fontSize: 22, fontWeight: 800,
-                        color: `rgba(${c[0]},${c[1]},${c[2]},0.9)`, lineHeight: 1,
-                      }}>{g.total}</span>
-                      <span style={{
-                        fontSize: 10, color: `rgba(${c[0]},${c[1]},${c[2]},0.45)`, fontWeight: 400,
-                      }}>/{g.max}</span>
-                    </div>
-                  </div>
-                  {/* プログレスバー */}
-                  <div style={{
-                    height: 4, background: `rgba(${c[0]},${c[1]},${c[2]},0.12)`,
-                    borderRadius: 2, overflow: 'hidden',
-                  }}>
-                    <div style={{
-                      height: '100%', width: `${g.pct}%`,
-                      background: `linear-gradient(90deg, rgba(${c[0]},${c[1]},${c[2]},0.5), rgba(${c[0]},${c[1]},${c[2]},0.85))`,
-                      borderRadius: 2,
-                      transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
-                    }} />
-                  </div>
-                  {/* パーセント */}
-                  <div style={{
-                    fontSize: 10, fontWeight: 600,
-                    color: `rgba(${c[0]},${c[1]},${c[2]},0.55)`,
-                    letterSpacing: '0.05em',
-                  }}>{g.pct}%</div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 展開トグル */}
-          <button
-            onClick={() => setGridOpen(o => !o)}
-            style={{
-              width: '100%', marginTop: 12, marginBottom: 0,
-              padding: '10px 0', background: 'none', border: 'none',
-              cursor: 'pointer', outline: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              color: PALETTE.textSub,
-            }}
-          >
-            <span style={{ fontSize: 11, letterSpacing: '0.15em', fontWeight: 600, opacity: 0.65 }}>
-              {gridOpen ? '16軸スコアを閉じる' : '16軸スコアを見る'}
-            </span>
-            <span style={{
-              fontSize: 11,
-              display: 'inline-block',
-              transform: gridOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.25s ease',
-              opacity: 0.5,
-            }}>▼</span>
-          </button>
-        </div>
+        {/* 展開トグル */}
+        <button
+          onClick={e => { e.stopPropagation(); setGridOpen(o => !o); }}
+          style={{
+            width: '100%', padding: '12px 0', background: 'none', border: 'none',
+            cursor: 'pointer', outline: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            color: PALETTE.textSub,
+          }}
+        >
+          <span style={{ fontSize: 11, letterSpacing: '0.15em', fontWeight: 600, opacity: 0.65 }}>
+            {gridOpen ? '16軸スコアを閉じる' : '16軸スコアを見る'}
+          </span>
+          <span style={{
+            fontSize: 11, display: 'inline-block',
+            transform: gridOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.25s ease', opacity: 0.5,
+          }}>▼</span>
+        </button>
 
         {/* 展開グリッド */}
         {gridOpen && (
