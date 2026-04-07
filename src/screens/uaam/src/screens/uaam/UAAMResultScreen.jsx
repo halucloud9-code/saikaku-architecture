@@ -1557,14 +1557,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
 
         {/* ===== Activation Matrix — 4ミニレーダー ===== */}
-        <div style={{ marginBottom: 6, paddingLeft: 4, marginTop: 20 }}>
-          <div style={{
-            fontFamily: "'Noto Serif JP', Georgia, serif",
-            fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, letterSpacing: '0.02em',
-          }}>MLCI Activation Profile</div>
-          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>才覚4軸プロファイル</div>
-          <div style={{ width: 40, height: 2, background: ACCENT_GOLD, marginTop: 8, borderRadius: 1, opacity: 0.6 }} />
-        </div>
         <FourAxisGrid scores={scores} />
 
         {/* ===== ✅ 今、発動している力（MLCI直下） ===== */}

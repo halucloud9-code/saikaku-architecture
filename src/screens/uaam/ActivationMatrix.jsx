@@ -130,6 +130,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [hoveredIdx, setHoveredIdx]   = useState(null);
   const [barsReady, setBarsReady]     = useState(false);
+  const [gridOpen, setGridOpen]       = useState(false);
   const stateRef = useRef({
     time: 0, startTime: null,
     ripples: [],     // { idx, t }
@@ -237,6 +238,42 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     bgGrad.addColorStop(1, `rgba(196,146,42,${0.025 * ep})`);
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
+
+    // ── 背景装飾：同心参照リング ──────────────────────────────
+    if (ep > 0.15) {
+      const ra = Math.min((ep - 0.15) / 0.85, 1);
+      ctx.save();
+      // 内側ガイドリング（点線）
+      ctx.setLineDash([2, 6]);
+      [0.5, 0.75].forEach(mult => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, R * mult, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(196,146,42,${ra * 0.055})`;
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+      // 外縁フレームリング
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 1.1, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(196,146,42,${ra * 0.07})`;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+      // 4方向コンパスティック（12/3/6/9時）
+      [0, Math.PI / 2, Math.PI, Math.PI * 1.5].forEach(a => {
+        const tx1 = cx + Math.cos(a) * R * 1.06;
+        const ty1 = cy + Math.sin(a) * R * 1.06;
+        const tx2 = cx + Math.cos(a) * R * 1.16;
+        const ty2 = cy + Math.sin(a) * R * 1.16;
+        ctx.beginPath();
+        ctx.moveTo(tx1, ty1);
+        ctx.lineTo(tx2, ty2);
+        ctx.strokeStyle = `rgba(196,146,42,${ra * 0.22})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
 
     // スキャンビーム
     if (ep > 0.6) {
@@ -555,6 +592,40 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    // ── グループ合計ミニアーク（白丸内縁）──────────────────────
+    if (ep > 0.5) {
+      const miniAlpha = Math.min((ep - 0.5) / 0.5, 1);
+      const miniMid   = centerR * 0.93;
+      const miniW     = centerR * 0.1;
+      ctx.save();
+      ctx.lineCap = 'round';
+      AXIS_META.forEach((axis, gi) => {
+        const grpPts   = points.slice(gi * 4, gi * 4 + 4);
+        const grpRatio = grpPts.reduce((s, p) => s + p.raw, 0) / (maxSub * 4);
+        const firstSeg = segAngles[gi * 4];
+        const lastSeg  = segAngles[gi * 4 + 3];
+        const gSpan    = lastSeg.end - firstSeg.start;
+        const c        = axis.color;
+        // トラック
+        ctx.beginPath();
+        ctx.arc(cx, cy, miniMid, firstSeg.start, lastSeg.end);
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.12 * miniAlpha})`;
+        ctx.lineWidth = miniW;
+        ctx.stroke();
+        // 塗り
+        const fillEnd = firstSeg.start + gSpan * grpRatio * miniAlpha;
+        if (fillEnd > firstSeg.start + 0.01) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, miniMid, firstSeg.start, fillEnd);
+          ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.55 * miniAlpha})`;
+          ctx.lineWidth = miniW;
+          ctx.stroke();
+        }
+      });
+      ctx.lineCap = 'butt';
+      ctx.restore();
+    }
+
     // TOTAL%
     const displayPct = Math.round(totalPct * ep);
     ctx.textAlign = 'center';
@@ -698,11 +769,49 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         </div>
       )}
 
-      {/* 16項目グリッド（4グループ × 4項目）*/}
-      <div style={{
-        background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}`,
-        padding: '20px 16px 24px',
-      }}>
+      {/* 16項目グリッド（プルダウン式）*/}
+      <div style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}>
+        {/* トグルヘッダー */}
+        <button
+          onClick={() => setGridOpen(o => !o)}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 16px', background: 'none', border: 'none',
+            cursor: 'pointer', outline: 'none',
+          }}
+        >
+          <div style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
+            {groupTotals.map(g => {
+              const c = g.color;
+              return (
+                <div key={g.key} style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                  <span style={{
+                    fontFamily: "'Noto Serif JP', serif", fontSize: 13, fontWeight: 800,
+                    color: `rgb(${c[0]},${c[1]},${c[2]})`,
+                  }}>{g.kanji}</span>
+                  <span style={{
+                    fontFamily: NUM_FONT, fontSize: 12, fontWeight: 700,
+                    color: `rgba(${c[0]},${c[1]},${c[2]},0.85)`,
+                  }}>{g.total}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: PALETTE.textSub }}>
+            <span style={{ fontSize: 9, letterSpacing: '0.12em', opacity: 0.7 }}>16軸詳細</span>
+            <span style={{
+              fontSize: 10,
+              display: 'inline-block',
+              transform: gridOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.25s ease',
+            }}>▼</span>
+          </div>
+        </button>
+
+        {/* 展開グリッド */}
+        {gridOpen && (
+        <div style={{ padding: '4px 16px 20px', animation: 'amFadeIn 0.2s ease' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {AXIS_META.map((axis, gi) => (
             <div key={axis.key} style={{
@@ -773,6 +882,8 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
             </div>
           ))}
         </div>
+        </div>
+        )}
       </div>
 
       {/* Strengths / Growth */}
