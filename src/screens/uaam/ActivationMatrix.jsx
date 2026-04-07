@@ -425,40 +425,6 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.04 * lineAlpha})`;
         ctx.fill();
 
-        if (labelAlpha < 0.05) return;
-
-        // バッジ位置
-        const bx = cx + Math.cos(midAngle) * BADGE_R;
-        const by = cy + Math.sin(midAngle) * BADGE_R;
-
-        ctx.save();
-        ctx.globalAlpha = labelAlpha;
-
-        // バッジ背景円
-        ctx.beginPath();
-        ctx.arc(bx, by, 17, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.1)`;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(bx, by, 17, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.28)`;
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-
-        // 漢字
-        ctx.textAlign    = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font         = `700 17px "Noto Serif JP", serif`;
-        ctx.fillStyle    = `rgba(${c[0]},${c[1]},${c[2]},0.82)`;
-        ctx.fillText(axis.kanji, bx, by - 3);
-
-        // EN サブラベル
-        ctx.font      = `600 7px "DM Sans", sans-serif`;
-        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.5)`;
-        ctx.fillText(axis.en, bx, by + 10);
-
-        ctx.restore();
-
         // ── グループ間ギャップ装飾（区切り線 + ダイヤ）──
         const nextGi   = (gi + 1) % 4;
         const nextSeg  = segAngles[nextGi * 4];
