@@ -218,7 +218,11 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       ctx.arc(cx, cy, R, seg.start, seg.end);
       ctx.arc(cx, cy, INNER_R, seg.end, seg.start, true);
       ctx.closePath();
-      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.06 * ep})`;
+      // トラック背景グラデーション（未塗り部分を可視化）
+      const trackGrad = ctx.createRadialGradient(cx, cy, INNER_R, cx, cy, R);
+      trackGrad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${0.05 * ep})`);
+      trackGrad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},${0.12 * ep})`);
+      ctx.fillStyle = trackGrad;
       ctx.fill();
 
       if (fillR <= INNER_R + 0.5) continue;
@@ -283,20 +287,66 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       }
     });
 
-    // ── グループ区切り線 ──
-    if (ep > 0.4) {
-      const lineAlpha = Math.min((ep - 0.4) / 0.6, 1) * 0.18;
+    // ── グループ外周弧 + 内側ラベルバッジ ──
+    if (ep > 0.35) {
+      const lineAlpha  = Math.min((ep - 0.35) / 0.65, 1);
+      const labelAlpha = Math.min(Math.max((ep - 0.6) / 0.4, 0), 1);
+      const BADGE_R    = INNER_R + (R - INNER_R) * 0.44; // ドーナツ内側44%
+
       AXIS_META.forEach((axis, gi) => {
-        // グループ最初のセグメントのstartとグループ最後のendの間の中点にティック
-        const firstSeg = segAngles[gi * 4];
-        const lastSeg  = segAngles[gi * 4 + 3];
-        const c = axis.color;
-        // グループ外周弧（薄い）
+        const firstSeg  = segAngles[gi * 4];
+        const lastSeg   = segAngles[gi * 4 + 3];
+        const midAngle  = (firstSeg.start + lastSeg.end) / 2;
+        const c         = axis.color;
+
+        // 外周グループ弧（境界線）
         ctx.beginPath();
-        ctx.arc(cx, cy, R + 8, firstSeg.start - SEG_GAP / 2, lastSeg.end + SEG_GAP / 2);
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${lineAlpha * 2})`;
-        ctx.lineWidth = 2;
+        ctx.arc(cx, cy, R + 9, firstSeg.start - 0.01, lastSeg.end + 0.01);
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${lineAlpha * 0.35})`;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
+
+        // 内側セクター背景（グループカラーの薄いファン）
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, INNER_R * 0.95, firstSeg.start, lastSeg.end);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.04 * lineAlpha})`;
+        ctx.fill();
+
+        if (labelAlpha < 0.05) return;
+
+        // バッジ位置
+        const bx = cx + Math.cos(midAngle) * BADGE_R;
+        const by = cy + Math.sin(midAngle) * BADGE_R;
+
+        ctx.save();
+        ctx.globalAlpha = labelAlpha;
+
+        // バッジ背景円
+        ctx.beginPath();
+        ctx.arc(bx, by, 17, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.1)`;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(bx, by, 17, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.28)`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // 漢字
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font         = `700 17px "Noto Serif JP", serif`;
+        ctx.fillStyle    = `rgba(${c[0]},${c[1]},${c[2]},0.82)`;
+        ctx.fillText(axis.kanji, bx, by - 3);
+
+        // EN サブラベル
+        ctx.font      = `600 7px "DM Sans", sans-serif`;
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.5)`;
+        ctx.fillText(axis.en, bx, by + 10);
+
+        ctx.restore();
       });
     }
 
