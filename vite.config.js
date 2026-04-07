@@ -13,6 +13,7 @@ export default defineConfig({
     },
   },
   build: {
+    emptyOutDir: false,
     // チャンクサイズ警告の閾値を引き上げ（chart.js + jspdf が大きいため）
     chunkSizeWarningLimit: 1600,
     rollupOptions: {

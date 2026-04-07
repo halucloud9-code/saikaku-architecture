@@ -4,6 +4,7 @@ import { UAAM_AXES, checkValidity, getVFlags } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
+import SaikakuIntegration from './SaikakuIntegration';
 
 /* ============================================================
  * 定数
@@ -1628,28 +1629,17 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
               </Section>
             )}
 
-            {/* 才覚統合分析 */}
-            {(analysis.saikaku_integration || false) ? (
-              <Section>
-                <SectionHeader title="才覚統合分析" subtitle="Integration" />
-                {[
-                  { key: "activation_core", label: "才覚発動の核心", color: "#C4922A" },
-                  { key: "mission_direction", label: "使命の方向性", color: "#4A6FA5" },
-                  { key: "flow_route", label: "最短フロールート", color: "#1E7A4A" },
-                ].map(({ key, label, color }) => (
-                  analysis.saikaku_integration[key] && (
-                    <div key={key} style={{ borderLeft: "3px solid " + color, padding: "14px 18px", marginBottom: 14 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 8 }}>{label}</div>
-                      <p style={{ fontSize: 14, margin: 0, lineHeight: 1.9 }}>{analysis.saikaku_integration[key]}</p>
-                    </div>
-                  )
-                ))}
-              </Section>
+            {/* 才覚×UAAM 統合発動分析 */}
+            {analysis.saikaku_integration ? (
+              <div style={{ marginBottom: 20, borderRadius: 16, overflow: 'hidden',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.10)', border: `1px solid #E8E0D4` }}>
+                <SaikakuIntegration integration={analysis.saikaku_integration} />
+              </div>
             ) : (
               <Section>
-                <SectionHeader title="才覚統合分析" subtitle="Integration" />
+                <SectionHeader title="才覚統合分析" subtitle="才覚領域 × UAAM Integration" />
                 <p style={{ fontSize: 14, color: TEXT_SECONDARY, marginBottom: 0, lineHeight: 1.9 }}>
-                  既存の保存済みデータには才覚統合分析が含まれていないため、表示できません。新規診断を実行すると統合分析が利用可能になります。
+                  才覚領域診断を先に完了すると、次回のUAAM診断時に才覚×UAAM統合分析が自動生成されます。
                 </p>
               </Section>
             )}

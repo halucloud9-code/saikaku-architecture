@@ -1,0 +1,340 @@
+/**
+ * SaikakuIntegration.jsx
+ * 才覚×UAAM 統合発動分析 結果コンポーネント
+ * 才覚領域（WHY/HOW/WHAT）× UAAM4軸（志/知/技/衝）の
+ * クロス分析をMcKinsey級レイアウトで表示する
+ */
+import { useState } from 'react';
+
+/* ── パレット ─────────────────────── */
+const P = {
+  bg:      '#F5F0E8',
+  surface: '#FFFDF7',
+  border:  '#E8E0D4',
+  gold:    '#B8960C',
+  goldDim: '#C4A535',
+  text:    '#1A1A1A',
+  muted:   '#666666',
+  ignition:'#1A5276',   // 超発動 - 深い青
+  latent:  '#1E8449',   // 潜在   - 深い緑
+  idle:    '#784212',   // 遊休   - 深い茶
+  score_hi:'#196F3D',
+  score_lo:'#922B21',
+};
+
+const ZONE_META = {
+  ignition: { label: '超発動ゾーン', color: P.ignition, bg: '#EBF5FB', icon: '⚡' },
+  latent:   { label: '潜在ゾーン',   color: P.latent,   bg: '#EAFAF1', icon: '🌱' },
+  idle:     { label: '遊休ゾーン',   color: P.idle,     bg: '#FEF9E7', icon: '⚠️' },
+};
+
+/* ── サブコンポーネント ─────────────── */
+
+function ScoreRing({ score }) {
+  const r = 38, cx = 50, cy = 50;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference - (score / 100) * circumference;
+  const color = score >= 70 ? P.score_hi : score >= 45 ? P.goldDim : P.score_lo;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+      <svg width={100} height={100} viewBox="0 0 100 100">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={P.border} strokeWidth={8} />
+        <circle
+          cx={cx} cy={cy} r={r}
+          fill="none" stroke={color} strokeWidth={8}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform="rotate(-90 50 50)"
+          style={{ transition: 'stroke-dashoffset 1s ease' }}
+        />
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize={22} fontWeight={700} fill={color}
+          fontFamily="'Outfit', sans-serif">{score}</text>
+        <text x={cx} y={cy + 14} textAnchor="middle" fontSize={10} fill={P.muted}
+          fontFamily="'Noto Serif JP', serif">統合スコア</text>
+      </svg>
+    </div>
+  );
+}
+
+function ZoneCard({ zone, type }) {
+  const meta = ZONE_META[type];
+  return (
+    <div style={{
+      background: meta.bg,
+      border: `1px solid ${meta.color}33`,
+      borderLeft: `4px solid ${meta.color}`,
+      borderRadius: 10,
+      padding: '14px 16px',
+      marginBottom: 8,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <span style={{ fontSize: 14 }}>{meta.icon}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: meta.color, letterSpacing: '0.05em',
+          fontFamily: "'Outfit', sans-serif" }}>
+          {meta.label}
+        </span>
+        <span style={{ fontSize: 11, color: P.muted, marginLeft: 'auto',
+          fontFamily: "'Outfit', sans-serif" }}>
+          {zone.axis_uaam && `${axisLabel(zone.axis_uaam)} × ${saikakuLabel(zone.axis_saikaku)}`}
+        </span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginBottom: 4,
+        fontFamily: "'Noto Serif JP', serif" }}>{zone.label}</div>
+
+      {type === 'ignition' && zone.insight && (
+        <div style={{ fontSize: 12, color: P.text, lineHeight: 1.7, opacity: 0.82,
+          fontFamily: "'Noto Serif JP', serif" }}>{zone.insight}</div>
+      )}
+      {type === 'latent' && (
+        <>
+          {zone.potential && (
+            <div style={{ fontSize: 12, color: P.text, lineHeight: 1.7, opacity: 0.82,
+              fontFamily: "'Noto Serif JP', serif" }}>{zone.potential}</div>
+          )}
+          {zone.action && (
+            <div style={{ marginTop: 6, padding: '6px 10px', background: `${meta.color}15`,
+              borderRadius: 6, fontSize: 11, color: meta.color, fontWeight: 600,
+              fontFamily: "'Noto Serif JP', serif" }}>
+              → {zone.action}
+            </div>
+          )}
+        </>
+      )}
+      {type === 'idle' && (
+        <>
+          {zone.warning && (
+            <div style={{ fontSize: 12, color: '#7D6608', lineHeight: 1.7,
+              fontFamily: "'Noto Serif JP', serif" }}>{zone.warning}</div>
+          )}
+          {zone.reframe && (
+            <div style={{ marginTop: 6, padding: '6px 10px', background: `${meta.color}15`,
+              borderRadius: 6, fontSize: 11, color: meta.color, fontWeight: 600,
+              fontFamily: "'Noto Serif JP', serif" }}>
+              ↺ {zone.reframe}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function RoadmapRow({ period, text }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, marginBottom: 10, alignItems: 'flex-start' }}>
+      <div style={{ minWidth: 52, height: 22, background: P.gold, borderRadius: 4,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0,
+        fontFamily: "'Outfit', sans-serif" }}>{period}</div>
+      <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 2,
+        fontFamily: "'Noto Serif JP', serif" }}>{text}</div>
+    </div>
+  );
+}
+
+function SectionHeader({ title, sub }) {
+  return (
+    <div style={{ marginBottom: 14, paddingBottom: 8, borderBottom: `1px solid ${P.border}` }}>
+      <div style={{ fontSize: 10, letterSpacing: '0.15em', color: P.gold, fontWeight: 700,
+        fontFamily: "'Outfit', sans-serif", marginBottom: 2 }}>{sub}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: P.text,
+        fontFamily: "'Noto Serif JP', serif" }}>{title}</div>
+    </div>
+  );
+}
+
+/* ── ラベルヘルパー ─────────────────── */
+function axisLabel(axis) {
+  return { mindset: '志', literacy: '知', competency: '技', impact: '衝' }[axis] || axis;
+}
+function saikakuLabel(axis) {
+  return { WHY: '価値観(WHY)', HOW: '才能(HOW)', WHAT: '情熱(WHAT)' }[axis] || axis;
+}
+
+/* ── メインコンポーネント ────────────── */
+export default function SaikakuIntegration({ integration }) {
+  const [open, setOpen] = useState(false);
+
+  if (!integration) return null;
+
+  const {
+    integration_score = 0,
+    activation_core = '',
+    activation_equation = '',
+    leverage_point = '',
+    ignition_zones = [],
+    latent_zones = [],
+    idle_zones = [],
+    mission_direction = '',
+    flow_route = '',
+    hidden_potential = '',
+    roadmap = {},
+    coaching_questions = [],
+  } = integration;
+
+  return (
+    <div style={{ marginTop: 0 }}>
+      {/* ── ヘッダータップでアコーディオン ── */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          background: `linear-gradient(135deg, #0D2137 0%, #1A3A52 100%)`,
+          padding: '18px 20px 16px',
+          cursor: 'pointer', userSelect: 'none',
+          borderTop: `3px solid ${P.gold}`,
+        }}
+      >
+        {/* タイトル行 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: '0.2em', color: P.gold, fontWeight: 700,
+              fontFamily: "'Outfit', sans-serif", marginBottom: 4 }}>
+              才覚 × UAAM INTEGRATION
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF',
+              fontFamily: "'Noto Serif JP', serif" }}>
+              才覚発動統合分析
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <ScoreRing score={integration_score} />
+            <div style={{
+              fontSize: 16, color: 'rgba(255,255,255,0.5)',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.25s ease',
+            }}>▼</div>
+          </div>
+        </div>
+
+        {/* 才覚発動コア */}
+        <div style={{
+          marginTop: 12, padding: '10px 14px',
+          background: 'rgba(255,255,255,0.07)', borderRadius: 8,
+          borderLeft: `3px solid ${P.gold}`,
+        }}>
+          <div style={{ fontSize: 9, color: P.goldDim, fontWeight: 700, letterSpacing: '0.15em',
+            fontFamily: "'Outfit', sans-serif", marginBottom: 3 }}>ACTIVATION CORE</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.04em',
+            fontFamily: "'Noto Serif JP', serif" }}>{activation_core}</div>
+        </div>
+
+        {/* 発動方程式 */}
+        {activation_equation && (
+          <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.7)',
+            lineHeight: 1.65, fontFamily: "'Noto Serif JP', serif",
+            fontStyle: 'italic' }}>
+            「{activation_equation}」
+          </div>
+        )}
+      </div>
+
+      {/* ── アコーディオン本体 ── */}
+      {open && (
+        <div style={{ background: P.surface, animation: 'amFadeIn 0.25s ease' }}>
+
+          {/* 最高レバレッジポイント */}
+          {leverage_point && (
+            <div style={{
+              margin: '0', padding: '14px 20px',
+              background: `${P.gold}18`,
+              borderBottom: `1px solid ${P.border}`,
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <span style={{ fontSize: 18 }}>🎯</span>
+              <div>
+                <div style={{ fontSize: 9, color: P.gold, fontWeight: 700, letterSpacing: '0.12em',
+                  fontFamily: "'Outfit', sans-serif", marginBottom: 2 }}>
+                  HIGHEST LEVERAGE — 今すぐの一手
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: P.text,
+                  fontFamily: "'Noto Serif JP', serif" }}>{leverage_point}</div>
+              </div>
+            </div>
+          )}
+
+          {/* ── ゾーン分析 ── */}
+          <div style={{ padding: '20px 20px 4px' }}>
+            <SectionHeader title="才覚発動ゾーン分析" sub="ACTIVATION ZONE MAPPING" />
+
+            {ignition_zones.length > 0 && ignition_zones.map((z, i) => (
+              <ZoneCard key={`ig-${i}`} zone={z} type="ignition" />
+            ))}
+            {latent_zones.length > 0 && latent_zones.map((z, i) => (
+              <ZoneCard key={`lt-${i}`} zone={z} type="latent" />
+            ))}
+            {idle_zones.length > 0 && idle_zones.map((z, i) => (
+              <ZoneCard key={`id-${i}`} zone={z} type="idle" />
+            ))}
+          </div>
+
+          {/* ── ミッション方向性 ── */}
+          {mission_direction && (
+            <div style={{ padding: '0 20px 20px' }}>
+              <SectionHeader title="使命の方向性" sub="MISSION DIRECTION" />
+              <div style={{ fontSize: 13, color: P.text, lineHeight: 1.85,
+                fontFamily: "'Noto Serif JP', serif", whiteSpace: 'pre-line' }}>
+                {mission_direction}
+              </div>
+            </div>
+          )}
+
+          {/* ── フロー状態 + 隠れポテンシャル ── */}
+          <div style={{ padding: '0 20px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            {flow_route && (
+              <div style={{ background: '#EBF5FB', borderRadius: 10, padding: '14px',
+                border: `1px solid ${P.ignition}22` }}>
+                <div style={{ fontSize: 9, color: P.ignition, fontWeight: 700, letterSpacing: '0.12em',
+                  fontFamily: "'Outfit', sans-serif", marginBottom: 6 }}>FLOW ROUTE</div>
+                <div style={{ fontSize: 12, color: P.text, lineHeight: 1.7,
+                  fontFamily: "'Noto Serif JP', serif" }}>{flow_route}</div>
+              </div>
+            )}
+            {hidden_potential && (
+              <div style={{ background: '#EAFAF1', borderRadius: 10, padding: '14px',
+                border: `1px solid ${P.latent}22` }}>
+                <div style={{ fontSize: 9, color: P.latent, fontWeight: 700, letterSpacing: '0.12em',
+                  fontFamily: "'Outfit', sans-serif", marginBottom: 6 }}>HIDDEN POTENTIAL</div>
+                <div style={{ fontSize: 12, color: P.text, lineHeight: 1.7,
+                  fontFamily: "'Noto Serif JP', serif" }}>{hidden_potential}</div>
+              </div>
+            )}
+          </div>
+
+          {/* ── ロードマップ ── */}
+          {(roadmap.now || roadmap.year1 || roadmap.year3 || roadmap.year10) && (
+            <div style={{ padding: '0 20px 20px', borderTop: `1px solid ${P.border}`, paddingTop: 20 }}>
+              <SectionHeader title="才覚発動ロードマップ" sub="ACTIVATION ROADMAP" />
+              {roadmap.now   && <RoadmapRow period="NOW"   text={roadmap.now} />}
+              {roadmap.year1 && <RoadmapRow period="1Y"    text={roadmap.year1} />}
+              {roadmap.year3 && <RoadmapRow period="3Y"    text={roadmap.year3} />}
+              {roadmap.year10 && <RoadmapRow period="10Y"  text={roadmap.year10} />}
+            </div>
+          )}
+
+          {/* ── コーチングキー質問 ── */}
+          {coaching_questions.length > 0 && (
+            <div style={{ padding: '0 20px 24px', borderTop: `1px solid ${P.border}`, paddingTop: 20 }}>
+              <SectionHeader title="コーチングキー質問" sub="COACHING KEY QUESTIONS" />
+              {coaching_questions.map((q, i) => (
+                <div key={i} style={{
+                  display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-start',
+                }}>
+                  <div style={{
+                    minWidth: 22, height: 22, background: `${P.gold}22`,
+                    borderRadius: '50%', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontSize: 11, fontWeight: 700, color: P.gold,
+                    flexShrink: 0, fontFamily: "'Outfit', sans-serif",
+                  }}>{i + 1}</div>
+                  <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
+                    fontFamily: "'Noto Serif JP', serif" }}>{q}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
