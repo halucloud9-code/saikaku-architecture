@@ -153,15 +153,6 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
 
     ctx.clearRect(0, 0, W, H);
 
-    // === ×型クロスライン ===
-    ctx.save();
-    ctx.globalAlpha = 0.07 * ep;
-    ctx.strokeStyle = `rgba(42,37,32,0.6)`;
-    ctx.lineWidth = 0.8;
-    ctx.beginPath(); ctx.moveTo(cx - R * 1.3, cy - R * 1.3); ctx.lineTo(cx + R * 1.3, cy + R * 1.3); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx + R * 1.3, cy - R * 1.3); ctx.lineTo(cx - R * 1.3, cy + R * 1.3); ctx.stroke();
-    ctx.restore();
-
     // === 花びらグリッドリング（グループ別弧）===
     [0.25, 0.5, 0.75, 1.0].forEach((p, ri) => {
       const gr = R * p * ep;
@@ -457,32 +448,6 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         ctx.fillText(points[i].jp, lx + nudge, ly + 5);
       }
     }
-
-    // === 軸漢字ラベル（花びら中心方向 = 4方位の外端）===
-    // PETAL_CENTERS[gi] = -π/2(上), 0(右), π/2(下), π(左) を使用
-    // → getAngle(ai*4+2) 不使用：被りの根本原因だったため廃止
-    const kanjiR = Math.min(R + 82, Math.min(W / 2, H / 2) - 16);
-    AXIS_META.forEach((axis, gi) => {
-      const midAngle = PETAL_CENTERS[gi]; // 4方位: 上/右/下/左
-      const targetX = cx + Math.cos(midAngle) * kanjiR;
-      const targetY = cy + Math.sin(midAngle) * kanjiR;
-      const kx = targetX * ep + cx * (1 - ep);
-      const ky = targetY * ep + cy * (1 - ep);
-      const c = axis.color;
-
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // 漢字（軸色、Noto Serif JP）
-      ctx.font = '800 24px "Noto Serif JP", serif';
-      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.75 + breath * 0.12})`;
-      ctx.fillText(axis.kanji, kx, ky - 5);
-
-      // English sublabel
-      ctx.font = '600 8px "DM Sans", sans-serif';
-      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.45)`;
-      ctx.fillText(axis.en.toUpperCase(), kx, ky + 12);
-    });
 
     // === センター（白丸 + ゴールドリング）===
     const centerR = 32 + breath * 3;
