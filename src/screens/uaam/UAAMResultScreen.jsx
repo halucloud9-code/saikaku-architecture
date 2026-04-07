@@ -1656,7 +1656,8 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             )}
 
             {/* 才覚×UAAM 統合発動分析 */}
-            {analysis.saikaku_integration ? (
+            {/* integration_score があれば新形式（McKinsey級）、なければ旧形式 or 未生成 */}
+            {analysis.saikaku_integration?.integration_score !== undefined ? (
               <div style={{ marginBottom: 20, borderRadius: 16, overflow: 'hidden',
                 boxShadow: '0 2px 12px rgba(0,0,0,0.10)', border: `1px solid #E8E0D4` }}>
                 <SaikakuIntegration integration={analysis.saikaku_integration} />
