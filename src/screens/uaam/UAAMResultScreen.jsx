@@ -1498,7 +1498,7 @@ function RadarChart16({ scores }) {
 /* ============================================================
  * メインコンポーネント
  * ============================================================ */
-export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
+export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
   const { scores, vAnswers, answers } = result;
   // 統合分析は state で管理（バックフィル後に更新できるように）
   const [analysis, setAnalysis] = useState(result.analysis || null);
@@ -1582,8 +1582,9 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
                   });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error);
-                  alert('✅ ' + data.message + '\nページを再読み込みしてください');
-                  window.location.reload();
+                  // React stateを直接更新（リロード不要）
+                  if (onScoresRestored && data.scores) onScoresRestored(data.scores);
+                  alert('✅ ' + data.message);
                 } catch (e) {
                   alert('❌ ' + e.message);
                 }

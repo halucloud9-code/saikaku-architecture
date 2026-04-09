@@ -263,6 +263,19 @@ export default function App() {
     setScreen('login');
   };
 
+  // 管理者スコア復元：APIレスポンスのスコアでReact stateを直接更新（リロード不要）
+  const handleScoresRestored = (newScores) => {
+    const withDomain = {};
+    ['mindset', 'literacy', 'competency', 'impact'].forEach((k) => {
+      withDomain[k] = {
+        ...newScores[k],
+        domainSubs: newScores[k].subs,
+        domainTotal: newScores[k].total,
+      };
+    });
+    setUaamResult((prev) => ({ ...prev, scores: withDomain }));
+  };
+
   const isAdmin = user && ADMIN_EMAILS.includes(user.email);
 
   if (authLoading) {
@@ -332,6 +345,7 @@ export default function App() {
         onReset={() => { setUaamResult(null); setScreen('uaam'); }}
         onAdmin={() => setScreen('admin')}
         onLogout={handleLogout}
+        onScoresRestored={handleScoresRestored}
       />
     );
   }
