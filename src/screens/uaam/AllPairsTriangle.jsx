@@ -1089,7 +1089,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                         color: zc,
                         letterSpacing: '0.04em',
                       }}>
-                        ▾ タップして才覚グリフォンを確認
+                        click! GRIFFON CODE
                       </div>
                     )}
                   </div>
