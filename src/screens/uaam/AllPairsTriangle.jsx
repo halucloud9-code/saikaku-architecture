@@ -49,7 +49,7 @@ export const ZONE_HEX = {
   potential: '#E07830',   // オレンジ：両才覚10以上合計22以上（左）
   dormant:   '#5A7A8A',   // 無色（非表示）
 };
-export const ZONE_LABEL = { natural:'NATURAL ✦', pro:'PRO', active:'ACTIVE', potential:'POTENTIAL', dormant:'—' };
+export const ZONE_LABEL = { natural:'NATURAL ✦', pro:'PRO', active:'ACTIVE', potential:'POTENTIAL', dormant:'DORMANT' };
 
 // 10ブロック固有カラー（セルの色相を決定）
 const BLOCK_HEX = {
@@ -906,7 +906,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 右上三角（j > i）: shownRightSet に含まれるペアのみ表示 ──
+                  // ── 右上三角（j > i）: 全セルhover対応（空白セルも説明表示）──
                   if (j > i) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
@@ -917,17 +917,17 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
                         background: bg, borderRadius: 3,
-                        cursor: show ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         transition: 'transform 0.12s',
                       }}
-                        onMouseEnter={show ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: rowKey, kB: colKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
-                        onMouseMove={show ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
-                        onMouseLeave={show ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: rowKey, kB: colKey, z, sA, sB, x: e.clientX, y: e.clientY }); }}
+                        onMouseMove={e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
                       />
                     );
                   }
 
-                  // ── 左下三角（j < i）: 全ゾーン表示（dormant=スコア表示）──
+                  // ── 左下三角（j < i）: 全ゾーン表示（dormantも hover説明あり）──
                   if (j < i) {
                     const sA = smap[colKey], sB = smap[rowKey];
                     const z  = getZone(sA, sB);
@@ -939,13 +939,13 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                       <div key={colKey} style={{
                         width: SCELL, height: SCELL, marginRight: SGAP, flexShrink: 0,
                         background: bg, borderRadius: 3,
-                        cursor: !isDormant ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         transition: 'transform 0.12s',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}
-                        onMouseEnter={!isDormant ? e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); } : undefined}
-                        onMouseMove={!isDormant ? e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null) : undefined}
-                        onMouseLeave={!isDormant ? e => { e.currentTarget.style.transform = 'none'; setTip(null); } : undefined}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: colKey, kB: rowKey, z, sA, sB, x: e.clientX, y: e.clientY }); }}
+                        onMouseMove={e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
                       >
                         {isDormant && (
                           <span style={{ fontSize: 6, color: 'rgba(160,152,136,0.45)', fontFamily: "'Outfit', sans-serif", lineHeight: 1, userSelect: 'none' }}>
@@ -1108,9 +1108,15 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
               fontSize: 11, fontWeight: 700,
             }}>{ZONE_LABEL[tip.z]}</div>
             <div style={{ color: '#555', fontSize: 12, lineHeight: 1.8 }}>
-              <div>{tip.sA} + {tip.sB} = <span style={{ color: zc, fontWeight: 800, fontSize: 14 }}>{tip.sA + tip.sB}</span></div>
+              <div>{tip.sA} + {tip.sB} = <span style={{ color: tip.z === 'dormant' ? '#A09080' : zc, fontWeight: 800, fontSize: 14 }}>{tip.sA + tip.sB}</span></div>
               {blk && <div style={{ color: '#AAA', fontSize: 11 }}>{blk.name} / {blk.jp}</div>}
-              {pairDef(tip.kA, tip.kB) && (
+              {tip.z === 'dormant' && (
+                <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #F0EAE0', color: '#888', fontSize: 11, lineHeight: 1.6 }}>
+                  この組み合わせは現在未発動の状態です。<br />
+                  {SUB_JP[tip.kA]}・{SUB_JP[tip.kB]}のどちらか、または両方のスコアが低い水準にあります。意識的に鍛えることで発動できる潜在領域です。
+                </div>
+              )}
+              {tip.z !== 'dormant' && pairDef(tip.kA, tip.kB) && (
                 <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #F0EAE0', color: '#444', fontSize: 11, lineHeight: 1.5 }}>
                   {pairDef(tip.kA, tip.kB)}
                 </div>
