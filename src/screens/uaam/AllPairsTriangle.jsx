@@ -1060,14 +1060,36 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                             );
                           })}
                         </div>
-                        <div style={{ fontSize: 9, color: '#CCBBAA', marginTop: 10, textAlign: 'right', letterSpacing: '0.02em' }}>
-                          タップで閉じる ▴
+                        <div style={{
+                          marginTop: 10,
+                          width: '100%',
+                          padding: '6px 0',
+                          background: '#00000008',
+                          border: '1px dashed #CCBBAA',
+                          borderRadius: 8,
+                          textAlign: 'center',
+                          fontSize: 11, fontWeight: 700,
+                          color: '#A09888',
+                          letterSpacing: '0.04em',
+                        }}>
+                          ▴ 閉じる
                         </div>
                       </div>
                     )}
                     {!isExpanded && (
-                      <div style={{ fontSize: 9, color: zc + '99', letterSpacing: '0.03em', fontWeight: 600 }}>
-                        タップで表示 ▾
+                      <div style={{
+                        marginTop: 8,
+                        width: '100%',
+                        padding: '7px 0',
+                        background: zc + '18',
+                        border: `1px dashed ${zc}66`,
+                        borderRadius: 8,
+                        textAlign: 'center',
+                        fontSize: 11, fontWeight: 700,
+                        color: zc,
+                        letterSpacing: '0.04em',
+                      }}>
+                        ▾ タップして才覚グリフォンを確認
                       </div>
                     )}
                   </div>
