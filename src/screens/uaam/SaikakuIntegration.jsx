@@ -77,27 +77,27 @@ function ZoneCard({ zone, type }) {
         </span>
         <span style={{ fontSize: 11, color: P.muted, marginLeft: 'auto',
           fontFamily: "'Outfit', sans-serif" }}>
-          {zone.axis_uaam && `${axisLabel(zone.axis_uaam)} × ${saikakuLabel(zone.axis_saikaku)}`}
+          {zone.axis_uaam && zone.axis_saikaku && `${axisLabel(zone.axis_uaam)} × ${saikakuLabel(zone.axis_saikaku)}`}
         </span>
       </div>
       <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginBottom: 4,
-        fontFamily: "'Noto Serif JP', serif" }}>{zone.label}</div>
+        fontFamily: "'Noto Serif JP', serif" }}>{toJP(zone.label)}</div>
 
       {type === 'ignition' && zone.insight && (
         <div style={{ fontSize: 12, color: P.text, lineHeight: 1.7, opacity: 0.82,
-          fontFamily: "'Noto Serif JP', serif" }}>{zone.insight}</div>
+          fontFamily: "'Noto Serif JP', serif" }}>{toJP(zone.insight)}</div>
       )}
       {type === 'latent' && (
         <>
           {zone.potential && (
             <div style={{ fontSize: 12, color: P.text, lineHeight: 1.7, opacity: 0.82,
-              fontFamily: "'Noto Serif JP', serif" }}>{zone.potential}</div>
+              fontFamily: "'Noto Serif JP', serif" }}>{toJP(zone.potential)}</div>
           )}
           {zone.action && (
             <div style={{ marginTop: 6, padding: '6px 10px', background: `${meta.color}15`,
               borderRadius: 6, fontSize: 11, color: meta.color, fontWeight: 600,
               fontFamily: "'Noto Serif JP', serif" }}>
-              → {zone.action}
+              → {toJP(zone.action)}
             </div>
           )}
         </>
@@ -106,13 +106,13 @@ function ZoneCard({ zone, type }) {
         <>
           {zone.warning && (
             <div style={{ fontSize: 12, color: '#7D6608', lineHeight: 1.7,
-              fontFamily: "'Noto Serif JP', serif" }}>{zone.warning}</div>
+              fontFamily: "'Noto Serif JP', serif" }}>{toJP(zone.warning)}</div>
           )}
           {zone.reframe && (
             <div style={{ marginTop: 6, padding: '6px 10px', background: `${meta.color}15`,
               borderRadius: 6, fontSize: 11, color: meta.color, fontWeight: 600,
               fontFamily: "'Noto Serif JP', serif" }}>
-              ↺ {zone.reframe}
+              ↺ {toJP(zone.reframe)}
             </div>
           )}
         </>
@@ -129,7 +129,7 @@ function RoadmapRow({ period, text }) {
         fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0,
         fontFamily: "'Outfit', sans-serif" }}>{period}</div>
       <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 2,
-        fontFamily: "'Noto Serif JP', serif" }}>{text}</div>
+        fontFamily: "'Noto Serif JP', serif" }}>{toJP(text)}</div>
     </div>
   );
 }
@@ -147,10 +147,25 @@ function SectionHeader({ title, sub }) {
 
 /* ── ラベルヘルパー ─────────────────── */
 function axisLabel(axis) {
-  return { mindset: '志', literacy: '知', competency: '技', impact: '衝' }[axis] || axis;
+  return { mindset: '志', literacy: '知', competency: '技', impact: '衝' }[axis] || axis || '';
 }
 function saikakuLabel(axis) {
-  return { WHY: '価値観(WHY)', HOW: '才能(HOW)', WHAT: '情熱(WHAT)' }[axis] || axis;
+  return { WHY: '価値観(WHY)', HOW: '才能(HOW)', WHAT: '情熱(WHAT)' }[axis] || axis || '';
+}
+
+// 既存の分析テキスト内の英語才覚名を日本語に置換
+const EN_TO_JP = {
+  Meaning: '基軸力', Mindfulness: '認知力', Mindshift: '転換力', Mastery: '熟達力',
+  Learning: '謙学力', Logical: '論理力',    Life: '活用力',     Leadership: '統率力',
+  Critical: '本質力', Creativity: '創造力', Communication: '伝達力', Collaboration: '協働力',
+  Idea: '構想力',    Innovation: '変革力',  Implementation: '実装力', Influence: '影響力',
+};
+function toJP(text) {
+  if (!text || typeof text !== 'string') return text;
+  return Object.entries(EN_TO_JP).reduce(
+    (s, [en, jp]) => s.replace(new RegExp(en, 'g'), jp),
+    text
+  );
 }
 
 /* ── メインコンポーネント ────────────── */
@@ -217,7 +232,7 @@ export default function SaikakuIntegration({ integration }) {
           <div style={{ fontSize: 9, color: P.goldDim, fontWeight: 700, letterSpacing: '0.15em',
             fontFamily: "'Outfit', sans-serif", marginBottom: 3 }}>ACTIVATION CORE</div>
           <div style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.04em',
-            fontFamily: "'Noto Serif JP', serif" }}>{activation_core}</div>
+            fontFamily: "'Noto Serif JP', serif" }}>{toJP(activation_core)}</div>
         </div>
 
         {/* 発動方程式 */}
@@ -225,7 +240,7 @@ export default function SaikakuIntegration({ integration }) {
           <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.7)',
             lineHeight: 1.65, fontFamily: "'Noto Serif JP', serif",
             fontStyle: 'italic' }}>
-            「{activation_equation}」
+            「{toJP(activation_equation)}」
           </div>
         )}
       </div>
@@ -249,7 +264,7 @@ export default function SaikakuIntegration({ integration }) {
                   HIGHEST LEVERAGE — 今すぐの一手
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: P.text,
-                  fontFamily: "'Noto Serif JP', serif" }}>{leverage_point}</div>
+                  fontFamily: "'Noto Serif JP', serif" }}>{toJP(leverage_point)}</div>
               </div>
             </div>
           )}
@@ -275,7 +290,7 @@ export default function SaikakuIntegration({ integration }) {
               <SectionHeader title="使命の方向性" sub="MISSION DIRECTION" />
               <div style={{ fontSize: 13, color: P.text, lineHeight: 1.85,
                 fontFamily: "'Noto Serif JP', serif", whiteSpace: 'pre-line' }}>
-                {mission_direction}
+                {toJP(mission_direction)}
               </div>
             </div>
           )}
@@ -288,7 +303,7 @@ export default function SaikakuIntegration({ integration }) {
                 <div style={{ fontSize: 9, color: P.ignition, fontWeight: 700, letterSpacing: '0.12em',
                   fontFamily: "'Outfit', sans-serif", marginBottom: 6 }}>FLOW ROUTE</div>
                 <div style={{ fontSize: 12, color: P.text, lineHeight: 1.7,
-                  fontFamily: "'Noto Serif JP', serif" }}>{flow_route}</div>
+                  fontFamily: "'Noto Serif JP', serif" }}>{toJP(flow_route)}</div>
               </div>
             )}
             {hidden_potential && (
@@ -297,7 +312,7 @@ export default function SaikakuIntegration({ integration }) {
                 <div style={{ fontSize: 9, color: P.latent, fontWeight: 700, letterSpacing: '0.12em',
                   fontFamily: "'Outfit', sans-serif", marginBottom: 6 }}>HIDDEN POTENTIAL</div>
                 <div style={{ fontSize: 12, color: P.text, lineHeight: 1.7,
-                  fontFamily: "'Noto Serif JP', serif" }}>{hidden_potential}</div>
+                  fontFamily: "'Noto Serif JP', serif" }}>{toJP(hidden_potential)}</div>
               </div>
             )}
           </div>
@@ -328,7 +343,7 @@ export default function SaikakuIntegration({ integration }) {
                     flexShrink: 0, fontFamily: "'Outfit', sans-serif",
                   }}>{i + 1}</div>
                   <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
-                    fontFamily: "'Noto Serif JP', serif" }}>{q}</div>
+                    fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
                 </div>
               ))}
             </div>

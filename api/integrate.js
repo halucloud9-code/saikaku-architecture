@@ -145,7 +145,17 @@ export default async function handler(req, res) {
     passion_top5: sd.inputPassionTop5 || sd.inputPassion || '',
   };
 
+  // 16才覚の日本語名マッピング（AIが英語名を使わないよう日本語で渡す）
+  const SUB_JP = {
+    meaning:'基軸力', mindfulness:'認知力', mindshift:'転換力', mastery:'熟達力',
+    learning:'謙学力', logical:'論理力',    life:'活用力',     leadership:'統率力',
+    critical:'本質力', creativity:'創造力', communication:'伝達力', collaboration:'協働力',
+    idea:'構想力',    innovation:'変革力',  implementation:'実装力', influence:'影響力',
+  };
+  const subStr = (subs) => Object.entries(subs||{}).map(([k,v])=>`${SUB_JP[k]||k}:${v}`).join(', ');
+
   const integrationMsg = `以下の2つのデータを統合して分析してください。
+※ 16才覚の能力名は必ず日本語（基軸力・認知力・転換力・熟達力・謙学力・論理力・活用力・統率力・本質力・創造力・伝達力・協働力・構想力・変革力・実装力・影響力）で記述すること。英語名（Meaning, Critical等）は絶対に使わないこと。
 
 ━━━ 才覚領域データ（アイデンティティ）━━━
 才覚領域: ${saikakuData.kakuchiiki}
@@ -158,10 +168,10 @@ export default async function handler(req, res) {
 才覚インサイト: ${saikakuData.insight}
 
 ━━━ UAAM才覚発動スコア（ケイパビリティ）━━━
-志(MindSet):    ${scores.mindset?.percentage}%  [${Object.entries(scores.mindset?.subs||{}).map(([k,v])=>`${k}:${v}`).join(', ')}]
-知(Literacy):   ${scores.literacy?.percentage}% [${Object.entries(scores.literacy?.subs||{}).map(([k,v])=>`${k}:${v}`).join(', ')}]
-技(Competency): ${scores.competency?.percentage}%[${Object.entries(scores.competency?.subs||{}).map(([k,v])=>`${k}:${v}`).join(', ')}]
-衝(Impact):     ${scores.impact?.percentage}%   [${Object.entries(scores.impact?.subs||{}).map(([k,v])=>`${k}:${v}`).join(', ')}]
+志(MindSet):    ${scores.mindset?.percentage}%  [${subStr(scores.mindset?.subs)}]
+知(Literacy):   ${scores.literacy?.percentage}% [${subStr(scores.literacy?.subs)}]
+技(Competency): ${scores.competency?.percentage}%[${subStr(scores.competency?.subs)}]
+衝(Impact):     ${scores.impact?.percentage}%   [${subStr(scores.impact?.subs)}]
 
 才覚発動タイプ: ${ud.analysis?.type_name || ''}
 ナラティブ: ${ud.analysis?.narrative || ''}`;
