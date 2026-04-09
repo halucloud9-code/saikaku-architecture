@@ -11,6 +11,9 @@
     },
     "api/integrate.js": {
       "maxDuration": 120
+    },
+    "api/admin/restore-scores.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

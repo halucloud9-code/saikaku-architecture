@@ -1565,10 +1565,34 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {isAdmin && (
-            <button onClick={onAdmin} style={{
-              padding: '6px 12px', borderRadius: 6, border: `1px solid ${BORDER}`,
-              background: 'transparent', color: TEXT_SECONDARY, fontSize: 12, cursor: 'pointer',
-            }}>管理画面</button>
+            <>
+              <button onClick={onAdmin} style={{
+                padding: '6px 12px', borderRadius: 6, border: `1px solid ${BORDER}`,
+                background: 'transparent', color: TEXT_SECONDARY, fontSize: 12, cursor: 'pointer',
+              }}>管理画面</button>
+              <button onClick={async () => {
+                if (!confirm('2026/4/4の正しいスコアに復元しますか？')) return;
+                try {
+                  const { getAuth } = await import('firebase/auth');
+                  const idToken = await getAuth().currentUser?.getIdToken();
+                  const res = await fetch('/api/admin/restore-scores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error);
+                  alert('✅ ' + data.message + '\nページを再読み込みしてください');
+                  window.location.reload();
+                } catch (e) {
+                  alert('❌ ' + e.message);
+                }
+              }} style={{
+                padding: '6px 12px', borderRadius: 6,
+                border: `1px solid #C4922A`,
+                background: 'transparent', color: '#C4922A', fontSize: 11, cursor: 'pointer',
+              }}>スコア復元</button>
+            </>
           )}
           {user.photoURL && (
             <img src={user.photoURL} alt={user.displayName}
