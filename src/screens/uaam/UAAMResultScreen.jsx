@@ -1349,17 +1349,12 @@ function RadarChart16({ scores }) {
       // 日本語ラベル（太め、白）
       ctx.font = 'bold 14px "Noto Serif JP", serif';
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(axes[i].jp, lx + nudgeX, ly - 11);
+      ctx.fillText(axes[i].jp, lx + nudgeX, ly - 8);
 
-      // 英語ラベル（グループカラー）
-      ctx.font = '600 10px "SF Mono", Consolas, monospace';
+      // スコア数字（大きく、グループカラー、太字）
+      ctx.font = 'bold 15px "DM Sans", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = GC[grp].stroke;
-      ctx.fillText(axes[i].en, lx + nudgeX, ly + 4);
-
-      // スコア数字（大きく、白、太字）
-      ctx.font = 'bold 16px "DM Sans", "Helvetica Neue", Arial, sans-serif';
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(score + '', lx + nudgeX, ly + 22);
+      ctx.fillText(score + '', lx + nudgeX, ly + 12);
 
       ctx.restore();
     }

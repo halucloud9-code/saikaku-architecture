@@ -705,7 +705,6 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div>
               <span style={{ fontSize: 16, fontWeight: 700, color: activePoint.hex }}>{activePoint.jp}</span>
-              <span style={{ fontSize: 11, color: PALETTE.textSub, marginLeft: 8 }}>{activePoint.label}</span>
             </div>
             <div style={{ fontFamily: NUM_FONT, fontSize: 26, fontWeight: 800, color: PALETTE.text }}>
               {activePoint.pct}<span style={{ fontSize: 13, fontWeight: 400, color: PALETTE.textSub }}>%</span>
@@ -962,7 +961,6 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
               <span style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800, color: PALETTE.border, width: 18, textAlign: 'center' }}>{14 + i}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 400, color: PALETTE.textSub, fontFamily: "'Noto Serif JP', serif" }}>{p.jp}</div>
-                <div style={{ fontSize: 8, color: PALETTE.border, marginTop: 1 }}>{p.label}</div>
               </div>
               <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 600, color: PALETTE.textSub }}>
                 {p.pct}<span style={{ fontSize: 9, fontWeight: 400, color: PALETTE.border }}>%</span>
