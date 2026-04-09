@@ -483,8 +483,14 @@ function ZoneWindow({ zoneDef, subs }) {
 
       {/* 折りたたみヒント */}
       {has && !open && (
-        <div style={{ fontSize: 9, color: color + '99', letterSpacing: '0.03em', fontWeight: 600 }}>
-          タップで表示 ▾
+        <div style={{
+          fontSize: 10, fontWeight: 800, color: color,
+          letterSpacing: '0.06em', marginTop: 4,
+          border: `1.5px solid ${color}55`,
+          borderRadius: 6, padding: '4px 8px',
+          textAlign: 'center', background: color + '10',
+        }}>
+          click! GRIFFON CODE
         </div>
       )}
 
