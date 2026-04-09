@@ -81,7 +81,7 @@ const TEXT_SECONDARY = '#333333';
 const TEXT_MUTED     = '#666666';
 
 // mode: "top"    = TypeBadgeのみ（名前 + Activation Type）
-//       "bottom"  = ✅現在発動している才覚 + 🔑次に動かす力
+//       "bottom"  = ✅現在発動している「才覚」 + 🔑次に動かす力
 //       "all"     = すべて（デフォルト互換）
 export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all', vAnswers }) {
   if (!scores) return null;
@@ -144,7 +144,7 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
           <span style={{
             fontSize: 15, fontWeight: 700, color: ACCENT_GOLD,
             fontFamily: "'Noto Serif JP', serif", letterSpacing: '0.03em',
-          }}>現在発動している才覚</span>
+          }}>現在発動している「才覚」</span>
           <span style={{
             fontSize: 10, color: ACCENT_GOLD, marginLeft: 'auto', fontWeight: 700,
             background: ACCENT_GOLD + '18', padding: '2px 8px', borderRadius: 9999,
@@ -166,7 +166,7 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
         <PanelSection
           emoji="✅"
-          title="現在発動している才覚"
+          title="現在発動している「才覚」"
           items={active}
           accentColor={ACCENT_GOLD}
         />
@@ -189,7 +189,7 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
       <TypeBadge type={type} userName={userName} />
       <PanelSection
         emoji="✅"
-        title="現在発動している才覚"
+        title="現在発動している「才覚」"
         items={active}
         accentColor={ACCENT_GOLD}
       />
@@ -395,7 +395,7 @@ function _scoreTier(score) {
   return 'edge';
 }
 
-/* ── ゾーン窓（現在発動している才覚 / active-only） ── */
+/* ── ゾーン窓（現在発動している「才覚」 / active-only） ── */
 function ZoneWindow({ zoneDef, subs }) {
   const [open, setOpen] = useState(false);
   const { label, range, color } = zoneDef;
