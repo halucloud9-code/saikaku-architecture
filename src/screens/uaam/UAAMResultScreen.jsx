@@ -1638,39 +1638,40 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         {/* ===== AI分析 ===== */}
         {analysis && (
           <>
-            {/* 軸別分析 */}
-            <Section>
-              <SectionHeader title="AI 分析レポート" subtitle="AI Analysis — 志知技衝 総合スコアに基づく分析" />
-
-              {analysis.axis_analysis && Object.entries(analysis.axis_analysis).map(([key, text]) => {
-                const ax = UAAM_AXES.find(a => a.key === key);
-                if (!ax) return null;
-                const clr = AXIS_COLORS[key];
-                return (
-                  <div key={key} style={{
-                    borderLeft: `3px solid ${clr}`,
-                    padding: '14px 18px',
-                    marginBottom: 14,
-                    background: `${clr}06`,
-                    borderRadius: '0 8px 8px 0',
-                  }}>
-                    <div style={{
-                      fontSize: 14, fontWeight: 700, color: clr, marginBottom: 6,
-                      display: 'flex', alignItems: 'center', gap: 6,
+            {/* 軸別分析 — axis_analysis に内容がある場合のみ表示 */}
+            {analysis.axis_analysis && Object.keys(analysis.axis_analysis).length > 0 && (
+              <Section>
+                <SectionHeader title="AI 分析レポート" subtitle="AI Analysis — 志知技衝 総合スコアに基づく分析" />
+                {Object.entries(analysis.axis_analysis).map(([key, text]) => {
+                  const ax = UAAM_AXES.find(a => a.key === key);
+                  if (!ax) return null;
+                  const clr = AXIS_COLORS[key];
+                  return (
+                    <div key={key} style={{
+                      borderLeft: `3px solid ${clr}`,
+                      padding: '14px 18px',
+                      marginBottom: 14,
+                      background: `${clr}06`,
+                      borderRadius: '0 8px 8px 0',
                     }}>
-                      <span style={{
-                        fontFamily: "'Noto Serif JP', serif",
-                        fontSize: 16,
-                      }}>{ax.label}</span>
-                      {ax.english}
+                      <div style={{
+                        fontSize: 14, fontWeight: 700, color: clr, marginBottom: 6,
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}>
+                        <span style={{
+                          fontFamily: "'Noto Serif JP', serif",
+                          fontSize: 16,
+                        }}>{ax.label}</span>
+                        {ax.english}
+                      </div>
+                      <p style={{
+                        fontSize: 14, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.9,
+                      }}>{text}</p>
                     </div>
-                    <p style={{
-                      fontSize: 14, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.9,
-                    }}>{text}</p>
-                  </div>
-                );
-              })}
-            </Section>
+                  );
+                })}
+              </Section>
+            )}
 
 
             {/* 才覚×UAAM 統合発動分析 */}
