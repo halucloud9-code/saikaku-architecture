@@ -211,6 +211,20 @@ function TypeBadge({ type, userName, vAnswers }) {
   const mainColor = mainBlock?.color || '#8B35C8';
   const subColor  = subBlock?.color  || '#888';
 
+  // V問フラグ生成
+  const vFlags = vAnswers ? getVFlags(vAnswers).flags : null;
+  const dot = (id) => {
+    if (!vFlags) return null;
+    const f = vFlags[id];
+    const color = f === 'critical' ? '#A84432' : f === 'warning' ? '#C4922A' : '#D4C9B0';
+    return (
+      <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+        <div style={{ width: 5, height: 5, borderRadius: '50%', background: color, opacity: f === 'none' ? 0.4 : 1 }} />
+        <div style={{ fontSize: 7, color, fontWeight: 600, lineHeight: 1, opacity: f === 'none' ? 0.4 : 0.8 }}>{id}</div>
+      </div>
+    );
+  };
+
   return (
     <div style={{
       marginBottom: 24,
@@ -220,100 +234,70 @@ function TypeBadge({ type, userName, vAnswers }) {
       border: `1px solid ${mainColor}30`,
       borderTop: `3px solid ${mainColor}`,
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '0 20px',
     }}>
-      {/* 名前 + UAAM ラベル */}
-      {userName && (
-        <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{
-            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
-            fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
-          }}>Universal Ability Assessment Model</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      {/* ── 左カラム ── */}
+      <div>
+        {/* 名前 + UAAM ラベル */}
+        {userName && (
+          <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${BORDER}` }}>
             <div style={{
-              fontFamily: "'Noto Serif JP', Georgia, serif",
-              fontSize: 20, fontWeight: 700, color: TEXT_PRIMARY,
-            }}>{userName}</div>
-            {/* V1/V2/V3 フラグ（名前の右端） */}
-            {vAnswers && (() => {
-              const { flags } = getVFlags(vAnswers);
-              const dot = (id) => {
-                const f = flags[id];
-                const color = f === 'critical' ? '#A84432' : f === 'warning' ? '#C4922A' : '#D4C9B0';
-                return (
-                  <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                    <div style={{
-                      width: 5, height: 5, borderRadius: '50%',
-                      background: color, opacity: f === 'none' ? 0.4 : 1,
-                    }} />
-                    <div style={{ fontSize: 7, color, fontWeight: 600, letterSpacing: 0, lineHeight: 1, opacity: f === 'none' ? 0.4 : 0.8 }}>
-                      {id}
-                    </div>
-                  </div>
-                );
-              };
-              return (
+              fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+              fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
+            }}>Universal Ability Assessment Model</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{
+                fontFamily: "'Noto Serif JP', Georgia, serif",
+                fontSize: 20, fontWeight: 700, color: TEXT_PRIMARY,
+              }}>{userName}</div>
+              {vFlags && (
                 <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                   {dot('V1')}{dot('V2')}{dot('V3')}
                 </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-      {/* Activation Type ラベル */}
-      <div style={{
-        fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
-        marginBottom: 10, fontWeight: 700, textTransform: 'uppercase',
-      }}>Activation Type</div>
-
-      {/* メイン × サブ */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        {/* メインタイプ */}
-        <div>
-          <div style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-            color: mainColor, marginBottom: 2,
-          }}>{type.main}</div>
-          <div style={{
-            fontSize: 22, fontWeight: 800, color: TEXT_PRIMARY,
-            fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1,
-          }}>{TYPE_JP[type.main] || type.main}</div>
-          <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
-            {mainBlock?.jp}
-          </div>
-        </div>
-
-        {/* × 区切り */}
-        {subBlock && (
-          <div style={{ fontSize: 20, color: '#CCBBAA', fontWeight: 300, lineHeight: 1 }}>×</div>
-        )}
-
-        {/* サブタイプ */}
-        {subBlock && (
-          <div>
-            <div style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-              color: subColor, marginBottom: 2,
-            }}>{type.sub}</div>
-            <div style={{
-              fontSize: 18, fontWeight: 700, color: TEXT_SECONDARY,
-              fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1,
-            }}>{TYPE_JP[type.sub] || type.sub}</div>
-            <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
-              {subBlock.jp}
+              )}
             </div>
           </div>
         )}
+
+        {/* Activation Type ラベル */}
+        <div style={{
+          fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+          marginBottom: 10, fontWeight: 700, textTransform: 'uppercase',
+        }}>Activation Type</div>
+
+        {/* メイン × サブ */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: mainColor, marginBottom: 2 }}>{type.main}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_PRIMARY, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1 }}>{TYPE_JP[type.main] || type.main}</div>
+            <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{mainBlock?.jp}</div>
+          </div>
+          {subBlock && <div style={{ fontSize: 20, color: '#CCBBAA', fontWeight: 300, lineHeight: 1 }}>×</div>}
+          {subBlock && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: subColor, marginBottom: 2 }}>{type.sub}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_SECONDARY, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1 }}>{TYPE_JP[type.sub] || type.sub}</div>
+              <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{subBlock.jp}</div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* タイプ説明 */}
-      <p style={{
-        fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.8,
-        margin: '12px 0 0', paddingTop: 10,
-        borderTop: `1px solid ${BORDER}`,
+      {/* ── 右カラム：タイプ説明 ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        borderLeft: `1px solid ${BORDER}`,
+        paddingLeft: 20,
       }}>
-        {TYPE_DESC[type.main] || ''}
-      </p>
+        <p style={{
+          fontSize: 13, color: TEXT_SECONDARY, lineHeight: 1.85,
+          margin: 0, fontFamily: "'Noto Serif JP', serif",
+        }}>
+          {TYPE_DESC[type.main] || ''}
+        </p>
+      </div>
     </div>
   );
 }
