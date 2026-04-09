@@ -967,6 +967,9 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
       {/* ── Top 10 Active Pairs ── ゾーン別ZoneWindowカード */}
       {top10Pairs.length > 0 && (
         <div style={{ marginTop: 20, borderTop: '1px solid #EDEAE4', paddingTop: 16 }}>
+          <div style={{ marginBottom: 4, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: '#7A4A9A', textTransform: 'uppercase' }}>
+            才覚グリフォン &nbsp;|&nbsp; GRIFFON CODE
+          </div>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#AAA', textTransform: 'uppercase', marginBottom: 12 }}>
             Top 10 Active Pairs
           </div>
