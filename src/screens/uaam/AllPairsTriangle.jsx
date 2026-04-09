@@ -824,9 +824,6 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
     }}>
       {/* ── ヘッダー ── */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.14em', color: '#7A4A9A', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
-          Unique Ability Activate Matrix
-        </div>
         <h2 style={{ fontFamily: "'Noto Serif JP', Georgia, serif", fontSize: 20, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
           才覚発動領域Matrix
         </h2>
