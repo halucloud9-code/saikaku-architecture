@@ -490,7 +490,7 @@ function ZoneWindow({ zoneDef, subs }) {
           borderRadius: 6, padding: '4px 8px',
           textAlign: 'center', background: color + '10',
         }}>
-          click! GRIFFON CODE
+          click! Unique Ability
         </div>
       )}
 
