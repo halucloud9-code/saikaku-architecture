@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './lib/firebaseAdmin.js';
+import { validateAndFix } from './lib/validateIntegration.js';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -187,7 +188,12 @@ export default async function handler(req, res) {
       });
       const parsed = parseJsonFromText(message.content[0].text);
       if (!parsed.activation_core || !parsed.activation_equation) throw new Error('統合分析レスポンスが不完全です');
-      integration = parsed;
+      // ── Contract層: 保存前に検証・自動修正 ──
+      const { fixed, errors } = validateAndFix(parsed);
+      if (errors.length > 0) {
+        console.warn(`[integrate][contract] ${uid} 自動修正:`, errors);
+      }
+      integration = fixed;
       break;
     } catch (e) {
       console.error(`[integrate] attempt ${attempt + 1} failed:`, e.message);

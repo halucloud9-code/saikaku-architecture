@@ -5,6 +5,7 @@ import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
 import SaikakuIntegration from './SaikakuIntegration';
+import { normalizeScores } from '../../utils/normalize';
 
 /* ============================================================
  * 定数
@@ -1493,20 +1494,11 @@ function RadarChart16({ scores }) {
 /* ============================================================
  * メインコンポーネント
  * ============================================================ */
-function enrichScores(raw) {
-  if (!raw) return raw;
-  const out = {};
-  ['mindset', 'literacy', 'competency', 'impact'].forEach((k) => {
-    if (!raw[k]) return;
-    out[k] = { ...raw[k], domainSubs: raw[k].subs, domainTotal: raw[k].total };
-  });
-  return out;
-}
-
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
   const { vAnswers, answers } = result;
   // scores はローカル state で管理（復元時に即時反映）
-  const [scores, setScores] = useState(() => enrichScores(result.scores) || result.scores);
+  // normalizeScores が domainSubs/domainTotal を補完する唯一の場所
+  const [scores, setScores] = useState(() => normalizeScores(result.scores) ?? result.scores);
   // 統合分析は state で管理（バックフィル後に更新できるように）
   const [analysis, setAnalysis] = useState(result.analysis || null);
   const [integrating, setIntegrating] = useState(false);
@@ -1591,9 +1583,9 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
                   if (!res.ok) throw new Error(data.error);
                   // ローカルstateを即時更新（リロード不要）
                   if (data.scores) {
-                    const enriched = enrichScores(data.scores);
-                    setScores(enriched);
-                    if (onScoresRestored) onScoresRestored(enriched);
+                    const normalized = normalizeScores(data.scores);
+                    setScores(normalized);
+                    if (onScoresRestored) onScoresRestored(normalized);
                   }
                   alert('✅ ' + data.message);
                 } catch (e) {

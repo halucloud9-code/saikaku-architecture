@@ -12,6 +12,7 @@ import UAAMScreen from './screens/uaam/UAAMScreen';
 import UAAMLoadingScreen from './screens/uaam/UAAMLoadingScreen';
 import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
 import { calculateScores } from './data/uaam_questions';
+import { normalizeScores } from './utils/normalize';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
   .split(',')
@@ -264,16 +265,10 @@ export default function App() {
   };
 
   // 管理者スコア復元：APIレスポンスのスコアでReact stateを直接更新（リロード不要）
+  // normalizeScores が domainSubs/domainTotal を補完する（src/utils/normalize.js に定義）
   const handleScoresRestored = (newScores) => {
-    const withDomain = {};
-    ['mindset', 'literacy', 'competency', 'impact'].forEach((k) => {
-      withDomain[k] = {
-        ...newScores[k],
-        domainSubs: newScores[k].subs,
-        domainTotal: newScores[k].total,
-      };
-    });
-    setUaamResult((prev) => ({ ...prev, scores: withDomain }));
+    const normalized = normalizeScores(newScores);
+    setUaamResult((prev) => ({ ...prev, scores: normalized }));
   };
 
   const isAdmin = user && ADMIN_EMAILS.includes(user.email);

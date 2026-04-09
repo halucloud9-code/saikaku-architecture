@@ -1,71 +1,150 @@
-# HANDOFF — 次スレッドへの引き継ぎ
+# UAAM診断 アーキテクチャマップ
 
-## GitHub最新コミット
-`a0c14ff` — fix: uaam_resultsコレクションのFirestoreルール追加（本人のみ読み書き可）
-
-## push方法
-- /tmp/saikaku-deploy からpush（ローカルの .git/index.lock 問題を回避）
-- tokenは .git/config の remote url に埋め込み済み
-- Vercel: push → 自動ビルド → https://saikaku-architecture.vercel.app
-
-## 🔴 次セッションで最初にやること
-1. `firebase deploy --only firestore:rules` が実行済みか確認（ハルが手動で実行する必要あり）
-2. 次フェーズ「領域専用の質問設計」に着手（4つの才覚発動領域：構想力/統率力/実装力/変革力）
-
-## 2026-04-07 セッションで完了したこと
-
-### バグ修正3件（全pushしてVercelデプロイ済み）
-1. **activation_analysis.js キー不一致修正** (`1646e03`)
-   - LABEL_MAP/BLOCK_MAP/TEMPLATES の先頭キーを修正: mindset→meaning, literacy→learning, competency→critical, impact→idea
-   - ActivationPanel の「? critical」表示バグが解消 → 「技→本質力」と正常表示
-2. **AdminScreen UAAMモーダル追加 + AXIS_METAサブキー修正** (`0273594`)
-   - ローカルにあったUAAMModalコンポーネントをpush
-   - AXIS_META subs配列のキー修正（同じ4キー不一致）
-   - 管理画面: 才覚領域63ユーザー、UAAM2ユーザー読み込み確認、モーダル表示OK
-3. **Firestoreルール追加** (`a0c14ff`)
-   - uaam_resultsコレクションに本人のみ読み書き可のルールを追加
-   - ⚠️ `firebase deploy --only firestore:rules` 未実行（ハルが手動で実行する必要あり）
-
-### 確認タスク（HANDOFF.md「🔴」3項目すべて完了）
-- ✅ ActivationPanel表示確認（saikaku-architecture.vercel.app/?dev=uaam）
-- ✅ AdminScreen → UAAMタブ → ユーザー行クリック → モーダル表示確認
-- ✅ Firestoreルール追加（デプロイは残）
+> **目的**：次に修正するとき、最初にこのファイルを読む。
+> どこを直せばいいかが5秒でわかるように書いてある。
 
 ---
 
-## 前セッションまでの完了事項
+## データフロー全体図
 
-### UAAMResultScreen.jsx
-1. **RadarChart16 startAngle**: `-π/2`（グループは12時スタート。グループラベルは独立固定）
-2. **FOUR_AXES 順番**: `[志, 技, 知, 衝]`（2×2で上段:志技 / 下段:知衝）
-3. **FourAxisGrid のページ位置**: 16軸レーダー直後に移動（タイトル→16軸→4ミニ→SymmetricMatrix→ActivationPanel）
-4. **MiniRadar等スコアの複数ハイライト**: `isTopScore(i) = rawScores[i] === maxScore` 関数で対応済み
+```
+ユーザー回答（67問）
+        │
+        ▼
+  api/uaam.js
+   ├─ calculateScores() ← src/data/uaam_questions.js が唯一の定義
+   ├─ Claude API でanalysis生成
+   └─ Firestore uaam_results/{uid} に保存
+        │
+        ▼
+  Firestore: uaam_results/{uid}
+   ├─ scores:   { mindset, literacy, competency, impact }
+   └─ analysis: { type_name, narrative, saikaku_integration, ... }
+        │
+        ▼
+  App.jsx  ←  loadSavedUaamResult() で読み込み
+   └─ setUaamResult(saved)   ← ← ← ← ← ← ← ← ←
+        │                                        ↑
+        ▼                              handleScoresRestored()
+  UAAMResultScreen.jsx                 normalizeScores() を使う
+   └─ useState(normalizeScores(result.scores))
+        │
+        ├─ ActivationMatrix.jsx  ← scores.domainSubs を直接使う
+        ├─ AllPairsTriangle.jsx  ← scores のraw値を使う
+        └─ SaikakuIntegration.jsx ← analysis.saikaku_integration を受け取る
+```
 
-### ActivationPanel.jsx
-5. **カラー統一**: 白背景カード・左ボーダー4pxのみブロックカラー（志=青/知=緑/技=金/衝=赤）
-6. **セクションヘッダー**: ゴールド系に統一（✅=ACCENT_GOLD / 🔑=濃グレー）
+---
 
-### AllPairsTriangle.jsx（SymmetricMatrix）
-7. **グラデーション改善**:
-   - 非アクティブセル: スコア合計比率ベースの連続薄グラデ（`toRgba('#A09888', 0.06+ratio*0.14)`）
-   - `zAlpha`: ease-out カーブ適用
-   - コンテナ背景: 微細ウォームグラデ
-   - ヘッダーライン: purple→blue→green 3色グラデ
+## コンポーネント責務マップ
 
-## 現在のゾーン定義（SymmetricMatrix）
-- **右上 ◥**: natural（20×20）+ pro（両才覚16以上 or 15以上合計32+）
-- **左下 ◤**: active TOP10（両才覚12以上合計31以下の上位10ペア）
+| ファイル | 責務 | 受け取るデータ |
+|---|---|---|
+| `App.jsx` | 画面遷移・グローバルstate管理 | Firebase Auth, Firestore |
+| `UAAMScreen.jsx` | 67問アンケートUI | — |
+| `UAAMResultScreen.jsx` | 診断結果の表示統括 | `result: { scores, analysis, vAnswers, answers }` |
+| `ActivationMatrix.jsx` | 16才覚レーダーチャート | `scores` (domainSubs必須) |
+| `AllPairsTriangle.jsx` | 4軸ペアグリッド | `scores` |
+| `SaikakuIntegration.jsx` | 才覚×UAAM統合発動分析 | `integration: analysis.saikaku_integration` |
+| `ActivationPanel.jsx` | 4軸ゲージUI | `scores` |
 
-## 発動パネルロジック（activation_analysis.js）
-- **✅ 今、発動している力**（最大3）: 右側（Natural+Pro）から3つ。右が足りなければ左から補完。右が0なら全部左から
-- **🔑 次に動かす力**（最大3）: 左側（Active TOP10）から、✅で使ったものを除いて上位3つ
+---
 
-## グループラベル（RadarChart16）
-- 志WHY=12時 / 知THINK=3時 / 技HOW=6時 / 衝ACT=9時（独立固定・startAngle非依存）
-- 各グループの4サブ要素は12時からクロック順にスタート
+## API責務マップ
 
-## 対象ファイル
-- `src/screens/uaam/UAAMResultScreen.jsx`（RadarChart16, MiniRadar, FourAxisGrid）
-- `src/screens/uaam/AllPairsTriangle.jsx`（AllPairsTriangle, SymmetricMatrix）
-- `src/ActivationPanel.jsx`（発動パネル）
-- `src/activation_analysis.js`（発動ロジック）
+| ファイル | エンドポイント | 責務 |
+|---|---|---|
+| `api/uaam.js` | POST /api/uaam | 67問診断→スコア計算→AI分析→Firestore保存 |
+| `api/integrate.js` | POST /api/integrate | 才覚×UAAM統合分析生成→Firestore保存 |
+| `api/analyze.js` | POST /api/analyze | 才覚領域診断→AI分析→Firestore保存 |
+| `api/admin/restore-scores.js` | POST /api/admin/restore-scores | 管理者用スコア復元 |
+
+---
+
+## 構造的防衛層（バグ再発防止）
+
+### ① Contract層（AIレスポンス検証）
+**場所**: `api/lib/validateIntegration.js`
+**タイミング**: Firestoreに保存する**直前**
+**役割**:
+- 必須フィールドの存在チェック
+- 英語才覚名の検出・自動日本語変換（deepToJP）
+- 異常値の検出とログ記録
+
+```
+Claude API レスポンス
+        │
+        ▼
+  validateAndFix()  ← ここで止める
+   ├─ 必須フィールド確認
+   ├─ 英語名検出 → 自動修正
+   └─ 修正ログを console.warn で記録
+        │
+        ▼
+  Firestore に保存（クリーンな日本語データ）
+```
+
+### ② Normalizer層（スコア形状統一）
+**場所**: `src/utils/normalize.js`
+**使用箇所**:
+- `UAAMResultScreen.jsx` の useState 初期化
+- `App.jsx` の handleScoresRestored
+- 他のどこかでスコア変換が必要になった場合も**ここだけ**を使う
+
+```js
+// 正しい使い方
+import { normalizeScores } from '../utils/normalize';
+const scores = normalizeScores(rawScores);
+
+// ❌ やってはいけない
+// { ...raw, domainSubs: raw.subs } を直接書くのは禁止
+// enrichScores() を新たに定義するのは禁止
+```
+
+### ③ 表示層フォールバック（SaikakuIntegration）
+**場所**: `src/screens/uaam/SaikakuIntegration.jsx` の `toJP()`
+**役割**: Contract層をすり抜けた古い保存データや予期しない英語を最終的にキャッチ
+**注意**: これは**フォールバック**であり、主要な防衛はContract層で行う
+
+---
+
+## 英語才覚名マッピング（唯一の定義）
+
+| 英語キー（APIキー） | 日本語表示名 |
+|---|---|
+| meaning | 基軸力 |
+| mindfulness | 認知力 |
+| mindshift | 転換力 |
+| mastery | 熟達力 |
+| learning | 謙学力 |
+| logical | 論理力 |
+| life | 活用力 |
+| leadership | 統率力 |
+| critical | 本質力 |
+| creativity | 創造力 |
+| communication | 伝達力 |
+| collaboration | 協働力 |
+| idea | 構想力 |
+| innovation | 変革力 |
+| implementation | 実装力 |
+| influence | 影響力 |
+
+**このマッピングを変更するときは以下の3ファイルを同時に更新すること：**
+1. `api/lib/validateIntegration.js` の `EN_TO_JP`
+2. `src/screens/uaam/SaikakuIntegration.jsx` の `EN_TO_JP`
+3. `api/integrate.js` の `SUB_JP`
+
+---
+
+## よくあるバグと正しい修正場所
+
+| 症状 | 原因 | 正しい修正場所 |
+|---|---|---|
+| 統合分析に英語才覚名が表示される | AIが英語で返した | `api/integrate.js` SUB_JP + `api/lib/validateIntegration.js` |
+| スコアが復元後に反映されない | domainSubs/domainTotal 欠落 | `src/utils/normalize.js` の normalizeScores |
+| レーダーチャートが表示されない | scores 形式の不一致 | `src/utils/normalize.js` で確認・修正 |
+| 関係ないコンポーネントを直してしまう | データフローを追っていない | このファイルを先に読む |
+
+---
+
+*最終更新: 2026-04-09*
