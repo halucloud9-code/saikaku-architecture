@@ -1672,16 +1672,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
               })}
             </Section>
 
-            {/* ナラティブ */}
-            {analysis.narrative && (
-              <Section>
-                <SectionHeader title="ナラティブ" subtitle="Narrative — あなたの才覚の物語" />
-                <p style={{
-                  fontSize: 15, color: TEXT_PRIMARY, lineHeight: 2.0, margin: 0,
-                  paddingLeft: 16, borderLeft: `2px solid ${BORDER}`,
-                }}>{analysis.narrative}</p>
-              </Section>
-            )}
 
             {/* 才覚×UAAM 統合発動分析 */}
             {/* integration_score があれば新形式（McKinsey級）、なければ旧形式 or 未生成 */}
@@ -1721,29 +1711,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
               </Section>
             )}
 
-            {/* Strengths / Growth */}
-            <div style={{
-              display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 20,
-            }}>
-              {analysis.strengths?.length > 0 && (
-                <Section style={{ marginBottom: 0 }}>
-                  <SectionHeader title="強み" subtitle="Strengths" color="#1E7A4A" />
-                  {analysis.strengths.map((s, i) => (
-                    <div key={i} style={{
-                      display: 'flex', gap: 10, alignItems: 'flex-start',
-                      padding: '10px 0',
-                      borderBottom: i < analysis.strengths.length - 1 ? `1px solid ${BORDER}` : 'none',
-                    }}>
-                      <span style={{
-                        fontSize: 13, fontWeight: 700, color: '#1E7A4A',
-                        flexShrink: 0, width: 22,
-                      }}>{i + 1}.</span>
-                      <span style={{ fontSize: 14, color: TEXT_SECONDARY, lineHeight: 1.7 }}>{s}</span>
-                    </div>
-                  ))}
-                </Section>
-              )}
-            </div>
           </>
         )}
 
