@@ -1726,11 +1726,6 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           }}>
             印刷 / PDF保存
           </button>
-          <button onClick={onReset} style={{
-            flex: 1, height: 48, borderRadius: 10,
-            border: `1.5px solid ${BORDER}`, background: WHITE,
-            color: TEXT_SECONDARY, fontSize: 15, fontWeight: 600, cursor: 'pointer',
-          }}>もう一度診断する</button>
         </div>
       </div>
     </div>

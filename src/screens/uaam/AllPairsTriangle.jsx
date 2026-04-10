@@ -297,6 +297,26 @@ const PAIR_SHORT = {
   'innovation|influence':   '革響力', 'implementation|influence':'装響力',
 };
 
+// ── 16素子 単体説明（対角ホバー用） ─────────────────────────
+const SELF_DEFS = {
+  meaning:        '在り方の核となる力。自分が何のために生きるかを問い続け、ぶれない軸を持つ。',
+  mindfulness:    '場の空気・相手の感情・自分の反応を鋭く受け取る力。受容が深いほど、判断が研ぎ澄まされる。',
+  mindshift:      '固定した見方を壊し、別の角度から物事を捉え直す力。転換の速さが突破口を生む。',
+  mastery:        '一つの道を深く掘り続け、技・知・感覚を統合していく力。年輪が積み重なるほど、精度が上がる。',
+  learning:       '自分が知らないと認め、常に問い続ける学びの力。謙虚さが知識を本物にする。',
+  logical:        '物事を分解・整理し、筋道を立てて思考する力。論理の精度が、判断の質を決める。',
+  life:           '学んだことを現場に落とし込み、実際に使い切る力。行動が知識を血肉に変える。',
+  leadership:     '人と力を束ね、方向をそろえて前に進む力。統率の質が、チームの可能性を決める。',
+  critical:       '表面を削ぎ落とし、本質・核心を見抜く力。本質を掴んだ者だけが、真の問題を解ける。',
+  creativity:     'まだない何かを生み出す力。ゼロから世界に形を与え、存在しなかったものを現実にする。',
+  communication:  '想いや思考を言葉にして、相手の心に届ける力。伝わった分だけ、世界が動く。',
+  collaboration:  '他者の持ち味を引き出し、ひとつの力に束ねる力。一人では届かない場所へ、共に向かう。',
+  idea:           '存在しない未来を頭の中に描き、踏み出す力。構想の解像度が、現実の可能性を決める。',
+  innovation:     '既存の枠を壊し、新しい秩序・流れを生み出す力。変革を恐れない者だけが、時代を動かす。',
+  implementation: '構想を止めずに最後まで形にしきる力。実装の粘りが、夢と現実の差を埋める。',
+  influence:      '言葉や行動が周囲に波及し、変化を生み続ける力。存在そのものが、場を変えていく。',
+};
+
 export function pairShort(kA, kB) {
   const ia = ORDERED.indexOf(kA), ib = ORDERED.indexOf(kB);
   const key = ia < ib ? `${kA}|${kB}` : `${kB}|${kA}`;
@@ -814,6 +834,13 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
 
   const top10Pairs = activePairs.slice(0, 10);
 
+  const [activeZones, setActiveZones] = useState(new Set(['natural', 'pro', 'active', 'potential']));
+  const toggleZone = (z) => setActiveZones(prev => {
+    const next = new Set(prev);
+    if (next.has(z)) { next.delete(z); } else { next.add(z); }
+    return next;
+  });
+
   return (
     <div className="uaam-chart pdf-section" style={{
       background: 'linear-gradient(145deg, #FDFAF5 0%, #FFFFFF 50%, #F8F4EF 100%)',
@@ -830,19 +857,37 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
         <div style={{ width: 56, height: 2, background: 'linear-gradient(90deg, #8B35C8, #1A6FD4, #7CB82F)', marginTop: 10, borderRadius: 1 }} />
       </div>
 
-      {/* ── コンパクト凡例（1行）── */}
-      <div style={{ display: 'flex', gap: 14, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* ── ゾーンフィルター凡例（チェックボックス付き）── */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {[
           { z: 'natural',   label: 'NATURAL ✦' },
           { z: 'pro',       label: 'PRO' },
           { z: 'active',    label: 'ACTIVE' },
           { z: 'potential', label: 'POTENTIAL' },
-        ].map(({ z, label }) => (
-          <div key={z} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 9, height: 9, borderRadius: 2, background: ZONE_HEX[z], flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: ZONE_HEX[z], fontWeight: 700, letterSpacing: '0.04em' }}>{label}</span>
-          </div>
-        ))}
+        ].map(({ z, label }) => {
+          const on = activeZones.has(z);
+          const zc = ZONE_HEX[z];
+          return (
+            <div key={z} onClick={() => toggleZone(z)} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              cursor: 'pointer', userSelect: 'none',
+              padding: '3px 9px', borderRadius: 20,
+              border: `1.5px solid ${on ? zc : '#D8D0C8'}`,
+              background: on ? `${zc}12` : '#F5F0E8',
+              transition: 'all 0.15s ease',
+            }}>
+              <div style={{
+                width: 12, height: 12, borderRadius: 3, flexShrink: 0,
+                border: `1.5px solid ${on ? zc : '#C0B8B0'}`,
+                background: on ? zc : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {on && <span style={{ fontSize: 8, color: '#fff', fontWeight: 900, lineHeight: 1 }}>✓</span>}
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', color: on ? zc : '#B0A898' }}>{label}</span>
+            </div>
+          );
+        })}
         <span style={{ fontSize: 10, color: '#BBB', marginLeft: 4 }}>— セルにマウスで詳細</span>
       </div>
 
@@ -882,7 +927,7 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                 {/* セル */}
                 {ORDERED.map((colKey, j) => {
 
-                  // ── 対角 ── スコア強度で枠太さが変わる
+                  // ── 対角 ── スコア強度で枠太さ + ホバーで素子説明
                   if (i === j) {
                     const sc = smap[rowKey];
                     const ratio = sc / 20;
@@ -897,17 +942,23 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 7, fontWeight: 700, color: AXIS_HEX[grp],
                         lineHeight: 1.1, textAlign: 'center',
-                      }}>
+                        cursor: 'pointer', transition: 'transform 0.12s',
+                      }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.3)'; setTip({ kA: rowKey, kB: rowKey, z: 'self', sA: sc, sB: sc, x: e.clientX, y: e.clientY }); }}
+                        onMouseMove={e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; setTip(null); }}
+                      >
                         {SUB_JP[rowKey].slice(0, 3)}
                       </div>
                     );
                   }
 
-                  // ── 右上三角（j > i）: 全セルhover対応（空白セルも説明表示）──
+                  // ── 右上三角（j > i）: ゾーンフィルター対応
                   if (j > i) {
                     const sA = smap[rowKey], sB = smap[colKey];
                     const z  = getZone(sA, sB);
-                    const show = shownRightSet.has(`${rowKey}|${colKey}`);
+                    const inShown = shownRightSet.has(`${rowKey}|${colKey}`);
+                    const show = inShown && activeZones.has(z);
                     const alpha = show ? zAlpha(z, sA, sB) : 0;
                     const bg = show ? toRgba(ZONE_HEX[z], alpha) : 'rgba(160,152,136,0.03)';
                     return (
@@ -924,12 +975,13 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                     );
                   }
 
-                  // ── 左下三角（j < i）: 全ゾーン表示（dormantも hover説明あり）──
+                  // ── 左下三角（j < i）: ゾーンフィルター対応
                   if (j < i) {
                     const sA = smap[colKey], sB = smap[rowKey];
                     const z  = getZone(sA, sB);
                     const isDormant = z === 'dormant';
-                    const bg = isDormant
+                    const zoneVisible = !isDormant && activeZones.has(z);
+                    const bg = !zoneVisible
                       ? 'rgba(160,152,136,0.06)'
                       : toRgba(ZONE_HEX[z], zAlpha(z, sA, sB));
                     return (
@@ -1102,13 +1154,34 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
 
       {/* ── ツールチップ ── */}
       {tip && (() => {
-        const zc  = ZONE_HEX[tip.z];
-        const blk = getBlock(tip.kA, tip.kB);
         let x = tip.x + 16, y = tip.y - 50;
         if (typeof window !== 'undefined') {
           if (x + 220 > window.innerWidth) x = tip.x - 230;
           if (y < 8) y = tip.y + 16;
         }
+        // 対角（素子単体）ツールチップ
+        if (tip.z === 'self') {
+          const gi = CODE_GRP[tip.kA];
+          const ac = AXIS_HEX[gi];
+          return (
+            <div style={{
+              position: 'fixed', left: x, top: y, zIndex: 9999,
+              background: '#FFFFFF', border: `1px solid ${toRgba(ac, 0.3)}`,
+              borderTop: `3px solid ${ac}`,
+              borderRadius: 12, padding: '12px 16px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              pointerEvents: 'none', minWidth: 200,
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: ac, marginBottom: 4, fontFamily: "'Noto Serif JP', serif" }}>{SUB_JP[tip.kA]}</div>
+              <div style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, marginBottom: 8, background: toRgba(ac, 0.1), color: ac, border: `1px solid ${toRgba(ac, 0.4)}`, fontSize: 11, fontWeight: 700 }}>{AXIS_JP[gi]}</div>
+              <div style={{ color: '#555', fontSize: 12, lineHeight: 1.8, marginBottom: 6 }}>スコア <span style={{ color: ac, fontWeight: 800, fontSize: 14 }}>{tip.sA}</span> / 20</div>
+              {SELF_DEFS[tip.kA] && <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #F0EAE0', color: '#444', fontSize: 11, lineHeight: 1.6 }}>{SELF_DEFS[tip.kA]}</div>}
+            </div>
+          );
+        }
+        // ペアツールチップ
+        const zc  = ZONE_HEX[tip.z];
+        const blk = getBlock(tip.kA, tip.kB);
         return (
           <div style={{
             position: 'fixed', left: x, top: y, zIndex: 9999,
