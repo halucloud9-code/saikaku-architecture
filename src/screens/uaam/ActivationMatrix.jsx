@@ -129,6 +129,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
   const canvasRef = useRef(null);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [hoveredIdx, setHoveredIdx]   = useState(null);
+  const [tipPos, setTipPos]           = useState(null);
   const [barsReady, setBarsReady]     = useState(false);
   const [gridOpen, setGridOpen]       = useState(false);
   const [detailOpen, setDetailOpen]   = useState(false);
@@ -657,6 +658,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       if (closest >= 0) stateRef.current.ripples.push({ idx: closest, t: 0 });
     } else {
       setHoveredIdx(closest >= 0 ? closest : null);
+      setTipPos(closest >= 0 ? { x: mx, y: my } : null);
     }
   }, [selectedIdx, segAngles]);
 
@@ -684,7 +686,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
           style={{ width: '100%', height: 'min(72vw, 480px)', display: 'block', cursor: 'pointer' }}
           onClick={e => handleInteraction(e, true)}
           onMouseMove={e => handleInteraction(e, false)}
-          onMouseLeave={() => setHoveredIdx(null)}
+          onMouseLeave={() => { setHoveredIdx(null); setTipPos(null); }}
         />
         {/* 衝 — 左上 */}
         <CornerBadge g={groupTotals[3]} pos={{ top: '7%', left: '5%' }}  align="left"  delay={0.24} />
@@ -694,6 +696,54 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         <CornerBadge g={groupTotals[2]} pos={{ bottom: '7%', left: '5%' }}  align="left"  delay={0.16} />
         {/* 知 — 右下 */}
         <CornerBadge g={groupTotals[1]} pos={{ bottom: '7%', right: '5%' }} align="right" delay={0.08} />
+
+        {/* ホバートゥールチップ */}
+        {hoveredIdx != null && tipPos && selectedIdx == null && (() => {
+          const hp = points[hoveredIdx];
+          const flip = tipPos.x > 260;
+          return (
+            <div style={{
+              position: 'absolute',
+              left: flip ? 'auto' : tipPos.x + 14,
+              right: flip ? `calc(100% - ${tipPos.x}px + 14px)` : 'auto',
+              top: Math.max(8, tipPos.y - 72),
+              background: 'rgba(30,26,22,0.93)',
+              color: '#FDFCFA',
+              borderRadius: 10,
+              padding: '9px 13px',
+              pointerEvents: 'none',
+              zIndex: 200,
+              maxWidth: 210,
+              boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+              borderLeft: `3px solid ${hp.hex}`,
+            }}>
+              <div style={{
+                fontSize: 12, fontWeight: 700, color: hp.hex,
+                marginBottom: 4, letterSpacing: '0.06em',
+                fontFamily: "'Noto Serif JP', serif",
+              }}>
+                {hp.jp}
+                <span style={{ fontSize: 9, fontWeight: 400, color: 'rgba(253,252,250,0.4)', marginLeft: 6 }}>
+                  {hp.label}
+                </span>
+              </div>
+              <div style={{
+                fontSize: 11, lineHeight: 1.7,
+                color: 'rgba(253,252,250,0.82)',
+                fontFamily: "'Noto Serif JP', serif",
+              }}>
+                {hp.desc}
+              </div>
+              <div style={{
+                marginTop: 5, fontSize: 10,
+                color: `rgba(${hp.color[0]},${hp.color[1]},${hp.color[2]},0.65)`,
+                fontFamily: "'DM Sans', sans-serif",
+              }}>
+                {hp.raw}/{20} pts
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 詳細カード（クリック時）*/}
