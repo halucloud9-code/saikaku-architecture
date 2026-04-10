@@ -1,0 +1,25 @@
+{
+  "installCommand": "npm install --force",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/analyze.js": {
+      "maxDuration": 120
+    },
+    "api/uaam.js": {
+      "maxDuration": 120
+    },
+    "api/integrate.js": {
+      "maxDuration": 120
+    },
+    "api/admin/restore-scores.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
