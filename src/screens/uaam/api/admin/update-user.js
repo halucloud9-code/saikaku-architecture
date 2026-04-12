@@ -2,6 +2,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { db, ADMIN_EMAILS } from '../lib/firebaseAdmin.js';
 
 const ALLOWED_FIELDS = [
+  'name',
   'selectedKakuchiiki',
   'inputTalent', 'inputTalentTop5',
   'inputValue',  'inputValueTop5',
@@ -40,7 +41,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    await db.collection('results').doc(uid).set(safeFields, { merge: true });
+    // results + uaam_results 両方を更新
+    await Promise.all([
+      db.collection('results').doc(uid).set(safeFields, { merge: true }),
+      db.collection('uaam_results').doc(uid).set(safeFields, { merge: true }),
+    ]);
+
+    // name が変更された場合は Firebase Auth の displayName も更新
+    if (safeFields.name) {
+      try {
+        await getAuth().updateUser(uid, { displayName: safeFields.name });
+      } catch (authErr) {
+        console.warn('[update-user] Auth displayName update skipped:', authErr.message);
+      }
+    }
+
     return res.status(200).json({ success: true, updated: safeFields });
   } catch (e) {
     console.error('[update-user]', e);

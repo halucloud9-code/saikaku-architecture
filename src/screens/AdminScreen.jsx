@@ -42,6 +42,7 @@ function UserModal({ user: u, onClose, onDelete, onSave }) {
 
   const startEdit = () => {
     setEditData({
+      name:               u.name              || '',
       selectedKakuchiiki: u.selectedKakuchiiki || '',
       inputValueTop5:     u.inputValueTop5   || u.inputValue   || '',
       inputTalentTop5:    u.inputTalentTop5  || u.inputTalent  || '',
@@ -167,6 +168,15 @@ function UserModal({ user: u, onClose, onDelete, onSave }) {
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={labelStyle}>名前</label>
+                <input
+                  type="text"
+                  style={{ ...fieldStyle, resize: 'none' }}
+                  value={editData.name}
+                  onChange={(e) => setEditData(d => ({ ...d, name: e.target.value }))}
+                />
+              </div>
               <div>
                 <label style={labelStyle}>才覚領域</label>
                 <textarea rows={3} style={fieldStyle} value={editData.selectedKakuchiiki}
