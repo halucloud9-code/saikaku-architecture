@@ -18,10 +18,10 @@ const PALETTE = {
 };
 
 const AXIS_META = [
-  { key: 'mindset',    kanji: '志', en: 'WHY',   color: [74, 111, 165],  hex: '#4A6FA5' },
-  { key: 'literacy',   kanji: '知', en: 'THINK', color: [46, 139, 87],   hex: '#2E8B57' },
-  { key: 'competency', kanji: '技', en: 'HOW',   color: [196, 146, 42],  hex: '#C4922A' },
-  { key: 'impact',     kanji: '衝', en: 'ACT',   color: [168, 68, 50],   hex: '#A84432' },
+  { key: 'mindset',    kanji: '志', en: 'WHY',   color: [74, 111, 165],  hex: '#4A6FA5', desc: '基軸力・認知力・転換力・熟達力の4軸。なぜ生き、どこへ向かうかを定める「存在の方向性」。信念の深さが、行動の一貫性を生む。' },
+  { key: 'literacy',   kanji: '知', en: 'THINK', color: [46, 139, 87],   hex: '#2E8B57', desc: '謙学力・論理力・活用力・統率力の4軸。素直に学び、筋道立てて考え、現場で使い切り、人を束ねる「知の実践力」。' },
+  { key: 'competency', kanji: '技', en: 'HOW',   color: [196, 146, 42],  hex: '#C4922A', desc: '本質力・創造力・伝達力・協働力の4軸。見抜き、生み出し、届け、共に動く「技の体現力」。卓越した技が、唯一無二の価値を生む。' },
+  { key: 'impact',     kanji: '衝', en: 'ACT',   color: [168, 68, 50],   hex: '#A84432', desc: '構想力・変革力・実装力・影響力の4軸。描き、壊し、形にし、波及させる「衝撃を生む力」。存在が場を変え、時代を動かす。' },
 ];
 
 const SUB_META = [
@@ -44,16 +44,21 @@ const SUB_META = [
 ];
 
 // 四隅バッジ
-function CornerBadge({ g, pos, align, delay }) {
+function CornerBadge({ g, pos, align, delay, onMouseEnter, onMouseLeave }) {
   const c = g.color;
   return (
-    <div style={{
-      position: 'absolute', ...pos,
-      display: 'flex', flexDirection: 'column',
-      alignItems: align === 'right' ? 'flex-end' : 'flex-start',
-      animation: `amFadeIn 0.5s ease ${delay}s both`,
-      pointerEvents: 'none',
-    }}>
+    <div
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={{
+        position: 'absolute', ...pos,
+        display: 'flex', flexDirection: 'column',
+        alignItems: align === 'right' ? 'flex-end' : 'flex-start',
+        animation: `amFadeIn 0.5s ease ${delay}s both`,
+        pointerEvents: 'auto',
+        cursor: 'default',
+        zIndex: 10,
+      }}>
       {/* 漢字 */}
       <div style={{
         fontFamily: "'Noto Serif JP', serif",
@@ -130,6 +135,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [hoveredIdx, setHoveredIdx]   = useState(null);
   const [tipPos, setTipPos]           = useState(null);
+  const [cornerTip, setCornerTip]     = useState(null); // { g, align, pos }
   const [barsReady, setBarsReady]     = useState(false);
   const [gridOpen, setGridOpen]       = useState(false);
   const [detailOpen, setDetailOpen]   = useState(false);
@@ -689,13 +695,21 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
           onMouseLeave={() => { setHoveredIdx(null); setTipPos(null); }}
         />
         {/* 衝 — 左上 */}
-        <CornerBadge g={groupTotals[3]} pos={{ top: '7%', left: '5%' }}  align="left"  delay={0.24} />
+        <CornerBadge g={groupTotals[3]} pos={{ top: '7%', left: '5%' }}  align="left"  delay={0.24}
+          onMouseEnter={() => setCornerTip({ g: groupTotals[3], align: 'left',  vPos: 'top' })}
+          onMouseLeave={() => setCornerTip(null)} />
         {/* 志 — 右上 */}
-        <CornerBadge g={groupTotals[0]} pos={{ top: '7%', right: '5%' }} align="right" delay={0}    />
+        <CornerBadge g={groupTotals[0]} pos={{ top: '7%', right: '5%' }} align="right" delay={0}
+          onMouseEnter={() => setCornerTip({ g: groupTotals[0], align: 'right', vPos: 'top' })}
+          onMouseLeave={() => setCornerTip(null)} />
         {/* 技 — 左下 */}
-        <CornerBadge g={groupTotals[2]} pos={{ bottom: '7%', left: '5%' }}  align="left"  delay={0.16} />
+        <CornerBadge g={groupTotals[2]} pos={{ bottom: '7%', left: '5%' }}  align="left"  delay={0.16}
+          onMouseEnter={() => setCornerTip({ g: groupTotals[2], align: 'left',  vPos: 'bottom' })}
+          onMouseLeave={() => setCornerTip(null)} />
         {/* 知 — 右下 */}
-        <CornerBadge g={groupTotals[1]} pos={{ bottom: '7%', right: '5%' }} align="right" delay={0.08} />
+        <CornerBadge g={groupTotals[1]} pos={{ bottom: '7%', right: '5%' }} align="right" delay={0.08}
+          onMouseEnter={() => setCornerTip({ g: groupTotals[1], align: 'right', vPos: 'bottom' })}
+          onMouseLeave={() => setCornerTip(null)} />
 
         {/* ホバートゥールチップ */}
         {hoveredIdx != null && tipPos && (() => {
@@ -740,6 +754,54 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
                 fontFamily: "'DM Sans', sans-serif",
               }}>
                 {hp.raw}/{20} pts
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* コーナーバッジ ホバートゥールチップ */}
+        {cornerTip && (() => {
+          const { g, align, vPos } = cornerTip;
+          const c = g.color;
+          return (
+            <div style={{
+              position: 'absolute',
+              ...(align === 'left'  ? { left: '5%' }  : { right: '5%' }),
+              ...(vPos  === 'top'   ? { top: '28%' }  : { bottom: '28%' }),
+              background: 'rgba(30,26,22,0.93)',
+              color: '#FDFCFA',
+              borderRadius: 10,
+              padding: '9px 13px',
+              pointerEvents: 'none',
+              zIndex: 200,
+              maxWidth: 200,
+              boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+              borderLeft: `3px solid ${g.hex}`,
+            }}>
+              <div style={{
+                fontSize: 13, fontWeight: 700,
+                color: g.hex, marginBottom: 4,
+                letterSpacing: '0.06em',
+                fontFamily: "'Noto Serif JP', serif",
+              }}>
+                {g.kanji}
+                <span style={{ fontSize: 9, fontWeight: 400, color: 'rgba(253,252,250,0.4)', marginLeft: 6 }}>
+                  {g.en}
+                </span>
+              </div>
+              <div style={{
+                fontSize: 11, lineHeight: 1.7,
+                color: 'rgba(253,252,250,0.82)',
+                fontFamily: "'Noto Serif JP', serif",
+              }}>
+                {g.desc}
+              </div>
+              <div style={{
+                marginTop: 5, fontSize: 10,
+                color: `rgba(${c[0]},${c[1]},${c[2]},0.65)`,
+                fontFamily: "'DM Sans', sans-serif",
+              }}>
+                {g.total}/{g.max} pts — {g.pct}%
               </div>
             </div>
           );
