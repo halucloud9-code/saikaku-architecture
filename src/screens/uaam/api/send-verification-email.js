@@ -57,14 +57,20 @@ const EMAIL_HTML = (link) => `
                 下のボタンをタップして、メールアドレスを確認してください。
               </p>
 
-              <!-- ボタン -->
+              <!-- ボタン（bulletproof: bgcolorをtdに、aはdisplay:block） -->
               <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 22px;">
                 <tr>
                   <td align="center">
-                    <a href="${link}" class="btn-a"
-                      style="display:inline-block;padding:15px 40px;background-color:#C4922A;border-radius:10px;color:#FFFFFF;font-size:15px;font-weight:800;text-decoration:none;letter-spacing:0.04em;-webkit-text-fill-color:#FFFFFF;">
-                      メールアドレスを確認する
-                    </a>
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#C4922A" style="border-radius:10px;">
+                          <a href="${link}" class="btn-a"
+                            style="display:block;padding:15px 40px;color:#FFFFFF;font-size:15px;font-weight:800;text-decoration:none;letter-spacing:0.04em;font-family:'Hiragino Kaku Gothic Pro',Meiryo,sans-serif;min-width:220px;text-align:center;">
+                            メールアドレスを確認する
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
