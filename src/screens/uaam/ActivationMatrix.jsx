@@ -698,7 +698,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         <CornerBadge g={groupTotals[1]} pos={{ bottom: '7%', right: '5%' }} align="right" delay={0.08} />
 
         {/* ホバートゥールチップ */}
-        {hoveredIdx != null && tipPos && selectedIdx == null && (() => {
+        {hoveredIdx != null && tipPos && (() => {
           const hp = points[hoveredIdx];
           const flip = tipPos.x > 260;
           return (
