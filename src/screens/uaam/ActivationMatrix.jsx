@@ -664,7 +664,7 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
       if (closest >= 0) stateRef.current.ripples.push({ idx: closest, t: 0 });
     } else {
       setHoveredIdx(closest >= 0 ? closest : null);
-      setTipPos(closest >= 0 ? { x: mx, y: my } : null);
+      setTipPos(closest >= 0 ? { x: e.clientX, y: e.clientY } : null);
     }
   }, [selectedIdx, segAngles]);
 
@@ -696,31 +696,32 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
         />
         {/* 衝 — 左上 */}
         <CornerBadge g={groupTotals[3]} pos={{ top: '7%', left: '5%' }}  align="left"  delay={0.24}
-          onMouseEnter={() => setCornerTip({ g: groupTotals[3], align: 'left',  vPos: 'top' })}
+          onMouseEnter={e => setCornerTip({ g: groupTotals[3], align: 'left',  vPos: 'top',    cx: e.clientX, cy: e.clientY })}
           onMouseLeave={() => setCornerTip(null)} />
         {/* 志 — 右上 */}
         <CornerBadge g={groupTotals[0]} pos={{ top: '7%', right: '5%' }} align="right" delay={0}
-          onMouseEnter={() => setCornerTip({ g: groupTotals[0], align: 'right', vPos: 'top' })}
+          onMouseEnter={e => setCornerTip({ g: groupTotals[0], align: 'right', vPos: 'top',    cx: e.clientX, cy: e.clientY })}
           onMouseLeave={() => setCornerTip(null)} />
         {/* 技 — 左下 */}
         <CornerBadge g={groupTotals[2]} pos={{ bottom: '7%', left: '5%' }}  align="left"  delay={0.16}
-          onMouseEnter={() => setCornerTip({ g: groupTotals[2], align: 'left',  vPos: 'bottom' })}
+          onMouseEnter={e => setCornerTip({ g: groupTotals[2], align: 'left',  vPos: 'bottom', cx: e.clientX, cy: e.clientY })}
           onMouseLeave={() => setCornerTip(null)} />
         {/* 知 — 右下 */}
         <CornerBadge g={groupTotals[1]} pos={{ bottom: '7%', right: '5%' }} align="right" delay={0.08}
-          onMouseEnter={() => setCornerTip({ g: groupTotals[1], align: 'right', vPos: 'bottom' })}
+          onMouseEnter={e => setCornerTip({ g: groupTotals[1], align: 'right', vPos: 'bottom', cx: e.clientX, cy: e.clientY })}
           onMouseLeave={() => setCornerTip(null)} />
 
         {/* ホバートゥールチップ */}
         {hoveredIdx != null && tipPos && (() => {
           const hp = points[hoveredIdx];
-          const flip = tipPos.x > 260;
+          const vw = window.innerWidth;
+          const flip = tipPos.x > vw / 2;
           return (
             <div style={{
-              position: 'absolute',
+              position: 'fixed',
               left: flip ? 'auto' : tipPos.x + 14,
-              right: flip ? `calc(100% - ${tipPos.x}px + 14px)` : 'auto',
-              top: Math.max(8, tipPos.y - 72),
+              right: flip ? vw - tipPos.x + 14 : 'auto',
+              top: Math.max(8, tipPos.y - 80),
               background: 'rgba(30,26,22,0.93)',
               color: '#FDFCFA',
               borderRadius: 10,
@@ -761,13 +762,16 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
 
         {/* コーナーバッジ ホバートゥールチップ */}
         {cornerTip && (() => {
-          const { g, align, vPos } = cornerTip;
+          const { g, cx, cy } = cornerTip;
           const c = g.color;
+          const vw = window.innerWidth;
+          const flip = cx > vw / 2;
           return (
             <div style={{
-              position: 'absolute',
-              ...(align === 'left'  ? { left: '5%' }  : { right: '5%' }),
-              ...(vPos  === 'top'   ? { top: '28%' }  : { bottom: '28%' }),
+              position: 'fixed',
+              left: flip ? 'auto' : cx + 14,
+              right: flip ? vw - cx + 14 : 'auto',
+              top: Math.max(8, cy - 80),
               background: 'rgba(30,26,22,0.93)',
               color: '#FDFCFA',
               borderRadius: 10,
