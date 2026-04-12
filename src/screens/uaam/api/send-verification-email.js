@@ -12,55 +12,84 @@ import { createTransport } from 'nodemailer';
 const EMAIL_HTML = (link) => `
 <!DOCTYPE html>
 <html lang="ja">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { margin:0; padding:0; background:#0A0A0F; }
+    @media only screen and (max-width:600px) {
+      .outer-td { padding: 20px 12px !important; }
+      .card { border-radius: 12px !important; }
+      .header-td { padding: 24px 20px 0 !important; }
+      .body-td { padding: 20px 20px !important; }
+      .footer-td { padding: 14px 20px 22px !important; }
+      .btn-a { display: block !important; width: 100% !important; box-sizing: border-box !important; text-align: center !important; padding: 16px 20px !important; font-size: 16px !important; }
+      h1 { font-size: 18px !important; }
+      .body-text { font-size: 14px !important; }
+    }
+  </style>
+</head>
 <body style="margin:0;padding:0;background:#0A0A0F;font-family:'Hiragino Kaku Gothic Pro',Meiryo,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0F;min-height:100vh;">
-    <tr><td align="center" style="padding:40px 16px;">
-      <table width="100%" style="max-width:480px;background:#12101A;border-radius:16px;border:1px solid rgba(196,146,42,0.3);overflow:hidden;">
-        <tr>
-          <td style="background:linear-gradient(135deg,#8B6914,#C4922A,#FFD700,#C4922A);padding:2px 0;"></td>
-        </tr>
-        <tr>
-          <td style="padding:36px 32px 0;text-align:center;">
-            <div style="font-size:48px;margin-bottom:16px;">✉️</div>
-            <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#FFFFFF;letter-spacing:0.05em;">
-              メールアドレスの確認
-            </h1>
-            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.5);">才覚領域 — あなただけの才覚領域を導き出す</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:28px 32px;">
-            <p style="font-size:14px;color:rgba(255,255,255,0.75);line-height:1.9;margin:0 0 20px;">
-              ご登録いただきありがとうございます。<br>
-              下のボタンをクリックして、メールアドレスを確認してください。
-            </p>
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
-              <tr>
-                <td align="center">
-                  <a href="${link}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#8B6914,#C4922A,#FFD700);border-radius:10px;color:#0A0A0F;font-size:15px;font-weight:800;text-decoration:none;letter-spacing:0.05em;">
-                    メールアドレスを確認する
-                  </a>
-                </td>
-              </tr>
-            </table>
-            <p style="font-size:12px;color:rgba(255,255,255,0.35);line-height:1.7;margin:0;">
-              このリンクは24時間有効です。<br>
-              ボタンが機能しない場合は以下のURLをコピーしてブラウザに貼り付けてください：<br>
-              <span style="color:rgba(196,146,42,0.8);word-break:break-all;font-size:11px;">${link}</span>
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:16px 32px 28px;border-top:1px solid rgba(255,255,255,0.06);">
-            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.25);text-align:center;line-height:1.7;">
-              このメールに心当たりがない場合は無視してください。<br>
-              才覚領域 — Powered by SAIKAKU ARCHITECTURE
-            </p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0A0A0F;">
+    <tr>
+      <td align="center" class="outer-td" style="padding:32px 16px;">
+        <table class="card" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:480px;background:#12101A;border-radius:16px;border:1px solid rgba(196,146,42,0.3);">
+
+          <!-- ゴールドライン -->
+          <tr><td height="3" style="background-color:#C4922A;border-radius:16px 16px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+
+          <!-- ヘッダー -->
+          <tr>
+            <td class="header-td" align="center" style="padding:32px 28px 0;">
+              <div style="font-size:40px;line-height:1;margin-bottom:14px;">✉️</div>
+              <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#FFFFFF;letter-spacing:0.04em;">
+                メールアドレスの確認
+              </h1>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.45);">才覚領域 — あなただけの才覚領域を導き出す</p>
+            </td>
+          </tr>
+
+          <!-- 本文 -->
+          <tr>
+            <td class="body-td" style="padding:24px 28px;">
+              <p class="body-text" style="font-size:14px;color:rgba(255,255,255,0.78);line-height:1.9;margin:0 0 22px;word-break:break-word;">
+                ご登録いただきありがとうございます。<br>
+                下のボタンをタップして、メールアドレスを確認してください。
+              </p>
+
+              <!-- ボタン -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 22px;">
+                <tr>
+                  <td align="center">
+                    <a href="${link}" class="btn-a"
+                      style="display:inline-block;padding:15px 40px;background-color:#C4922A;border-radius:10px;color:#FFFFFF;font-size:15px;font-weight:800;text-decoration:none;letter-spacing:0.04em;-webkit-text-fill-color:#FFFFFF;">
+                      メールアドレスを確認する
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size:12px;color:rgba(255,255,255,0.35);line-height:1.75;margin:0;word-break:break-all;">
+                このリンクは24時間有効です。<br>
+                ボタンが機能しない場合は下記URLをコピーしてブラウザに貼り付けてください：<br>
+                <span style="color:rgba(196,146,42,0.75);font-size:11px;">${link}</span>
+              </p>
+            </td>
+          </tr>
+
+          <!-- フッター -->
+          <tr>
+            <td class="footer-td" style="padding:14px 28px 24px;border-top:1px solid rgba(255,255,255,0.07);">
+              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.22);text-align:center;line-height:1.7;">
+                このメールに心当たりがない場合は無視してください。<br>
+                才覚領域 — Powered by SAIKAKU ARCHITECTURE
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
 </html>`;
