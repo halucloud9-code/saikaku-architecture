@@ -141,13 +141,13 @@ export default async function handler(req, res) {
       });
 
       await transporter.sendMail({
-        from: `"才覚領域" <${GMAIL_USER || 'halu.cloud9@gmail.com'}>`,
+        from: `"才覚領域" <noreply@saikaku-architecture.com>`,
         to: email,
         subject,
         html,
       });
 
-      return res.status(200).json({ method: 'gmail_smtp', success: true, from_email: GMAIL_USER || 'halu.cloud9@gmail.com' });
+      return res.status(200).json({ method: 'gmail_smtp', success: true, from_email: 'noreply@saikaku-architecture.com' });
     }
 
     /* ── 2. Resend ───────────────────────────────────────────────── */

@@ -66,7 +66,7 @@ export default function LoginScreen({ onLogin }) {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [verificationSent, setVerificationSent] = useState(false); // 確認メール送信済み
-  const [fromEmail, setFromEmail] = useState('honbutyo.tugai@gmail.com'); // 実際の送信元アドレス
+  const [fromEmail, setFromEmail] = useState('noreply@saikaku-architecture.com'); // 表示用送信元アドレス
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
 
