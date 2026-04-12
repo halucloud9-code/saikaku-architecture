@@ -66,7 +66,7 @@ export default function LoginScreen({ onLogin }) {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [verificationSent, setVerificationSent] = useState(false); // 確認メール送信済み
-  const [fromEmail, setFromEmail] = useState(''); // 実際の送信元アドレス
+  const [fromEmail, setFromEmail] = useState('honbutyo.tugai@gmail.com'); // 実際の送信元アドレス
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
 
@@ -160,26 +160,31 @@ export default function LoginScreen({ onLogin }) {
 
   // 確認メール再送信
   const handleResendVerification = async () => {
+    if (!email) {
+      setResendMsg('❌ メールアドレスが取得できません。一度ログイン画面に戻って再登録してください。');
+      return;
+    }
     setResendLoading(true);
     setResendMsg('');
     try {
       const res = await fetch('/api/send-verification-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, uid: '_resend_' }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'failed');
-      // カスタム API 未設定 → Firebase デフォルトで送信（サインインが必要）
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      // カスタム API 未設定 → Firebase デフォルトで送信
       if (data.method === 'firebase_default' && password) {
         const result = await signInWithEmail(email, password);
         await sendVerificationEmail(result.user);
         await signOutUser();
       }
       if (data.from_email) setFromEmail(data.from_email);
-      setResendMsg('✅ 確認メールを再送しました');
+      setResendMsg('✅ 確認メールを再送しました。最新のメールのリンクを使ってください');
     } catch (e) {
-      setResendMsg('❌ 再送信に失敗しました。しばらく経ってから再度お試しください。');
+      console.error('[resend]', e);
+      setResendMsg(`❌ 再送信に失敗しました：${e.message}`);
     }
     setResendLoading(false);
   };
