@@ -305,9 +305,40 @@ const AXIS_META = [
     subLabels: ['構想力','変革力','実装力','影響力'] },
 ];
 
-function UAAMModal({ user: u, onClose, onDelete }) {
+function UAAMModal({ user: u, onClose, onDelete, onSave }) {
   const [confirmDel, setConfirmDel] = useState(false);
+  const [editMode, setEditMode]     = useState(false);
+  const [editData, setEditData]     = useState({});
+  const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState('');
   if (!u) return null;
+
+  const fieldStyle = {
+    width: '100%', padding: '10px 12px', borderRadius: 8,
+    border: '1px solid #D4C9B0', background: '#FDFCFA',
+    fontSize: 13, color: '#2A2520', fontFamily: 'Noto Sans JP, sans-serif',
+    lineHeight: 1.7, outline: 'none', boxSizing: 'border-box',
+  };
+  const labelStyle = { fontSize: 11, fontWeight: 700, color: '#7A7060', letterSpacing: '0.1em', marginBottom: 6, display: 'block' };
+
+  const startEdit = () => {
+    setEditData({ name: u.name || '' });
+    setSaveError('');
+    setEditMode(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSave(u.uid, editData);
+      setEditMode(false);
+    } catch (e) {
+      setSaveError(e.message || '保存に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
   const subcategoryScores = Object.values(u.scores || {}).reduce((acc, domain) => {
     if (domain?.subs) Object.assign(acc, domain.subs);
     return acc;
@@ -348,6 +379,14 @@ function UAAMModal({ user: u, onClose, onDelete }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            {!editMode && (
+              <button
+                onClick={startEdit}
+                style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #C4922A', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#C4922A', fontWeight: 600 }}
+              >
+                ✏️ 編集
+              </button>
+            )}
             <button
               onClick={() => setConfirmDel(true)}
               style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #A84432', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#A84432', fontWeight: 600 }}
@@ -380,6 +419,36 @@ function UAAMModal({ user: u, onClose, onDelete }) {
                 onClick={() => setConfirmDel(false)}
                 style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #D4C9B0', background: 'transparent', color: '#7A7060', fontSize: 13, cursor: 'pointer' }}
               >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 編集フォーム */}
+        {editMode && (
+          <div style={{ background: '#FDFCFA', border: '1px solid #D4C9B0', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
+            {saveError && (
+              <div style={{ background: '#FFF5F5', border: '1px solid #A84432', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#A84432' }}>
+                {saveError}
+              </div>
+            )}
+            <div>
+              <label style={labelStyle}>名前</label>
+              <input
+                type="text"
+                style={{ ...fieldStyle, resize: 'none' }}
+                value={editData.name}
+                onChange={(e) => setEditData(d => ({ ...d, name: e.target.value }))}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button onClick={handleSave} disabled={saving}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#C4922A', color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                {saving ? '保存中...' : '💾 保存'}
+              </button>
+              <button onClick={() => { setEditMode(false); setSaveError(''); }}
+                style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #D4C9B0', background: 'transparent', color: '#7A7060', fontSize: 14, cursor: 'pointer' }}>
                 キャンセル
               </button>
             </div>
@@ -1440,6 +1509,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           user={selectedUaam}
           onClose={() => setSelectedUaam(null)}
           onDelete={handleDelete}
+          onSave={handleSaveUser}
         />
       )}
     </div>
