@@ -143,7 +143,7 @@ export default function LoginScreen({ onLogin }) {
       onLogin(result.user);
     } catch (e) {
       const msgs = {
-        'auth/email-already-in-use': 'このメールアドレスはすでに登録されています',
+        'auth/email-already-in-use': 'このメールアドレスはすでに登録されています。「ログイン」タブからサインインするか、パスワードをお忘れの場合はリセットしてください。',
         'auth/invalid-email': 'メールアドレスの形式が正しくありません',
         'auth/weak-password': 'パスワードは6文字以上で設定してください',
         'auth/user-not-found': 'メールアドレスが見つかりません',

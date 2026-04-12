@@ -654,6 +654,9 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   const [tab, setTab] = useState('saikaku'); // 'saikaku' | 'uaam'
   const [vFilter, setVFilter] = useState('all'); // 'all' | 'v1_high' | 'v2_high' | 'v3_diff' | 'critical'
   const [deleting, setDeleting] = useState(false);
+  const [ghostEmail, setGhostEmail] = useState('');
+  const [ghostDeleting, setGhostDeleting] = useState(false);
+  const [ghostMsg, setGhostMsg] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -698,6 +701,32 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       setError(e.message || '削除に失敗しました');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // 幽霊ユーザー（Firebase AuthにいるがFirestoreにない）をメールアドレスで削除
+  const handleDeleteByEmail = async () => {
+    if (!ghostEmail.trim()) return;
+    setGhostDeleting(true);
+    setGhostMsg('');
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ email: ghostEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '削除に失敗しました');
+      setGhostMsg(`✅ ${ghostEmail} を削除しました`);
+      setGhostEmail('');
+      // リストからも除外
+      setUsers(prev => prev.filter(u => u.email !== ghostEmail.trim()));
+      setUaamUsers(prev => prev.filter(u => u.email !== ghostEmail.trim()));
+    } catch (e) {
+      setGhostMsg(`❌ ${e.message}`);
+    } finally {
+      setGhostDeleting(false);
     }
   };
 
@@ -992,6 +1021,45 @@ export default function AdminScreen({ user, onBack, onLogout }) {
               {exporting ? '処理中...' : 'CSVエクスポート'}
             </button>
           </div>
+        </div>
+
+        {/* 幽霊ユーザー削除（Firebase AuthにいるがFirestoreにないユーザー対応） */}
+        <div style={{
+          background: '#FFF8F0', border: '1px solid #E8D5A0', borderRadius: 10,
+          padding: '12px 16px', marginBottom: 16,
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#7A6030', whiteSpace: 'nowrap' }}>
+            🔍 メールアドレスで強制削除
+          </span>
+          <input
+            type="email"
+            placeholder="example@gmail.com"
+            value={ghostEmail}
+            onChange={e => { setGhostEmail(e.target.value); setGhostMsg(''); }}
+            style={{
+              flex: 1, minWidth: 200, padding: '6px 10px', borderRadius: 6,
+              border: '1px solid #D4C9B0', fontSize: 13, outline: 'none',
+              background: '#FDFCFA', color: '#2A2520',
+            }}
+          />
+          <button
+            onClick={handleDeleteByEmail}
+            disabled={ghostDeleting || !ghostEmail.trim()}
+            style={{
+              padding: '6px 16px', borderRadius: 6, border: 'none',
+              background: '#A84432', color: '#fff', fontSize: 13, fontWeight: 600,
+              cursor: ghostDeleting ? 'wait' : 'pointer', opacity: ghostDeleting ? 0.7 : 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {ghostDeleting ? '削除中...' : '削除'}
+          </button>
+          {ghostMsg && (
+            <span style={{ fontSize: 12, color: ghostMsg.startsWith('✅') ? '#2E8B57' : '#A84432', width: '100%' }}>
+              {ghostMsg}
+            </span>
+          )}
         </div>
 
         {/* エラー */}
