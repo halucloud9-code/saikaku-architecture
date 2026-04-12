@@ -104,7 +104,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { email, uid } = req.body;
-  if (!email || !uid) return res.status(400).json({ error: 'email と uid が必要です' });
+  if (!email) return res.status(400).json({ error: 'email が必要です' });
 
   const GMAIL_USER         = process.env.GMAIL_USER;
   const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
@@ -147,7 +147,7 @@ export default async function handler(req, res) {
         html,
       });
 
-      return res.status(200).json({ method: 'gmail_smtp', success: true });
+      return res.status(200).json({ method: 'gmail_smtp', success: true, from_email: GMAIL_USER || 'halu.cloud9@gmail.com' });
     }
 
     /* ── 2. Resend ───────────────────────────────────────────────── */

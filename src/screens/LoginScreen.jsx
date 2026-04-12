@@ -66,6 +66,7 @@ export default function LoginScreen({ onLogin }) {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [verificationSent, setVerificationSent] = useState(false); // 確認メール送信済み
+  const [fromEmail, setFromEmail] = useState(''); // 実際の送信元アドレス
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
 
@@ -117,6 +118,8 @@ export default function LoginScreen({ onLogin }) {
             body: JSON.stringify({ email, uid: result.user.uid }),
           });
           const data = await res.json().catch(() => ({}));
+          // 送信元アドレスを保存（UI表示用）
+          if (data.from_email) setFromEmail(data.from_email);
           // カスタム API 未設定またはエラー → Firebase デフォルトで送信
           if (!res.ok || data.method === 'firebase_default') {
             try { await sendVerificationEmail(result.user); } catch (_) {}
@@ -160,10 +163,20 @@ export default function LoginScreen({ onLogin }) {
     setResendLoading(true);
     setResendMsg('');
     try {
-      // 再送信のためにサインインしてメール送信
-      const result = await signInWithEmail(email, password);
-      await sendVerificationEmail(result.user);
-      await signOutUser();
+      const res = await fetch('/api/send-verification-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'failed');
+      // カスタム API 未設定 → Firebase デフォルトで送信（サインインが必要）
+      if (data.method === 'firebase_default' && password) {
+        const result = await signInWithEmail(email, password);
+        await sendVerificationEmail(result.user);
+        await signOutUser();
+      }
+      if (data.from_email) setFromEmail(data.from_email);
       setResendMsg('✅ 確認メールを再送しました');
     } catch (e) {
       setResendMsg('❌ 再送信に失敗しました。しばらく経ってから再度お試しください。');
@@ -219,7 +232,7 @@ export default function LoginScreen({ onLogin }) {
             </div>
             <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 2 }}>
               <li><strong style={{ color: 'rgba(255,255,255,0.85)' }}>迷惑メール・スパムフォルダ</strong>をご確認ください</li>
-              <li>送信元：<code style={{ color: '#FFD700', fontSize: 11 }}>noreply@saikaku-architecture.firebaseapp.com</code></li>
+              <li>送信元：<code style={{ color: '#FFD700', fontSize: 11 }}>{fromEmail || 'noreply@saikaku-architecture.firebaseapp.com'}</code></li>
               <li>件名：<strong style={{ color: 'rgba(255,255,255,0.85)' }}>「メールアドレスを確認」</strong></li>
               <li>届くまで<strong style={{ color: 'rgba(255,255,255,0.85)' }}>数分かかる</strong>場合があります</li>
             </ul>
