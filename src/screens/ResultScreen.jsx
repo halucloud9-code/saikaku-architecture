@@ -244,38 +244,22 @@ function CategorySection({ title, type, axes }) {
         </div>
 
         {/* ドーナツチャート */}
-        <div style={{ background: '#0A0A0C', borderRadius: 12, padding: '24px 16px', marginBottom: 12, border: `2px solid ${main}`, boxShadow: `0 0 12px ${main}20` }}>
-          <div style={{ position: 'relative', width: '100%', maxWidth: 280, margin: '0 auto', height: 320 }}>
-            {axesArray[0] && (
-              <div style={{ position: 'absolute', top: 0, left: 0, textAlign: 'left' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: donutColors[0], display: 'inline-block', flexShrink: 0 }} />
-                  <span style={{ fontSize: 18, color: '#FDFCFA', fontWeight: 700 }}>{axesArray[0].name}</span>
+        <div style={{ background: '#0A0A0C', borderRadius: 12, padding: '20px 16px', marginBottom: 12, border: `2px solid ${main}`, boxShadow: `0 0 12px ${main}20` }}>
+          {/* チャート本体 */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <DonutChart axes={axesArray} colors={donutColors} size={220} />
+          </div>
+          {/* 凡例：チャートの下に並べる → 弧とラベルが常に1対1で対応 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {axesArray.map((axis, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, borderLeft: `3px solid ${donutColors[i]}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: donutColors[i], display: 'inline-block', flexShrink: 0 }} />
+                  <span style={{ fontSize: 15, color: '#FDFCFA', fontWeight: 700 }}>{axis.name}</span>
                 </div>
-                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingLeft: 16, fontFamily: "'Inter', Arial, sans-serif" }}>{pcts[0]}%</div>
+                <div className="donut-pct" style={{ fontSize: 28, fontWeight: 900, color: '#ffffff', lineHeight: 1, fontFamily: "'Inter', Arial, sans-serif" }}>{pcts[i]}%</div>
               </div>
-            )}
-            {axesArray[1] && (
-              <div style={{ position: 'absolute', top: 0, right: 0, textAlign: 'right' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: 18, color: '#FDFCFA', fontWeight: 700 }}>{axesArray[1].name}</span>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: donutColors[1], display: 'inline-block', flexShrink: 0 }} />
-                </div>
-                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingRight: 16, fontFamily: "'Inter', Arial, sans-serif" }}>{pcts[1]}%</div>
-              </div>
-            )}
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-              <DonutChart axes={axesArray} colors={donutColors} size={220} />
-            </div>
-            {axesArray[2] && (
-              <div style={{ position: 'absolute', bottom: 0, left: 0, textAlign: 'left' }}>
-                <div className="donut-pct" style={{ fontSize: 36, fontWeight: 900, color: '#ffffff', lineHeight: 1, paddingLeft: 16, marginBottom: 2, fontFamily: "'Inter', Arial, sans-serif" }}>{pcts[2]}%</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: donutColors[2], display: 'inline-block', flexShrink: 0 }} />
-                  <span style={{ fontSize: 18, color: '#FDFCFA', fontWeight: 700 }}>{axesArray[2].name}</span>
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
