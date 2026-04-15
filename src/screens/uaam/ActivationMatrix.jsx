@@ -25,22 +25,22 @@ const AXIS_META = [
 ];
 
 const SUB_META = [
-  { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '基軸力', desc: 'なぜ生き、どこへ向かうのかを定める、存在の軸。' },
-  { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '認知力', desc: '自己と環境を客観的に捉え、今この瞬間を正確に読む力。' },
-  { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '転換力', desc: '固定観念を手放し、新しい視点へと発想を切り替える力。' },
-  { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達力', desc: '一つの道を深く磨き続け、本物の技として昇華させる力。' },
-  { key: 'learning',      axis: 1, label: 'Learning',      jp: '謙学力', desc: '素直に問いを立て、知を吸収し続ける謙虚な学びの力。' },
-  { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理力', desc: '筋道を立てて考え、根拠と結論を正確につなぐ思考の力。' },
-  { key: 'life',          axis: 1, label: 'Life',          jp: '活用力', desc: '得た知識・経験を実生活と実践の場に活かし切る力。' },
-  { key: 'leadership',    axis: 1, label: 'Leadership',    jp: '統率力', desc: '人を信じ、方向を示し、チームを一つの意志へと束ねる力。' },
-  { key: 'critical',      axis: 2, label: 'Critical',      jp: '本質力', desc: '表面に惑わされず、物事の核心と真実を見抜く洞察の力。' },
-  { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造力', desc: '既存の枠を超え、新しい価値とアイデアを生み出す力。' },
-  { key: 'communication', axis: 2, label: 'Communication', jp: '伝達力', desc: '想いと情報を相手の心に届く言葉と表現に変換する力。' },
-  { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働力', desc: '違いを強さとして活かし、他者と共に大きな成果を生む力。' },
-  { key: 'idea',           axis: 3, label: 'Idea',           jp: '構想力', desc: '未来を描き、大局を掴み、実現へのシナリオを設計する力。' },
-  { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革力', desc: '現状の壁を打ち破り、新しい流れを自ら創り出す力。' },
-  { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装力', desc: '構想を具体的な行動と形に変え、現実へと落とし込む力。' },
-  { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力', desc: '周囲の心を動かし、人と社会に変化と行動を促す力。' },
+  { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '基軸力', desc: '自分が何のために生きるかを問い続け、ぶれない軸を持つ力。基軸力がなければ、どれだけ能力があっても方向が定まらない。在り方そのものが、軸だ。' },
+  { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '認知力', desc: '場の空気・相手の感情・自分の反応を鋭く受け取る力。受容の深さが判断の精度を決める。気づいた分だけ、世界が広がる。' },
+  { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '転換力', desc: '固定した見方を壊し、別の角度から物事を捉え直す力。パラダイムを書き換える速さが突破口を生む。同じ現実が、別の景色に見える。' },
+  { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達力', desc: '一つの道を深く掘り続け、技・知・感覚を統合していく力。熟達力は量より密度だ。一点に人生を刻み続けた者だけが、到達できる領域がある。' },
+  { key: 'learning',      axis: 1, label: 'Learning',      jp: '謙学力', desc: '自分が知らないと認め、常に問い続ける学びの力。謙虚さが知識を血肉にする。謙学力は知識の量ではない。学び続けることを選び続ける、意志の問題だ。' },
+  { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理力', desc: '物事を分解・整理し、筋道を立てて思考する力。論理の精度が判断の質を決める。感情ではなく構造で語れる者が、信頼を積み上げる。' },
+  { key: 'life',          axis: 1, label: 'Life',          jp: '活用力', desc: '学んだことを現場に落とし込み、実際に使い切る力。活用力のない知識は、蓄積ではなく在庫だ。行動した分だけ、知識は力になる。' },
+  { key: 'leadership',    axis: 1, label: 'Leadership',    jp: '統率力', desc: '人と力を束ね、方向をそろえて前に進む力。統率の質がチームの可能性の天井を決める。統率力は命令ではない。目的を共有し、それぞれの才覚を最大化させる思考の力だ。' },
+  { key: 'critical',      axis: 2, label: 'Critical',      jp: '本質力', desc: '表面を削ぎ落とし、本質・核心を見抜く力。本質を掴んだ者だけが真の問題を解ける。本質力は、情報の多さに惑わされない。削れば削るほど、核が現れる。' },
+  { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造力', desc: 'ゼロから新しいモノ・価値を生み出す能力とプロセス全体。訓練で磨かれ、再現できる。創造力は方法論だ。問いに答え続けることで精度が上がる。' },
+  { key: 'communication', axis: 2, label: 'Communication', jp: '伝達力', desc: '想いや思考を言葉にして、相手の心に届ける力。「正確に伝える」だけでなく「相手の中に変化を起こす」伝え方の技術だ。届いた言葉だけが、人を動かす。' },
+  { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働力', desc: '他者の持ち味を引き出し、ひとつの力に束ねる力。協働力は、自分の能力より他者の可能性を信じることから始まる。' },
+  { key: 'idea',           axis: 3, label: 'Idea',           jp: '構想力', desc: '熱狂できるテーマを見出す力。「これだ」と内側から火がつく瞬間の衝動であり、技術ではなく発見だ。在り方と感度が高まるほど、テーマが引き寄せられてくる。' },
+  { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革力', desc: '既存の枠を壊し、新しい秩序・流れを生み出す力。変革力は破壊ではない。壊した先に、より本質的な秩序を生み出す意志だ。' },
+  { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装力', desc: '構想を止めずに最後まで形にしきる力。実装力は才能より意志だ。最後まで手を止めなかった者だけが、世界を変える。' },
+  { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力', desc: '言葉や行動が周囲に波及し、変化を生み続ける力。影響力は努力でなく滲み出るものだ。存在そのものが、場を変えていく。' },
 ];
 
 // 四隅バッジ

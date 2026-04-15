@@ -550,7 +550,11 @@ function PairCard({ item, maxSum = 40, expandable = false }) {
 
       {/* 説明文（expandable時はタップで表示） */}
       {showDesc && desc && (
-        <p style={{ fontSize: 11, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6, paddingLeft: 7 }}>{desc}</p>
+        <div style={{ paddingLeft: 7 }}>
+          <p style={{ fontSize: 11, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6, fontWeight: 600 }}>{desc.d1}</p>
+          {open && <p style={{ fontSize: 10, color: '#8A8070', margin: '3px 0 0', lineHeight: 1.6 }}>{desc.d2}</p>}
+          {open && <p style={{ fontSize: 10, color: zoneColor, margin: '3px 0 0', fontStyle: 'italic', fontWeight: 700 }}>「{desc.d3}」</p>}
+        </div>
       )}
 
       {/* タップヒント */}
