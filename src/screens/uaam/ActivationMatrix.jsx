@@ -25,22 +25,22 @@ const AXIS_META = [
 ];
 
 const SUB_META = [
-  { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '基軸力', desc: '自分が何のために生きるかを問い続け、ぶれない軸を持つ力。基軸力がなければ、どれだけ能力があっても方向が定まらない。在り方そのものが、軸だ。' },
-  { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '認知力', desc: '場の空気・相手の感情・自分の反応を鋭く受け取る力。受容の深さが判断の精度を決める。気づいた分だけ、世界が広がる。' },
-  { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '転換力', desc: '固定した見方を壊し、別の角度から物事を捉え直す力。パラダイムを書き換える速さが突破口を生む。同じ現実が、別の景色に見える。' },
-  { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達力', desc: '一つの道を深く掘り続け、技・知・感覚を統合していく力。熟達力は量より密度だ。一点に人生を刻み続けた者だけが、到達できる領域がある。' },
-  { key: 'learning',      axis: 1, label: 'Learning',      jp: '謙学力', desc: '自分が知らないと認め、常に問い続ける学びの力。謙虚さが知識を血肉にする。謙学力は知識の量ではない。学び続けることを選び続ける、意志の問題だ。' },
-  { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理力', desc: '物事を分解・整理し、筋道を立てて思考する力。論理の精度が判断の質を決める。感情ではなく構造で語れる者が、信頼を積み上げる。' },
-  { key: 'life',          axis: 1, label: 'Life',          jp: '活用力', desc: '学んだことを現場に落とし込み、実際に使い切る力。活用力のない知識は、蓄積ではなく在庫だ。行動した分だけ、知識は力になる。' },
-  { key: 'leadership',    axis: 1, label: 'Leadership',    jp: '統率力', desc: '人と力を束ね、方向をそろえて前に進む力。統率の質がチームの可能性の天井を決める。統率力は命令ではない。目的を共有し、それぞれの才覚を最大化させる思考の力だ。' },
-  { key: 'critical',      axis: 2, label: 'Critical',      jp: '本質力', desc: '表面を削ぎ落とし、本質・核心を見抜く力。本質を掴んだ者だけが真の問題を解ける。本質力は、情報の多さに惑わされない。削れば削るほど、核が現れる。' },
-  { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造力', desc: 'ゼロから新しいモノ・価値を生み出す能力とプロセス全体。訓練で磨かれ、再現できる。創造力は方法論だ。問いに答え続けることで精度が上がる。' },
-  { key: 'communication', axis: 2, label: 'Communication', jp: '伝達力', desc: '想いや思考を言葉にして、相手の心に届ける力。「正確に伝える」だけでなく「相手の中に変化を起こす」伝え方の技術だ。届いた言葉だけが、人を動かす。' },
-  { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働力', desc: '他者の持ち味を引き出し、ひとつの力に束ねる力。協働力は、自分の能力より他者の可能性を信じることから始まる。' },
-  { key: 'idea',           axis: 3, label: 'Idea',           jp: '構想力', desc: '熱狂できるテーマを見出す力。「これだ」と内側から火がつく瞬間の衝動であり、技術ではなく発見だ。在り方と感度が高まるほど、テーマが引き寄せられてくる。' },
-  { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革力', desc: '既存の枠を壊し、新しい秩序・流れを生み出す力。変革力は破壊ではない。壊した先に、より本質的な秩序を生み出す意志だ。' },
-  { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装力', desc: '構想を止めずに最後まで形にしきる力。実装力は才能より意志だ。最後まで手を止めなかった者だけが、世界を変える。' },
-  { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力', desc: '言葉や行動が周囲に波及し、変化を生み続ける力。影響力は努力でなく滲み出るものだ。存在そのものが、場を変えていく。' },
+  { key: 'meaning',       axis: 0, label: 'Meaning',       jp: '基軸力', desc: { d1: '自分が何のために生きるかを問い続け、ぶれない軸を持つ力。', d2: 'すべての選択・判断・行動の「なぜ」を支える根拠であり、技術より先に存在する。', d3: '基軸力がなければ、どれだけ能力があっても方向が定まらない。在り方そのものが、軸だ。' } },
+  { key: 'mindfulness',   axis: 0, label: 'Mindfulness',   jp: '認知力', desc: { d1: '場の空気・相手の感情・自分の反応を鋭く受け取る力。', d2: '「感じること」を止めない姿勢であり、受容の深さが判断の精度を決める。', d3: '認知力は訓練より、感度を開くことで育つ。気づいた分だけ、世界が広がる。' } },
+  { key: 'mindshift',     axis: 0, label: 'Mindshift',     jp: '転換力', desc: { d1: '固定した見方を壊し、別の角度から物事を捉え直す力。', d2: '「それは本当か？」と問い直す反射であり、パラダイムを書き換える速さが突破口を生む。', d3: '転換力のある者は、危機を情報として読む。同じ現実が、別の景色に見える。' } },
+  { key: 'mastery',       axis: 0, label: 'Mastery',       jp: '熟達力', desc: { d1: '一つの道を深く掘り続け、技・知・感覚を統合していく力。', d2: '「まだ足りない」と問い続ける姿勢であり、年輪が積み重なるほど精度が上がる。', d3: '熟達力は量より密度だ。一点に人生を刻み続けた者だけが、到達できる領域がある。' } },
+  { key: 'learning',      axis: 1, label: 'Learning',      jp: '謙学力', desc: { d1: '自分が知らないと認め、常に問い続ける学びの力。', d2: '「わかった」と止まらない姿勢であり、謙虚さが知識を血肉にする。', d3: '謙学力は知識の量ではない。学び続けることを選び続ける、意志の問題だ。' } },
+  { key: 'logical',       axis: 1, label: 'Logical',       jp: '論理力', desc: { d1: '物事を分解・整理し、筋道を立てて思考する力。', d2: '「なぜそうなるか」を構造で説明する能力であり、論理の精度が判断の質を決める。', d3: '論理力は言い訳を排除する。感情ではなく構造で語れる者が、信頼を積み上げる。' } },
+  { key: 'life',          axis: 1, label: 'Life',          jp: '活用力', desc: { d1: '学んだことを現場に落とし込み、実際に使い切る力。', d2: '「知っている」と「できる」の間を埋める行動力であり、現場での実践が知識を本物にする。', d3: '活用力のない知識は、蓄積ではなく在庫だ。行動した分だけ、知識は力になる。' } },
+  { key: 'leadership',    axis: 1, label: 'Leadership',    jp: '統率力', desc: { d1: '人と力を束ね、方向をそろえて前に進む力。', d2: '「個」を「集合知」に変える能力であり、統率の質がチームの可能性の天井を決める。', d3: '統率力は命令ではない。目的を共有し、それぞれの才覚を最大化させる思考の力だ。' } },
+  { key: 'critical',      axis: 2, label: 'Critical',      jp: '本質力', desc: { d1: '表面を削ぎ落とし、本質・核心を見抜く力。', d2: '「何が本当の問題か」を特定する技術であり、本質を掴んだ者だけが真の問題を解ける。', d3: '本質力は、情報の多さに惑わされない。削れば削るほど、核が現れる。' } },
+  { key: 'creativity',    axis: 2, label: 'Creativity',    jp: '創造力', desc: { d1: 'ゼロから新しいモノ・価値を生み出す能力とプロセス全体。', d2: '「何もない状態から形にする」という技術であり、訓練で磨かれ、再現できる。', d3: '創造力は方法論だ。問いに答え続けることで精度が上がる。' } },
+  { key: 'communication', axis: 2, label: 'Communication', jp: '伝達力', desc: { d1: '想いや思考を言葉にして、相手の心に届ける力。', d2: '「正確に伝える」だけでなく「相手の中に変化を起こす」伝え方の技術であり、伝わった分だけ世界が動く。', d3: '伝達力は話す量ではない。届いた言葉だけが、人を動かす。' } },
+  { key: 'collaboration', axis: 2, label: 'Collaboration', jp: '協働力', desc: { d1: '他者の持ち味を引き出し、ひとつの力に束ねる力。', d2: '「一人でやる」を超えた先にある能力であり、一人では届かない場所へ共に向かう技術だ。', d3: '協働力は、自分の能力より他者の可能性を信じることから始まる。' } },
+  { key: 'idea',           axis: 3, label: 'Idea',           jp: '構想力', desc: { d1: '熱狂できるテーマを見出す力。', d2: '「これだ」と内側から火がつく瞬間の衝動であり、技術ではなく発見だ。', d3: '構想力は訓練で生まれない。在り方と感度が高まるほど、テーマが引き寄せられてくる。' } },
+  { key: 'innovation',     axis: 3, label: 'Innovation',     jp: '変革力', desc: { d1: '既存の枠を壊し、新しい秩序・流れを生み出す力。', d2: '「今のままでいい」を許さない衝動であり、変革を恐れない者だけが時代を動かす。', d3: '変革力は破壊ではない。壊した先に、より本質的な秩序を生み出す意志だ。' } },
+  { key: 'implementation', axis: 3, label: 'Implementation', jp: '実装力', desc: { d1: '構想を止めずに最後まで形にしきる力。', d2: '「やり切る」という衝動であり、実装の粘りが夢と現実の差を埋める。', d3: '実装力は才能より意志だ。最後まで手を止めなかった者だけが、世界を変える。' } },
+  { key: 'influence',      axis: 3, label: 'Influence',      jp: '影響力', desc: { d1: '言葉や行動が周囲に波及し、変化を生み続ける力。', d2: '「意図せず場が変わる」レベルの存在感であり、発信より在り方が先に伝わる。', d3: '影響力は努力でなく滲み出るものだ。存在そのものが、場を変えていく。' } },
 ];
 
 // 四隅バッジ
@@ -742,13 +742,13 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
                   {hp.label}
                 </span>
               </div>
-              <div style={{
-                fontSize: 11, lineHeight: 1.7,
-                color: 'rgba(253,252,250,0.82)',
-                fontFamily: "'Noto Serif JP', serif",
-              }}>
-                {hp.desc}
-              </div>
+              {hp.desc && (
+                <div style={{ fontFamily: "'Noto Serif JP', serif" }}>
+                  <div style={{ fontSize: 11, lineHeight: 1.7, color: 'rgba(253,252,250,0.82)', fontWeight: 600 }}>{hp.desc.d1}</div>
+                  <div style={{ fontSize: 10, lineHeight: 1.7, color: 'rgba(253,252,250,0.62)', marginTop: 3 }}>{hp.desc.d2}</div>
+                  <div style={{ fontSize: 10, lineHeight: 1.5, color: hp.hex, fontStyle: 'italic', fontWeight: 700, marginTop: 3 }}>「{hp.desc.d3}」</div>
+                </div>
+              )}
               <div style={{
                 marginTop: 5, fontSize: 10,
                 color: `rgba(${hp.color[0]},${hp.color[1]},${hp.color[2]},0.65)`,
@@ -834,12 +834,10 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
             }} />
           </div>
           {activePoint.desc && (
-            <div style={{
-              fontSize: 12, color: PALETTE.text, lineHeight: 1.65,
-              marginBottom: 8, opacity: 0.78,
-              fontFamily: "'Noto Serif JP', serif",
-            }}>
-              {activePoint.desc}
+            <div style={{ marginBottom: 8, fontFamily: "'Noto Serif JP', serif" }}>
+              <div style={{ fontSize: 12, color: PALETTE.text, lineHeight: 1.65, fontWeight: 600 }}>{activePoint.desc.d1}</div>
+              <div style={{ fontSize: 11, color: PALETTE.textSub, lineHeight: 1.65, marginTop: 3 }}>{activePoint.desc.d2}</div>
+              <div style={{ fontSize: 11, color: activePoint.hex, lineHeight: 1.5, fontStyle: 'italic', fontWeight: 700, marginTop: 3 }}>「{activePoint.desc.d3}」</div>
             </div>
           )}
           <div style={{ fontSize: 11, color: PALETTE.textSub }}>
