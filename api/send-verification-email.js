@@ -104,17 +104,17 @@ export default async function handler(req, res) {
       });
 
       await transporter.sendMail({
-        from: `"才覚領域" <${GMAIL_USER || 'halu.cloud9@gmail.com'}>`,
+        from: `"才覚領域" <noreply@saikaku-architecture.com>`,
         to: email,
         subject,
         html,
       });
 
-      return res.status(200).json({ method: 'gmail_smtp', success: true });
+      return res.status(200).json({ method: 'gmail_smtp', success: true, from_email: 'noreply@saikaku-architecture.com' });
     }
 
     /* ── 2. Resend ───────────────────────────────────────────────── */
-    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@saikaku-architecture.com';
     const FROM_NAME  = process.env.RESEND_FROM_NAME  || '才覚領域';
 
     const emailRes = await fetch('https://api.resend.com/emails', {

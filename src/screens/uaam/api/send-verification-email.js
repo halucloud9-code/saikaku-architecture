@@ -151,7 +151,7 @@ export default async function handler(req, res) {
     }
 
     /* ── 2. Resend ───────────────────────────────────────────────── */
-    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@saikaku-architecture.com';
     const FROM_NAME  = process.env.RESEND_FROM_NAME  || '才覚領域';
 
     const emailRes = await fetch('https://api.resend.com/emails', {
