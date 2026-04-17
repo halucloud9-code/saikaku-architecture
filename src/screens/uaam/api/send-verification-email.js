@@ -1,8 +1,8 @@
 /**
  * カスタム確認メール送信 API
  * 優先順位:
- *   1. GMAIL_APP_PASSWORD が設定されていれば Gmail SMTP 経由で送信（最高配信率）
- *   2. RESEND_API_KEY が設定されていれば Resend 経由で送信
+ *   1. RESEND_API_KEY が設定されていれば Resend 経由で送信（独自ドメイン対応）
+ *   2. GMAIL_APP_PASSWORD が設定されていれば Gmail SMTP 経由で送信
  *   3. どちらも未設定の場合は Firebase デフォルトにフォールバック（スパム注意）
  */
 import { getAuth } from 'firebase-admin/auth';
@@ -130,7 +130,41 @@ export default async function handler(req, res) {
     const html    = EMAIL_HTML(link);
     const subject = '【才覚領域】メールアドレスの確認';
 
-    /* ── 1. Gmail SMTP（最優先） ─────────────────────────────────── */
+    /* ── 1. Resend（最優先・独自ドメイン対応） ────────────────────── */
+    if (RESEND_API_KEY) {
+      const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@saikaku-architecture.com';
+      const FROM_NAME  = process.env.RESEND_FROM_NAME  || '才覚領域';
+
+      try {
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `${FROM_NAME} <${FROM_EMAIL}>`,
+            to: [email],
+            subject,
+            html,
+          }),
+        });
+
+        const data = await emailRes.json();
+        if (!emailRes.ok) {
+          throw new Error(JSON.stringify(data));
+        }
+
+        return res.status(200).json({ method: 'resend', id: data.id, success: true, from_email: FROM_EMAIL });
+      } catch (resendError) {
+        console.error('[send-verification-email] Resend error:', resendError);
+        if (!GMAIL_APP_PASSWORD) {
+          return res.status(500).json({ error: 'メール送信に失敗しました', detail: resendError.message });
+        }
+      }
+    }
+
+    /* ── 2. Gmail SMTP（フォールバック） ──────────────────────────── */
     if (GMAIL_APP_PASSWORD) {
       const transporter = createTransport({
         service: 'gmail',
@@ -149,32 +183,6 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ method: 'gmail_smtp', success: true, from_email: 'noreply@saikaku-architecture.com' });
     }
-
-    /* ── 2. Resend ───────────────────────────────────────────────── */
-    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@saikaku-architecture.com';
-    const FROM_NAME  = process.env.RESEND_FROM_NAME  || '才覚領域';
-
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: `${FROM_NAME} <${FROM_EMAIL}>`,
-        to: [email],
-        subject,
-        html,
-      }),
-    });
-
-    const data = await emailRes.json();
-    if (!emailRes.ok) {
-      console.error('[send-verification-email] Resend error:', data);
-      return res.status(500).json({ error: 'メール送信に失敗しました', detail: data });
-    }
-
-    return res.status(200).json({ method: 'resend', id: data.id, success: true });
 
   } catch (e) {
     console.error('[send-verification-email]', e);
