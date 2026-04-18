@@ -70,11 +70,19 @@ export default function LoginScreen({ onLogin }) {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
   const [showResetPrompt, setShowResetPrompt] = useState(false); // パスワードリセット誘導
+  const [resendCooldown, setResendCooldown] = useState(0); // 再送クールダウン秒数
 
   useEffect(() => {
     injectStyles();
     requestAnimationFrame(() => setMounted(true));
   }, []);
+
+  // 再送クールダウンタイマー
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   const saveConsent = async (user) => {
     const docRef = doc(db, 'results', user.uid);
@@ -132,6 +140,7 @@ export default function LoginScreen({ onLogin }) {
         }
         await signOutUser();
         setVerificationSent(true);
+        setResendCooldown(60);
         setLoading(false);
         return;
       } else {
@@ -154,6 +163,7 @@ export default function LoginScreen({ onLogin }) {
           }
           await signOutUser();
           setVerificationSent(true);
+          setResendCooldown(60);
           setLoading(false);
           return;
         }
@@ -183,6 +193,7 @@ export default function LoginScreen({ onLogin }) {
             }
             await signOutUser();
             setVerificationSent(true);
+            setResendCooldown(60);
             setLoading(false);
             return;
           }
@@ -251,6 +262,7 @@ export default function LoginScreen({ onLogin }) {
       }
       if (data.from_email) setFromEmail(data.from_email);
       setResendMsg('✅ 確認メールを再送しました。最新のメールのリンクを使ってください');
+      setResendCooldown(60);
     } catch (e) {
       console.error('[resend]', e);
       const msg = (e.message?.includes('TOO_MANY') || e.message?.includes('送信回数'))
@@ -325,14 +337,14 @@ export default function LoginScreen({ onLogin }) {
             }}>{resendMsg}</div>
           )}
 
-          <button onClick={handleResendVerification} disabled={resendLoading}
+          <button onClick={handleResendVerification} disabled={resendLoading || resendCooldown > 0}
             style={{
               width: '100%', padding: '14px', borderRadius: 12, marginBottom: 12,
               background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
-              color: resendLoading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)',
-              fontSize: 14, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer',
+              color: (resendLoading || resendCooldown > 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)',
+              fontSize: 14, fontWeight: 600, cursor: (resendLoading || resendCooldown > 0) ? 'not-allowed' : 'pointer',
             }}>
-            {resendLoading ? '送信中...' : '🔄 確認メールを再送信'}
+            {resendLoading ? '送信中...' : resendCooldown > 0 ? `🔄 再送信可能まで ${resendCooldown}秒` : '🔄 確認メールを再送信'}
           </button>
 
           <button onClick={() => { setVerificationSent(false); setEmailMode('login'); setPassword(''); }}
