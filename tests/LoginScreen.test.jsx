@@ -6,7 +6,6 @@ import userEvent from '@testing-library/user-event';
 const mockSignUpWithEmail = vi.fn();
 const mockSignInWithEmail = vi.fn();
 const mockSendVerificationEmail = vi.fn();
-const mockSendPasswordReset = vi.fn();
 const mockSignOutUser = vi.fn();
 
 vi.mock('../src/firebase', () => ({
@@ -14,7 +13,6 @@ vi.mock('../src/firebase', () => ({
   signInWithEmail: (...args) => mockSignInWithEmail(...args),
   signUpWithEmail: (...args) => mockSignUpWithEmail(...args),
   sendVerificationEmail: (...args) => mockSendVerificationEmail(...args),
-  sendPasswordReset: (...args) => mockSendPasswordReset(...args),
   signOutUser: (...args) => mockSignOutUser(...args),
   db: {},
   auth: {},
@@ -82,7 +80,6 @@ describe('LoginScreen メール認証フロー', () => {
     mockFetchSuccess();
     mockSignOutUser.mockResolvedValue();
     mockSendVerificationEmail.mockResolvedValue();
-    mockSendPasswordReset.mockResolvedValue();
   });
 
   // ─── 新規登録 ───
@@ -139,9 +136,9 @@ describe('LoginScreen メール認証フロー', () => {
     expect(onLogin).not.toHaveBeenCalled();
   });
 
-  // ─── 再登録: 違うパスワード → リセット誘導 ───
+  // ─── 再登録: 違うパスワード → エラーメッセージ ───
 
-  it('再登録（違うパスワード）: パスワードリセットボタンを表示', async () => {
+  it('再登録（違うパスワード）: すでに登録済みのエラーを表示', async () => {
     const user = userEvent.setup();
     const emailInUseError = new Error('email-already-in-use');
     emailInUseError.code = 'auth/email-already-in-use';
@@ -154,33 +151,7 @@ describe('LoginScreen メール認証フロー', () => {
     await fillAndSubmit(user, container, { email: 'existing@example.com', password: 'wrongpass', displayName: 'テスト' });
 
     await waitFor(() => {
-      expect(screen.getByText(/パスワードが異なります/)).toBeInTheDocument();
-      expect(screen.getByText(/パスワードリセットメールを送信/)).toBeInTheDocument();
-    });
-  });
-
-  it('パスワードリセットボタンを押すとリセットメールが送信される', async () => {
-    const user = userEvent.setup();
-    const emailInUseError = new Error('email-already-in-use');
-    emailInUseError.code = 'auth/email-already-in-use';
-    mockSignUpWithEmail.mockRejectedValue(emailInUseError);
-    const wrongPassError = new Error('wrong-password');
-    wrongPassError.code = 'auth/invalid-credential';
-    mockSignInWithEmail.mockRejectedValue(wrongPassError);
-    const { container } = render(<LoginScreen onLogin={onLogin} />);
-
-    await fillAndSubmit(user, container, { email: 'existing@example.com', password: 'wrongpass', displayName: 'テスト' });
-
-    await waitFor(() => {
-      expect(screen.getByText(/パスワードリセットメールを送信/)).toBeInTheDocument();
-    });
-
-    // リセットボタンを押す
-    await user.click(screen.getByText(/パスワードリセットメールを送信/));
-
-    await waitFor(() => {
-      expect(mockSendPasswordReset).toHaveBeenCalledWith('existing@example.com');
-      expect(screen.getByText(/パスワードリセットメールを送信しました/)).toBeInTheDocument();
+      expect(screen.getByText(/すでに登録されています/)).toBeInTheDocument();
     });
   });
 

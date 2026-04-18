@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { signInWithGoogle, signInWithEmail, signUpWithEmail, sendVerificationEmail, sendPasswordReset, signOutUser, db } from '../firebase';
+import { signInWithGoogle, signInWithEmail, signUpWithEmail, sendVerificationEmail, signOutUser, db } from '../firebase';
 import griffonImg from '../assets/griffon.png';
 
 /* ============================================================
@@ -69,7 +69,6 @@ export default function LoginScreen({ onLogin }) {
   const [fromEmail, setFromEmail] = useState('noreply@saikaku-architecture.com'); // 表示用送信元アドレス
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
-  const [showResetPrompt, setShowResetPrompt] = useState(false); // パスワードリセット誘導
   const [resendCooldown, setResendCooldown] = useState(0); // 再送クールダウン秒数
 
   useEffect(() => {
@@ -114,7 +113,6 @@ export default function LoginScreen({ onLogin }) {
     if (!agreed || !email || !password) return;
     setLoading(true);
     setError('');
-    setShowResetPrompt(false);
     try {
       let result;
       if (emailMode === 'signup') {
@@ -203,15 +201,11 @@ export default function LoginScreen({ onLogin }) {
           setLoading(false);
           return;
         } catch (_) {
-          // パスワード不一致 → パスワードリセットを誘導
-          setShowResetPrompt(true);
-          setError('このメールアドレスは登録済みですが、パスワードが異なります。パスワードをリセットして再設定してください。');
-          setLoading(false);
-          return;
+          // パスワード不一致 → 通常のエラーメッセージへ
         }
       }
       const msgs = {
-        'auth/email-already-in-use': 'このメールアドレスはすでに登録されています。「ログイン」タブからサインインするか、パスワードをお忘れの場合はリセットしてください。',
+        'auth/email-already-in-use': 'このメールアドレスはすでに登録されています。「ログイン」タブからサインインしてください。',
         'auth/invalid-email': 'メールアドレスの形式が正しくありません',
         'auth/weak-password': 'パスワードは6文字以上で設定してください',
         'auth/user-not-found': 'メールアドレスが見つかりません',
@@ -221,21 +215,6 @@ export default function LoginScreen({ onLogin }) {
       setError(msgs[e.code] || 'エラーが発生しました。再度お試しください。');
       setLoading(false);
     }
-  };
-
-  // パスワードリセットメール送信
-  const handleSendPasswordReset = async () => {
-    if (!email) return;
-    setResendLoading(true);
-    try {
-      await sendPasswordReset(email);
-      setError('');
-      setShowResetPrompt(false);
-      setResendMsg('✅ パスワードリセットメールを送信しました。メール内のリンクからパスワードを再設定してください。');
-    } catch (e) {
-      setResendMsg(`❌ リセットメール送信に失敗しました：${e.message}`);
-    }
-    setResendLoading(false);
   };
 
   // 確認メール再送信
@@ -614,16 +593,6 @@ export default function LoginScreen({ onLogin }) {
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
                   color: '#F5F0E8', fontSize: 14, outline: 'none',
                 }} />
-              {emailMode === 'login' && (
-                <button type="button" onClick={handleSendPasswordReset} disabled={!email || resendLoading}
-                  style={{
-                    background: 'none', border: 'none', padding: '4px 0', marginTop: -2,
-                    color: 'rgba(255,215,0,0.6)', fontSize: 12, cursor: email ? 'pointer' : 'default',
-                    textAlign: 'right', width: '100%',
-                  }}>
-                  パスワードを忘れた方
-                </button>
-              )}
             </div>
           )}
 
@@ -686,28 +655,6 @@ export default function LoginScreen({ onLogin }) {
             }}>{error}</div>
           )}
 
-          {/* パスワードリセット誘導ボタン */}
-          {showResetPrompt && (
-            <button onClick={handleSendPasswordReset} disabled={resendLoading}
-              style={{
-                width: '100%', padding: '12px', borderRadius: 10, marginTop: 10,
-                background: 'rgba(255,193,7,0.08)', border: '1px solid rgba(255,193,7,0.25)',
-                color: resendLoading ? 'rgba(255,255,255,0.3)' : '#FFD700',
-                fontSize: 13, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer',
-              }}>
-              {resendLoading ? '送信中...' : '🔑 パスワードリセットメールを送信'}
-            </button>
-          )}
-
-          {/* リセットメール送信結果 */}
-          {resendMsg && !verificationSent && (
-            <div style={{
-              marginTop: 10, padding: '10px 16px', borderRadius: 10,
-              background: resendMsg.startsWith('✅') ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-              border: `1px solid ${resendMsg.startsWith('✅') ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
-              fontSize: 12, color: resendMsg.startsWith('✅') ? '#4ADE80' : '#F87171',
-            }}>{resendMsg}</div>
-          )}
         </div>
 
         {/* ── フッター ── */}
