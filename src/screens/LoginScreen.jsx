@@ -614,6 +614,16 @@ export default function LoginScreen({ onLogin }) {
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
                   color: '#F5F0E8', fontSize: 14, outline: 'none',
                 }} />
+              {emailMode === 'login' && (
+                <button type="button" onClick={handleSendPasswordReset} disabled={!email || resendLoading}
+                  style={{
+                    background: 'none', border: 'none', padding: '4px 0', marginTop: -2,
+                    color: 'rgba(255,215,0,0.6)', fontSize: 12, cursor: email ? 'pointer' : 'default',
+                    textAlign: 'right', width: '100%',
+                  }}>
+                  パスワードを忘れた方
+                </button>
+              )}
             </div>
           )}
 
