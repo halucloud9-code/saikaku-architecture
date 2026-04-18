@@ -253,7 +253,10 @@ export default function LoginScreen({ onLogin }) {
       setResendMsg('✅ 確認メールを再送しました。最新のメールのリンクを使ってください');
     } catch (e) {
       console.error('[resend]', e);
-      setResendMsg(`❌ 再送信に失敗しました：${e.message}`);
+      const msg = (e.message?.includes('TOO_MANY') || e.message?.includes('送信回数'))
+        ? '⏳ 送信回数の制限に達しました。数分後にもう一度お試しください。'
+        : `❌ 再送信に失敗しました：${e.message}`;
+      setResendMsg(msg);
     }
     setResendLoading(false);
   };

@@ -148,6 +148,9 @@ export default async function handler(req, res) {
 
   } catch (e) {
     console.error('[send-verification-email]', e);
+    if (e.message?.includes('TOO_MANY_ATTEMPTS') || e.code === 'auth/too-many-requests') {
+      return res.status(429).json({ error: '送信回数の制限に達しました。数分後にもう一度お試しください。' });
+    }
     return res.status(500).json({ error: e.message });
   }
 }
