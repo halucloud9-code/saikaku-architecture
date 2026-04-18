@@ -69,6 +69,7 @@ export default function LoginScreen({ onLogin }) {
   const [fromEmail, setFromEmail] = useState('noreply@saikaku-architecture.com'); // 表示用送信元アドレス
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
+  const [showResetPrompt, setShowResetPrompt] = useState(false); // パスワードリセット誘導
 
   useEffect(() => {
     injectStyles();
@@ -105,6 +106,7 @@ export default function LoginScreen({ onLogin }) {
     if (!agreed || !email || !password) return;
     setLoading(true);
     setError('');
+    setShowResetPrompt(false);
     try {
       let result;
       if (emailMode === 'signup') {
@@ -134,10 +136,24 @@ export default function LoginScreen({ onLogin }) {
         return;
       } else {
         result = await signInWithEmail(email, password);
-        // メールアドレス未確認チェック
+        // メールアドレス未確認 → 確認メールを再送して確認画面へ
         if (!result.user.emailVerified) {
+          try {
+            const res = await fetch('/api/send-verification-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, uid: result.user.uid }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (data.from_email) setFromEmail(data.from_email);
+            if (!res.ok || data.method === 'firebase_default') {
+              try { await sendVerificationEmail(result.user); } catch (_) {}
+            }
+          } catch (_) {
+            try { await sendVerificationEmail(result.user); } catch (_) {}
+          }
           await signOutUser();
-          setError('メールアドレスの確認が完了していません。登録時に届いた確認メールのリンクをクリックしてください。');
+          setVerificationSent(true);
           setLoading(false);
           return;
         }
@@ -145,6 +161,44 @@ export default function LoginScreen({ onLogin }) {
       await saveConsent(result.user);
       onLogin(result.user);
     } catch (e) {
+      // 未確認ユーザーの再登録を救済: サインインして確認メールを再送
+      if (e.code === 'auth/email-already-in-use' && emailMode === 'signup') {
+        try {
+          const existing = await signInWithEmail(email, password);
+          if (!existing.user.emailVerified) {
+            // 未確認 → 確認メールを再送
+            try {
+              const res = await fetch('/api/send-verification-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, uid: existing.user.uid }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (data.from_email) setFromEmail(data.from_email);
+              if (!res.ok || data.method === 'firebase_default') {
+                try { await sendVerificationEmail(existing.user); } catch (_) {}
+              }
+            } catch (_) {
+              try { await sendVerificationEmail(existing.user); } catch (_) {}
+            }
+            await signOutUser();
+            setVerificationSent(true);
+            setLoading(false);
+            return;
+          }
+          // 確認済み → ログインを案内
+          await signOutUser();
+          setError('このメールアドレスはすでに登録・確認済みです。「ログイン」タブからサインインしてください。');
+          setLoading(false);
+          return;
+        } catch (_) {
+          // パスワード不一致 → パスワードリセットを誘導
+          setShowResetPrompt(true);
+          setError('このメールアドレスは登録済みですが、パスワードが異なります。パスワードをリセットして再設定してください。');
+          setLoading(false);
+          return;
+        }
+      }
       const msgs = {
         'auth/email-already-in-use': 'このメールアドレスはすでに登録されています。「ログイン」タブからサインインするか、パスワードをお忘れの場合はリセットしてください。',
         'auth/invalid-email': 'メールアドレスの形式が正しくありません',
@@ -156,6 +210,21 @@ export default function LoginScreen({ onLogin }) {
       setError(msgs[e.code] || 'エラーが発生しました。再度お試しください。');
       setLoading(false);
     }
+  };
+
+  // パスワードリセットメール送信
+  const handleSendPasswordReset = async () => {
+    if (!email) return;
+    setResendLoading(true);
+    try {
+      await sendPasswordReset(email);
+      setError('');
+      setShowResetPrompt(false);
+      setResendMsg('✅ パスワードリセットメールを送信しました。メール内のリンクからパスワードを再設定してください。');
+    } catch (e) {
+      setResendMsg(`❌ リセットメール送信に失敗しました：${e.message}`);
+    }
+    setResendLoading(false);
   };
 
   // 確認メール再送信
@@ -590,6 +659,29 @@ export default function LoginScreen({ onLogin }) {
               background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
               fontSize: 12, color: '#F87171', textAlign: 'center',
             }}>{error}</div>
+          )}
+
+          {/* パスワードリセット誘導ボタン */}
+          {showResetPrompt && (
+            <button onClick={handleSendPasswordReset} disabled={resendLoading}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 10, marginTop: 10,
+                background: 'rgba(255,193,7,0.08)', border: '1px solid rgba(255,193,7,0.25)',
+                color: resendLoading ? 'rgba(255,255,255,0.3)' : '#FFD700',
+                fontSize: 13, fontWeight: 600, cursor: resendLoading ? 'not-allowed' : 'pointer',
+              }}>
+              {resendLoading ? '送信中...' : '🔑 パスワードリセットメールを送信'}
+            </button>
+          )}
+
+          {/* リセットメール送信結果 */}
+          {resendMsg && !verificationSent && (
+            <div style={{
+              marginTop: 10, padding: '10px 16px', borderRadius: 10,
+              background: resendMsg.startsWith('✅') ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+              border: `1px solid ${resendMsg.startsWith('✅') ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+              fontSize: 12, color: resendMsg.startsWith('✅') ? '#4ADE80' : '#F87171',
+            }}>{resendMsg}</div>
           )}
         </div>
 
