@@ -64,6 +64,7 @@ export default function LoginScreen({ onLogin }) {
   const [emailMode, setEmailMode] = useState('login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [verificationSent, setVerificationSent] = useState(false); // 確認メール送信済み
   const [fromEmail, setFromEmail] = useState('noreply@saikaku-architecture.com'); // 表示用送信元アドレス
@@ -117,6 +118,7 @@ export default function LoginScreen({ onLogin }) {
       let result;
       if (emailMode === 'signup') {
         if (!displayName) { setError('お名前を入力してください'); setLoading(false); return; }
+        if (password !== passwordConfirm) { setError('パスワードが一致しません。再度ご確認ください。'); setLoading(false); return; }
         result = await signUpWithEmail(email, password, displayName);
         // 確認メール送信（失敗してもアカウント作成は成功として扱う）
         try {
@@ -558,7 +560,7 @@ export default function LoginScreen({ onLogin }) {
             <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10, ...fadeStyle(0.0) }}>
               <div style={{ display: 'flex', gap: 8 }}>
                 {['login', 'signup'].map(m => (
-                  <button key={m} onClick={() => { setEmailMode(m); setError(''); }}
+                  <button key={m} onClick={() => { setEmailMode(m); setError(''); setPasswordConfirm(''); }}
                     style={{
                       flex: 1, padding: '6px 0', borderRadius: 6, fontSize: 11, fontWeight: 600,
                       cursor: 'pointer', transition: 'all 0.2s',
@@ -593,6 +595,25 @@ export default function LoginScreen({ onLogin }) {
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
                   color: '#F5F0E8', fontSize: 14, outline: 'none',
                 }} />
+              {emailMode === 'signup' && (
+                <>
+                  <input type="password" placeholder="パスワード（確認のため再入力）" value={passwordConfirm}
+                    onChange={e => setPasswordConfirm(e.target.value)}
+                    style={{
+                      width: '100%', padding: '12px 14px', borderRadius: 10, boxSizing: 'border-box',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: passwordConfirm && password !== passwordConfirm
+                        ? '1px solid rgba(239,68,68,0.4)'
+                        : '1px solid rgba(255,255,255,0.12)',
+                      color: '#F5F0E8', fontSize: 14, outline: 'none',
+                    }} />
+                  {passwordConfirm && password !== passwordConfirm && (
+                    <div style={{ fontSize: 11, color: '#F87171', marginTop: -4, paddingLeft: 4 }}>
+                      パスワードが一致しません
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -600,7 +621,7 @@ export default function LoginScreen({ onLogin }) {
           <button
             className="login-btn-gold"
             onClick={authMode === 'google' ? handleLogin : handleEmailAuth}
-            disabled={!agreed || loading || (authMode === 'email' && (!email || !password))}
+            disabled={!agreed || loading || (authMode === 'email' && (!email || !password || (emailMode === 'signup' && (!passwordConfirm || password !== passwordConfirm))))}
             style={{
               width: '100%', padding: '16px 24px', borderRadius: 14,
               border: agreed && !loading ? `1.5px solid ${GOLD}60` : '1.5px solid rgba(255,255,255,0.06)',
