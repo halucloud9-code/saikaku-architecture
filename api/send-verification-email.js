@@ -35,12 +35,18 @@ const EMAIL_HTML = (link) => `
               ご登録いただきありがとうございます。<br>
               下のボタンをクリックして、メールアドレスを確認してください。
             </p>
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
               <tr>
                 <td align="center">
-                  <a href="${link}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#8B6914,#C4922A,#FFD700);border-radius:10px;color:#0A0A0F;font-size:15px;font-weight:800;text-decoration:none;letter-spacing:0.05em;">
-                    メールアドレスを確認する
-                  </a>
+                  <table cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td align="center" bgcolor="#C4922A" style="background-color:#C4922A;background-image:linear-gradient(135deg,#8B6914,#C4922A,#FFD700);border-radius:10px;">
+                        <a href="${link}" style="display:inline-block;padding:14px 36px;color:#FFFFFF;font-size:15px;font-weight:800;text-decoration:none;letter-spacing:0.05em;font-family:'Hiragino Kaku Gothic Pro',Meiryo,sans-serif;">
+                          メールアドレスを確認する
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
             </table>
