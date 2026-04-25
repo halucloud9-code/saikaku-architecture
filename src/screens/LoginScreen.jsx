@@ -111,14 +111,19 @@ export default function LoginScreen({ onLogin }) {
   };
 
   const handleEmailAuth = async () => {
-    if (!agreed || !email || !password) return;
-    setLoading(true);
+    if (!agreed) return;
     setError('');
+    if (emailMode === 'signup' && !displayName) { setError('お名前を入力してください'); return; }
+    if (!email) { setError('メールアドレスを入力してください'); return; }
+    if (!password) { setError('パスワードを入力してください'); return; }
+    if (emailMode === 'signup') {
+      if (!passwordConfirm) { setError('確認用のパスワードをもう一度入力してください'); return; }
+      if (password !== passwordConfirm) { setError('パスワードが一致しません。再度ご確認ください。'); return; }
+    }
+    setLoading(true);
     try {
       let result;
       if (emailMode === 'signup') {
-        if (!displayName) { setError('お名前を入力してください'); setLoading(false); return; }
-        if (password !== passwordConfirm) { setError('パスワードが一致しません。再度ご確認ください。'); setLoading(false); return; }
         result = await signUpWithEmail(email, password, displayName);
         // 確認メール送信（失敗してもアカウント作成は成功として扱う）
         try {
@@ -621,7 +626,7 @@ export default function LoginScreen({ onLogin }) {
           <button
             className="login-btn-gold"
             onClick={authMode === 'google' ? handleLogin : handleEmailAuth}
-            disabled={!agreed || loading || (authMode === 'email' && (!email || !password || (emailMode === 'signup' && (!passwordConfirm || password !== passwordConfirm))))}
+            disabled={!agreed || loading}
             style={{
               width: '100%', padding: '16px 24px', borderRadius: 14,
               border: agreed && !loading ? `1.5px solid ${GOLD}60` : '1.5px solid rgba(255,255,255,0.06)',
