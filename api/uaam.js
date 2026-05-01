@@ -1,9 +1,13 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { getAuth } from 'firebase-admin/auth';
-import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './lib/firebaseAdmin.js';
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import {
+  ConflictError,
+  LimitExceededError,
+  commitAttempt,
+  reserveAttempt,
+  rollbackAttempt,
+} from './lib/attempts.js';
+import { createMessage } from './lib/anthropicClient.js';
 
 /**
  * スコア計算（サーバーサイド）
@@ -224,6 +228,23 @@ export default async function handler(req, res) {
   // スコア計算
   const scores = calculateScores(answers, QUESTIONS);
 
+  let attemptId;
+  try {
+    ({ attemptId } = await reserveAttempt({
+      collection: 'uaam_results',
+      uid: decoded.uid,
+      kind: 'uaam',
+    }));
+  } catch (e) {
+    if (e instanceof LimitExceededError) {
+      return res.status(429).json({ error: e.message, code: 'LIMIT_EXCEEDED' });
+    }
+    if (e instanceof ConflictError) {
+      return res.status(409).json({ error: e.message, code: 'PENDING_CONFLICT' });
+    }
+    throw e;
+  }
+
   // 才覚領域データを取得
   let saikakuData = null;
   try {
@@ -267,57 +288,76 @@ ${Object.entries(scores.competency.subs).map(([k, v]) => `  ${k}: ${v}/20`).join
 ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n')}`;
 
   let analysis = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const message = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: UAAM_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userMsg }],
-      });
-      const text = message.content[0].text;
-      const match =
-        text.match(/```json\n?([\s\S]*?)\n?```/) ||
-        text.match(/```\n?([\s\S]*?)\n?```/) ||
-        text.match(/(\{[\s\S]*\})/);
-      const jsonStr = match ? match[1] || match[0] : text;
-      const parsed = JSON.parse(jsonStr.trim());
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const message = await createMessage({
+          fixtureKey: 'uaam',
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4096,
+          system: UAAM_SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: userMsg }],
+        });
+        const text = message.content[0].text;
+        const match =
+          text.match(/```json\n?([\s\S]*?)\n?```/) ||
+          text.match(/```\n?([\s\S]*?)\n?```/) ||
+          text.match(/(\{[\s\S]*\})/);
+        const jsonStr = match ? match[1] || match[0] : text;
+        const parsed = JSON.parse(jsonStr.trim());
 
-      if (!parsed.type_name || !parsed.narrative) {
-        throw new Error('APIレスポンスが不完全です');
+        if (!parsed.type_name || !parsed.narrative) {
+          throw new Error('APIレスポンスが不完全です');
+        }
+
+        analysis = parsed;
+        break;
+      } catch (e) {
+        console.error(`[UAAM] attempt ${attempt + 1} failed:`, e.message || e);
+        if (e.status) console.error(`[UAAM] API status: ${e.status}`);
+        if (attempt === 2) throw e;
+        await new Promise((r) => setTimeout(r, 1000));
       }
-
-      analysis = parsed;
-      break;
-    } catch (e) {
-      console.error(`[UAAM] attempt ${attempt + 1} failed:`, e.message || e);
-      if (e.status) console.error(`[UAAM] API status: ${e.status}`);
-      if (attempt === 2)
-        return res.status(500).json({ error: `分析に失敗しました: ${e.message}` });
-      await new Promise((r) => setTimeout(r, 1000));
     }
+  } catch (e) {
+    try {
+      await rollbackAttempt({ collection: 'uaam_results', uid: decoded.uid, attemptId });
+    } catch (rollbackError) {
+      console.error('[UAAM] rollback failed:', rollbackError.message || rollbackError);
+    }
+    return res.status(500).json({ error: `分析に失敗しました: ${e.message}` });
   }
 
-  // Firestore保存
-  const docRef = db.collection('uaam_results').doc(decoded.uid);
-  const existingDoc = await docRef.get();
-  const existing = existingDoc.data() || {};
-
-  await docRef.set(
-    {
+  try {
+    await commitAttempt({
+      collection: 'uaam_results',
       uid: decoded.uid,
-      name: decoded.name || '',
-      email: decoded.email || '',
-      photoURL: decoded.picture || '',
-      answers,
-      vAnswers: vAnswers || {},
-      scores,
-      analysis,
-      updatedAt: FieldValue.serverTimestamp(),
-      ...(!existing.createdAt ? { createdAt: FieldValue.serverTimestamp() } : {}),
-    },
-    { merge: true }
-  );
+      attemptId,
+      summary: { typeName: analysis.type_name, createdAt: null },
+      full: { result: null, analysis, scores },
+      raw: { input: { answers, vAnswers: vAnswers || {} } },
+      parentMerge: {
+        uid: decoded.uid,
+        name: decoded.name || '',
+        email: decoded.email || '',
+        photoURL: decoded.picture || '',
+        answers,
+        vAnswers: vAnswers || {},
+        scores,
+        analysis,
+      },
+    });
+  } catch (e) {
+    try {
+      await rollbackAttempt({ collection: 'uaam_results', uid: decoded.uid, attemptId });
+    } catch (rollbackError) {
+      console.error('[UAAM] rollback failed:', rollbackError.message || rollbackError);
+    }
+    if (e instanceof ConflictError) {
+      return res.status(409).json({ error: e.message, code: 'PENDING_CONFLICT' });
+    }
+    throw e;
+  }
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   return res.status(200).json({ scores, analysis });

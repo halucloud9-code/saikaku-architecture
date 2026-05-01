@@ -6,7 +6,9 @@
  * → http://localhost:3001 でAPIが起動
  * → Vite dev server (localhost:5173) が /api/* をここにプロキシする
  */
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+dotenv.config(); // .env もフォールバックで読む
 import express from 'express';
 import { createRequire } from 'module';
 
@@ -36,6 +38,10 @@ try {
 }
 
 // APIルート
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, mode: process.env.MOCK_ANTHROPIC === '1' ? 'mock' : 'live' });
+});
+
 app.all('/api/analyze', (req, res) => {
   const handler = analyzeHandler.default || analyzeHandler;
   return handler(req, res);
