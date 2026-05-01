@@ -1534,12 +1534,39 @@ function ThreeElementCard({ threeElements, leadershipStage }) {
   // integrate モードの段階別分岐のため leadershipStage を渡す
   const advice = getModeAdvice(prescription_mode, profile, leadershipStage);
 
-  const MODE_META = {
-    focus:     { jp: '極める',  en: 'Focus',     stage: '型を作る段階' },
-    expand:    { jp: '広げる',  en: 'Expand',    stage: '型から橋へ' },
-    integrate: { jp: '統合',    en: 'Integrate', stage: '一族化していく段階' },
+  // モードの本質を一文で定義（ハル指摘：「極める」が何か画面上で分からない）
+  const stage = leadershipStage?.stage ?? 5;
+  const META_BY_MODE = {
+    focus: {
+      jp: '極める', en: 'Focus',
+      caption: '主要素を集中して『型』を作る',
+      definition: '主要素を徹底的に磨き、自分の中核（型）にする段階。他2要素は今は気にしない。偏りこそが、あなたの型を作る。',
+    },
+    expand: {
+      jp: '広げる', en: 'Expand',
+      caption: '主が確立、副要素を発動する',
+      definition: '主要素が型として確立した次の段階。副要素を意識的に発動し、関数（在り方）と変数（才覚）の交点で影響圏を広げる段階。',
+    },
+    integrate_l5: {
+      jp: '統合', en: 'Integrate',
+      caption: '一族化が始まる段階',
+      definition: '3要素が立ち上がり、自分の生き方が人の才覚を動かし始める段階。共通の価値観で繋がる「一族」の輪郭がここから育つ。',
+    },
+    integrate_l6: {
+      jp: '統合', en: 'Integrate',
+      caption: '要素の境界が消える段階',
+      definition: '要素の境界が消え、在り方の高さで、一族が一つの魂で動き出す段階。才覚が社会システムを動かし始める。',
+    },
+    integrate_l7: {
+      jp: '統合', en: 'Integrate',
+      caption: '天地を繋ぐ段階',
+      definition: '3要素の境界はもう存在しない。言葉も行動もいらず、在り方そのもので、上方・情報・物理の三空間が動く段階。',
+    },
   };
-  const meta = MODE_META[prescription_mode] || { jp: '', en: '', stage: '' };
+  const integrateKey = stage >= 7 ? 'integrate_l7' : stage === 6 ? 'integrate_l6' : 'integrate_l5';
+  const meta = prescription_mode === 'integrate'
+    ? META_BY_MODE[integrateKey]
+    : (META_BY_MODE[prescription_mode] || { jp: '', en: '', caption: '', definition: '' });
 
   const order = ['leadership', 'teamBuilding', 'management'];
   const ROLE_TAG = {
@@ -1558,17 +1585,24 @@ function ThreeElementCard({ threeElements, leadershipStage }) {
       borderTop: `3px solid ${ACCENT_GOLD}`,
       boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
     }}>
-      {/* ヘッダー：ラベル + モード（サブタイトル「國創学・三軸診断」はカット） */}
+      {/* ヘッダー：左にラベル＋基準説明、右にモード */}
       <div style={{
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
         gap: 12, marginBottom: 18, paddingBottom: 14,
         borderBottom: `1px solid ${BORDER}`,
       }}>
-        <div style={{
-          fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
-          fontWeight: 700, textTransform: 'uppercase',
-        }}>
-          Three Elements Diagnosis
+        <div>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
+          }}>
+            Three Elements Diagnosis
+          </div>
+          <div style={{
+            fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4,
+          }}>
+            16才覚スコアの加重平均（0–100%）
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{
@@ -1584,7 +1618,7 @@ function ThreeElementCard({ threeElements, leadershipStage }) {
             {meta.jp}
           </div>
           <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
-            {meta.stage}
+            {meta.caption}
           </div>
         </div>
       </div>
@@ -1670,17 +1704,41 @@ function ThreeElementCard({ threeElements, leadershipStage }) {
         })}
       </div>
 
-      {/* 処方：ヘッドライン + コアフォーカス */}
+      {/* 処方：モード定義 + ヘッドライン + コアフォーカス */}
       <div style={{
         marginTop: 24, paddingTop: 18,
         borderTop: `1px solid ${BORDER}`,
       }}>
         <div style={{
           fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
-          fontWeight: 700, textTransform: 'uppercase', marginBottom: 8,
+          fontWeight: 700, textTransform: 'uppercase', marginBottom: 10,
         }}>
           Prescription
         </div>
+
+        {/* モードの本質定義：「極めるとは何か？」を1文で説明 */}
+        {meta.definition && (
+          <div style={{
+            display: 'flex', alignItems: 'baseline', gap: 8,
+            padding: '10px 14px', marginBottom: 14,
+            background: LIGHT_BG, borderRadius: 6,
+            borderLeft: `2px solid ${ACCENT_GOLD}`,
+          }}>
+            <span style={{
+              fontSize: 9, letterSpacing: '0.15em', color: ACCENT_GOLD,
+              fontWeight: 700, textTransform: 'uppercase', flex: '0 0 auto',
+            }}>
+              「{meta.jp}」とは
+            </span>
+            <span style={{
+              fontFamily: "'Noto Serif JP', serif",
+              fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7, flex: 1,
+            }}>
+              {meta.definition}
+            </span>
+          </div>
+        )}
+
         <p style={{
           fontFamily: "'Noto Serif JP', serif",
           fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY,
