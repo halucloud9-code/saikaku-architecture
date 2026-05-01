@@ -1,16 +1,40 @@
 import { useState } from 'react';
 import { signOutUser } from '../firebase';
+import useDiagnosisStatus from '../hooks/useDiagnosisStatus';
 
 const UAAM_PASS = 'kokusogaku';
 
-export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectUaam, onAdmin, onLogout }) {
+export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectUaam, onSelectHistory, onAdmin, onLogout }) {
   const [showPassModal, setShowPassModal] = useState(false);
   const [pass, setPass] = useState('');
   const [passError, setPassError] = useState('');
   const [hoverSaikaku, setHoverSaikaku] = useState(false);
   const [hoverUaam, setHoverUaam] = useState(false);
+  const [hoverSaikakuHistory, setHoverSaikakuHistory] = useState(false);
+  const [hoverUaamHistory, setHoverUaamHistory] = useState(false);
+  const status = useDiagnosisStatus(user);
+  const saikakuAttemptCount = status?.saikaku?.attemptCount ?? 0;
+  const uaamAttemptCount = status?.uaam?.attemptCount ?? 0;
+  const isSaikakuLimitReached = status !== null && saikakuAttemptCount >= 2;
+  const isUaamLimitReached = status !== null && uaamAttemptCount >= 2;
+
+  const showLimitAlert = () => {
+    alert('診断は最大2回まで実施済みです。履歴を確認する場合は「履歴を見る」からどうぞ。');
+  };
+
+  const handleSaikakuClick = () => {
+    if (isSaikakuLimitReached) {
+      showLimitAlert();
+      return;
+    }
+    onSelectSaikaku();
+  };
 
   const handleUaamClick = () => {
+    if (isUaamLimitReached) {
+      showLimitAlert();
+      return;
+    }
     setPass('');
     setPassError('');
     setShowPassModal(true);
@@ -23,6 +47,85 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
     } else {
       setPassError('パスワードが正しくありません');
     }
+  };
+
+  const getCardPadding = (count) => {
+    if (status === null || count <= 0) return '32px 28px';
+    return count >= 2 ? '32px 28px 78px' : '32px 28px 58px';
+  };
+
+  const renderBadge = (count, palette) => {
+    if (status === null || count <= 0) return null;
+    return (
+      <div style={{
+        position: 'absolute',
+        top: 18,
+        right: 18,
+        background: palette.background,
+        border: `1px solid ${palette.border}`,
+        color: palette.color,
+        fontSize: 10,
+        fontWeight: 800,
+        letterSpacing: '0.18em',
+        padding: '4px 10px',
+        borderRadius: 100,
+        zIndex: 2,
+      }}>
+        診断済み ({count}/2)
+      </div>
+    );
+  };
+
+  const renderHistoryArea = (kind, count, color, hover, setHover) => {
+    if (status === null || count <= 0) return null;
+    return (
+      <div style={{
+        position: 'absolute',
+        left: 28,
+        bottom: 24,
+        zIndex: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 8,
+        pointerEvents: 'none',
+      }}>
+        {count >= 2 && (
+          <span style={{
+            color: '#8A8070',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+          }}>
+            診断は最大2回まで実施済み
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectHistory(kind);
+          }}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            padding: 0,
+            color,
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            textDecoration: hover ? 'underline' : 'none',
+            textUnderlineOffset: 3,
+            pointerEvents: 'auto',
+          }}
+        >
+          履歴を見る ({count})
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -114,36 +217,42 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         </div>
 
         {/* ─── 才覚領域カード ─── */}
-        <button
-          onClick={onSelectSaikaku}
-          onMouseEnter={() => setHoverSaikaku(true)}
-          onMouseLeave={() => setHoverSaikaku(false)}
-          style={{
-            width: '100%',
-            background: hoverSaikaku
-              ? 'linear-gradient(145deg, rgba(196,146,42,0.12) 0%, rgba(26,22,16,0.95) 100%)'
-              : 'linear-gradient(145deg, rgba(196,146,42,0.06) 0%, rgba(26,22,16,0.9) 100%)',
-            border: `1px solid ${hoverSaikaku ? 'rgba(196,146,42,0.4)' : 'rgba(196,146,42,0.15)'}`,
-            borderRadius: 20, padding: 0, cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-            transform: hoverSaikaku ? 'translateY(-4px)' : 'translateY(0)',
-            boxShadow: hoverSaikaku
-              ? '0 20px 60px rgba(196,146,42,0.15), 0 0 0 1px rgba(196,146,42,0.1) inset'
-              : '0 4px 24px rgba(0,0,0,0.3)',
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
-          {/* ゴールドのアクセントライン */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-            background: 'linear-gradient(90deg, transparent 10%, #C4922A 50%, transparent 90%)',
-            opacity: hoverSaikaku ? 1 : 0.4,
-            transition: 'opacity 0.4s ease',
-          }} />
+        <div style={{ width: '100%', position: 'relative' }}>
+          <button
+            onClick={handleSaikakuClick}
+            onMouseEnter={() => setHoverSaikaku(true)}
+            onMouseLeave={() => setHoverSaikaku(false)}
+            style={{
+              width: '100%',
+              background: hoverSaikaku
+                ? 'linear-gradient(145deg, rgba(196,146,42,0.12) 0%, rgba(26,22,16,0.95) 100%)'
+                : 'linear-gradient(145deg, rgba(196,146,42,0.06) 0%, rgba(26,22,16,0.9) 100%)',
+              border: `1px solid ${hoverSaikaku ? 'rgba(196,146,42,0.4)' : 'rgba(196,146,42,0.15)'}`,
+              borderRadius: 20, padding: 0, cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+              transform: hoverSaikaku ? 'translateY(-4px)' : 'translateY(0)',
+              boxShadow: hoverSaikaku
+                ? '0 20px 60px rgba(196,146,42,0.15), 0 0 0 1px rgba(196,146,42,0.1) inset'
+                : '0 4px 24px rgba(0,0,0,0.3)',
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+          >
+            {/* ゴールドのアクセントライン */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+              background: 'linear-gradient(90deg, transparent 10%, #C4922A 50%, transparent 90%)',
+              opacity: hoverSaikaku ? 1 : 0.4,
+              transition: 'opacity 0.4s ease',
+            }} />
+            {renderBadge(saikakuAttemptCount, {
+              background: 'rgba(196,146,42,0.18)',
+              border: 'rgba(196,146,42,0.45)',
+              color: '#E8C47A',
+            })}
 
-          <div style={{ padding: '32px 28px' }}>
+            <div style={{ padding: getCardPadding(saikakuAttemptCount) }}>
             {/* サブラベル */}
             <div style={{
               display: 'inline-flex', alignItems: 'center',
@@ -209,40 +318,48 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 }}>→</span>
               </div>
             </div>
-          </div>
-        </button>
+            </div>
+          </button>
+          {renderHistoryArea('saikaku', saikakuAttemptCount, '#E8C47A', hoverSaikakuHistory, setHoverSaikakuHistory)}
+        </div>
 
         {/* ─── 才覚発動領域カード ─── */}
-        <button
-          onClick={handleUaamClick}
-          onMouseEnter={() => setHoverUaam(true)}
-          onMouseLeave={() => setHoverUaam(false)}
-          style={{
-            width: '100%',
-            background: hoverUaam
-              ? 'linear-gradient(145deg, rgba(74,111,165,0.12) 0%, rgba(26,22,16,0.95) 100%)'
-              : 'linear-gradient(145deg, rgba(74,111,165,0.06) 0%, rgba(26,22,16,0.9) 100%)',
-            border: `1px solid ${hoverUaam ? 'rgba(74,111,165,0.4)' : 'rgba(74,111,165,0.15)'}`,
-            borderRadius: 20, padding: 0, cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-            transform: hoverUaam ? 'translateY(-4px)' : 'translateY(0)',
-            boxShadow: hoverUaam
-              ? '0 20px 60px rgba(74,111,165,0.15), 0 0 0 1px rgba(74,111,165,0.1) inset'
-              : '0 4px 24px rgba(0,0,0,0.3)',
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
-          {/* ブルーのアクセントライン */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-            background: 'linear-gradient(90deg, transparent 10%, #4A6FA5 50%, transparent 90%)',
-            opacity: hoverUaam ? 1 : 0.4,
-            transition: 'opacity 0.4s ease',
-          }} />
+        <div style={{ width: '100%', position: 'relative' }}>
+          <button
+            onClick={handleUaamClick}
+            onMouseEnter={() => setHoverUaam(true)}
+            onMouseLeave={() => setHoverUaam(false)}
+            style={{
+              width: '100%',
+              background: hoverUaam
+                ? 'linear-gradient(145deg, rgba(74,111,165,0.12) 0%, rgba(26,22,16,0.95) 100%)'
+                : 'linear-gradient(145deg, rgba(74,111,165,0.06) 0%, rgba(26,22,16,0.9) 100%)',
+              border: `1px solid ${hoverUaam ? 'rgba(74,111,165,0.4)' : 'rgba(74,111,165,0.15)'}`,
+              borderRadius: 20, padding: 0, cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+              transform: hoverUaam ? 'translateY(-4px)' : 'translateY(0)',
+              boxShadow: hoverUaam
+                ? '0 20px 60px rgba(74,111,165,0.15), 0 0 0 1px rgba(74,111,165,0.1) inset'
+                : '0 4px 24px rgba(0,0,0,0.3)',
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+          >
+            {/* ブルーのアクセントライン */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+              background: 'linear-gradient(90deg, transparent 10%, #4A6FA5 50%, transparent 90%)',
+              opacity: hoverUaam ? 1 : 0.4,
+              transition: 'opacity 0.4s ease',
+            }} />
+            {renderBadge(uaamAttemptCount, {
+              background: 'rgba(74,111,165,0.22)',
+              border: 'rgba(74,111,165,0.45)',
+              color: '#8FB4E0',
+            })}
 
-          <div style={{ padding: '32px 28px' }}>
+            <div style={{ padding: getCardPadding(uaamAttemptCount) }}>
             {/* サブラベル */}
             <div style={{
               display: 'inline-flex', alignItems: 'center',
@@ -341,8 +458,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 letterSpacing: '0.08em',
               }}>才覚発動　領域展開</div>
             </div>
-          </div>
-        </button>
+            </div>
+          </button>
+          {renderHistoryArea('uaam', uaamAttemptCount, '#8FB4E0', hoverUaamHistory, setHoverUaamHistory)}
+        </div>
 
         {/* フッター */}
         <p style={{
