@@ -83,14 +83,14 @@ const TEXT_MUTED     = '#666666';
 // mode: "top"    = TypeBadgeのみ（名前 + Activation Type）
 //       "bottom"  = ✅現在発動している「才覚」 + 🔑次に動かす力
 //       "all"     = すべて（デフォルト互換）
-export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all', vAnswers }) {
+export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all', vAnswers, biasData }) {
   if (!scores) return null;
   const { active, sleeping, type } = getActivationAnalysis(scores, threshold);
 
   if (mode === 'top') {
     return (
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
-        <TypeBadge type={type} userName={userName} vAnswers={vAnswers} />
+        <TypeBadge type={type} userName={userName} vAnswers={vAnswers} biasData={biasData} />
       </div>
     );
   }
@@ -204,12 +204,19 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
 }
 
 /* ── 才覚タイプバッジ ── */
-function TypeBadge({ type, userName, vAnswers }) {
+function TypeBadge({ type, userName, vAnswers, biasData }) {
   if (!type?.main) return null;
   const mainBlock = BLOCKS.find(b => b.name === type.main);
   const subBlock  = BLOCKS.find(b => b.name === type.sub);
   const mainColor = mainBlock?.color || '#8B35C8';
   const subColor  = subBlock?.color  || '#888';
+
+  // バイアス行用の色（健全=null は表示なし）
+  const biasColor = biasData ? ({
+    yellow: '#854D0E',
+    orange: '#9A3412',
+    red:    '#991B1B',
+  })[biasData.color] || '#6B7280' : null;
 
   // V問フラグ生成
   const vFlags = vAnswers ? getVFlags(vAnswers).flags : null;
@@ -285,9 +292,9 @@ function TypeBadge({ type, userName, vAnswers }) {
         </div>
       </div>
 
-      {/* ── 右カラム：タイプ説明 ── */}
+      {/* ── 右カラム：タイプ説明 ＋ 自己評価バイアス1行 ── */}
       <div style={{
-        display: 'flex', alignItems: 'center',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
         borderLeft: `1px solid ${BORDER}`,
         paddingLeft: 20,
       }}>
@@ -297,6 +304,18 @@ function TypeBadge({ type, userName, vAnswers }) {
         }}>
           {TYPE_DESC[type.main] || ''}
         </p>
+        {/* バイアス1行表示（健全=null なら何も出さない） */}
+        {biasData && (
+          <div style={{
+            marginTop: 10,
+            fontSize: 11,
+            color: biasColor,
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+          }}>
+            自己評価バイアス {biasData.biasPct}%
+          </div>
+        )}
       </div>
     </div>
   );

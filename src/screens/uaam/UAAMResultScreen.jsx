@@ -1492,118 +1492,6 @@ function RadarChart16({ scores }) {
 }
 
 /* ============================================================
- * BiasCard：自己評価バイアス3段階表記
- * 旧 Lv.1〜Lv.6 表記を廃止し、45/55/65/75/86/95% の3段階バッジで表示。
- * data === null（健全）の場合は何も表示しない。
- * ============================================================ */
-function BiasCard({ data }) {
-  if (!data) return null;
-
-  const { biasPct, color, title, message, action, activeFlags, pattern } = data;
-
-  const colorMap = {
-    yellow: { bg: '#FEF9C3', border: '#FACC15', bar: '#EAB308', text: '#854D0E' },
-    orange: { bg: '#FED7AA', border: '#FB923C', bar: '#EA580C', text: '#9A3412' },
-    red:    { bg: '#FEE2E2', border: '#F87171', bar: '#DC2626', text: '#991B1B' },
-  }[color] || { bg: '#F3F4F6', border: '#9CA3AF', bar: '#6B7280', text: '#374151' };
-
-  return (
-    <div style={{
-      padding: '20px 24px',
-      borderRadius: 12,
-      borderLeft: `4px solid ${colorMap.border}`,
-      background: colorMap.bg,
-      marginBottom: 24,
-    }}>
-      <h3 style={{
-        fontFamily: "'Noto Serif JP', Georgia, serif",
-        fontWeight: 700,
-        fontSize: 16,
-        margin: 0,
-        marginBottom: 12,
-        color: colorMap.text,
-      }}>{title}</h3>
-
-      <div style={{
-        fontFamily: NUM_FONT,
-        fontSize: 44,
-        fontWeight: 700,
-        color: colorMap.text,
-        lineHeight: 1,
-        marginBottom: 12,
-      }}>{biasPct}%</div>
-
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        background: '#E5E7EB',
-        borderRadius: 4,
-        height: 10,
-        marginBottom: 4,
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          background: colorMap.bar,
-          height: '100%',
-          borderRadius: 4,
-          width: `${biasPct}%`,
-          transition: 'width 0.5s',
-        }} />
-      </div>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        fontSize: 10,
-        color: '#6B7280',
-        marginBottom: 16,
-      }}>
-        <span>0</span>
-        <span>45（軽）</span>
-        <span>65（中）</span>
-        <span>86（強）</span>
-        <span>100</span>
-      </div>
-
-      <p style={{
-        fontSize: 13,
-        lineHeight: 1.7,
-        color: '#1F2937',
-        margin: 0,
-        marginBottom: action ? 8 : 0,
-      }}>{message}</p>
-
-      {action && (
-        <p style={{
-          fontSize: 12,
-          fontStyle: 'italic',
-          color: '#4B5563',
-          margin: 0,
-          marginBottom: 8,
-        }}>→ {action}</p>
-      )}
-
-      {pattern && (
-        <div style={{
-          display: 'inline-block',
-          marginTop: 4,
-          marginRight: 8,
-          padding: '2px 8px',
-          fontSize: 10,
-          fontWeight: 700,
-          background: colorMap.border,
-          color: '#FFFFFF',
-          borderRadius: 3,
-        }}>{pattern}</div>
-      )}
-
-      <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280' }}>
-        該当：{activeFlags.join(' / ')}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
  * メインコンポーネント
  * ============================================================ */
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
@@ -1741,7 +1629,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             if (domain?.subs) Object.assign(acc, domain.subs);
             return acc;
           }, {})
-        } threshold={13} userName={user.displayName} mode="top" vAnswers={vAnswers} />
+        } threshold={13} userName={user.displayName} mode="top" vAnswers={vAnswers} biasData={biasData} />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
@@ -1805,10 +1693,8 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           </>
         )}
 
-        {/* ===== 自己評価バイアス3段階表記（旧 Lv.1〜Lv.6 SVGフラグの置換） =====
-            healthy（旗0個）の場合は何も表示しない。
-            旗ありの場合のみ45/55/65/75/86/95% のバッジを表示。 */}
-        <BiasCard data={biasData} />
+        {/* バイアス表示は ActivationPanel(mode='top') の右カラムに1行で組み込み済み。
+            旧 V問SVGフラグ・Lv.1-6 バッジ・大型 BiasCard はすべて廃止。 */}
 
         {/* ===== ボタン ===== */}
         <div className="no-print" style={{ display: 'flex', gap: 12, marginTop: 8, marginBottom: 40 }}>
