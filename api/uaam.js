@@ -3,6 +3,108 @@ import { getAuth } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './lib/firebaseAdmin.js';
 
+/**
+ * 自己評価バイアスメッセージ生成（旗カウント・45-95%版）
+ * src/data/uaam_questions.js の calculateBiasMessage と同一ロジック。
+ * APIは自己完結を保つため、ロジックをインライン化している。
+ *
+ * @param {Object} vAnswers - { V1, V2, V3 } raw値（1-5）
+ * @param {number} totalPct - 総合% (0-100)
+ * @returns {Object|null} - null なら健全（表示なし）
+ */
+function calculateBiasMessage(vAnswers, totalPct) {
+  if (!vAnswers || typeof vAnswers !== 'object') return null;
+
+  const flagsPerQ = ['V1', 'V2', 'V3'].map((id) => {
+    const raw = vAnswers[id];
+    if (raw === 1) return 2;
+    if (raw === 2) return 1;
+    return 0;
+  });
+
+  const flagsCount = flagsPerQ.reduce((a, b) => a + b, 0);
+  if (flagsCount === 0) return null;
+
+  const BIAS_TABLE = { 1: 45, 2: 55, 3: 65, 4: 75, 5: 86, 6: 95 };
+  const biasPct = BIAS_TABLE[flagsCount];
+
+  const activeFlags = ['V1', 'V2', 'V3'].filter((_, i) => flagsPerQ[i] > 0);
+  const criticalFlags = ['V1', 'V2', 'V3'].filter((_, i) => flagsPerQ[i] === 2);
+
+  let stage, color;
+  if (flagsCount <= 2) { stage = 'mild'; color = 'yellow'; }
+  else if (flagsCount <= 4) { stage = 'moderate'; color = 'orange'; }
+  else { stage = 'strong'; color = 'red'; }
+
+  if (stage === 'mild') {
+    const focus = activeFlags[0];
+    const focusMessage = {
+      V1: '盲点を意識する習慣を持つことで、さらに深まります',
+      V2: '他者からのフィードバックを定期的に取り入れる習慣を',
+      V3: '他のやり方も試してみる柔軟性を持つと、可能性が広がります',
+    }[focus] || '軽微なバイアス傾向。日常の小さな実践で十分整います。';
+
+    return { biasPct, level: stage, color,
+      title: `自己評価バイアス：${biasPct}%（軽度）`,
+      message: focusMessage, activeFlags };
+  }
+
+  if (stage === 'moderate') {
+    if (totalPct >= 95) {
+      return { biasPct, level: 'high_stage', color: 'red',
+        title: `自己評価バイアス：${biasPct}%（高段階解釈）`,
+        message: `数字（${totalPct}%）が L7 圏 ＋ フラグ ＝ 高段階到達の証拠。「自分には盲点がほぼない」という感覚は、本物の自己客観視を超えた状態を示しています。`,
+        pattern: '真の天地型',
+        action: 'コーチによる外部観察での確認を推奨',
+        activeFlags };
+    }
+    if (totalPct >= 78) {
+      return { biasPct, level: 'transition', color: 'red',
+        title: `自己評価バイアス：${biasPct}%（移行期解釈）`,
+        message: `数字（${totalPct}%）は L5-L6 圏。フラグは 2通りの解釈：① 真の高段階への移行 ② 自己評価が実態より高い可能性。`,
+        pattern: 'L5-L6 移行期',
+        action: 'コーチによる外部観察での確認が必須',
+        activeFlags };
+    }
+    const combo = activeFlags.slice().sort().join('+');
+    const baseMessage = {
+      'V1+V2': '内省と他者理解の両方を意識する時期',
+      'V1+V3': '盲点と硬直化を見直す時期',
+      'V2+V3': '他者FBと柔軟性を再構築する時期',
+      'V1+V2+V3': '3軸すべてに目を向ける時期',
+    }[combo] || '客観視の精度向上をテーマに';
+
+    return { biasPct, level: stage, color,
+      title: `自己評価バイアス：${biasPct}%（中度）`,
+      message: baseMessage,
+      action: '30日間の客観視ワーク：週１回、信頼できる人にFBを求める',
+      activeFlags, criticalFlags };
+  }
+
+  if (totalPct >= 95) {
+    return { biasPct, level: 'high_stage', color: 'red',
+      title: `自己評価バイアス：${biasPct}%（高段階解釈）`,
+      message: `数字（${totalPct}%）が L7 圏 ＋ 強度フラグ ＝ 高段階到達の証拠。`,
+      pattern: '真の天地型',
+      action: 'コーチによる外部観察での確認を推奨',
+      activeFlags };
+  }
+  if (totalPct >= 78) {
+    return { biasPct, level: 'transition', color: 'red',
+      title: `自己評価バイアス：${biasPct}%（移行期解釈）`,
+      message: `数字（${totalPct}%）は L5-L6 圏。① 真の高段階への移行 ② 自己評価が実態より高い可能性。`,
+      pattern: 'L5-L6 移行期',
+      action: 'コーチによる外部観察での確認が必須',
+      activeFlags };
+  }
+  return { biasPct, level: stage, color,
+    title: `自己評価バイアス：${biasPct}%（強度）`,
+    message: `数字（${totalPct}%）に対して、客観視の精度に大きな課題。3つの盲点を全方位で抱えています。`,
+    pattern: '強インフレ警告',
+    action: 'コーチング介入を強く推奨。最初の課題は「謙虚さ」の獲得',
+    activeFlags };
+}
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
@@ -224,6 +326,15 @@ export default async function handler(req, res) {
   // スコア計算
   const scores = calculateScores(answers, QUESTIONS);
 
+  // 自己評価バイアスメッセージ生成（旗カウント方式・45-95%版）
+  // 4軸合計 / 320（最大スコア） * 100 で総合%を算出（旧 Lv.1〜Lv.6 廃止後の判定基準）
+  const totalPct = Math.round(
+    (scores.mindset.total + scores.literacy.total +
+     scores.competency.total + scores.impact.total) / 320 * 100
+  );
+  const biasMessage = calculateBiasMessage(vAnswers, totalPct);
+  console.log('[UAAM] biasMessage:', biasMessage ? `${biasMessage.biasPct}% (${biasMessage.level})` : 'null（健全）');
+
   // 才覚領域データを取得
   let saikakuData = null;
   try {
@@ -313,6 +424,7 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
       vAnswers: vAnswers || {},
       scores,
       analysis,
+      bias_message: biasMessage,  // 新：3段階バイアス表記（null=健全）
       updatedAt: FieldValue.serverTimestamp(),
       ...(!existing.createdAt ? { createdAt: FieldValue.serverTimestamp() } : {}),
     },
@@ -320,5 +432,5 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
   );
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  return res.status(200).json({ scores, analysis });
+  return res.status(200).json({ scores, analysis, bias_message: biasMessage });
 }

@@ -220,6 +220,10 @@ export const VALIDITY_QUESTIONS = [
  * 合計ポイントによる6段階レベル:
  *   0pt → Lv.1 / 1pt → Lv.2 / 2pt → Lv.3
  *   3pt → Lv.4 / 4〜5pt → Lv.5 / 6pt → Lv.6
+ *
+ * @deprecated 2026-05より calculateBiasMessage() に移行。
+ * 新規のバイアス評価は calculateBiasMessage() を使うこと。
+ * Lv.1〜Lv.6 表記は廃止予定。下位互換のためフラグ計算ロジックは残置。
  */
 export function getVFlags(vAnswers) {
   const flags = {};
@@ -245,6 +249,9 @@ export function getVFlags(vAnswers) {
  * @param {Object} vAnswers - V問の回答 { V1: score, V2: score, V3: score }
  * @param {Object} mainAnswers - 本問の回答 { questionId: score }（後方互換のため残す）
  * @returns {Object} - フラグ情報
+ *
+ * @deprecated 2026-05より calculateBiasMessage() に移行。
+ * Lv.1〜Lv.6 表記は廃止。新規実装は calculateBiasMessage() を使うこと。
  */
 export function checkValidity(vAnswers, mainAnswers) {
   const { flags: vFlags, totalPts, level } = getVFlags(vAnswers);
@@ -369,4 +376,173 @@ export function calculateScores(answers) {
     };
   }
   return result;
+}
+
+/**
+ * 自己評価バイアスメッセージ生成（旗カウント・45-95%版）
+ *
+ * 旧 Lv.1〜Lv.6 表記を廃止し、3段階バイアス% に切り替えた新 API。
+ *
+ * 【設計】
+ * V問の旗カウント方式：
+ *   raw 5,4,3 → 0旗（健全）
+ *   raw 2     → 1旗（warning）
+ *   raw 1     → 2旗（critical）
+ *   3問 × 最大2旗 = Max 6旗
+ *
+ * 旗数 → バイアス% 固定テーブル（線形補間ではない）：
+ *   0 → null（健全・表示なし）
+ *   1 → 45%（軽度・黄）
+ *   2 → 55%（軽度・黄）
+ *   3 → 65%（中度・橙）
+ *   4 → 75%（中度・橙）
+ *   5 → 86%（強度・赤）
+ *   6 → 95%（強度・赤）
+ *
+ * 強度（旗5-6個）／中度+高totalPctの場合、totalPct と組み合わせて3分岐：
+ *   totalPct >= 95 → 真の天地型（高段階解釈）
+ *   totalPct >= 78 → L5-L6 移行期（移行期解釈）
+ *   totalPct <  78 → 強インフレ警告
+ *
+ * @param {Object} vAnswers - { V1, V2, V3 } raw値（1-5）
+ * @param {number} totalPct - 総合% (0-100)
+ * @returns {Object|null} - null なら健全（表示なし）、それ以外はバイアス情報オブジェクト
+ */
+export function calculateBiasMessage(vAnswers, totalPct) {
+  // フォールバック：vAnswersが無い場合は健全扱い
+  if (!vAnswers || typeof vAnswers !== 'object') return null;
+
+  // 各V問の旗数
+  const flagsPerQ = ['V1', 'V2', 'V3'].map((id) => {
+    const raw = vAnswers[id];
+    if (raw === 1) return 2; // critical = 2旗
+    if (raw === 2) return 1; // warning = 1旗
+    return 0;
+  });
+
+  const flagsCount = flagsPerQ.reduce((a, b) => a + b, 0);
+
+  // 健全 → null（表示なし）
+  if (flagsCount === 0) return null;
+
+  // 旗数 → バイアス% 変換テーブル（ハル指定の固定値）
+  const BIAS_TABLE = { 1: 45, 2: 55, 3: 65, 4: 75, 5: 86, 6: 95 };
+  const biasPct = BIAS_TABLE[flagsCount];
+
+  const activeFlags = ['V1', 'V2', 'V3'].filter((_, i) => flagsPerQ[i] > 0);
+  const criticalFlags = ['V1', 'V2', 'V3'].filter((_, i) => flagsPerQ[i] === 2);
+
+  // 段階分類
+  let stage, color;
+  if (flagsCount <= 2) { stage = 'mild'; color = 'yellow'; }
+  else if (flagsCount <= 4) { stage = 'moderate'; color = 'orange'; }
+  else { stage = 'strong'; color = 'red'; }
+
+  // 軽度（45-55%）
+  if (stage === 'mild') {
+    const focus = activeFlags[0];
+    const focusMessage = {
+      V1: '盲点を意識する習慣を持つことで、さらに深まります',
+      V2: '他者からのフィードバックを定期的に取り入れる習慣を',
+      V3: '他のやり方も試してみる柔軟性を持つと、可能性が広がります',
+    }[focus] || '軽微なバイアス傾向。日常の小さな実践で十分整います。';
+
+    return {
+      biasPct,
+      level: stage,
+      color,
+      title: `自己評価バイアス：${biasPct}%（軽度）`,
+      message: focusMessage,
+      activeFlags,
+    };
+  }
+
+  // 中度（65-75%）
+  if (stage === 'moderate') {
+    // 数字95%以上 + 中度 → 高段階解釈
+    if (totalPct >= 95) {
+      return {
+        biasPct,
+        level: 'high_stage',
+        color: 'red',
+        title: `自己評価バイアス：${biasPct}%（高段階解釈）`,
+        message: `数字（${totalPct}%）が L7 圏 ＋ フラグ ＝ 高段階到達の証拠。「自分には盲点がほぼない」という感覚は、本物の自己客観視を超えた状態を示しています。`,
+        pattern: '真の天地型',
+        action: 'コーチによる外部観察での確認を推奨',
+        activeFlags,
+      };
+    }
+
+    // 数字78-94% → 移行期
+    if (totalPct >= 78) {
+      return {
+        biasPct,
+        level: 'transition',
+        color: 'red',
+        title: `自己評価バイアス：${biasPct}%（移行期解釈）`,
+        message: `数字（${totalPct}%）は L5-L6 圏。フラグは 2通りの解釈：① 真の高段階への移行 ② 自己評価が実態より高い可能性。`,
+        pattern: 'L5-L6 移行期',
+        action: 'コーチによる外部観察での確認が必須',
+        activeFlags,
+      };
+    }
+
+    // 通常の中度
+    const combo = activeFlags.slice().sort().join('+');
+    const baseMessage = {
+      'V1+V2': '内省と他者理解の両方を意識する時期',
+      'V1+V3': '盲点と硬直化を見直す時期',
+      'V2+V3': '他者FBと柔軟性を再構築する時期',
+      'V1+V2+V3': '3軸すべてに目を向ける時期',
+    }[combo] || '客観視の精度向上をテーマに';
+
+    return {
+      biasPct,
+      level: stage,
+      color,
+      title: `自己評価バイアス：${biasPct}%（中度）`,
+      message: baseMessage,
+      action: '30日間の客観視ワーク：週１回、信頼できる人にFBを求める',
+      activeFlags,
+      criticalFlags,
+    };
+  }
+
+  // 強度（86-95%）── 数字連動で3分岐
+  if (totalPct >= 95) {
+    return {
+      biasPct,
+      level: 'high_stage',
+      color: 'red',
+      title: `自己評価バイアス：${biasPct}%（高段階解釈）`,
+      message: `数字（${totalPct}%）が L7 圏 ＋ 強度フラグ ＝ 高段階到達の証拠。`,
+      pattern: '真の天地型',
+      action: 'コーチによる外部観察での確認を推奨',
+      activeFlags,
+    };
+  }
+
+  if (totalPct >= 78) {
+    return {
+      biasPct,
+      level: 'transition',
+      color: 'red',
+      title: `自己評価バイアス：${biasPct}%（移行期解釈）`,
+      message: `数字（${totalPct}%）は L5-L6 圏。① 真の高段階への移行 ② 自己評価が実態より高い可能性。`,
+      pattern: 'L5-L6 移行期',
+      action: 'コーチによる外部観察での確認が必須',
+      activeFlags,
+    };
+  }
+
+  return {
+    biasPct,
+    level: stage,
+    color,
+    title: `自己評価バイアス：${biasPct}%（強度）`,
+    message: `数字（${totalPct}%）に対して、客観視の精度に大きな課題。3つの盲点を全方位で抱えています。`,
+    pattern: '強インフレ警告',
+    action: 'コーチング介入を強く推奨。最初の課題は「謙虚さ」の獲得',
+    activeFlags,
+  };
 }

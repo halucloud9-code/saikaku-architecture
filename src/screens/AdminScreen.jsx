@@ -3,7 +3,55 @@ import { auth, signOutUser } from '../firebase';
 import { Chart, computePcts, CHART_COLORS } from '../utils/chartUtils';
 import ActivationPanel from '../ActivationPanel';
 import ActivationMatrix from './uaam/ActivationMatrix';
-import { getVFlags } from '../data/uaam_questions';
+import { getVFlags, calculateBiasMessage } from '../data/uaam_questions';
+
+/**
+ * BiasBadge：リーダーボード／詳細ビュー用の小型バッジ
+ * 旧 Lv.X バッジの置換。data === null（健全）の場合は何も表示しない。
+ */
+function BiasBadge({ data }) {
+  if (!data) return null;
+  const { biasPct, level } = data;
+  const styles = ({
+    mild:        { bg: '#FEF9C3', color: '#854D0E' },
+    moderate:    { bg: '#FED7AA', color: '#9A3412' },
+    strong:      { bg: '#FEE2E2', color: '#991B1B' },
+    transition:  { bg: '#FEE2E2', color: '#991B1B' },
+    high_stage:  { bg: '#F3E8FF', color: '#6B21A8' },
+  })[level] || { bg: '#F3F4F6', color: '#6B7280' };
+
+  return (
+    <span style={{
+      display: 'inline-block',
+      padding: '2px 8px',
+      borderRadius: 4,
+      fontSize: 11,
+      fontWeight: 700,
+      background: styles.bg,
+      color: styles.color,
+      whiteSpace: 'nowrap',
+    }}>
+      バイアス {biasPct}%
+    </span>
+  );
+}
+
+/**
+ * 既存データの下位互換ヘルパー
+ * Firestoreに bias_message が無いユーザーでもクライアント側で生成する。
+ */
+function getOrCalcBias(u) {
+  if (u.bias_message !== undefined && u.bias_message !== null) return u.bias_message;
+  if (u.bias_message === null) return null; // 明示的に null（健全）保存
+  // フォールバック計算
+  const v = u.vAnswers || {};
+  const s = u.scores || {};
+  const totalPct = Math.round(
+    ((s.mindset?.total || 0) + (s.literacy?.total || 0) +
+     (s.competency?.total || 0) + (s.impact?.total || 0)) / 320 * 100
+  );
+  return calculateBiasMessage(v, totalPct);
+}
 
 function MiniDonut({ axes, colors }) {
   const canvasRef = useRef(null);
@@ -455,43 +503,46 @@ function UAAMModal({ user: u, onClose, onDelete, onSave }) {
           </div>
         )}
 
-        {/* Vフラグ警告 */}
+        {/* バイアス3段階表記（旧 Vフラグ警告 Lv.X の置換） */}
         {(() => {
-          const { flags: vf, totalPts, level } = getVFlags(u.vAnswers || {});
-          const flagEmoji = (id) => {
-            if (vf[id] === 'critical') return '🏴🏴';
-            if (vf[id] === 'warning')  return '🏴';
-            return null;
-          };
-          const hasAny = vf['V1'] !== 'none' || vf['V2'] !== 'none' || vf['V3'] !== 'none';
-          const lvColors = ['','#7A7060','#7A7060','#C4922A','#C4922A','#A84432','#A84432'];
-          const lvBgs   = ['','#F5F0E8','#F5F0E8','#FFFBF0','#FFFBF0','#FFF5F5','#FFF5F5'];
-          if (!hasAny) return (
-            <div style={{ marginBottom: 20, background: '#F0F8F4', border: '1px solid #2E8B5740', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: '#2E8B57', fontWeight: 600 }}>
-              ✓ 回答信頼性 ◎ ― Lv.1（フラグなし）
-            </div>
-          );
+          const bias = getOrCalcBias(u);
+          if (!bias) {
+            // 健全（フラグなし）── ハル指示で「自己評価バイアス0%はいらない」
+            return (
+              <div style={{ marginBottom: 20, background: '#F0F8F4', border: '1px solid #2E8B5740', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: '#2E8B57', fontWeight: 600 }}>
+                ✓ 回答信頼性 ◎ ― バイアス検出なし（健全）
+              </div>
+            );
+          }
+          const stageColor = ({
+            mild:        { border: '#EAB308', bg: '#FEF9C3', text: '#854D0E' },
+            moderate:    { border: '#EA580C', bg: '#FED7AA', text: '#9A3412' },
+            strong:      { border: '#DC2626', bg: '#FEE2E2', text: '#991B1B' },
+            transition:  { border: '#DC2626', bg: '#FEE2E2', text: '#991B1B' },
+            high_stage:  { border: '#9333EA', bg: '#F3E8FF', text: '#6B21A8' },
+          })[bias.level] || { border: '#9CA3AF', bg: '#F3F4F6', text: '#374151' };
           return (
-            <div style={{ marginBottom: 20, background: lvBgs[level], border: `1px solid ${lvColors[level]}40`, borderRadius: 8, padding: '10px 16px' }}>
+            <div style={{ marginBottom: 20, background: stageColor.bg, border: `1px solid ${stageColor.border}40`, borderRadius: 8, padding: '10px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                {['V1','V2','V3'].map(id => (
-                  <span key={id} style={{ fontSize: 13, fontWeight: 700, color: vf[id] !== 'none' ? lvColors[level] : '#B0A898' }}>
-                    {id}{flagEmoji(id) || ''}
-                  </span>
-                ))}
-                <span style={{
-                  marginLeft: 'auto', background: lvColors[level], color: '#fff',
-                  borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700,
-                }}>
-                  Lv.{level}
+                {['V1','V2','V3'].map(id => {
+                  const isActive = bias.activeFlags.includes(id);
+                  return (
+                    <span key={id} style={{ fontSize: 13, fontWeight: 700, color: isActive ? stageColor.text : '#B0A898' }}>
+                      {id}{isActive ? '🚩' : ''}
+                    </span>
+                  );
+                })}
+                <span style={{ marginLeft: 'auto' }}>
+                  <BiasBadge data={bias} />
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: lvColors[level], marginTop: 6, opacity: 0.85 }}>
-                合計{totalPts}pt
-                {level >= 5 && ' ― コーチング介入を強く推奨'}
-                {level === 4 && ' ― 客観視をコーチングテーマに'}
-                {level === 3 && ' ― 特定領域を深掘りする'}
-                {level === 2 && ' ― 参考程度に留意'}
+              <div style={{ fontSize: 11, color: stageColor.text, marginTop: 6, opacity: 0.9 }}>
+                {bias.title}
+                {bias.pattern && ` ― ${bias.pattern}`}
+              </div>
+              <div style={{ fontSize: 11, color: stageColor.text, marginTop: 4, opacity: 0.75, lineHeight: 1.5 }}>
+                {bias.message}
+                {bias.action && ` → ${bias.action}`}
               </div>
             </div>
           );
@@ -1368,8 +1419,8 @@ export default function AdminScreen({ user, onBack, onLogout }) {
               }}
             >
               <option value="all">全件表示</option>
-              <option value="any_flag">🏴 フラグあり（Lv.2以上）</option>
-              <option value="critical">🏴🏴 要注意（Lv.5以上）</option>
+              <option value="any_flag">🚩 バイアス検出あり（45%以上）</option>
+              <option value="critical">🔴 強度バイアス（86%以上）</option>
               <option value="v1_flag">V1フラグあり</option>
               <option value="v2_flag">V2フラグあり</option>
               <option value="v3_flag">V3フラグあり</option>
@@ -1410,7 +1461,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
-                  {['', '名前', '志', '知', '技', '衝', 'Vフラグ', 'Lv', 'タイプ', '診断日'].map((h) => (
+                  {['', '名前', '志', '知', '技', '衝', 'Vフラグ', 'バイアス', 'タイプ', '診断日'].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -1434,6 +1485,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                   const { flags: vf, level: vLv } = getVFlags(v);
                   const isCritical = vLv >= 5;
                   const flagStr = (id) => vf[id] === 'critical' ? '🏴🏴' : vf[id] === 'warning' ? '🏴' : '';
+                  const biasRow = getOrCalcBias(u);
 
                   return (
                     <tr
@@ -1506,19 +1558,13 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                           ))}
                         </span>
                       </td>
-                      {/* Lv */}
+                      {/* バイアス%（旧 Lv.X バッジの置換） */}
                       <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          background: isCritical ? '#A84432' : vLv >= 3 ? '#C4922A' : '#B0A898',
-                          color: '#fff',
-                          borderRadius: 4,
-                          padding: '1px 6px',
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}>
-                          Lv.{vLv}
-                        </span>
+                        {biasRow ? (
+                          <BiasBadge data={biasRow} />
+                        ) : (
+                          <span style={{ color: '#B0A898', fontSize: 11 }}>—</span>
+                        )}
                       </td>
                       {/* タイプ名 */}
                       <td style={{ padding: '10px 12px', maxWidth: 160 }}>
