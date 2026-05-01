@@ -7,6 +7,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.js'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'tests/send-email.test.mjs',
+      'tests/check-user.mjs',
+    ],
   },
   server: {
     host: true,

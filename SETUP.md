@@ -125,7 +125,30 @@ vercel --prod
 
 ---
 
-## 7. 動作確認チェックリスト
+## 7. テストの実行
+
+vitest + @testing-library/react による UI テスト：
+
+```bash
+# 1回実行
+npm test
+
+# 監視モード
+npm run test:watch
+```
+
+- 設定: `vite.config.js` の `test` セクション
+- 環境: `jsdom`（ブラウザ DOM をエミュレート）
+- セットアップ: `tests/setup.js`（`@testing-library/jest-dom` 拡張マッチャー）
+- 手動スクリプト (`tests/send-email.test.mjs`, `tests/check-user.mjs`) は `exclude` で対象外
+
+**主要テスト**:
+- `tests/LoginScreen.test.jsx` — メール認証フロー
+- `tests/AllPairsTriangle.test.jsx` — GRIFFON CODE カード複数同時展開（Issue #4）
+
+---
+
+## 8. 動作確認チェックリスト
 
 - [ ] Firebase の Google SSO でログインできる
 - [ ] 同意チェックなしではボタンが押せない
