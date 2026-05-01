@@ -81,6 +81,11 @@ export function setMockFail(enabled) {
   else delete process.env.MOCK_ANTHROPIC_FAIL;
 }
 
+export function setMockDelay(ms) {
+  if (ms > 0) process.env.MOCK_ANTHROPIC_DELAY_MS = String(ms);
+  else delete process.env.MOCK_ANTHROPIC_DELAY_MS;
+}
+
 export function legacySaikakuParent() {
   return {
     uid: 'legacy-user',

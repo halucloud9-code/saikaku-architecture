@@ -36,6 +36,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /results/{uid}/_locks/{lockId} {
+      allow read, write: if false;
+    }
+
     match /uaam_results/{uid} {
       allow read: if signedInAs(uid);
       allow write: if false;
@@ -44,6 +48,10 @@ service cloud.firestore {
     match /uaam_results/{uid}/attempts/{aid} {
       allow read: if signedInAs(uid);
       allow write: if false;
+    }
+
+    match /uaam_results/{uid}/_locks/{lockId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

@@ -35,6 +35,8 @@ export async function createMessage({ fixtureKey, ...params }) {
       throw new Error('mock LLM failure');
     }
     callCounter[fixtureKey] = (callCounter[fixtureKey] ?? 0) + 1;
+    const delay = Number(process.env.MOCK_ANTHROPIC_DELAY_MS || 0);
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
     const file = fixtureKey === 'uaam' ? 'uaam-1.json' : 'saikaku-1.json';
     return loadFixture(file);
   }

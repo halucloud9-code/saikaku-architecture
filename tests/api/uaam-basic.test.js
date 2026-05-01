@@ -9,6 +9,7 @@ import {
   resetMockCallCount,
   seedAttempt,
   seedParent,
+  setMockDelay,
   uaamRequest,
 } from './_helpers.js';
 
@@ -35,12 +36,17 @@ describe('API /api/uaam basic reservation coverage', () => {
     const uid = 'u-uaam-concurrent';
     await clearUserState('uaam_results', uid);
     resetMockCallCount();
+    setMockDelay(1500);
 
-    const responses = await Promise.all([uaamRequest(uid), uaamRequest(uid)]);
+    try {
+      const responses = await Promise.all([uaamRequest(uid), uaamRequest(uid)]);
 
-    expect(responses.map((res) => res.status).sort()).toEqual([200, 409]);
-    expect((await getParent('uaam_results', uid)).attemptCount).toBe(1);
-    expect(getMockCallCount('uaam')).toBe(1);
+      expect(responses.map((res) => res.status).sort()).toEqual([200, 409]);
+      expect((await getParent('uaam_results', uid)).attemptCount).toBe(1);
+      expect(getMockCallCount('uaam')).toBe(1);
+    } finally {
+      setMockDelay(0);
+    }
   });
 
   it('migrates a legacy uaam parent before committing a new attempt', async () => {

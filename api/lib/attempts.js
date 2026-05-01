@@ -17,14 +17,18 @@ export class ConflictError extends Error {
   }
 }
 
+const RESERVATION_LOCK_ID = 'reservation';
+
 export async function reserveAttempt({ collection, uid, kind }) {
   const docRef = db.collection(collection).doc(uid);
+  const lockRef = docRef.collection('_locks').doc(RESERVATION_LOCK_ID);
 
   return await db.runTransaction(async (tx) => {
     const cur = await tx.get(docRef);
+    const lockSnap = await tx.get(lockRef);
     const data = cur.exists ? cur.data() : {};
 
-    if (data.pendingAttemptId) {
+    if (lockSnap.exists || data.pendingAttemptId) {
       throw new ConflictError('処理中のリクエストがあります');
     }
 
@@ -51,11 +55,14 @@ export async function reserveAttempt({ collection, uid, kind }) {
     }
 
     const newAttemptRef = docRef.collection('attempts').doc();
+    tx.create(lockRef, {
+      attemptId: newAttemptRef.id,
+      acquiredAt: FieldValue.serverTimestamp(),
+    });
     tx.set(newAttemptRef, {
       status: 'pending',
       createdAt: FieldValue.serverTimestamp(),
     });
-
     tx.set(
       docRef,
       {
@@ -74,6 +81,7 @@ export async function reserveAttempt({ collection, uid, kind }) {
 export async function commitAttempt({ collection, uid, attemptId, summary, full, raw, parentMerge }) {
   const docRef = db.collection(collection).doc(uid);
   const attemptRef = docRef.collection('attempts').doc(attemptId);
+  const lockRef = docRef.collection('_locks').doc(RESERVATION_LOCK_ID);
 
   await db.runTransaction(async (tx) => {
     const cur = await tx.get(docRef);
@@ -104,12 +112,14 @@ export async function commitAttempt({ collection, uid, attemptId, summary, full,
       },
       { merge: true }
     );
+    tx.delete(lockRef);
   });
 }
 
 export async function rollbackAttempt({ collection, uid, attemptId }) {
   const docRef = db.collection(collection).doc(uid);
   const attemptRef = docRef.collection('attempts').doc(attemptId);
+  const lockRef = docRef.collection('_locks').doc(RESERVATION_LOCK_ID);
 
   await db.runTransaction(async (tx) => {
     const cur = await tx.get(docRef);
@@ -120,6 +130,7 @@ export async function rollbackAttempt({ collection, uid, attemptId }) {
     }
 
     tx.delete(attemptRef);
+    tx.delete(lockRef);
     tx.set(
       docRef,
       {
