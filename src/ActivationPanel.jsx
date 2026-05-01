@@ -83,14 +83,14 @@ const TEXT_MUTED     = '#666666';
 // mode: "top"    = TypeBadgeのみ（名前 + Activation Type）
 //       "bottom"  = ✅現在発動している「才覚」 + 🔑次に動かす力
 //       "all"     = すべて（デフォルト互換）
-export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all', vAnswers }) {
+export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all', vAnswers, biasData }) {
   if (!scores) return null;
   const { active, sleeping, type } = getActivationAnalysis(scores, threshold);
 
   if (mode === 'top') {
     return (
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
-        <TypeBadge type={type} userName={userName} vAnswers={vAnswers} />
+        <TypeBadge type={type} userName={userName} vAnswers={vAnswers} biasData={biasData} />
       </div>
     );
   }
@@ -204,12 +204,19 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
 }
 
 /* ── 才覚タイプバッジ ── */
-function TypeBadge({ type, userName, vAnswers }) {
+function TypeBadge({ type, userName, vAnswers, biasData }) {
   if (!type?.main) return null;
   const mainBlock = BLOCKS.find(b => b.name === type.main);
   const subBlock  = BLOCKS.find(b => b.name === type.sub);
   const mainColor = mainBlock?.color || '#8B35C8';
   const subColor  = subBlock?.color  || '#888';
+
+  // バイアス行用の色（健全=null は表示なし）
+  const biasColor = biasData ? ({
+    yellow: '#854D0E',
+    orange: '#9A3412',
+    red:    '#991B1B',
+  })[biasData.color] || '#6B7280' : null;
 
   // V問フラグ生成
   const vFlags = vAnswers ? getVFlags(vAnswers).flags : null;
@@ -247,14 +254,28 @@ function TypeBadge({ type, userName, vAnswers }) {
               fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
               fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
             }}>Universal Ability Assessment Model</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
               <div style={{
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 fontSize: 20, fontWeight: 700, color: TEXT_PRIMARY,
               }}>{userName}</div>
               {vFlags && (
-                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                  {dot('V1')}{dot('V2')}{dot('V3')}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                    {dot('V1')}{dot('V2')}{dot('V3')}
+                  </div>
+                  {/* V1/V2/V3 の真下に自己評価バイアス% を1行表示（健全=null は表示なし） */}
+                  {biasData && (
+                    <div style={{
+                      fontSize: 10,
+                      color: biasColor,
+                      fontWeight: 600,
+                      letterSpacing: '0.02em',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      自己評価バイアス {biasData.biasPct}%
+                    </div>
+                  )}
                 </div>
               )}
             </div>

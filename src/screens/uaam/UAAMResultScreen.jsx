@@ -1,6 +1,20 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
-import { UAAM_AXES, checkValidity, getVFlags } from '../../data/uaam_questions';
+import {
+  UAAM_AXES,
+  checkValidity,
+  getVFlags,
+  calculateBiasMessage,
+  determinePersonalityLevel,
+  determineLeadershipStage,
+  assessConfidence,
+  extractAxisStats,
+  calculateThreeElementScores,
+  identifyElementProfile,
+  determinePrescriptionMode,
+  getModeAdvice,
+  ELEMENT_LABELS,
+} from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
@@ -1493,6 +1507,341 @@ function RadarChart16({ scores }) {
 }
 
 /* ============================================================
+ * ThreeElementCard：3要素診断（國創学準拠・Claude design）
+ *
+ * 國創学の三軸：
+ *   リーダーシップ → 在り方の軸（関数）
+ *   マネジメント   → 才覚の設計（変数）
+ *   チームビルディング → 関数×変数の統合（一族化）
+ *
+ * 視覚言語：白背景＋細罫線＋金色アクセント。明朝で品良く。
+ * ============================================================ */
+function ThreeElementCard({ threeElements, leadershipStage }) {
+  if (!threeElements) return null;
+
+  const { leadership, teamBuilding, management,
+          primary_element, secondary_element, weakest_element,
+          prescription_mode } = threeElements;
+
+  const profile = {
+    primary: primary_element,
+    secondary: secondary_element,
+    weakest: weakest_element,
+    primaryScore: threeElements[primary_element],
+    secondaryScore: threeElements[secondary_element],
+    weakestScore: threeElements[weakest_element],
+  };
+  // integrate モードの段階別分岐のため leadershipStage を渡す
+  const advice = getModeAdvice(prescription_mode, profile, leadershipStage);
+
+  const MODE_META = {
+    focus:     { jp: '極める',  en: 'Focus',     stage: '型を作る段階' },
+    expand:    { jp: '広げる',  en: 'Expand',    stage: '型から橋へ' },
+    integrate: { jp: '統合',    en: 'Integrate', stage: '一族化していく段階' },
+  };
+  const meta = MODE_META[prescription_mode] || { jp: '', en: '', stage: '' };
+
+  const order = ['leadership', 'teamBuilding', 'management'];
+  const ROLE_TAG = {
+    leadership:   '関数',
+    management:   '変数',
+    teamBuilding: '関数×変数',
+  };
+
+  return (
+    <div style={{
+      marginBottom: 28,
+      padding: '24px 26px',
+      borderRadius: 14,
+      background: WHITE,
+      border: `1px solid ${BORDER}`,
+      borderTop: `3px solid ${ACCENT_GOLD}`,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    }}>
+      {/* ヘッダー：ラベル + モード（サブタイトル「國創学・三軸診断」はカット） */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        gap: 12, marginBottom: 18, paddingBottom: 14,
+        borderBottom: `1px solid ${BORDER}`,
+      }}>
+        <div style={{
+          fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
+          fontWeight: 700, textTransform: 'uppercase',
+        }}>
+          Three Elements Diagnosis
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 2,
+          }}>
+            {meta.en} Mode
+          </div>
+          <div style={{
+            fontFamily: "'Noto Serif JP', serif", fontSize: 18, fontWeight: 700,
+            color: ACCENT_GOLD, lineHeight: 1,
+          }}>
+            {meta.jp}
+          </div>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
+            {meta.stage}
+          </div>
+        </div>
+      </div>
+
+      {/* 3要素一覧（要素別の色：朱・緑・藍） */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {order.map((key) => {
+          const score = threeElements[key];
+          const isPrimary = key === primary_element;
+          const isSecondary = key === secondary_element;
+          const lbl = ELEMENT_LABELS[key];
+          const elemColor = lbl.color;
+          const elemColorText = lbl.colorText;
+
+          return (
+            <div key={key} style={{
+              paddingLeft: isPrimary ? 14 : 0,
+              borderLeft: isPrimary ? `3px solid ${elemColor}` : 'none',
+              transition: 'all 0.3s',
+            }}>
+              {/* 上行：要素名 + 主/副バッジ + 数値 */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+                <span style={{
+                  fontFamily: "'Noto Serif JP', serif",
+                  fontSize: isPrimary ? 17 : 15, fontWeight: 700,
+                  color: isPrimary ? elemColorText : elemColor,
+                  letterSpacing: '0.02em',
+                }}>{lbl.jp}</span>
+                <span style={{
+                  fontSize: 9, letterSpacing: '0.12em', color: elemColor,
+                  fontWeight: 600, textTransform: 'uppercase', opacity: 0.75,
+                }}>{lbl.en}</span>
+                {isPrimary && (
+                  <span style={{
+                    fontSize: 9, padding: '2px 7px', borderRadius: 9999,
+                    background: elemColor, color: WHITE,
+                    fontWeight: 700, letterSpacing: '0.05em',
+                  }}>主</span>
+                )}
+                {isSecondary && (
+                  <span style={{
+                    fontSize: 9, padding: '2px 7px', borderRadius: 9999,
+                    background: 'transparent', color: elemColor,
+                    border: `1px solid ${elemColor}`,
+                    fontWeight: 700, letterSpacing: '0.05em',
+                  }}>副</span>
+                )}
+                <span style={{
+                  marginLeft: 'auto',
+                  fontFamily: NUM_FONT,
+                  fontSize: isPrimary ? 22 : 18, fontWeight: 700,
+                  color: isPrimary ? elemColorText : elemColor,
+                  lineHeight: 1,
+                }}>{score}<span style={{ fontSize: 11, color: elemColor, opacity: 0.6, marginLeft: 2 }}>%</span></span>
+              </div>
+
+              {/* 中行：定義（明朝・小） */}
+              <div style={{
+                fontFamily: "'Noto Serif JP', serif",
+                fontSize: 12, color: TEXT_SECONDARY,
+                marginBottom: 6, lineHeight: 1.6,
+              }}>
+                {lbl.short}
+                <span style={{ fontSize: 10, color: TEXT_MUTED, marginLeft: 8 }}>
+                  ／{ROLE_TAG[key]}
+                </span>
+              </div>
+
+              {/* 下行：細い進捗バー（要素別の色） */}
+              <div style={{
+                position: 'relative', width: '100%',
+                background: lbl.colorBg, height: 5, borderRadius: 2, overflow: 'hidden',
+              }}>
+                <div style={{
+                  background: elemColor,
+                  opacity: isPrimary ? 1 : (isSecondary ? 0.85 : 0.65),
+                  height: '100%', borderRadius: 2,
+                  width: `${score}%`, transition: 'width 0.6s ease',
+                }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 処方：ヘッドライン + コアフォーカス */}
+      <div style={{
+        marginTop: 24, paddingTop: 18,
+        borderTop: `1px solid ${BORDER}`,
+      }}>
+        <div style={{
+          fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
+          fontWeight: 700, textTransform: 'uppercase', marginBottom: 8,
+        }}>
+          Prescription
+        </div>
+        <p style={{
+          fontFamily: "'Noto Serif JP', serif",
+          fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY,
+          margin: 0, marginBottom: 14, lineHeight: 1.6,
+        }}>
+          {advice.headline}
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {advice.coreFocus.map((line, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'baseline', gap: 10,
+              fontFamily: "'Noto Serif JP', serif",
+              fontSize: 13, color: TEXT_SECONDARY, lineHeight: 1.7,
+            }}>
+              <span style={{
+                flex: '0 0 auto', width: 16,
+                fontFamily: NUM_FONT, fontSize: 11,
+                color: ACCENT_GOLD, fontWeight: 700,
+              }}>{i + 1}.</span>
+              <span style={{ flex: 1 }}>{line}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+/* ============================================================
+ * DevelopmentStageCard：人格L＋リーダー段階の推定表示（Claude design）
+ * personality.name は既に「反応型」「天地型」など"型"を含むのでそのまま表示。
+ * ============================================================ */
+function DevelopmentStageCard({ personalityLevel, leadershipStage, coachConfirmed }) {
+  if (!personalityLevel || !leadershipStage) return null;
+
+  const isCoached = !!(coachConfirmed?.personality_level || coachConfirmed?.leadership_stage);
+  const confLabel = isCoached
+    ? 'コーチ確定'
+    : ({
+        high:   '信頼度：高',
+        medium: '信頼度：中',
+        low:    '信頼度：低 ／ コーチ確認推奨',
+      })[personalityLevel.confidence] || '';
+  const confDotColor = ({
+    high: '#2E8B57', medium: ACCENT_GOLD, low: '#A84432',
+  })[personalityLevel.confidence] || TEXT_MUTED;
+
+  return (
+    <div style={{
+      marginBottom: 28,
+      padding: '20px 24px',
+      borderRadius: 14,
+      background: WHITE,
+      border: `1px solid ${BORDER}`,
+      borderTop: `3px solid ${ACCENT_GOLD}`,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    }}>
+      {/* ヘッダー */}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        marginBottom: 16, paddingBottom: 12,
+        borderBottom: `1px solid ${BORDER}`,
+      }}>
+        <div>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 3,
+          }}>
+            Development Stage
+          </div>
+          <div style={{
+            fontFamily: "'Noto Serif JP', serif", fontSize: 15, fontWeight: 700,
+            color: TEXT_PRIMARY,
+          }}>
+            人格発達 × リーダーシップ段階
+          </div>
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 10, color: TEXT_MUTED,
+        }}>
+          <span style={{
+            display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+            background: confDotColor,
+          }} />
+          {confLabel}
+        </div>
+      </div>
+
+      {/* メインの2項目 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        {/* 人格発達レベル */}
+        <div>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, letterSpacing: '0.05em' }}>
+            人格発達レベル
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <span style={{
+              fontFamily: NUM_FONT, fontSize: 32, fontWeight: 700,
+              color: TEXT_PRIMARY, lineHeight: 1,
+            }}>
+              {coachConfirmed?.personality_level || personalityLevel.level}
+            </span>
+            <span style={{
+              fontFamily: "'Noto Serif JP', serif", fontSize: 15,
+              color: TEXT_SECONDARY, fontWeight: 600,
+            }}>
+              {coachConfirmed?.personality_level ? '確定' : personalityLevel.name}
+            </span>
+          </div>
+        </div>
+
+        {/* リーダーシップ段階 */}
+        <div>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, letterSpacing: '0.05em' }}>
+            リーダーシップ段階
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <span style={{
+              fontFamily: NUM_FONT, fontSize: 32, fontWeight: 700,
+              color: TEXT_PRIMARY, lineHeight: 1,
+            }}>
+              第{coachConfirmed?.leadership_stage || leadershipStage.stage}
+            </span>
+            <span style={{
+              fontFamily: "'Noto Serif JP', serif", fontSize: 15,
+              color: TEXT_SECONDARY, fontWeight: 600,
+            }}>
+              {coachConfirmed?.leadership_stage ? '確定' : leadershipStage.name}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* コーチ観察ノート（あれば） */}
+      {coachConfirmed?.observation_note && (
+        <div style={{
+          marginTop: 16, paddingTop: 14,
+          borderTop: `1px solid ${BORDER}`,
+        }}>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 6,
+          }}>
+            Coach Note
+          </div>
+          <p style={{
+            fontFamily: "'Noto Serif JP', serif",
+            fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7,
+            margin: 0, whiteSpace: 'pre-wrap',
+          }}>
+            {coachConfirmed.observation_note}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
  * メインコンポーネント
  * ============================================================ */
 export default function UAAMResultScreen({ user, result, attemptData, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
@@ -1545,7 +1894,7 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   MAX_CROSS = MAX_AXIS * MAX_AXIS;
   DISPLAY_CROSS = MAX_CROSS / 2;
 
-  // 妥当性チェック（V問フラグ判定）
+  // 妥当性チェック（V問フラグ判定）── @deprecated 残置
   const validityResult = (vAnswers && answers) ? checkValidity(vAnswers, answers) : null;
 
   if (!scores) {
@@ -1577,6 +1926,43 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
       </div>
     );
   }
+
+  // 自己評価バイアス（3段階表記・45-95%）── 新方式
+  // result.bias_message があればそれを使い、無ければクライアント側でフォールバック計算
+  const { totalPct: totalPctForBias, minAxisPct, axisSpread } = extractAxisStats(scores);
+  const biasData = result.bias_message !== undefined
+    ? result.bias_message
+    : calculateBiasMessage(vAnswers || {}, totalPctForBias);
+
+  // Phase 2：人格L＋リーダー段階（推定）。Firestore に保存済みならそれを使い、
+  // 無ければクライアント側でフォールバック計算（既存データ下位互換）
+  const personalityLevel = result.personality_level
+    || assessConfidence(determinePersonalityLevel(totalPctForBias, minAxisPct), biasData, axisSpread);
+  const leadershipStage = result.leadership_stage
+    || determineLeadershipStage(totalPctForBias, minAxisPct);
+  const coachConfirmed = {
+    personality_level: result.coach_confirmed_personality_level,
+    leadership_stage: result.coach_confirmed_leadership_stage,
+    observation_note: result.coach_observation_note,
+  };
+
+  // Phase 3：3要素診断（既存データ下位互換）
+  const threeElements = result.three_elements || (() => {
+    const subs = Object.values(scores || {}).reduce((acc, domain) => {
+      if (domain?.subs) Object.assign(acc, domain.subs);
+      return acc;
+    }, {});
+    const tes = calculateThreeElementScores(subs);
+    const profile = identifyElementProfile(tes);
+    const mode = determinePrescriptionMode(tes, leadershipStage);
+    return {
+      ...tes,
+      primary_element: profile.primary,
+      secondary_element: profile.secondary,
+      weakest_element: profile.weakest,
+      prescription_mode: mode,
+    };
+  })();
 
   const topType = determineType(scores, analysis);
   const subRadars = UAAM_AXES.map(axis => {
@@ -1680,7 +2066,20 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
             if (domain?.subs) Object.assign(acc, domain.subs);
             return acc;
           }, {})
-        } threshold={13} userName={user.displayName} mode="top" vAnswers={vAnswers} />
+        } threshold={13} userName={user.displayName} mode="top" vAnswers={vAnswers} biasData={biasData} />
+
+        {/* ===== Phase 2：人格L＋リーダー段階の推定 / コーチ確定値 =====
+            自動推定値が出る。コーチ確定値があればそちらを優先表示。 */}
+        <DevelopmentStageCard
+          personalityLevel={personalityLevel}
+          leadershipStage={leadershipStage}
+          coachConfirmed={coachConfirmed}
+        />
+
+        {/* ===== Phase 3：3要素診断（リーダーシップ／チームビルディング／マネジメント） =====
+            主要素・副要素・最弱要素を表示し、極める／広げる／統合 のモード別処方を出す。
+            integrate モードは leadershipStage で段階別分岐（L5/L6/L7）。 */}
+        <ThreeElementCard threeElements={threeElements} leadershipStage={leadershipStage} />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
@@ -1744,41 +2143,8 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
           </>
         )}
 
-        {/* ===== V問フラグ（参加者向け：目立たない表示） ===== */}
-        {vAnswers && (() => {
-          const { flags } = getVFlags(vAnswers);
-          const FlagSvg = ({ color }) => (
-            <svg width="7" height="10" viewBox="0 0 7 10" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-              <rect x="0" y="0" width="1.4" height="10" fill={color} rx="0.5"/>
-              <path d="M1.4 0.5L6.5 3L1.4 5.5V0.5Z" fill={color}/>
-            </svg>
-          );
-          const VFlag = ({ id }) => {
-            const f = flags[id];
-            if (f === 'none') return <FlagSvg color="#DDD7CE" />;
-            if (f === 'warning') return (
-              <span style={{ display: 'inline-flex', gap: 2 }}>
-                <FlagSvg color="#C4B8A8" />
-              </span>
-            );
-            return (
-              <span style={{ display: 'inline-flex', gap: 2 }}>
-                <FlagSvg color="#B0A294" />
-                <FlagSvg color="#B0A294" />
-              </span>
-            );
-          };
-          return (
-            <div className="no-print" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-              gap: 6, marginBottom: 12, opacity: 0.7,
-            }}>
-              <VFlag id="V1" />
-              <VFlag id="V2" />
-              <VFlag id="V3" />
-            </div>
-          );
-        })()}
+        {/* バイアス表示は ActivationPanel(mode='top') の右カラムに1行で組み込み済み。
+            旧 V問SVGフラグ・Lv.1-6 バッジ・大型 BiasCard はすべて廃止。 */}
 
         {/* ===== ボタン ===== */}
         <div className="no-print" style={{ display: 'flex', gap: 12, marginTop: 8, marginBottom: 40 }}>
