@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
-import { UAAM_AXES, checkValidity, getVFlags, calculateBiasMessage } from '../../data/uaam_questions';
+import {
+  UAAM_AXES,
+  checkValidity,
+  getVFlags,
+  calculateBiasMessage,
+  determinePersonalityLevel,
+  determineLeadershipStage,
+  assessConfidence,
+  extractAxisStats,
+} from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
@@ -1492,6 +1501,104 @@ function RadarChart16({ scores }) {
 }
 
 /* ============================================================
+ * DevelopmentStageCard：人格L＋リーダー段階の推定表示
+ * 「推定L」「推定段階」を1ブロックで控えめに表示。
+ * confidence === 'low' の場合は警告アイコンを出す。
+ * data.signals に bias_inflation があれば「コーチ確認推奨」を併記。
+ * ============================================================ */
+function DevelopmentStageCard({ personalityLevel, leadershipStage, coachConfirmed }) {
+  if (!personalityLevel || !leadershipStage) return null;
+
+  const confColor = ({
+    high:   { bg: '#ECFDF5', border: '#10B981', text: '#065F46', label: '信頼度：高' },
+    medium: { bg: '#F5F0E8', border: '#B8960C', text: '#7A6A50', label: '信頼度：中' },
+    low:    { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E', label: '信頼度：低 ― コーチ確認推奨' },
+  })[personalityLevel.confidence] || { bg: '#F3F4F6', border: '#9CA3AF', text: '#374151', label: '' };
+
+  const isCoached = !!(coachConfirmed?.personality_level || coachConfirmed?.leadership_stage);
+
+  return (
+    <div style={{
+      marginBottom: 24,
+      padding: '16px 20px',
+      borderRadius: 12,
+      border: `1px solid ${confColor.border}40`,
+      borderLeft: `3px solid ${confColor.border}`,
+      background: confColor.bg,
+    }}>
+      <div style={{
+        fontSize: 9, letterSpacing: '0.18em', color: confColor.text,
+        fontWeight: 700, textTransform: 'uppercase', marginBottom: 8,
+      }}>
+        Development Stage {isCoached ? '（コーチ確定）' : '（自動推定）'}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* 人格L */}
+        <div>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 2 }}>人格発達レベル</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{
+              fontFamily: NUM_FONT, fontSize: 22, fontWeight: 700,
+              color: confColor.text, lineHeight: 1,
+            }}>
+              {coachConfirmed?.personality_level || personalityLevel.level}
+            </span>
+            <span style={{
+              fontFamily: "'Noto Serif JP', serif", fontSize: 13,
+              color: TEXT_SECONDARY,
+            }}>
+              {coachConfirmed?.personality_level
+                ? '（コーチ確定）'
+                : personalityLevel.name + '型'}
+            </span>
+          </div>
+        </div>
+
+        {/* リーダー段階 */}
+        <div>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 2 }}>リーダーシップ段階</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{
+              fontFamily: NUM_FONT, fontSize: 22, fontWeight: 700,
+              color: confColor.text, lineHeight: 1,
+            }}>
+              第{coachConfirmed?.leadership_stage || leadershipStage.stage}
+            </span>
+            <span style={{
+              fontFamily: "'Noto Serif JP', serif", fontSize: 13,
+              color: TEXT_SECONDARY,
+            }}>
+              {coachConfirmed?.leadership_stage
+                ? '（コーチ確定）'
+                : leadershipStage.name}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {!isCoached && confColor.label && (
+        <div style={{
+          marginTop: 10, fontSize: 10, color: confColor.text, opacity: 0.8,
+        }}>
+          {confColor.label}
+        </div>
+      )}
+
+      {coachConfirmed?.observation_note && (
+        <div style={{
+          marginTop: 8, padding: '6px 10px',
+          background: '#FFFFFF80', borderRadius: 4,
+          fontSize: 11, color: TEXT_SECONDARY, lineHeight: 1.5,
+        }}>
+          📝 {coachConfirmed.observation_note}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
  * メインコンポーネント
  * ============================================================ */
 export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
@@ -1537,15 +1644,22 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
   // 自己評価バイアス（3段階表記・45-95%）── 新方式
   // result.bias_message があればそれを使い、無ければクライアント側でフォールバック計算
-  const totalPctForBias = scores
-    ? Math.round(
-        ((scores.mindset?.total || 0) + (scores.literacy?.total || 0) +
-         (scores.competency?.total || 0) + (scores.impact?.total || 0)) / 320 * 100
-      )
-    : 0;
+  const { totalPct: totalPctForBias, minAxisPct, axisSpread } = extractAxisStats(scores);
   const biasData = result.bias_message !== undefined
     ? result.bias_message
     : calculateBiasMessage(vAnswers || {}, totalPctForBias);
+
+  // Phase 2：人格L＋リーダー段階（推定）。Firestore に保存済みならそれを使い、
+  // 無ければクライアント側でフォールバック計算（既存データ下位互換）
+  const personalityLevel = result.personality_level
+    || assessConfidence(determinePersonalityLevel(totalPctForBias, minAxisPct), biasData, axisSpread);
+  const leadershipStage = result.leadership_stage
+    || determineLeadershipStage(totalPctForBias, minAxisPct);
+  const coachConfirmed = {
+    personality_level: result.coach_confirmed_personality_level,
+    leadership_stage: result.coach_confirmed_leadership_stage,
+    observation_note: result.coach_observation_note,
+  };
 
   const topType = determineType(scores, analysis);
   const subRadars = UAAM_AXES.map(axis => {
@@ -1630,6 +1744,14 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             return acc;
           }, {})
         } threshold={13} userName={user.displayName} mode="top" vAnswers={vAnswers} biasData={biasData} />
+
+        {/* ===== Phase 2：人格L＋リーダー段階の推定 / コーチ確定値 =====
+            自動推定値が出る。コーチ確定値があればそちらを優先表示。 */}
+        <DevelopmentStageCard
+          personalityLevel={personalityLevel}
+          leadershipStage={leadershipStage}
+          coachConfirmed={coachConfirmed}
+        />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />

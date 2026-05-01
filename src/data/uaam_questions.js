@@ -546,3 +546,122 @@ export function calculateBiasMessage(vAnswers, totalPct) {
     activeFlags,
   };
 }
+
+/* ============================================================
+ * Phase 2：人格L＋リーダー段階の自動推定
+ *
+ * 設計：
+ *   - ページ4「判定式」の閾値テーブルを忠実に実装
+ *   - 「推定」と「コーチ確定」を分離（confidence で表現）
+ *   - 数字だけでは完全自動判定不可能 → 信頼度シグナルで補正
+ * ============================================================ */
+
+/**
+ * 人格発達レベル推定（L1〜L7）
+ * @param {number} totalPct - 総合% (0-100)
+ * @param {number} minAxisPct - 最小軸% (0-100)
+ * @returns {Object} { level, name, confidence }
+ */
+export function determinePersonalityLevel(totalPct, minAxisPct) {
+  // L7: 天地型 — 95%以上 + 軸バランス
+  if (totalPct >= 95 && minAxisPct >= 75) {
+    return { level: 'L7', name: '天地型', confidence: 'high' };
+  }
+  // L6: 共鳴型 — 88%以上 + バランス
+  if (totalPct >= 88 && minAxisPct >= 70) {
+    return { level: 'L6', name: '共鳴型', confidence: 'medium' };
+  }
+  // L5: 統合型 — 78%以上
+  if (totalPct >= 78) {
+    return { level: 'L5', name: '統合型', confidence: 'medium' };
+  }
+  // L4: 自律型 — 65%以上
+  if (totalPct >= 65) {
+    return { level: 'L4', name: '自律型', confidence: 'medium' };
+  }
+  // L3: 適応型 — 55%以上
+  if (totalPct >= 55) {
+    return { level: 'L3', name: '適応型', confidence: 'medium' };
+  }
+  // L2: 取引型 — 40%以上
+  if (totalPct >= 40) {
+    return { level: 'L2', name: '取引型', confidence: 'medium' };
+  }
+  // L1: 反応型
+  return { level: 'L1', name: '反応型', confidence: 'medium' };
+}
+
+/**
+ * リーダーシップ段階推定（第1〜第7）
+ * @param {number} totalPct - 総合% (0-100)
+ * @param {number} minAxisPct - 最小軸% (0-100)
+ * @returns {Object} { stage, name }
+ */
+export function determineLeadershipStage(totalPct, minAxisPct) {
+  if (totalPct >= 95 && minAxisPct >= 75) return { stage: 7, name: '天導' };
+  if (totalPct >= 88 && minAxisPct >= 70) return { stage: 6, name: '総導' };
+  if (totalPct >= 78) return { stage: 5, name: '他導' };
+  if (totalPct >= 68) return { stage: 4, name: '自導' };
+  if (totalPct >= 58) return { stage: 3, name: '自律' };
+  if (totalPct >= 48) return { stage: 2, name: '自立' };
+  return { stage: 1, name: '自発' };
+}
+
+/**
+ * 推定の信頼度を再評価（バイアス・軸偏りで降格）
+ *
+ * 信頼度シグナル：
+ *   - V問でフラグ多い（バイアス強度）→ 推定インフレの可能性
+ *   - 軸偏り大（最大-最小≧18ptなど）→ ADHD型疑い
+ *   - 旗が3個以上 → コーチ観察推奨
+ *
+ * @param {Object} baseEstimate - determinePersonalityLevel の戻り値
+ * @param {Object} biasMessage - calculateBiasMessage の戻り値（null OK）
+ * @param {number} axisSpread - 最大軸% - 最小軸%
+ * @returns {Object} { ...baseEstimate, confidence, signals: [...] }
+ */
+export function assessConfidence(baseEstimate, biasMessage, axisSpread) {
+  const signals = [];
+  let confidence = baseEstimate.confidence;
+
+  if (biasMessage) {
+    if (biasMessage.level === 'transition') {
+      signals.push('bias_transition'); // L5-L6 移行期
+    } else if (biasMessage.level === 'high_stage') {
+      signals.push('bias_high_stage'); // 真の天地型
+    } else if (biasMessage.level === 'strong') {
+      signals.push('bias_inflation'); // 強インフレ警告
+      confidence = 'low';
+    } else if (biasMessage.level === 'moderate') {
+      signals.push('bias_moderate');
+      if (confidence === 'high') confidence = 'medium';
+    }
+  }
+
+  if (axisSpread >= 18) {
+    signals.push('axis_imbalance'); // ADHD型疑い
+    if (confidence === 'high') confidence = 'medium';
+  }
+
+  return {
+    ...baseEstimate,
+    confidence,
+    signals,
+  };
+}
+
+/**
+ * scores オブジェクトから 4軸の totalPct / 最小軸% / 軸スプレッドを抽出するヘルパー
+ * @param {Object} scores - calculateScores の戻り値
+ * @returns {Object} { totalPct, minAxisPct, maxAxisPct, axisSpread }
+ */
+export function extractAxisStats(scores) {
+  if (!scores) return { totalPct: 0, minAxisPct: 0, maxAxisPct: 0, axisSpread: 0 };
+  const axes = ['mindset', 'literacy', 'competency', 'impact'];
+  const pcts = axes.map((a) => scores[a]?.percentage ?? 0);
+  const totals = axes.map((a) => scores[a]?.total ?? 0);
+  const totalPct = Math.round(totals.reduce((s, v) => s + v, 0) / 320 * 100);
+  const minAxisPct = Math.min(...pcts);
+  const maxAxisPct = Math.max(...pcts);
+  return { totalPct, minAxisPct, maxAxisPct, axisSpread: maxAxisPct - minAxisPct };
+}

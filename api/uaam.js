@@ -105,6 +105,55 @@ function calculateBiasMessage(vAnswers, totalPct) {
     activeFlags };
 }
 
+/* ============================================================
+ * Phase 2：人格L＋リーダー段階の自動推定
+ * src/data/uaam_questions.js の同関数群と同一ロジック（API自己完結のためインライン）
+ * ============================================================ */
+
+function determinePersonalityLevel(totalPct, minAxisPct) {
+  if (totalPct >= 95 && minAxisPct >= 75) return { level: 'L7', name: '天地型', confidence: 'high' };
+  if (totalPct >= 88 && minAxisPct >= 70) return { level: 'L6', name: '共鳴型', confidence: 'medium' };
+  if (totalPct >= 78) return { level: 'L5', name: '統合型', confidence: 'medium' };
+  if (totalPct >= 65) return { level: 'L4', name: '自律型', confidence: 'medium' };
+  if (totalPct >= 55) return { level: 'L3', name: '適応型', confidence: 'medium' };
+  if (totalPct >= 40) return { level: 'L2', name: '取引型', confidence: 'medium' };
+  return { level: 'L1', name: '反応型', confidence: 'medium' };
+}
+
+function determineLeadershipStage(totalPct, minAxisPct) {
+  if (totalPct >= 95 && minAxisPct >= 75) return { stage: 7, name: '天導' };
+  if (totalPct >= 88 && minAxisPct >= 70) return { stage: 6, name: '総導' };
+  if (totalPct >= 78) return { stage: 5, name: '他導' };
+  if (totalPct >= 68) return { stage: 4, name: '自導' };
+  if (totalPct >= 58) return { stage: 3, name: '自律' };
+  if (totalPct >= 48) return { stage: 2, name: '自立' };
+  return { stage: 1, name: '自発' };
+}
+
+function assessConfidence(baseEstimate, biasMessage, axisSpread) {
+  const signals = [];
+  let confidence = baseEstimate.confidence;
+
+  if (biasMessage) {
+    if (biasMessage.level === 'transition') signals.push('bias_transition');
+    else if (biasMessage.level === 'high_stage') signals.push('bias_high_stage');
+    else if (biasMessage.level === 'strong') {
+      signals.push('bias_inflation');
+      confidence = 'low';
+    } else if (biasMessage.level === 'moderate') {
+      signals.push('bias_moderate');
+      if (confidence === 'high') confidence = 'medium';
+    }
+  }
+
+  if (axisSpread >= 18) {
+    signals.push('axis_imbalance');
+    if (confidence === 'high') confidence = 'medium';
+  }
+
+  return { ...baseEstimate, confidence, signals };
+}
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
@@ -335,6 +384,20 @@ export default async function handler(req, res) {
   const biasMessage = calculateBiasMessage(vAnswers, totalPct);
   console.log('[UAAM] biasMessage:', biasMessage ? `${biasMessage.biasPct}% (${biasMessage.level})` : 'null（健全）');
 
+  // Phase 2：人格L＋リーダー段階の自動推定
+  const axisPcts = [
+    scores.mindset.percentage, scores.literacy.percentage,
+    scores.competency.percentage, scores.impact.percentage,
+  ];
+  const minAxisPct = Math.min(...axisPcts);
+  const maxAxisPct = Math.max(...axisPcts);
+  const axisSpread = maxAxisPct - minAxisPct;
+
+  const baseLevel = determinePersonalityLevel(totalPct, minAxisPct);
+  const personalityLevel = assessConfidence(baseLevel, biasMessage, axisSpread);
+  const leadershipStage = determineLeadershipStage(totalPct, minAxisPct);
+  console.log(`[UAAM] personality_level: ${personalityLevel.level} (${personalityLevel.confidence}) leadership_stage: 第${leadershipStage.stage}（${leadershipStage.name}） axisSpread:${axisSpread} signals:[${personalityLevel.signals.join(',')}]`);
+
   // 才覚領域データを取得
   let saikakuData = null;
   try {
@@ -424,7 +487,11 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
       vAnswers: vAnswers || {},
       scores,
       analysis,
-      bias_message: biasMessage,  // 新：3段階バイアス表記（null=健全）
+      bias_message: biasMessage,           // 新：3段階バイアス表記（null=健全）
+      personality_level: personalityLevel, // Phase 2：自動推定L1〜L7（confidence/signals 付き）
+      leadership_stage: leadershipStage,   // Phase 2：自動推定 第1〜第7
+      // coach_confirmed_personality_level / coach_confirmed_leadership_stage / coach_observation_note は
+      // AdminScreen でハル本人が編集する領域（自動上書き禁止）
       updatedAt: FieldValue.serverTimestamp(),
       ...(!existing.createdAt ? { createdAt: FieldValue.serverTimestamp() } : {}),
     },
@@ -432,5 +499,11 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
   );
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  return res.status(200).json({ scores, analysis, bias_message: biasMessage });
+  return res.status(200).json({
+    scores,
+    analysis,
+    bias_message: biasMessage,
+    personality_level: personalityLevel,
+    leadership_stage: leadershipStage,
+  });
 }

@@ -3,7 +3,14 @@ import { auth, signOutUser } from '../firebase';
 import { Chart, computePcts, CHART_COLORS } from '../utils/chartUtils';
 import ActivationPanel from '../ActivationPanel';
 import ActivationMatrix from './uaam/ActivationMatrix';
-import { getVFlags, calculateBiasMessage } from '../data/uaam_questions';
+import {
+  getVFlags,
+  calculateBiasMessage,
+  determinePersonalityLevel,
+  determineLeadershipStage,
+  assessConfidence,
+  extractAxisStats,
+} from '../data/uaam_questions';
 
 /**
  * BiasBadge：リーダーボード／詳細ビュー用の小型バッジ
@@ -51,6 +58,19 @@ function getOrCalcBias(u) {
      (s.competency?.total || 0) + (s.impact?.total || 0)) / 320 * 100
   );
   return calculateBiasMessage(v, totalPct);
+}
+
+/**
+ * Phase 2：人格L＋リーダー段階の推定値を取得（既存データ下位互換）
+ */
+function getOrCalcDevelopmentStage(u) {
+  const stats = extractAxisStats(u.scores);
+  const bias = getOrCalcBias(u);
+  const personality = u.personality_level
+    || assessConfidence(determinePersonalityLevel(stats.totalPct, stats.minAxisPct), bias, stats.axisSpread);
+  const leadership = u.leadership_stage
+    || determineLeadershipStage(stats.totalPct, stats.minAxisPct);
+  return { personality, leadership, stats };
 }
 
 function MiniDonut({ axes, colors }) {
@@ -353,6 +373,237 @@ const AXIS_META = [
     subLabels: ['構想力','変革力','実装力','影響力'] },
 ];
 
+/**
+ * Phase 2：人格L ＋ リーダー段階の表示＋コーチ確定編集パネル
+ * 推定値（personality_level / leadership_stage）を表示し、コーチが確定値・観察ノートを入力できる。
+ */
+function DevelopmentStageEditor({ user: u }) {
+  const { personality, leadership } = getOrCalcDevelopmentStage(u);
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({
+    coach_confirmed_personality_level: u.coach_confirmed_personality_level || '',
+    coach_confirmed_leadership_stage:  u.coach_confirmed_leadership_stage  || '',
+    coach_observation_note:            u.coach_observation_note            || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [savedSnapshot, setSavedSnapshot] = useState({
+    coach_confirmed_personality_level: u.coach_confirmed_personality_level || null,
+    coach_confirmed_leadership_stage:  u.coach_confirmed_leadership_stage  || null,
+    coach_observation_note:            u.coach_observation_note            || '',
+  });
+
+  const isCoached = !!(savedSnapshot.coach_confirmed_personality_level || savedSnapshot.coach_confirmed_leadership_stage);
+
+  const confColor = ({
+    high:   { bg: '#ECFDF5', border: '#10B981', text: '#065F46', label: '信頼度：高' },
+    medium: { bg: '#F5F0E8', border: '#B8960C', text: '#7A6A50', label: '信頼度：中' },
+    low:    { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E', label: '信頼度：低 ― コーチ確認推奨' },
+  })[personality.confidence] || { bg: '#F3F4F6', border: '#9CA3AF', text: '#374151', label: '' };
+
+  const save = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      const fields = {
+        coach_confirmed_personality_level: draft.coach_confirmed_personality_level || null,
+        coach_confirmed_leadership_stage:  draft.coach_confirmed_leadership_stage  ? Number(draft.coach_confirmed_leadership_stage) : null,
+        coach_observation_note:            draft.coach_observation_note || '',
+      };
+      const res = await fetch('/api/admin/update-uaam-coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ uid: u.uid, fields }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '保存に失敗しました');
+      // ローカル即時反映（再オープン不要）
+      setSavedSnapshot({ ...fields });
+      setEditing(false);
+    } catch (e) {
+      setSaveError(e.message || '保存に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldStyle = {
+    padding: '6px 10px', borderRadius: 6, border: '1px solid #D4C9B0',
+    background: '#FFF', fontSize: 13, color: '#2A2520', outline: 'none',
+  };
+
+  return (
+    <div style={{
+      marginBottom: 20,
+      padding: '14px 18px',
+      borderRadius: 10,
+      border: `1px solid ${confColor.border}40`,
+      borderLeft: `3px solid ${confColor.border}`,
+      background: confColor.bg,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <span style={{
+          fontSize: 9, letterSpacing: '0.18em', color: confColor.text,
+          fontWeight: 700, textTransform: 'uppercase',
+        }}>
+          Development Stage {isCoached ? '（コーチ確定）' : '（自動推定）'}
+        </span>
+        <span style={{ fontSize: 10, color: confColor.text, opacity: 0.7 }}>
+          totalPct {personality.confidence === 'high' || personality.confidence === 'low' ? '・' + confColor.label : '・' + confColor.label}
+        </span>
+        {!editing && (
+          <button
+            onClick={() => setEditing(true)}
+            style={{
+              marginLeft: 'auto', padding: '2px 10px', borderRadius: 6,
+              border: `1px solid ${confColor.border}`, background: 'transparent',
+              color: confColor.text, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            ✏️ コーチ確定
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {/* 人格L */}
+        <div>
+          <div style={{ fontSize: 10, color: '#7A7060', marginBottom: 2 }}>人格発達レベル</div>
+          {editing ? (
+            <select
+              value={draft.coach_confirmed_personality_level}
+              onChange={(e) => setDraft({ ...draft, coach_confirmed_personality_level: e.target.value })}
+              style={fieldStyle}
+            >
+              <option value="">— 未確定（推定: {personality.level}）—</option>
+              {['L1','L2','L3','L4','L5','L6','L7'].map(lv => (
+                <option key={lv} value={lv}>{lv}</option>
+              ))}
+            </select>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{
+                fontFamily: "'DM Sans', sans-serif", fontSize: 22, fontWeight: 700,
+                color: confColor.text, lineHeight: 1,
+              }}>
+                {savedSnapshot.coach_confirmed_personality_level || personality.level}
+              </span>
+              <span style={{ fontSize: 12, color: '#2A2520' }}>
+                {savedSnapshot.coach_confirmed_personality_level
+                  ? '（確定）'
+                  : `${personality.name}型`}
+              </span>
+              {!savedSnapshot.coach_confirmed_personality_level && (
+                <span style={{ fontSize: 10, color: '#B0A898', marginLeft: 4 }}>推定</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* リーダー段階 */}
+        <div>
+          <div style={{ fontSize: 10, color: '#7A7060', marginBottom: 2 }}>リーダーシップ段階</div>
+          {editing ? (
+            <select
+              value={draft.coach_confirmed_leadership_stage}
+              onChange={(e) => setDraft({ ...draft, coach_confirmed_leadership_stage: e.target.value })}
+              style={fieldStyle}
+            >
+              <option value="">— 未確定（推定: 第{leadership.stage}）—</option>
+              {[1,2,3,4,5,6,7].map(n => (
+                <option key={n} value={n}>第{n}（{['自発','自立','自律','自導','他導','総導','天導'][n-1]}）</option>
+              ))}
+            </select>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{
+                fontFamily: "'DM Sans', sans-serif", fontSize: 22, fontWeight: 700,
+                color: confColor.text, lineHeight: 1,
+              }}>
+                第{savedSnapshot.coach_confirmed_leadership_stage || leadership.stage}
+              </span>
+              <span style={{ fontSize: 12, color: '#2A2520' }}>
+                {savedSnapshot.coach_confirmed_leadership_stage
+                  ? '（確定）'
+                  : leadership.name}
+              </span>
+              {!savedSnapshot.coach_confirmed_leadership_stage && (
+                <span style={{ fontSize: 10, color: '#B0A898', marginLeft: 4 }}>推定</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 信頼度シグナル */}
+      {!isCoached && personality.signals && personality.signals.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: 10, color: confColor.text, opacity: 0.75 }}>
+          シグナル: {personality.signals.map(s => ({
+            bias_inflation: '🚨 強インフレ',
+            bias_transition: '⚠️ L5-L6移行期の可能性',
+            bias_high_stage: '✨ 高段階解釈の可能性',
+            bias_moderate: '🟠 中度バイアス',
+            axis_imbalance: '📊 軸偏り大（ADHD型疑い）',
+          }[s] || s)).join(' / ')}
+        </div>
+      )}
+
+      {/* 観察ノート */}
+      {editing ? (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 10, color: '#7A7060', marginBottom: 4 }}>コーチ観察ノート</div>
+          <textarea
+            value={draft.coach_observation_note}
+            onChange={(e) => setDraft({ ...draft, coach_observation_note: e.target.value })}
+            rows={3}
+            placeholder="観察した行動・面談での気づきなど（2000字以内）"
+            style={{
+              ...fieldStyle, width: '100%', boxSizing: 'border-box',
+              fontFamily: 'Noto Sans JP, sans-serif', lineHeight: 1.6, resize: 'vertical',
+            }}
+          />
+          {saveError && (
+            <div style={{ marginTop: 8, fontSize: 11, color: '#A84432' }}>{saveError}</div>
+          )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button
+              onClick={save}
+              disabled={saving}
+              style={{
+                padding: '8px 18px', borderRadius: 6, border: 'none',
+                background: '#C4922A', color: '#FFF', fontSize: 12, fontWeight: 700,
+                cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? '保存中...' : '💾 確定する'}
+            </button>
+            <button
+              onClick={() => { setEditing(false); setSaveError(''); }}
+              style={{
+                padding: '8px 14px', borderRadius: 6,
+                border: '1px solid #D4C9B0', background: 'transparent',
+                color: '#7A7060', fontSize: 12, cursor: 'pointer',
+              }}
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      ) : savedSnapshot.coach_observation_note ? (
+        <div style={{
+          marginTop: 10, padding: '8px 12px',
+          background: '#FFFFFF80', borderRadius: 4,
+          fontSize: 12, color: '#2A2520', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+        }}>
+          📝 {savedSnapshot.coach_observation_note}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function UAAMModal({ user: u, onClose, onDelete, onSave }) {
   const [confirmDel, setConfirmDel] = useState(false);
   const [editMode, setEditMode]     = useState(false);
@@ -547,6 +798,9 @@ function UAAMModal({ user: u, onClose, onDelete, onSave }) {
             </div>
           );
         })()}
+
+        {/* Phase 2：人格L＋リーダー段階（推定 + コーチ確定編集） */}
+        <DevelopmentStageEditor user={u} />
 
         {/* 4軸スコア */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
