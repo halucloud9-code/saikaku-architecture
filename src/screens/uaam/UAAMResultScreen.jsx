@@ -1506,10 +1506,14 @@ function RadarChart16({ scores }) {
 }
 
 /* ============================================================
- * ThreeElementCard：リーダーシップ／チームビルディング／マネジメント の3要素診断
+ * ThreeElementCard：3要素診断（國創学準拠・Claude design）
  *
- * 16才覚スコアの加重平均で算出。主要素・副要素・最弱要素を表示し、
- * モード（極める／広げる／統合）に応じた処方文言を出す。
+ * 國創学の三軸：
+ *   リーダーシップ → 在り方の軸（関数）
+ *   マネジメント   → 才覚の設計（変数）
+ *   チームビルディング → 関数×変数の統合（一族化）
+ *
+ * 視覚言語：白背景＋細罫線＋金色アクセント。明朝で品良く。
  * ============================================================ */
 function ThreeElementCard({ threeElements }) {
   if (!threeElements) return null;
@@ -1528,82 +1532,140 @@ function ThreeElementCard({ threeElements }) {
   };
   const advice = getModeAdvice(prescription_mode, profile);
 
-  const modeStyle = ({
-    focus:     { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E', label: '極める' },
-    expand:    { bg: '#DBEAFE', border: '#3B82F6', text: '#1E3A8A', label: '広げる' },
-    integrate: { bg: '#F3E8FF', border: '#9333EA', text: '#6B21A8', label: '統合' },
-  })[prescription_mode] || { bg: '#F3F4F6', border: '#9CA3AF', text: '#374151', label: '' };
+  const MODE_META = {
+    focus:     { jp: '極める',  en: 'Focus',     stage: '型を作る段階' },
+    expand:    { jp: '広げる',  en: 'Expand',    stage: '型から橋へ' },
+    integrate: { jp: '統合',    en: 'Integrate', stage: '一族化していく段階' },
+  };
+  const meta = MODE_META[prescription_mode] || { jp: '', en: '', stage: '' };
 
-  const elementBars = [
-    { key: 'leadership',   score: leadership },
-    { key: 'teamBuilding', score: teamBuilding },
-    { key: 'management',   score: management },
-  ];
-  const maxScore = Math.max(leadership, teamBuilding, management);
+  const order = ['leadership', 'teamBuilding', 'management'];
+  const ROLE_TAG = {
+    leadership:   '関数',
+    management:   '変数',
+    teamBuilding: '関数×変数',
+  };
 
   return (
     <div style={{
-      marginBottom: 24,
-      padding: '18px 20px',
-      borderRadius: 12,
-      border: `1px solid ${modeStyle.border}40`,
-      borderLeft: `3px solid ${modeStyle.border}`,
-      background: modeStyle.bg,
+      marginBottom: 28,
+      padding: '24px 26px',
+      borderRadius: 14,
+      background: WHITE,
+      border: `1px solid ${BORDER}`,
+      borderTop: `3px solid ${ACCENT_GOLD}`,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <span style={{
-          fontSize: 9, letterSpacing: '0.18em', color: modeStyle.text,
-          fontWeight: 700, textTransform: 'uppercase',
-        }}>
-          Three Elements Diagnosis
-        </span>
-        <span style={{
-          fontSize: 10, padding: '2px 8px', borderRadius: 9999,
-          background: modeStyle.border, color: '#FFFFFF', fontWeight: 700,
-        }}>
-          {modeStyle.label}モード
-        </span>
+      {/* ヘッダー：ラベル + モード */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        gap: 12, marginBottom: 18, paddingBottom: 14,
+        borderBottom: `1px solid ${BORDER}`,
+      }}>
+        <div>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
+          }}>
+            Three Elements Diagnosis
+          </div>
+          <div style={{
+            fontFamily: "'Noto Serif JP', serif", fontSize: 16, fontWeight: 700,
+            color: TEXT_PRIMARY, lineHeight: 1.4,
+          }}>
+            國創学・三軸診断
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 2,
+          }}>
+            {meta.en} Mode
+          </div>
+          <div style={{
+            fontFamily: "'Noto Serif JP', serif", fontSize: 18, fontWeight: 700,
+            color: ACCENT_GOLD, lineHeight: 1,
+          }}>
+            {meta.jp}
+          </div>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
+            {meta.stage}
+          </div>
+        </div>
       </div>
 
-      {/* 3要素バー */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-        {elementBars.map(({ key, score }) => {
+      {/* 3要素一覧（Claude調：余白多めの行構成） */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {order.map((key) => {
+          const score = threeElements[key];
           const isPrimary = key === primary_element;
           const isSecondary = key === secondary_element;
           const lbl = ELEMENT_LABELS[key];
+
           return (
-            <div key={key}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+            <div key={key} style={{
+              paddingLeft: isPrimary ? 14 : 0,
+              borderLeft: isPrimary ? `2px solid ${ACCENT_GOLD}` : 'none',
+              transition: 'all 0.3s',
+            }}>
+              {/* 上行：要素名 + 関数/変数タグ + 数値 */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
                 <span style={{
-                  fontSize: 12, fontWeight: isPrimary ? 700 : 500,
-                  color: isPrimary ? modeStyle.text : TEXT_SECONDARY,
+                  fontFamily: "'Noto Serif JP', serif",
+                  fontSize: isPrimary ? 17 : 15, fontWeight: 700,
+                  color: isPrimary ? TEXT_PRIMARY : TEXT_SECONDARY,
+                  letterSpacing: '0.02em',
                 }}>{lbl.jp}</span>
-                <span style={{ fontSize: 10, color: TEXT_MUTED }}>{lbl.desc}</span>
+                <span style={{
+                  fontSize: 9, letterSpacing: '0.12em', color: TEXT_MUTED,
+                  fontWeight: 600, textTransform: 'uppercase',
+                }}>{lbl.en}</span>
                 {isPrimary && (
                   <span style={{
-                    fontSize: 9, padding: '1px 6px', borderRadius: 3,
-                    background: modeStyle.border, color: '#FFF', fontWeight: 700,
-                  }}>主要素</span>
+                    fontSize: 9, padding: '2px 7px', borderRadius: 9999,
+                    background: ACCENT_GOLD, color: WHITE,
+                    fontWeight: 700, letterSpacing: '0.05em',
+                  }}>主</span>
                 )}
                 {isSecondary && (
                   <span style={{
-                    fontSize: 9, padding: '1px 6px', borderRadius: 3,
-                    background: modeStyle.border + '60', color: modeStyle.text, fontWeight: 700,
-                  }}>副要素</span>
+                    fontSize: 9, padding: '2px 7px', borderRadius: 9999,
+                    background: 'transparent', color: ACCENT_GOLD,
+                    border: `1px solid ${ACCENT_GOLD}`,
+                    fontWeight: 700, letterSpacing: '0.05em',
+                  }}>副</span>
                 )}
                 <span style={{
-                  marginLeft: 'auto', fontFamily: NUM_FONT,
-                  fontSize: 14, fontWeight: 700, color: modeStyle.text,
-                }}>{score}%</span>
+                  marginLeft: 'auto',
+                  fontFamily: NUM_FONT,
+                  fontSize: isPrimary ? 22 : 18, fontWeight: 700,
+                  color: isPrimary ? TEXT_PRIMARY : TEXT_SECONDARY,
+                  lineHeight: 1,
+                }}>{score}<span style={{ fontSize: 11, color: TEXT_MUTED, marginLeft: 2 }}>%</span></span>
               </div>
+
+              {/* 中行：定義（明朝・小） */}
+              <div style={{
+                fontFamily: "'Noto Serif JP', serif",
+                fontSize: 12, color: TEXT_SECONDARY,
+                marginBottom: 6, lineHeight: 1.6,
+              }}>
+                {lbl.short}
+                <span style={{ fontSize: 10, color: TEXT_MUTED, marginLeft: 8 }}>
+                  ／{ROLE_TAG[key]}
+                </span>
+              </div>
+
+              {/* 下行：細い進捗バー（金色のみ） */}
               <div style={{
                 position: 'relative', width: '100%',
-                background: '#FFFFFF60', borderRadius: 4, height: 8, overflow: 'hidden',
+                background: BORDER, height: 4, borderRadius: 2, overflow: 'hidden',
               }}>
                 <div style={{
-                  background: isPrimary ? modeStyle.border : modeStyle.border + '80',
-                  height: '100%', borderRadius: 4,
-                  width: `${score}%`, transition: 'width 0.5s',
+                  background: isPrimary ? ACCENT_GOLD : (isSecondary ? ACCENT_GOLD + 'B0' : ACCENT_GOLD + '60'),
+                  height: '100%', borderRadius: 2,
+                  width: `${score}%`, transition: 'width 0.6s ease',
                 }} />
               </div>
             </div>
@@ -1611,137 +1673,200 @@ function ThreeElementCard({ threeElements }) {
         })}
       </div>
 
-      {/* 処方文言 */}
+      {/* 処方：ヘッドライン + コアフォーカス */}
       <div style={{
-        marginTop: 14, paddingTop: 12, borderTop: `1px solid ${modeStyle.border}30`,
+        marginTop: 24, paddingTop: 18,
+        borderTop: `1px solid ${BORDER}`,
       }}>
+        <div style={{
+          fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
+          fontWeight: 700, textTransform: 'uppercase', marginBottom: 8,
+        }}>
+          Prescription
+        </div>
         <p style={{
           fontFamily: "'Noto Serif JP', serif",
-          fontSize: 13, fontWeight: 700, color: modeStyle.text,
-          margin: 0, marginBottom: 8, lineHeight: 1.5,
+          fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY,
+          margin: 0, marginBottom: 14, lineHeight: 1.6,
         }}>
           {advice.headline}
         </p>
-        <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {advice.coreFocus.map((line, i) => (
-            <li key={i}>{line}</li>
+            <div key={i} style={{
+              display: 'flex', alignItems: 'baseline', gap: 10,
+              fontFamily: "'Noto Serif JP', serif",
+              fontSize: 13, color: TEXT_SECONDARY, lineHeight: 1.7,
+            }}>
+              <span style={{
+                flex: '0 0 auto', width: 16,
+                fontFamily: NUM_FONT, fontSize: 11,
+                color: ACCENT_GOLD, fontWeight: 700,
+              }}>{i + 1}.</span>
+              <span style={{ flex: 1 }}>{line}</span>
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
 
-      {/* 90日プラン（折りたたみ風に控えめ） */}
-      <details style={{ marginTop: 10 }}>
+      {/* 90日プラン（控えめな折りたたみ） */}
+      <details style={{ marginTop: 18 }}>
         <summary style={{
-          fontSize: 11, color: modeStyle.text, fontWeight: 600,
+          fontSize: 10, letterSpacing: '0.1em', color: TEXT_MUTED, fontWeight: 600,
           cursor: 'pointer', listStyle: 'none', userSelect: 'none',
+          paddingTop: 10, borderTop: `1px solid ${BORDER}`,
         }}>
-          ▸ 90日プランを見る
+          ＋ 90日プランを見る
         </summary>
-        <ol style={{
-          margin: '8px 0 0 0', padding: '0 0 0 22px',
-          fontSize: 11, color: TEXT_SECONDARY, lineHeight: 1.7,
-        }}>
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {advice.plan90day.map((line, i) => (
-            <li key={i}>{line}</li>
+            <div key={i} style={{
+              display: 'flex', alignItems: 'baseline', gap: 12,
+              paddingLeft: 4,
+            }}>
+              <span style={{
+                flex: '0 0 auto',
+                fontFamily: NUM_FONT, fontSize: 10,
+                color: ACCENT_GOLD, fontWeight: 700,
+                letterSpacing: '0.05em',
+              }}>{['Day 0-30','Day 31-60','Day 61-90'][i] || ''}</span>
+              <span style={{
+                fontFamily: "'Noto Serif JP', serif",
+                fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7, flex: 1,
+              }}>{line.replace(/^[0-9]+-[0-9]+日目：/, '')}</span>
+            </div>
           ))}
-        </ol>
+        </div>
       </details>
     </div>
   );
 }
 
 /* ============================================================
- * DevelopmentStageCard：人格L＋リーダー段階の推定表示
- * 「推定L」「推定段階」を1ブロックで控えめに表示。
- * confidence === 'low' の場合は警告アイコンを出す。
- * data.signals に bias_inflation があれば「コーチ確認推奨」を併記。
+ * DevelopmentStageCard：人格L＋リーダー段階の推定表示（Claude design）
+ * personality.name は既に「反応型」「天地型」など"型"を含むのでそのまま表示。
  * ============================================================ */
 function DevelopmentStageCard({ personalityLevel, leadershipStage, coachConfirmed }) {
   if (!personalityLevel || !leadershipStage) return null;
 
-  const confColor = ({
-    high:   { bg: '#ECFDF5', border: '#10B981', text: '#065F46', label: '信頼度：高' },
-    medium: { bg: '#F5F0E8', border: '#B8960C', text: '#7A6A50', label: '信頼度：中' },
-    low:    { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E', label: '信頼度：低 ― コーチ確認推奨' },
-  })[personalityLevel.confidence] || { bg: '#F3F4F6', border: '#9CA3AF', text: '#374151', label: '' };
-
   const isCoached = !!(coachConfirmed?.personality_level || coachConfirmed?.leadership_stage);
+  const confLabel = isCoached
+    ? 'コーチ確定'
+    : ({
+        high:   '信頼度：高',
+        medium: '信頼度：中',
+        low:    '信頼度：低 ／ コーチ確認推奨',
+      })[personalityLevel.confidence] || '';
+  const confDotColor = ({
+    high: '#2E8B57', medium: ACCENT_GOLD, low: '#A84432',
+  })[personalityLevel.confidence] || TEXT_MUTED;
 
   return (
     <div style={{
-      marginBottom: 24,
-      padding: '16px 20px',
-      borderRadius: 12,
-      border: `1px solid ${confColor.border}40`,
-      borderLeft: `3px solid ${confColor.border}`,
-      background: confColor.bg,
+      marginBottom: 28,
+      padding: '20px 24px',
+      borderRadius: 14,
+      background: WHITE,
+      border: `1px solid ${BORDER}`,
+      borderTop: `3px solid ${ACCENT_GOLD}`,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
     }}>
+      {/* ヘッダー */}
       <div style={{
-        fontSize: 9, letterSpacing: '0.18em', color: confColor.text,
-        fontWeight: 700, textTransform: 'uppercase', marginBottom: 8,
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        marginBottom: 16, paddingBottom: 12,
+        borderBottom: `1px solid ${BORDER}`,
       }}>
-        Development Stage {isCoached ? '（コーチ確定）' : '（自動推定）'}
+        <div>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 3,
+          }}>
+            Development Stage
+          </div>
+          <div style={{
+            fontFamily: "'Noto Serif JP', serif", fontSize: 15, fontWeight: 700,
+            color: TEXT_PRIMARY,
+          }}>
+            人格発達 × リーダーシップ段階
+          </div>
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 10, color: TEXT_MUTED,
+        }}>
+          <span style={{
+            display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+            background: confDotColor,
+          }} />
+          {confLabel}
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* 人格L */}
+      {/* メインの2項目 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        {/* 人格発達レベル */}
         <div>
-          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 2 }}>人格発達レベル</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, letterSpacing: '0.05em' }}>
+            人格発達レベル
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{
-              fontFamily: NUM_FONT, fontSize: 22, fontWeight: 700,
-              color: confColor.text, lineHeight: 1,
+              fontFamily: NUM_FONT, fontSize: 32, fontWeight: 700,
+              color: TEXT_PRIMARY, lineHeight: 1,
             }}>
               {coachConfirmed?.personality_level || personalityLevel.level}
             </span>
             <span style={{
-              fontFamily: "'Noto Serif JP', serif", fontSize: 13,
-              color: TEXT_SECONDARY,
+              fontFamily: "'Noto Serif JP', serif", fontSize: 15,
+              color: TEXT_SECONDARY, fontWeight: 600,
             }}>
-              {coachConfirmed?.personality_level
-                ? '（コーチ確定）'
-                : personalityLevel.name + '型'}
+              {coachConfirmed?.personality_level ? '確定' : personalityLevel.name}
             </span>
           </div>
         </div>
 
-        {/* リーダー段階 */}
+        {/* リーダーシップ段階 */}
         <div>
-          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 2 }}>リーダーシップ段階</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, letterSpacing: '0.05em' }}>
+            リーダーシップ段階
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{
-              fontFamily: NUM_FONT, fontSize: 22, fontWeight: 700,
-              color: confColor.text, lineHeight: 1,
+              fontFamily: NUM_FONT, fontSize: 32, fontWeight: 700,
+              color: TEXT_PRIMARY, lineHeight: 1,
             }}>
               第{coachConfirmed?.leadership_stage || leadershipStage.stage}
             </span>
             <span style={{
-              fontFamily: "'Noto Serif JP', serif", fontSize: 13,
-              color: TEXT_SECONDARY,
+              fontFamily: "'Noto Serif JP', serif", fontSize: 15,
+              color: TEXT_SECONDARY, fontWeight: 600,
             }}>
-              {coachConfirmed?.leadership_stage
-                ? '（コーチ確定）'
-                : leadershipStage.name}
+              {coachConfirmed?.leadership_stage ? '確定' : leadershipStage.name}
             </span>
           </div>
         </div>
       </div>
 
-      {!isCoached && confColor.label && (
-        <div style={{
-          marginTop: 10, fontSize: 10, color: confColor.text, opacity: 0.8,
-        }}>
-          {confColor.label}
-        </div>
-      )}
-
+      {/* コーチ観察ノート（あれば） */}
       {coachConfirmed?.observation_note && (
         <div style={{
-          marginTop: 8, padding: '6px 10px',
-          background: '#FFFFFF80', borderRadius: 4,
-          fontSize: 11, color: TEXT_SECONDARY, lineHeight: 1.5,
+          marginTop: 16, paddingTop: 14,
+          borderTop: `1px solid ${BORDER}`,
         }}>
-          📝 {coachConfirmed.observation_note}
+          <div style={{
+            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 6,
+          }}>
+            Coach Note
+          </div>
+          <p style={{
+            fontFamily: "'Noto Serif JP', serif",
+            fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7,
+            margin: 0, whiteSpace: 'pre-wrap',
+          }}>
+            {coachConfirmed.observation_note}
+          </p>
         </div>
       )}
     </div>

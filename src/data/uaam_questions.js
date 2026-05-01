@@ -783,37 +783,70 @@ export function determinePrescriptionMode(threeScores, leadershipStage) {
   return 'focus';
 }
 
-/** 要素の日本語ラベル */
+/**
+ * 要素の定義（國創学準拠）
+ *
+ * 三つの関係性：
+ *   リーダーシップ   → 在り方の軸（関数）
+ *   マネジメント     → 才覚の設計（変数）
+ *   チームビルディング → 関数×変数の統合（一族化）
+ */
 export const ELEMENT_LABELS = {
-  leadership:   { jp: 'リーダーシップ', en: 'Leadership',    desc: '人を動かす力' },
-  teamBuilding: { jp: 'チームビルディング', en: 'Team Building', desc: '人と人を結ぶ力' },
-  management:   { jp: 'マネジメント',   en: 'Management',    desc: 'ものごとを回す力' },
+  leadership: {
+    jp: 'リーダーシップ',
+    en: 'Leadership',
+    short: '在り方で場を動かす力',
+    role: '在り方の軸（関数）',
+    essence: '「自分がどう生きるか」が、そのままリーダーシップになっている状態',
+    long: '技術でも権力でもない。自分の才覚領域から生きることで、周囲のOSを書き換える存在。役割じゃなく「状態」。ポジションがあるから引っ張るんじゃなく、在り方が定まっているから人が自然と動く。',
+  },
+  teamBuilding: {
+    jp: 'チームビルディング',
+    en: 'Team Building',
+    short: '一族が一つの魂で動く状態を創ること',
+    role: '関数×変数の統合（一族化）',
+    essence: '共に希望に満ちた未来へ一緒に進んでいる状態',
+    long: '仲良くでも役割分担でもない。共通の価値観（関数）と各自の才覚（変数）が同時に最大化される場を育てる。組織じゃなく「一族」。在り方で繋がった一族は、どんな嵐でも散らない。',
+  },
+  management: {
+    jp: 'マネジメント',
+    en: 'Management',
+    short: '才覚を最大温度で稼働させる設計力',
+    role: '才覚の設計（変数）',
+    essence: '内発的動機が最大化される環境の設計者',
+    long: '管理でも監視でもない。一人一人の才覚領域を見抜いて、それが一番輝く場に配置する構造を作る。「正しく動かす」じゃなく「自ら動く状態を設計する」。人を動かそうとすれば摩擦が起き、人が動きたくなる場を作れば摩擦が消える。',
+  },
 };
 
 /**
- * モード別の処方文言を生成
+ * モード別の処方文言を生成（國創学準拠）
+ *
+ * focus（極める）：才覚領域に集中、型を作る段階
+ * expand（広げる）：型が立った。関数（在り方）と変数（才覚）の橋渡し
+ * integrate（統合）：関数×変数が一体化、一族化していく段階
+ *
  * @param {string} mode - 'focus' | 'expand' | 'integrate'
  * @param {Object} profile - identifyElementProfile の戻り値
  * @returns {Object} { headline, coreFocus, plan90day }
  */
 export function getModeAdvice(mode, profile) {
-  const primaryLabel = ELEMENT_LABELS[profile.primary]?.jp || profile.primary;
-  const secondaryLabel = ELEMENT_LABELS[profile.secondary]?.jp || profile.secondary;
-  const weakestLabel = ELEMENT_LABELS[profile.weakest]?.jp || profile.weakest;
+  const primary = ELEMENT_LABELS[profile.primary] || { jp: profile.primary, short: '' };
+  const secondary = ELEMENT_LABELS[profile.secondary] || { jp: profile.secondary, short: '' };
+  const weakest = ELEMENT_LABELS[profile.weakest] || { jp: profile.weakest, short: '' };
 
   if (mode === 'focus') {
     return {
       mode,
-      headline: `「極める」── ${primaryLabel}を徹底的に磨く時期`,
+      headline: `極める ── ${primary.jp}を「型」にする段階`,
       coreFocus: [
-        `${primaryLabel}のコア15ペアを集中的に磨く`,
-        '他の2要素は今は気にしなくていい',
-        '偏ることが、あなたの型を作る',
+        `${primary.jp}は「${primary.short}」。これがあなたの中核`,
+        '他2要素は今は気にしなくていい。偏りが、あなたの型を作る',
+        '才覚領域から生きる時間を、毎日30分でも積み重ねる',
       ],
       plan90day: [
-        `0-30日目：${primaryLabel}のコア才覚を毎日意識して使う`,
-        `31-60日目：${primaryLabel}を活かす行動を実践レベルで定着`,
-        `61-90日目：「自分の型」として周囲に認知される状態を作る`,
+        `0-30日目：${primary.jp}のコア才覚を1日1回は意識的に発動する`,
+        `31-60日目：在り方を起点にした行動を、習慣レベルまで降ろす`,
+        `61-90日目：「あの人といえば${primary.jp}」と周囲に認知される状態を作る`,
       ],
     };
   }
@@ -821,16 +854,16 @@ export function getModeAdvice(mode, profile) {
   if (mode === 'expand') {
     return {
       mode,
-      headline: `「広げる」── ${primaryLabel}は確立、次は${secondaryLabel}を発動`,
+      headline: `広げる ── ${primary.jp}が型になった。次は${secondary.jp}へ`,
       coreFocus: [
-        `${primaryLabel}は確立している。安心して次へ`,
-        `${secondaryLabel}を意識的に発動する段階`,
-        `特に弱い才覚を3つ磨くと、副要素が立ち上がる`,
+        `${primary.jp}は確立。在り方の軸（関数）が定まっている状態`,
+        `${secondary.jp}＝「${secondary.short}」を意識的に発動する段階`,
+        `${primary.jp} × ${secondary.jp} の交点で、新しい影響圏が広がる`,
       ],
       plan90day: [
-        `0-30日目：${secondaryLabel}のコア才覚を1〜2個試す`,
-        `31-60日目：${secondaryLabel}での実践を増やし、${primaryLabel}との橋渡しを意識`,
-        `61-90日目：${primaryLabel}×${secondaryLabel}の組み合わせで成果を出す`,
+        `0-30日目：${secondary.jp}のコア才覚を週1回は意図的に動かす`,
+        `31-60日目：${primary.jp}を起点に${secondary.jp}を呼び出す回路を作る`,
+        `61-90日目：${primary.jp}×${secondary.jp}の組み合わせで、人が自然に動く場を作る`,
       ],
     };
   }
@@ -838,16 +871,16 @@ export function getModeAdvice(mode, profile) {
   // integrate
   return {
     mode,
-    headline: '「統合」── 3要素すべてが立ち上がっている。在り方を深める段階',
+    headline: '統合 ── 関数（在り方）×変数（才覚）が一体化。一族化する段階',
     coreFocus: [
-      'リーダーシップ・チームビルディング・マネジメント、3要素すべてが機能',
-      '要素の境界を超え、状況に応じて自在に切り替わる',
-      '言葉・行動を超えた「在り方」が場を動かす',
+      'リーダーシップ・マネジメント・チームビルディング、3要素すべてが立ち上がっている',
+      '要素の境界が消え、状況に応じて在り方そのものが場を動かす',
+      '言葉も行動もいらない。在り方の高さで、一族が一つの魂で動き出す',
     ],
     plan90day: [
-      `0-30日目：${weakestLabel}（相対的に低い要素）を意識的に磨いてバランスを完成`,
-      '31-60日目：3要素を統合した独自の在り方を言語化する',
-      '61-90日目：自分の在り方が場・組織・社会にどう波及しているかを観察・記録',
+      `0-30日目：${weakest.jp}（相対的に弱い要素）を意識的に磨き、3要素のバランスを完成させる`,
+      '31-60日目：自分の在り方が周囲のOSをどう書き換えているかを観察・記録する',
+      '61-90日目：3要素を統合した独自の「在り方の言語」を持つ。一族化の中心になる',
     ],
   };
 }

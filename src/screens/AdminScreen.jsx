@@ -493,7 +493,7 @@ function DevelopmentStageEditor({ user: u }) {
               <span style={{ fontSize: 12, color: '#2A2520' }}>
                 {savedSnapshot.coach_confirmed_personality_level
                   ? '（確定）'
-                  : `${personality.name}型`}
+                  : personality.name}
               </span>
               {!savedSnapshot.coach_confirmed_personality_level && (
                 <span style={{ fontSize: 10, color: '#B0A898', marginLeft: 4 }}>推定</span>
