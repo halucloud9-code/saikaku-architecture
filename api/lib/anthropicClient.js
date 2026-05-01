@@ -31,6 +31,9 @@ export function resetMockCallCount() {
 
 export async function createMessage({ fixtureKey, ...params }) {
   if (isMock) {
+    if (process.env.MOCK_ANTHROPIC_FAIL === '1') {
+      throw new Error('mock LLM failure');
+    }
     callCounter[fixtureKey] = (callCounter[fixtureKey] ?? 0) + 1;
     const file = fixtureKey === 'uaam' ? 'uaam-1.json' : 'saikaku-1.json';
     return loadFixture(file);

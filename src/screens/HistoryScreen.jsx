@@ -264,6 +264,7 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onL
 
               return (
                 <button
+                  data-testid="history-item"
                   key={attempt.id}
                   onClick={() => onSelectAttempt(attempt)}
                   onMouseEnter={() => setHoveredId(attempt.id)}

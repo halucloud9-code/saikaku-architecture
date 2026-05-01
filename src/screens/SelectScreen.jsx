@@ -54,10 +54,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
     return count >= 2 ? '32px 28px 78px' : '32px 28px 58px';
   };
 
-  const renderBadge = (count, palette) => {
+  const renderBadge = (count, palette, testId) => {
     if (status === null || count <= 0) return null;
     return (
-      <div style={{
+      <div data-testid={testId} style={{
         position: 'absolute',
         top: 18,
         right: 18,
@@ -101,6 +101,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
           </span>
         )}
         <button
+          data-testid={`history-link-${kind}`}
           type="button"
           onClick={(e) => {
             e.stopPropagation();
@@ -219,6 +220,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         {/* ─── 才覚領域カード ─── */}
         <div style={{ width: '100%', position: 'relative' }}>
           <button
+            data-testid="card-saikaku"
             onClick={handleSaikakuClick}
             onMouseEnter={() => setHoverSaikaku(true)}
             onMouseLeave={() => setHoverSaikaku(false)}
@@ -250,7 +252,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               background: 'rgba(196,146,42,0.18)',
               border: 'rgba(196,146,42,0.45)',
               color: '#E8C47A',
-            })}
+            }, 'badge-saikaku')}
 
             <div style={{ padding: getCardPadding(saikakuAttemptCount) }}>
             {/* サブラベル */}
@@ -326,6 +328,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         {/* ─── 才覚発動領域カード ─── */}
         <div style={{ width: '100%', position: 'relative' }}>
           <button
+            data-testid="card-uaam"
             onClick={handleUaamClick}
             onMouseEnter={() => setHoverUaam(true)}
             onMouseLeave={() => setHoverUaam(false)}
@@ -357,7 +360,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               background: 'rgba(74,111,165,0.22)',
               border: 'rgba(74,111,165,0.45)',
               color: '#8FB4E0',
-            })}
+            }, 'badge-uaam')}
 
             <div style={{ padding: getCardPadding(uaamAttemptCount) }}>
             {/* サブラベル */}
