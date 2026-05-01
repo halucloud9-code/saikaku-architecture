@@ -18,11 +18,16 @@ test('attemptCount=2 blocks starting another saikaku diagnosis', async ({ page }
   await expect(page.getByTestId('badge-saikaku')).toContainText('診断済み (2/2)', { timeout: 15000 });
   await expect(page.getByText('診断は最大2回まで実施済み')).toBeVisible();
 
-  const dialogPromise = page.waitForEvent('dialog');
+  // window.alert は Playwright が自動 dismiss するため、capture 用に override する
+  const alertMessages = [];
+  await page.exposeFunction('__captureAlert', (msg) => alertMessages.push(msg));
+  await page.evaluate(() => {
+    window.alert = (msg) => window.__captureAlert(String(msg));
+  });
+
   await page.getByTestId('card-saikaku').click();
-  const dialog = await dialogPromise;
-  expect(dialog.message()).toContain('診断は最大2回まで実施済みです');
-  await dialog.accept();
+  await expect.poll(() => alertMessages.length, { timeout: 5000 }).toBeGreaterThan(0);
+  expect(alertMessages[0]).toContain('診断は最大2回まで実施済みです');
 
   await expect(page.getByText('才覚領域を発見する')).toHaveCount(0);
 });

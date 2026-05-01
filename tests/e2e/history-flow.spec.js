@@ -18,7 +18,7 @@ test('history list to detail and back', async ({ page }) => {
   await expect(page.getByTestId('history-item')).toHaveCount(1);
   await page.getByTestId('history-item').first().click();
 
-  await expect(page.getByText('問いに火を灯す人')).toBeVisible();
+  await expect(page.getByText('問いに火を灯す人').first()).toBeVisible();
   await page.getByRole('button', { name: '最新の結果に戻る' }).first().click();
   await expect(page.getByText('才覚解読プログラム')).toBeVisible();
 });

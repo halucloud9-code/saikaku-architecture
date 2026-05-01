@@ -21,7 +21,6 @@ const sharedEnv = {
   GCLOUD_PROJECT: 'demo-saikaku',
   MOCK_ANTHROPIC: '1',
   NODE_ENV: 'test',
-  TEST_BYPASS_AUTH: '1',
 };
 
 function log(message) {

@@ -1,4 +1,5 @@
 import { initializeApp, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { expect } from '@playwright/test';
 
@@ -10,6 +11,13 @@ function getDb() {
     initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'demo-saikaku' });
   }
   return getFirestore();
+}
+
+function getAdminAuth() {
+  if (!getApps().length) {
+    initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'demo-saikaku' });
+  }
+  return getAuth();
 }
 
 function collectionFor(kind) {
@@ -25,23 +33,15 @@ export async function createAuthUser(email, password) {
   const data = await signUp.json();
   if (!signUp.ok) throw new Error(`auth signUp failed: ${JSON.stringify(data)}`);
 
-  const update = await fetch(`${AUTH_BASE}/accounts:update?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      idToken: data.idToken,
-      emailVerified: true,
-      displayName: 'E2E User',
-      returnSecureToken: true,
-    }),
+  await getAdminAuth().updateUser(data.localId, {
+    emailVerified: true,
+    displayName: 'E2E User',
   });
-  const updated = await update.json();
-  if (!update.ok) throw new Error(`auth update failed: ${JSON.stringify(updated)}`);
 
   return {
     uid: data.localId,
     localId: data.localId,
-    idToken: updated.idToken || data.idToken,
+    idToken: data.idToken,
     email,
     password,
   };

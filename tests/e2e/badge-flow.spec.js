@@ -11,10 +11,10 @@ test('badge display after a saikaku diagnosis', async ({ page }) => {
   await expect(page.getByTestId('badge-saikaku')).toHaveCount(0);
 
   await page.getByTestId('card-saikaku').click();
-  await expect(page.getByText('才覚領域を発見する')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '才覚領域を発見する' })).toBeVisible({ timeout: 15000 });
   await fillSaikakuForm(page);
 
-  await expect(page.getByText('問いに火を灯す人')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('問いに火を灯す人').first()).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: 'もう一度解析する' }).click();
 
   await expect(page.getByTestId('badge-saikaku')).toContainText('診断済み (1/2)', { timeout: 15000 });
