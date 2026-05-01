@@ -1556,25 +1556,17 @@ function ThreeElementCard({ threeElements }) {
       borderTop: `3px solid ${ACCENT_GOLD}`,
       boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
     }}>
-      {/* ヘッダー：ラベル + モード */}
+      {/* ヘッダー：ラベル + モード（サブタイトル「國創学・三軸診断」はカット） */}
       <div style={{
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
         gap: 12, marginBottom: 18, paddingBottom: 14,
         borderBottom: `1px solid ${BORDER}`,
       }}>
-        <div>
-          <div style={{
-            fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
-            fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
-          }}>
-            Three Elements Diagnosis
-          </div>
-          <div style={{
-            fontFamily: "'Noto Serif JP', serif", fontSize: 16, fontWeight: 700,
-            color: TEXT_PRIMARY, lineHeight: 1.4,
-          }}>
-            國創学・三軸診断
-          </div>
+        <div style={{
+          fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
+          fontWeight: 700, textTransform: 'uppercase',
+        }}>
+          Three Elements Diagnosis
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{
@@ -1595,44 +1587,46 @@ function ThreeElementCard({ threeElements }) {
         </div>
       </div>
 
-      {/* 3要素一覧（Claude調：余白多めの行構成） */}
+      {/* 3要素一覧（要素別の色：朱・緑・藍） */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {order.map((key) => {
           const score = threeElements[key];
           const isPrimary = key === primary_element;
           const isSecondary = key === secondary_element;
           const lbl = ELEMENT_LABELS[key];
+          const elemColor = lbl.color;
+          const elemColorText = lbl.colorText;
 
           return (
             <div key={key} style={{
               paddingLeft: isPrimary ? 14 : 0,
-              borderLeft: isPrimary ? `2px solid ${ACCENT_GOLD}` : 'none',
+              borderLeft: isPrimary ? `3px solid ${elemColor}` : 'none',
               transition: 'all 0.3s',
             }}>
-              {/* 上行：要素名 + 関数/変数タグ + 数値 */}
+              {/* 上行：要素名 + 主/副バッジ + 数値 */}
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
                 <span style={{
                   fontFamily: "'Noto Serif JP', serif",
                   fontSize: isPrimary ? 17 : 15, fontWeight: 700,
-                  color: isPrimary ? TEXT_PRIMARY : TEXT_SECONDARY,
+                  color: isPrimary ? elemColorText : elemColor,
                   letterSpacing: '0.02em',
                 }}>{lbl.jp}</span>
                 <span style={{
-                  fontSize: 9, letterSpacing: '0.12em', color: TEXT_MUTED,
-                  fontWeight: 600, textTransform: 'uppercase',
+                  fontSize: 9, letterSpacing: '0.12em', color: elemColor,
+                  fontWeight: 600, textTransform: 'uppercase', opacity: 0.75,
                 }}>{lbl.en}</span>
                 {isPrimary && (
                   <span style={{
                     fontSize: 9, padding: '2px 7px', borderRadius: 9999,
-                    background: ACCENT_GOLD, color: WHITE,
+                    background: elemColor, color: WHITE,
                     fontWeight: 700, letterSpacing: '0.05em',
                   }}>主</span>
                 )}
                 {isSecondary && (
                   <span style={{
                     fontSize: 9, padding: '2px 7px', borderRadius: 9999,
-                    background: 'transparent', color: ACCENT_GOLD,
-                    border: `1px solid ${ACCENT_GOLD}`,
+                    background: 'transparent', color: elemColor,
+                    border: `1px solid ${elemColor}`,
                     fontWeight: 700, letterSpacing: '0.05em',
                   }}>副</span>
                 )}
@@ -1640,9 +1634,9 @@ function ThreeElementCard({ threeElements }) {
                   marginLeft: 'auto',
                   fontFamily: NUM_FONT,
                   fontSize: isPrimary ? 22 : 18, fontWeight: 700,
-                  color: isPrimary ? TEXT_PRIMARY : TEXT_SECONDARY,
+                  color: isPrimary ? elemColorText : elemColor,
                   lineHeight: 1,
-                }}>{score}<span style={{ fontSize: 11, color: TEXT_MUTED, marginLeft: 2 }}>%</span></span>
+                }}>{score}<span style={{ fontSize: 11, color: elemColor, opacity: 0.6, marginLeft: 2 }}>%</span></span>
               </div>
 
               {/* 中行：定義（明朝・小） */}
@@ -1657,13 +1651,14 @@ function ThreeElementCard({ threeElements }) {
                 </span>
               </div>
 
-              {/* 下行：細い進捗バー（金色のみ） */}
+              {/* 下行：細い進捗バー（要素別の色） */}
               <div style={{
                 position: 'relative', width: '100%',
-                background: BORDER, height: 4, borderRadius: 2, overflow: 'hidden',
+                background: lbl.colorBg, height: 5, borderRadius: 2, overflow: 'hidden',
               }}>
                 <div style={{
-                  background: isPrimary ? ACCENT_GOLD : (isSecondary ? ACCENT_GOLD + 'B0' : ACCENT_GOLD + '60'),
+                  background: elemColor,
+                  opacity: isPrimary ? 1 : (isSecondary ? 0.85 : 0.65),
                   height: '100%', borderRadius: 2,
                   width: `${score}%`, transition: 'width 0.6s ease',
                 }} />
