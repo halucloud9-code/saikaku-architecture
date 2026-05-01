@@ -12,7 +12,7 @@
     "dev:local": "concurrently -n emu,api,web -c yellow,cyan,green \"npm:emu\" \"npm:api\" \"npm:dev\"",
     "test:unit": "vitest run tests/unit",
     "test:rules": "firebase emulators:exec --only firestore --project demo-saikaku 'vitest run tests/rules'",
-    "test:api": "firebase emulators:exec --only auth,firestore --project demo-saikaku 'cross-env MOCK_ANTHROPIC=1 vitest run tests/api'",
+    "test:api": "firebase emulators:exec --only auth,firestore --project demo-saikaku 'cross-env NODE_ENV=test MOCK_ANTHROPIC=1 TEST_BYPASS_AUTH=1 vitest run tests/api'",
     "test:e2e": "node scripts/test-e2e-orchestrator.mjs",
     "test:all": "npm run test:unit && npm run test:rules && npm run test:api && npm run test:e2e"
   },

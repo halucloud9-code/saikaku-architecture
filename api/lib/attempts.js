@@ -18,6 +18,17 @@ export class ConflictError extends Error {
 }
 
 const RESERVATION_LOCK_ID = 'reservation';
+const RESERVATION_LOCK_TTL_MS = 10 * 60 * 1000;
+
+function lockExpired(lockData) {
+  const acquiredAt = lockData?.acquiredAt;
+  if (!acquiredAt) return false;
+  const acquiredMs = typeof acquiredAt.toMillis === 'function'
+    ? acquiredAt.toMillis()
+    : new Date(acquiredAt).getTime();
+  if (!Number.isFinite(acquiredMs)) return false;
+  return Date.now() - acquiredMs > RESERVATION_LOCK_TTL_MS;
+}
 
 export async function reserveAttempt({ collection, uid, kind }) {
   const docRef = db.collection(collection).doc(uid);
@@ -28,7 +39,8 @@ export async function reserveAttempt({ collection, uid, kind }) {
     const lockSnap = await tx.get(lockRef);
     const data = cur.exists ? cur.data() : {};
 
-    if (lockSnap.exists || data.pendingAttemptId) {
+    const lockHeld = lockSnap.exists && !lockExpired(lockSnap.data());
+    if (lockHeld || data.pendingAttemptId) {
       throw new ConflictError('処理中のリクエストがあります');
     }
 
@@ -55,10 +67,15 @@ export async function reserveAttempt({ collection, uid, kind }) {
     }
 
     const newAttemptRef = docRef.collection('attempts').doc();
-    tx.create(lockRef, {
+    const lockData = {
       attemptId: newAttemptRef.id,
       acquiredAt: FieldValue.serverTimestamp(),
-    });
+    };
+    if (lockSnap.exists) {
+      tx.set(lockRef, lockData);
+    } else {
+      tx.create(lockRef, lockData);
+    }
     tx.set(newAttemptRef, {
       status: 'pending',
       createdAt: FieldValue.serverTimestamp(),

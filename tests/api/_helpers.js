@@ -4,7 +4,15 @@ import app from '../../api/_app.js';
 import { db } from '../../api/lib/firebaseAdmin.js';
 import { getMockCallCount, resetMockCallCount } from '../../api/lib/anthropicClient.js';
 
-process.env.TEST_BYPASS_AUTH = '1';
+if (
+  process.env.TEST_BYPASS_AUTH !== '1'
+  || process.env.NODE_ENV !== 'test'
+  || !process.env.FIRESTORE_EMULATOR_HOST
+) {
+  throw new Error(
+    '[tests/api] TEST_BYPASS_AUTH=1 + NODE_ENV=test + FIRESTORE_EMULATOR_HOST が必要です。npm run test:api 経由で実行してください。'
+  );
+}
 
 export const api = request(app);
 export { FieldValue, Timestamp, getMockCallCount, resetMockCallCount };
@@ -47,9 +55,13 @@ export function uaamRequest(uid, body = minimalUaamBody()) {
 
 export async function clearUserState(collection, uid) {
   const parentRef = db.collection(collection).doc(uid);
-  const attempts = await parentRef.collection('attempts').get();
+  const [attempts, locks] = await Promise.all([
+    parentRef.collection('attempts').get(),
+    parentRef.collection('_locks').get(),
+  ]);
   const batch = db.batch();
   attempts.docs.forEach((snap) => batch.delete(snap.ref));
+  locks.docs.forEach((snap) => batch.delete(snap.ref));
   batch.delete(parentRef);
   await batch.commit();
 }

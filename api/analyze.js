@@ -239,7 +239,11 @@ export default async function handler(req, res) {
   // 認証
   let decoded;
   try {
-    if (process.env.TEST_BYPASS_AUTH === '1') {
+    if (
+      process.env.TEST_BYPASS_AUTH === '1'
+      && process.env.NODE_ENV === 'test'
+      && !!process.env.FIRESTORE_EMULATOR_HOST
+    ) {
       decoded = {
         uid: req.headers['x-test-uid'] || 'test-user',
         email: 'test@example.com',

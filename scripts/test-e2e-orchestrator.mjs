@@ -18,7 +18,10 @@ const sharedEnv = {
   FIRESTORE_EMULATOR_HOST: 'localhost:8080',
   FIREBASE_AUTH_EMULATOR_HOST: 'localhost:9099',
   FIREBASE_PROJECT_ID: 'demo-saikaku',
+  GCLOUD_PROJECT: 'demo-saikaku',
   MOCK_ANTHROPIC: '1',
+  NODE_ENV: 'test',
+  TEST_BYPASS_AUTH: '1',
 };
 
 function log(message) {
