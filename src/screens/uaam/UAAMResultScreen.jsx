@@ -9,6 +9,11 @@ import {
   determineLeadershipStage,
   assessConfidence,
   extractAxisStats,
+  calculateThreeElementScores,
+  identifyElementProfile,
+  determinePrescriptionMode,
+  getModeAdvice,
+  ELEMENT_LABELS,
 } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
@@ -1501,6 +1506,151 @@ function RadarChart16({ scores }) {
 }
 
 /* ============================================================
+ * ThreeElementCard：リーダーシップ／チームビルディング／マネジメント の3要素診断
+ *
+ * 16才覚スコアの加重平均で算出。主要素・副要素・最弱要素を表示し、
+ * モード（極める／広げる／統合）に応じた処方文言を出す。
+ * ============================================================ */
+function ThreeElementCard({ threeElements }) {
+  if (!threeElements) return null;
+
+  const { leadership, teamBuilding, management,
+          primary_element, secondary_element, weakest_element,
+          prescription_mode } = threeElements;
+
+  const profile = {
+    primary: primary_element,
+    secondary: secondary_element,
+    weakest: weakest_element,
+    primaryScore: threeElements[primary_element],
+    secondaryScore: threeElements[secondary_element],
+    weakestScore: threeElements[weakest_element],
+  };
+  const advice = getModeAdvice(prescription_mode, profile);
+
+  const modeStyle = ({
+    focus:     { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E', label: '極める' },
+    expand:    { bg: '#DBEAFE', border: '#3B82F6', text: '#1E3A8A', label: '広げる' },
+    integrate: { bg: '#F3E8FF', border: '#9333EA', text: '#6B21A8', label: '統合' },
+  })[prescription_mode] || { bg: '#F3F4F6', border: '#9CA3AF', text: '#374151', label: '' };
+
+  const elementBars = [
+    { key: 'leadership',   score: leadership },
+    { key: 'teamBuilding', score: teamBuilding },
+    { key: 'management',   score: management },
+  ];
+  const maxScore = Math.max(leadership, teamBuilding, management);
+
+  return (
+    <div style={{
+      marginBottom: 24,
+      padding: '18px 20px',
+      borderRadius: 12,
+      border: `1px solid ${modeStyle.border}40`,
+      borderLeft: `3px solid ${modeStyle.border}`,
+      background: modeStyle.bg,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{
+          fontSize: 9, letterSpacing: '0.18em', color: modeStyle.text,
+          fontWeight: 700, textTransform: 'uppercase',
+        }}>
+          Three Elements Diagnosis
+        </span>
+        <span style={{
+          fontSize: 10, padding: '2px 8px', borderRadius: 9999,
+          background: modeStyle.border, color: '#FFFFFF', fontWeight: 700,
+        }}>
+          {modeStyle.label}モード
+        </span>
+      </div>
+
+      {/* 3要素バー */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+        {elementBars.map(({ key, score }) => {
+          const isPrimary = key === primary_element;
+          const isSecondary = key === secondary_element;
+          const lbl = ELEMENT_LABELS[key];
+          return (
+            <div key={key}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+                <span style={{
+                  fontSize: 12, fontWeight: isPrimary ? 700 : 500,
+                  color: isPrimary ? modeStyle.text : TEXT_SECONDARY,
+                }}>{lbl.jp}</span>
+                <span style={{ fontSize: 10, color: TEXT_MUTED }}>{lbl.desc}</span>
+                {isPrimary && (
+                  <span style={{
+                    fontSize: 9, padding: '1px 6px', borderRadius: 3,
+                    background: modeStyle.border, color: '#FFF', fontWeight: 700,
+                  }}>主要素</span>
+                )}
+                {isSecondary && (
+                  <span style={{
+                    fontSize: 9, padding: '1px 6px', borderRadius: 3,
+                    background: modeStyle.border + '60', color: modeStyle.text, fontWeight: 700,
+                  }}>副要素</span>
+                )}
+                <span style={{
+                  marginLeft: 'auto', fontFamily: NUM_FONT,
+                  fontSize: 14, fontWeight: 700, color: modeStyle.text,
+                }}>{score}%</span>
+              </div>
+              <div style={{
+                position: 'relative', width: '100%',
+                background: '#FFFFFF60', borderRadius: 4, height: 8, overflow: 'hidden',
+              }}>
+                <div style={{
+                  background: isPrimary ? modeStyle.border : modeStyle.border + '80',
+                  height: '100%', borderRadius: 4,
+                  width: `${score}%`, transition: 'width 0.5s',
+                }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 処方文言 */}
+      <div style={{
+        marginTop: 14, paddingTop: 12, borderTop: `1px solid ${modeStyle.border}30`,
+      }}>
+        <p style={{
+          fontFamily: "'Noto Serif JP', serif",
+          fontSize: 13, fontWeight: 700, color: modeStyle.text,
+          margin: 0, marginBottom: 8, lineHeight: 1.5,
+        }}>
+          {advice.headline}
+        </p>
+        <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7 }}>
+          {advice.coreFocus.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      </div>
+
+      {/* 90日プラン（折りたたみ風に控えめ） */}
+      <details style={{ marginTop: 10 }}>
+        <summary style={{
+          fontSize: 11, color: modeStyle.text, fontWeight: 600,
+          cursor: 'pointer', listStyle: 'none', userSelect: 'none',
+        }}>
+          ▸ 90日プランを見る
+        </summary>
+        <ol style={{
+          margin: '8px 0 0 0', padding: '0 0 0 22px',
+          fontSize: 11, color: TEXT_SECONDARY, lineHeight: 1.7,
+        }}>
+          {advice.plan90day.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ol>
+      </details>
+    </div>
+  );
+}
+
+/* ============================================================
  * DevelopmentStageCard：人格L＋リーダー段階の推定表示
  * 「推定L」「推定段階」を1ブロックで控えめに表示。
  * confidence === 'low' の場合は警告アイコンを出す。
@@ -1661,6 +1811,24 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
     observation_note: result.coach_observation_note,
   };
 
+  // Phase 3：3要素診断（既存データ下位互換）
+  const threeElements = result.three_elements || (() => {
+    const subs = Object.values(scores || {}).reduce((acc, domain) => {
+      if (domain?.subs) Object.assign(acc, domain.subs);
+      return acc;
+    }, {});
+    const tes = calculateThreeElementScores(subs);
+    const profile = identifyElementProfile(tes);
+    const mode = determinePrescriptionMode(tes, leadershipStage);
+    return {
+      ...tes,
+      primary_element: profile.primary,
+      secondary_element: profile.secondary,
+      weakest_element: profile.weakest,
+      prescription_mode: mode,
+    };
+  })();
+
   const topType = determineType(scores, analysis);
   const subRadars = UAAM_AXES.map(axis => {
     const subs = scores[axis.key]?.subs || {};
@@ -1752,6 +1920,10 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           leadershipStage={leadershipStage}
           coachConfirmed={coachConfirmed}
         />
+
+        {/* ===== Phase 3：3要素診断（リーダーシップ／チームビルディング／マネジメント） =====
+            主要素・副要素・最弱要素を表示し、極める／広げる／統合 のモード別処方を出す。 */}
+        <ThreeElementCard threeElements={threeElements} />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />

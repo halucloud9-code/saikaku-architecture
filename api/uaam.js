@@ -154,6 +154,68 @@ function assessConfidence(baseEstimate, biasMessage, axisSpread) {
   return { ...baseEstimate, confidence, signals };
 }
 
+/* ============================================================
+ * Phase 3：3要素診断（リーダーシップ／チームビルディング／マネジメント）
+ * src/data/uaam_questions.js の同関数群と同一ロジック（API自己完結のためインライン）
+ * ============================================================ */
+
+const ELEMENT_WEIGHTS = {
+  leadership: {
+    meaning: 4, mindfulness: 0, mindshift: 1, mastery: 2,
+    learning: 0, logical: 1, life: 0, leadership: 3,
+    critical: 3, creativity: 1, communication: 2, collaboration: 0,
+    idea: 4, innovation: 4, implementation: 1, influence: 8,
+  },
+  teamBuilding: {
+    meaning: 2, mindfulness: 3, mindshift: 0, mastery: 0,
+    learning: 2, logical: 0, life: 1, leadership: 6,
+    critical: 1, creativity: 2, communication: 2, collaboration: 9,
+    idea: 1, innovation: 1, implementation: 0, influence: 1,
+  },
+  management: {
+    meaning: 1, mindfulness: 2, mindshift: 1, mastery: 2,
+    learning: 1, logical: 6, life: 3, leadership: 4,
+    critical: 3, creativity: 1, communication: 0, collaboration: 1,
+    idea: 1, innovation: 1, implementation: 8, influence: 0,
+  },
+};
+
+function calculateThreeElementScores(subs) {
+  if (!subs) return { leadership: 0, teamBuilding: 0, management: 0 };
+  const compute = (weights) => {
+    let sum = 0, total = 0;
+    for (const [k, w] of Object.entries(weights)) {
+      sum += w * (subs[k] || 0);
+      total += w;
+    }
+    return total === 0 ? 0 : Math.round((sum / total / 20) * 100);
+  };
+  return {
+    leadership:   compute(ELEMENT_WEIGHTS.leadership),
+    teamBuilding: compute(ELEMENT_WEIGHTS.teamBuilding),
+    management:   compute(ELEMENT_WEIGHTS.management),
+  };
+}
+
+function identifyElementProfile(threeScores) {
+  const entries = Object.entries(threeScores);
+  entries.sort((a, b) => b[1] - a[1]);
+  return {
+    primary: entries[0][0], primaryScore: entries[0][1],
+    secondary: entries[1][0], secondaryScore: entries[1][1],
+    weakest: entries[2][0], weakestScore: entries[2][1],
+  };
+}
+
+function determinePrescriptionMode(threeScores, leadershipStage) {
+  const stage = leadershipStage?.stage || 1;
+  const profile = identifyElementProfile(threeScores);
+  if ((threeScores.leadership >= 75 && threeScores.teamBuilding >= 75 && threeScores.management >= 75)
+      || stage >= 6) return 'integrate';
+  if ((profile.primaryScore >= 70 && profile.secondaryScore < 60) || stage === 5) return 'expand';
+  return 'focus';
+}
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
@@ -398,6 +460,25 @@ export default async function handler(req, res) {
   const leadershipStage = determineLeadershipStage(totalPct, minAxisPct);
   console.log(`[UAAM] personality_level: ${personalityLevel.level} (${personalityLevel.confidence}) leadership_stage: 第${leadershipStage.stage}（${leadershipStage.name}） axisSpread:${axisSpread} signals:[${personalityLevel.signals.join(',')}]`);
 
+  // Phase 3：3要素診断（16才覚スコアの加重平均）
+  const subs = {
+    ...scores.mindset.subs,
+    ...scores.literacy.subs,
+    ...scores.competency.subs,
+    ...scores.impact.subs,
+  };
+  const threeElementScores = calculateThreeElementScores(subs);
+  const elementProfile = identifyElementProfile(threeElementScores);
+  const prescriptionMode = determinePrescriptionMode(threeElementScores, leadershipStage);
+  const threeElements = {
+    ...threeElementScores,
+    primary_element: elementProfile.primary,
+    secondary_element: elementProfile.secondary,
+    weakest_element: elementProfile.weakest,
+    prescription_mode: prescriptionMode,
+  };
+  console.log(`[UAAM] three_elements: L=${threeElementScores.leadership}% T=${threeElementScores.teamBuilding}% M=${threeElementScores.management}% primary=${elementProfile.primary} mode=${prescriptionMode}`);
+
   // 才覚領域データを取得
   let saikakuData = null;
   try {
@@ -490,6 +571,7 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
       bias_message: biasMessage,           // 新：3段階バイアス表記（null=健全）
       personality_level: personalityLevel, // Phase 2：自動推定L1〜L7（confidence/signals 付き）
       leadership_stage: leadershipStage,   // Phase 2：自動推定 第1〜第7
+      three_elements: threeElements,       // Phase 3：3要素診断＋処方モード
       // coach_confirmed_personality_level / coach_confirmed_leadership_stage / coach_observation_note は
       // AdminScreen でハル本人が編集する領域（自動上書き禁止）
       updatedAt: FieldValue.serverTimestamp(),
@@ -505,5 +587,6 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
     bias_message: biasMessage,
     personality_level: personalityLevel,
     leadership_stage: leadershipStage,
+    three_elements: threeElements,
   });
 }

@@ -665,3 +665,189 @@ export function extractAxisStats(scores) {
   const maxAxisPct = Math.max(...pcts);
   return { totalPct, minAxisPct, maxAxisPct, axisSpread: maxAxisPct - minAxisPct };
 }
+
+/* ============================================================
+ * Phase 3：3要素診断（リーダーシップ／チームビルディング／マネジメント）
+ *
+ * 設計思想（Notion ページ6）：
+ *   - 4軸（志知技衝）はすべての要素に関わる。分配ではなく、コアペアを選ぶ。
+ *   - 各要素のコア15ペア（重複なし）に対する才覚出現回数を重み係数とする。
+ *   - 16才覚スコアの加重平均で 0-100 の3要素スコアを算出。
+ * ============================================================ */
+
+/**
+ * 各要素 × 16才覚 の重み係数（コア15ペアでの出現回数）
+ * Notion ページ6 の「16才覚のコアセット反映」に準拠
+ */
+export const ELEMENT_WEIGHTS = {
+  // リーダーシップ（人を動かす力）
+  // 主軸：志＋衝（在り方×突破）
+  leadership: {
+    meaning: 4, mindfulness: 0, mindshift: 1, mastery: 2,        // 志=7
+    learning: 0, logical: 1, life: 0, leadership: 3,             // 知=4
+    critical: 3, creativity: 1, communication: 2, collaboration: 0, // 技=6
+    idea: 4, innovation: 4, implementation: 1, influence: 8,     // 衝=17 ★最多
+  },
+  // チームビルディング（人と人を結ぶ力）
+  // 主軸：知＋技（紡ぐ×人と人をつなぐ）
+  teamBuilding: {
+    meaning: 2, mindfulness: 3, mindshift: 0, mastery: 0,        // 志=5
+    learning: 2, logical: 0, life: 1, leadership: 6,             // 知=9
+    critical: 1, creativity: 2, communication: 2, collaboration: 9, // 技=14 ★最多
+    idea: 1, innovation: 1, implementation: 0, influence: 1,     // 衝=3
+  },
+  // マネジメント（ものごとを回す力）
+  // 主軸：知＋衝（論理×実装×統合）
+  management: {
+    meaning: 1, mindfulness: 2, mindshift: 1, mastery: 2,        // 志=6
+    learning: 1, logical: 6, life: 3, leadership: 4,             // 知=14 ★最多
+    critical: 3, creativity: 1, communication: 0, collaboration: 1, // 技=5
+    idea: 1, innovation: 1, implementation: 8, influence: 0,     // 衝=10
+  },
+};
+
+/**
+ * 16才覚スコアから 3要素スコアを算出
+ * @param {Object} subs - { meaning, mindfulness, ..., influence } 各 0-20
+ * @returns {Object} { leadership, teamBuilding, management } 各 0-100
+ */
+export function calculateThreeElementScores(subs) {
+  if (!subs) return { leadership: 0, teamBuilding: 0, management: 0 };
+  const compute = (weights) => {
+    let sum = 0;
+    let totalWeight = 0;
+    for (const [key, w] of Object.entries(weights)) {
+      sum += w * (subs[key] || 0);
+      totalWeight += w;
+    }
+    if (totalWeight === 0) return 0;
+    return Math.round((sum / totalWeight / 20) * 100);
+  };
+  return {
+    leadership:   compute(ELEMENT_WEIGHTS.leadership),
+    teamBuilding: compute(ELEMENT_WEIGHTS.teamBuilding),
+    management:   compute(ELEMENT_WEIGHTS.management),
+  };
+}
+
+/**
+ * 3要素スコアから 主要素・副要素・最弱要素を特定
+ * @param {Object} threeScores - { leadership, teamBuilding, management }
+ * @returns {Object} { primary, primaryScore, secondary, secondaryScore, weakest, weakestScore }
+ */
+export function identifyElementProfile(threeScores) {
+  const entries = Object.entries(threeScores);
+  entries.sort((a, b) => b[1] - a[1]);
+  return {
+    primary: entries[0][0],
+    primaryScore: entries[0][1],
+    secondary: entries[1][0],
+    secondaryScore: entries[1][1],
+    weakest: entries[2][0],
+    weakestScore: entries[2][1],
+  };
+}
+
+/**
+ * 処方モードを判定（極める／広げる／統合）
+ *
+ * モード1：focus（極める）
+ *   - 主要素 < 70% または 段階1〜4
+ *
+ * モード2A：expand（広げる）
+ *   - 主要素 ≥ 70% かつ 副要素 < 60% または 段階5
+ *
+ * モード2B：integrate（統合）
+ *   - 全要素 ≥ 75% または 段階6・7
+ *
+ * @param {Object} threeScores - calculateThreeElementScores の戻り値
+ * @param {Object} leadershipStage - { stage, name }
+ * @returns {string} 'focus' | 'expand' | 'integrate'
+ */
+export function determinePrescriptionMode(threeScores, leadershipStage) {
+  const stage = leadershipStage?.stage || 1;
+  const profile = identifyElementProfile(threeScores);
+
+  // integrate: 全要素 ≥ 75% または 段階6・7
+  if ((threeScores.leadership >= 75 && threeScores.teamBuilding >= 75 && threeScores.management >= 75)
+      || stage >= 6) {
+    return 'integrate';
+  }
+
+  // expand: 主要素 ≥ 70% かつ 副要素 < 60% または 段階5
+  if ((profile.primaryScore >= 70 && profile.secondaryScore < 60) || stage === 5) {
+    return 'expand';
+  }
+
+  // focus: その他
+  return 'focus';
+}
+
+/** 要素の日本語ラベル */
+export const ELEMENT_LABELS = {
+  leadership:   { jp: 'リーダーシップ', en: 'Leadership',    desc: '人を動かす力' },
+  teamBuilding: { jp: 'チームビルディング', en: 'Team Building', desc: '人と人を結ぶ力' },
+  management:   { jp: 'マネジメント',   en: 'Management',    desc: 'ものごとを回す力' },
+};
+
+/**
+ * モード別の処方文言を生成
+ * @param {string} mode - 'focus' | 'expand' | 'integrate'
+ * @param {Object} profile - identifyElementProfile の戻り値
+ * @returns {Object} { headline, coreFocus, plan90day }
+ */
+export function getModeAdvice(mode, profile) {
+  const primaryLabel = ELEMENT_LABELS[profile.primary]?.jp || profile.primary;
+  const secondaryLabel = ELEMENT_LABELS[profile.secondary]?.jp || profile.secondary;
+  const weakestLabel = ELEMENT_LABELS[profile.weakest]?.jp || profile.weakest;
+
+  if (mode === 'focus') {
+    return {
+      mode,
+      headline: `「極める」── ${primaryLabel}を徹底的に磨く時期`,
+      coreFocus: [
+        `${primaryLabel}のコア15ペアを集中的に磨く`,
+        '他の2要素は今は気にしなくていい',
+        '偏ることが、あなたの型を作る',
+      ],
+      plan90day: [
+        `0-30日目：${primaryLabel}のコア才覚を毎日意識して使う`,
+        `31-60日目：${primaryLabel}を活かす行動を実践レベルで定着`,
+        `61-90日目：「自分の型」として周囲に認知される状態を作る`,
+      ],
+    };
+  }
+
+  if (mode === 'expand') {
+    return {
+      mode,
+      headline: `「広げる」── ${primaryLabel}は確立、次は${secondaryLabel}を発動`,
+      coreFocus: [
+        `${primaryLabel}は確立している。安心して次へ`,
+        `${secondaryLabel}を意識的に発動する段階`,
+        `特に弱い才覚を3つ磨くと、副要素が立ち上がる`,
+      ],
+      plan90day: [
+        `0-30日目：${secondaryLabel}のコア才覚を1〜2個試す`,
+        `31-60日目：${secondaryLabel}での実践を増やし、${primaryLabel}との橋渡しを意識`,
+        `61-90日目：${primaryLabel}×${secondaryLabel}の組み合わせで成果を出す`,
+      ],
+    };
+  }
+
+  // integrate
+  return {
+    mode,
+    headline: '「統合」── 3要素すべてが立ち上がっている。在り方を深める段階',
+    coreFocus: [
+      'リーダーシップ・チームビルディング・マネジメント、3要素すべてが機能',
+      '要素の境界を超え、状況に応じて自在に切り替わる',
+      '言葉・行動を超えた「在り方」が場を動かす',
+    ],
+    plan90day: [
+      `0-30日目：${weakestLabel}（相対的に低い要素）を意識的に磨いてバランスを完成`,
+      '31-60日目：3要素を統合した独自の在り方を言語化する',
+      '61-90日目：自分の在り方が場・組織・社会にどう波及しているかを観察・記録',
+    ],
+  };
+}
