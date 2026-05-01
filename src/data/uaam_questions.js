@@ -830,15 +830,19 @@ export const ELEMENT_LABELS = {
  * focus（極める）：才覚領域に集中、型を作る段階
  * expand（広げる）：型が立った。関数（在り方）と変数（才覚）の橋渡し
  * integrate（統合）：関数×変数が一体化、一族化していく段階
+ *   - integrate は段階別に分岐：
+ *     段階5（L5 他導）→「3要素が立ち上がった、人の才覚を動かし始める」
+ *     段階6（L6 総導）→「要素の境界が消え、在り方そのものが場を動かす」
+ *     段階7（L7 天導）→「言葉も行動もいらない、天地を繋ぐ段階」
  *
  * @param {string} mode - 'focus' | 'expand' | 'integrate'
  * @param {Object} profile - identifyElementProfile の戻り値
- * @returns {Object} { headline, coreFocus, plan90day }
+ * @param {Object} [leadershipStage] - { stage, name }（integrate の段階別分岐に使う）
+ * @returns {Object} { mode, headline, coreFocus }
  */
-export function getModeAdvice(mode, profile) {
+export function getModeAdvice(mode, profile, leadershipStage) {
   const primary = ELEMENT_LABELS[profile.primary] || { jp: profile.primary, short: '' };
   const secondary = ELEMENT_LABELS[profile.secondary] || { jp: profile.secondary, short: '' };
-  const weakest = ELEMENT_LABELS[profile.weakest] || { jp: profile.weakest, short: '' };
 
   if (mode === 'focus') {
     return {
@@ -848,11 +852,6 @@ export function getModeAdvice(mode, profile) {
         `${primary.jp}は「${primary.short}」。これがあなたの中核`,
         '他2要素は今は気にしなくていい。偏りが、あなたの型を作る',
         '才覚領域から生きる時間を、毎日30分でも積み重ねる',
-      ],
-      plan90day: [
-        `0-30日目：${primary.jp}のコア才覚を1日1回は意識的に発動する`,
-        `31-60日目：在り方を起点にした行動を、習慣レベルまで降ろす`,
-        `61-90日目：「あの人といえば${primary.jp}」と周囲に認知される状態を作る`,
       ],
     };
   }
@@ -866,17 +865,39 @@ export function getModeAdvice(mode, profile) {
         `${secondary.jp}＝「${secondary.short}」を意識的に発動する段階`,
         `${primary.jp} × ${secondary.jp} の交点で、新しい影響圏が広がる`,
       ],
-      plan90day: [
-        `0-30日目：${secondary.jp}のコア才覚を週1回は意図的に動かす`,
-        `31-60日目：${primary.jp}を起点に${secondary.jp}を呼び出す回路を作る`,
-        `61-90日目：${primary.jp}×${secondary.jp}の組み合わせで、人が自然に動く場を作る`,
+    };
+  }
+
+  // integrate モードを段階別に分岐
+  const stage = leadershipStage?.stage ?? 5;
+
+  // L7 天地型・第7段階「天導」
+  if (stage >= 7) {
+    return {
+      mode,
+      headline: '統合 ── 天地を繋ぐ段階。在り方そのもので、地球が動き出す',
+      coreFocus: [
+        '3要素の境界はもう存在しない。在り方の一点に統合されている',
+        '言葉も行動もいらない。存在の高さが、上方・情報・物理の三空間を貫く',
+        '天地を繋ぐ者として、地球を動かす段階（L7 天地型・天導）',
       ],
     };
   }
 
-  // integrate（L5 統合型 ／ 段階5「他導」が中心）
-  // 注：要素の境界が消える・在り方だけで場が動く は L6 共鳴型の領域。
-  //    integrate モードは「3要素が立ち上がった→一族化が始まる入口」と位置づける。
+  // L6 共鳴型・第6段階「総導」
+  if (stage === 6) {
+    return {
+      mode,
+      headline: '統合 ── 要素の境界が消える段階。在り方そのものが場を動かす',
+      coreFocus: [
+        '3要素の境界が消え、状況に応じて在り方そのものが現れる',
+        '言葉も行動もいらない。在り方の高さで、一族が一つの魂で動き出す',
+        '才覚が社会システムを動かす状態（L6 共鳴型・総導）',
+      ],
+    };
+  }
+
+  // L5 統合型・第5段階「他導」（integrate のデフォルト）
   return {
     mode,
     headline: '統合 ── 3要素が立ち上がった。自分の生き方が、人の才覚を動かし始める段階',
@@ -884,11 +905,6 @@ export function getModeAdvice(mode, profile) {
       'リーダーシップ・マネジメント・チームビルディング、3要素すべてが機能している',
       '自分が生きることで、関わる人の才覚が動き出す（L5 統合型・他導の領域）',
       '共通の価値観で繋がる「一族」の輪郭を、ここから育てていく',
-    ],
-    plan90day: [
-      `0-30日目：${weakest.jp}（相対的に弱い要素）を意識的に磨き、3要素のバランスを完成させる`,
-      '31-60日目：自分の在り方が、周囲の誰の才覚を引き出しているかを観察・記録する',
-      '61-90日目：その人の才覚が一番輝く場（一族化の核）を意図的に設計する',
     ],
   };
 }

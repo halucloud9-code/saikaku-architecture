@@ -1515,7 +1515,7 @@ function RadarChart16({ scores }) {
  *
  * 視覚言語：白背景＋細罫線＋金色アクセント。明朝で品良く。
  * ============================================================ */
-function ThreeElementCard({ threeElements }) {
+function ThreeElementCard({ threeElements, leadershipStage }) {
   if (!threeElements) return null;
 
   const { leadership, teamBuilding, management,
@@ -1530,7 +1530,8 @@ function ThreeElementCard({ threeElements }) {
     secondaryScore: threeElements[secondary_element],
     weakestScore: threeElements[weakest_element],
   };
-  const advice = getModeAdvice(prescription_mode, profile);
+  // integrate モードの段階別分岐のため leadershipStage を渡す
+  const advice = getModeAdvice(prescription_mode, profile, leadershipStage);
 
   const MODE_META = {
     focus:     { jp: '極める',  en: 'Focus',     stage: '型を作る段階' },
@@ -1704,7 +1705,6 @@ function ThreeElementCard({ threeElements }) {
         </div>
       </div>
 
-      {/* 90日プランは UI からカット（ハル指示）。getModeAdvice は API互換のため残置 */}
     </div>
   );
 }
@@ -2014,8 +2014,9 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         />
 
         {/* ===== Phase 3：3要素診断（リーダーシップ／チームビルディング／マネジメント） =====
-            主要素・副要素・最弱要素を表示し、極める／広げる／統合 のモード別処方を出す。 */}
-        <ThreeElementCard threeElements={threeElements} />
+            主要素・副要素・最弱要素を表示し、極める／広げる／統合 のモード別処方を出す。
+            integrate モードは leadershipStage で段階別分岐（L5/L6/L7）。 */}
+        <ThreeElementCard threeElements={threeElements} leadershipStage={leadershipStage} />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
