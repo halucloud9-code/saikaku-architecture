@@ -1709,35 +1709,7 @@ function ThreeElementCard({ threeElements }) {
         </div>
       </div>
 
-      {/* 90日プラン（控えめな折りたたみ） */}
-      <details style={{ marginTop: 18 }}>
-        <summary style={{
-          fontSize: 10, letterSpacing: '0.1em', color: TEXT_MUTED, fontWeight: 600,
-          cursor: 'pointer', listStyle: 'none', userSelect: 'none',
-          paddingTop: 10, borderTop: `1px solid ${BORDER}`,
-        }}>
-          ＋ 90日プランを見る
-        </summary>
-        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {advice.plan90day.map((line, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'baseline', gap: 12,
-              paddingLeft: 4,
-            }}>
-              <span style={{
-                flex: '0 0 auto',
-                fontFamily: NUM_FONT, fontSize: 10,
-                color: ACCENT_GOLD, fontWeight: 700,
-                letterSpacing: '0.05em',
-              }}>{['Day 0-30','Day 31-60','Day 61-90'][i] || ''}</span>
-              <span style={{
-                fontFamily: "'Noto Serif JP', serif",
-                fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7, flex: 1,
-              }}>{line.replace(/^[0-9]+-[0-9]+日目：/, '')}</span>
-            </div>
-          ))}
-        </div>
-      </details>
+      {/* 90日プランは UI からカット（ハル指示）。getModeAdvice は API互換のため残置 */}
     </div>
   );
 }
