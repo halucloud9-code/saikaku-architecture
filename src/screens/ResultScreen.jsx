@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, signOutUser } from '../firebase';
 import { computePcts, CHART_COLORS } from '../utils/chartUtils';
+import { attemptToResultProps } from '../utils/attemptAdapter';
 
 const COLORS = {
   ...CHART_COLORS,
@@ -281,14 +282,29 @@ function CategorySection({ title, type, axes }) {
 }
 
 // ── メインコンポーネント ─────────────────────────────────────────────────
-export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout }) {
-  const [selected, setSelected] = useState(result.kakuchiiki || result.kakuchiiki_options?.[0] || '');
+export default function ResultScreen({ user, result, attemptData, isAdmin, onReset, onAdmin, onLogout }) {
+  const attemptProps = useMemo(
+    () => (attemptData ? attemptToResultProps(attemptData, 'saikaku') : null),
+    [attemptData],
+  );
+  const effectiveResult = attemptProps?.result ?? result;
+  const isHistoryView = !!attemptData;
+  const initialSelected = effectiveResult?.selectedKakuchiiki
+    || effectiveResult?.kakuchiiki
+    || effectiveResult?.kakuchiiki_options?.[0]
+    || '';
+  const [selected, setSelected] = useState(initialSelected);
   const [saving,   setSaving]   = useState(false);
   const [copied,   setCopied]   = useState(false);
   const [hoverPdf, setHoverPdf] = useState(false);
   const [hoverShare, setHoverShare] = useState(false);
 
+  useEffect(() => {
+    setSelected(initialSelected);
+  }, [initialSelected]);
+
   const handleSelectKakuchiiki = async (option) => {
+    if (isHistoryView) return;
     if (option === selected) return;
     setSelected(option);
     setSaving(true);
@@ -304,7 +320,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
   const handlePdfDownload = () => { window.print(); };
 
   const handleShare = async () => {
-    const text = `${result.name || user.displayName}の才覚領域：${selected}`;
+    const text = `${effectiveResult?.name || user.displayName}の才覚領域：${selected}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Unique Ability Architecture', text });
@@ -315,6 +331,36 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
       }
     } catch (e) { /* user cancelled */ }
   };
+
+  if (!effectiveResult) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(170deg, #0A0908 0%, #14110D 50%, #0D0B09 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: '#F5F0E8', fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>
+            結果データを表示できませんでした
+          </p>
+          <button onClick={onReset} style={{
+            border: '1px solid rgba(196,146,42,0.25)',
+            background: 'rgba(196,146,42,0.08)',
+            color: '#C4922A',
+            borderRadius: 10,
+            padding: '10px 18px',
+            cursor: 'pointer',
+            fontWeight: 700,
+          }}>
+            戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -406,8 +452,28 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
               margin: '0 0 8px',
               letterSpacing: '0.05em',
             }}>
-              {result.name || user.displayName}
+              {effectiveResult.name || user.displayName}
             </h1>
+
+            {isHistoryView && (
+              <button
+                onClick={onReset}
+                style={{
+                  marginTop: 16,
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#C4922A',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 4,
+                }}
+              >
+                最新の結果に戻る
+              </button>
+            )}
 
             {/* 装飾ライン */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, margin: '16px 0' }}>
@@ -466,14 +532,15 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
               className="pdf-pattern-grid"
               style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}
             >
-              {(result.kakuchiiki_options || [result.kakuchiiki]).map((option, i) => {
+              {(effectiveResult.kakuchiiki_options || [effectiveResult.kakuchiiki]).map((option, i) => {
                 const isSelected    = selected === option;
-                const isRecommended = option === result.kakuchiiki;
+                const isRecommended = option === effectiveResult.kakuchiiki;
                 return (
                   <button
                     key={i}
                     className="pdf-pattern-card"
                     onClick={() => handleSelectKakuchiiki(option)}
+                    disabled={isHistoryView}
                     style={{
                       padding: '20px 24px',
                       borderRadius: 14,
@@ -482,7 +549,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                         ? 'linear-gradient(135deg, rgba(196,146,42,0.12), rgba(196,146,42,0.06))'
                         : 'rgba(255,255,255,0.02)',
                       boxShadow: isSelected ? '0 4px 24px rgba(196,146,42,0.2), inset 0 1px 0 rgba(196,146,42,0.1)' : 'none',
-                      cursor: 'pointer',
+                      cursor: isHistoryView ? 'default' : 'pointer',
                       textAlign: 'left',
                       position: 'relative',
                       transition: 'all 0.3s ease',
@@ -494,6 +561,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                       WebkitAppearance: 'none',
                       appearance: 'none',
                       outline: 'none',
+                      opacity: 1,
                     }}
                   >
                     {isRecommended && (
@@ -511,7 +579,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                 );
               })}
             </div>
-            {saving && <p style={{ textAlign: 'center', fontSize: 12, color: '#8A8070', marginTop: 12 }}>保存中...</p>}
+            {saving && !isHistoryView && <p style={{ textAlign: 'center', fontSize: 12, color: '#8A8070', marginTop: 12 }}>保存中...</p>}
           </div>
 
           {/* 3列グリッド：価値観・才能・情熱（スクリーンのみ） */}
@@ -519,13 +587,13 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
             className="no-print"
             style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 32 }}
           >
-            <CategorySection title="価値観" type="value"   axes={result.value}   />
-            <CategorySection title="才能"   type="talent"  axes={result.talent}  />
-            <CategorySection title="情熱"   type="passion" axes={result.passion} />
+            <CategorySection title="価値観" type="value"   axes={effectiveResult.value}   />
+            <CategorySection title="才能"   type="talent"  axes={effectiveResult.talent}  />
+            <CategorySection title="情熱"   type="passion" axes={effectiveResult.passion} />
           </div>
 
           {/* WHAT セクション（スクリーンのみ） */}
-          {result.what && (
+          {effectiveResult.what && (
             <div
               className="no-print"
               style={{
@@ -548,11 +616,11 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                   <span style={{ fontSize: 13, color: '#6A6050', marginLeft: 10 }}>才覚領域から自然に生まれること</span>
                 </div>
               </div>
-              {result.what.products?.length > 0 && (
+              {effectiveResult.what.products?.length > 0 && (
                 <div style={{ marginBottom: 20 }}>
                   <p style={{ fontSize: 14, color: '#C8C0B0', margin: '0 0 10px', fontWeight: 700, letterSpacing: '0.05em' }}>具体的なサービス・活動</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {result.what.products.map((p, i) => (
+                    {effectiveResult.what.products.map((p, i) => (
                       <span key={i} style={{ padding: '4px 14px', borderRadius: 100, background: 'rgba(196,146,42,0.1)', border: '1px solid rgba(196,146,42,0.3)', color: '#F5F0E8', fontSize: 12, fontWeight: 500 }}>
                         {p}
                       </span>
@@ -562,16 +630,16 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
               )}
               <div style={{ height: 1, background: 'rgba(196,146,42,0.1)', margin: '0 0 16px' }} />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
-                {result.what.actions && (
+                {effectiveResult.what.actions && (
                   <div style={{ background: 'rgba(196,146,42,0.06)', border: '1px solid rgba(196,146,42,0.12)', borderLeft: '3px solid #FFD700', borderRadius: 12, padding: '14px 18px' }}>
                     <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 15, fontWeight: 800, color: '#FFD700', letterSpacing: '0.1em', margin: '0 0 8px' }}>First Step</p>
-                    <p style={{ fontSize: 14, color: '#C8C0B0', margin: 0, lineHeight: 1.8 }}>{result.what.actions}</p>
+                    <p style={{ fontSize: 14, color: '#C8C0B0', margin: 0, lineHeight: 1.8 }}>{effectiveResult.what.actions}</p>
                   </div>
                 )}
-                {result.what.offer && (
+                {effectiveResult.what.offer && (
                   <div style={{ background: 'rgba(196,146,42,0.06)', border: '1px solid rgba(196,146,42,0.12)', borderLeft: '3px solid #FFD700', borderRadius: 12, padding: '14px 18px' }}>
                     <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 15, fontWeight: 800, color: '#FFD700', letterSpacing: '0.1em', margin: '0 0 8px' }}>To the World</p>
-                    <p style={{ fontSize: 14, color: '#C8C0B0', margin: 0, lineHeight: 1.8 }}>{result.what.offer}</p>
+                    <p style={{ fontSize: 14, color: '#C8C0B0', margin: 0, lineHeight: 1.8 }}>{effectiveResult.what.offer}</p>
                   </div>
                 )}
               </div>
@@ -579,7 +647,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
           )}
 
           {/* REWARD セクション（スクリーンのみ） */}
-          {result.reward && (
+          {effectiveResult.reward && (
             <div
               className="no-print"
               style={{
@@ -606,19 +674,19 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                   { key: 'social',    label: '社会', icon: '🌍', color: '#7AA8D0' },
                   { key: 'intrinsic', label: '内的', icon: '✨', color: '#A090D8' },
                 ].map(({ key, label, icon, color }) =>
-                  result.reward[key] ? (
+                  effectiveResult.reward[key] ? (
                     <div key={key} style={{ background: `${color}0A`, border: `1px solid ${color}18`, borderLeft: `3px solid ${color}60`, borderRadius: 12, padding: '14px 16px', overflow: 'hidden', wordBreak: 'break-all', whiteSpace: 'normal' }}>
                       <p style={{ fontSize: 18, fontWeight: 800, color, margin: '0 0 8px', letterSpacing: '0.08em' }}>{icon} {label}</p>
-                      <p style={{ fontSize: 13, color: '#A0988A', margin: 0, lineHeight: 1.8, overflow: 'hidden', wordBreak: 'break-all', whiteSpace: 'normal', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical' }}>{result.reward[key]}</p>
+                      <p style={{ fontSize: 13, color: '#A0988A', margin: 0, lineHeight: 1.8, overflow: 'hidden', wordBreak: 'break-all', whiteSpace: 'normal', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical' }}>{effectiveResult.reward[key]}</p>
                     </div>
                   ) : null
                 )}
               </div>
-              {result.reward.model && (
+              {effectiveResult.reward.model && (
                 <div style={{ background: 'rgba(62,207,190,0.06)', border: '1px solid rgba(62,207,190,0.15)', borderRadius: 14, padding: '18px 22px' }}>
                   <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 900, color: '#3ECFBE', letterSpacing: '0.15em', margin: '0 0 10px' }}>Reward Model</p>
                   <p style={{ fontSize: 15, color: '#D0C8B8', margin: 0, lineHeight: 1.9, fontFamily: "'Noto Serif JP', Georgia, serif", fontWeight: 600, overflow: 'hidden', wordBreak: 'break-all', whiteSpace: 'normal', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
-                    {result.reward.model}
+                    {effectiveResult.reward.model}
                   </p>
                 </div>
               )}
@@ -654,9 +722,9 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%', boxSizing: 'border-box', marginBottom: 6 }}>
               {[
-                { tp: 'value',   label: '価値観', axesData: result.value   },
-                { tp: 'talent',  label: '才能',   axesData: result.talent  },
-                { tp: 'passion', label: '情熱',   axesData: result.passion },
+                { tp: 'value',   label: '価値観', axesData: effectiveResult.value   },
+                { tp: 'talent',  label: '才能',   axesData: effectiveResult.talent  },
+                { tp: 'passion', label: '情熱',   axesData: effectiveResult.passion },
               ].map(({ tp, label, axesData }) => {
                 const arr = ['axis1', 'axis2', 'axis3'].map(k => axesData?.[k]).filter(Boolean);
                 const dotColor = DONUT_COLORS[tp];
@@ -683,18 +751,18 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
               Narrative
             </div>
             <p style={{ fontSize: 11, color: '#D4C9B0', lineHeight: 1.55, margin: '0 0 5px', fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif' }}>
-              {result.insight}
+              {effectiveResult.insight}
             </p>
-            {result.what && (
+            {effectiveResult.what && (
               <>
                 <div style={{ height: 1, background: '#FDFCFA10', margin: '0 0 5px' }} />
-                {result.what.products?.length > 0 && (
+                {effectiveResult.what.products?.length > 0 && (
                   <div style={{ marginBottom: 4 }}>
                     <p style={{ fontSize: 12, fontWeight: 800, color: '#FFD700', letterSpacing: '0.08em', margin: '0 0 3px' }}>
                       ▶ What — 自然に生まれること
                     </p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                      {result.what.products.map((p, i) => (
+                      {effectiveResult.what.products.map((p, i) => (
                         <span key={i} style={{ padding: '1px 8px', borderRadius: 100, background: '#C4922A22', border: '1px solid rgba(255,255,255,0.3)', color: '#ffffff', fontSize: 10, fontWeight: 600 }}>
                           {p}
                         </span>
@@ -702,22 +770,22 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
                     </div>
                   </div>
                 )}
-                {result.what.actions && (
+                {effectiveResult.what.actions && (
                   <p style={{ fontSize: 11, color: '#D4C9B0', margin: '0 0 3px', lineHeight: 1.5 }}>
                     <span style={{ color: '#FFD700', fontWeight: 800, fontSize: 12 }}>First Step：</span>
-                    {result.what.actions}
+                    {effectiveResult.what.actions}
                   </p>
                 )}
               </>
             )}
-            {result.reward?.model && (
+            {effectiveResult.reward?.model && (
               <>
                 <div style={{ height: 1, background: '#FDFCFA10', margin: '5px 0 4px' }} />
                 <p style={{ fontSize: 20, fontWeight: 900, color: '#3ECFBE', letterSpacing: '0.12em', margin: '0 0 2px' }}>
                   ▶ Reward Model
                 </p>
                 <p style={{ fontSize: 11, color: '#F0EAE0', margin: 0, lineHeight: 1.55, fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif', fontWeight: 600 }}>
-                  {result.reward.model}
+                  {effectiveResult.reward.model}
                 </p>
               </>
             )}
@@ -823,7 +891,7 @@ export default function ResultScreen({ user, result, isAdmin, onReset, onAdmin, 
             transition: 'all 0.3s ease',
           }}
         >
-          もう一度解析する
+          {isHistoryView ? '最新の結果に戻る' : 'もう一度解析する'}
         </button>
       </div>
 

@@ -139,6 +139,42 @@ vercel --prod
 
 ---
 
+## 8. 診断履歴 / 2回上限 (issue #1, #2)
+
+- 各診断 (才覚領域 / MATRIX) は **最大 2 回** 実施できる。3 回目以降は API が 429 (`LIMIT_EXCEEDED`) を返す
+- SelectScreen に「診断済み (n/2)」バッジと「履歴を見る (n)」リンクが表示される
+- 履歴は `results/{uid}/attempts/{aid}` (才覚領域) と `uaam_results/{uid}/attempts/{aid}` (MATRIX) サブコレクションに保存
+- 詳細は [docs/design-rationale.md](./docs/design-rationale.md)
+
+---
+
+## 9. ローカル開発・テスト
+
+```bash
+# 全部同時起動 (emulator + API + Vite)
+npm run dev:local
+
+# 個別
+npm run emu       # Firebase emulator (auth:9099, firestore:8080, UI:4000)
+npm run api       # API server (localhost:3001)
+npm run dev       # Vite dev server (localhost:5173)
+```
+
+Vite が emulator に繋がる: `.env.local` に `VITE_USE_FIREBASE_EMULATOR=true`
+
+```bash
+# テスト
+npm run test:unit   # SelectScreen / attemptAdapter (10 テスト)
+npm run test:rules  # Firestore rules (20 テスト)
+npm run test:api    # Reservation Tx 統合 (12 テスト)
+npm run test:e2e    # Playwright (3 フロー)
+npm run test:all    # 全部
+```
+
+詳細: [docs/testing.md](./docs/testing.md)
+
+---
+
 ## アーキテクチャ図
 
 ```

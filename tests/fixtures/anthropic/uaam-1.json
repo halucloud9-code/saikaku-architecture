@@ -1,0 +1,25 @@
+{
+  "primary_type": "NAVIGATOR",
+  "secondary_type": "BUILDER",
+  "type_name": "実装する案内人",
+  "type_description": "構想を現実の道筋へ変える人",
+  "axis_analysis": {
+    "mindset": "意味を見つける力が行動の起点になります。",
+    "literacy": "学んだことを整理して伝える流れが強みです。",
+    "competency": "対話と構造化を組み合わせて前進できます。",
+    "impact": "小さく試し、改善しながら影響を広げます。"
+  },
+  "quadrant_analysis": {
+    "vision_quadrant": "願いを言葉にし、学びで支えるビジョン型です。",
+    "execution_quadrant": "実装の粒度まで落とし込み、周囲を動かせます。"
+  },
+  "strengths": ["構造化", "伴走", "実装"],
+  "growth_areas": ["優先順位", "委任", "継続設計"],
+  "narrative": "見えにくい可能性を整理し、最初の行動へ変える力があります。大きな構想ほど、小さな実験に分けることで前進が速くなります。",
+  "action_suggestions": ["一つだけ実験を決める", "成果を記録する", "次の協力者に共有する"],
+  "saikaku_integration": {
+    "activation_core": "問いを構造化し、実装へつなげると才覚が動きます。",
+    "mission_direction": "人が自分の道を選べる場をつくる方向です。",
+    "flow_route": "対話、整理、実験の順で進めると流れに乗れます。"
+  }
+}

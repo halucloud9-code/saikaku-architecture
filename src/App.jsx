@@ -8,6 +8,7 @@ import LoadingScreen from './screens/LoadingScreen';
 import ResultScreen from './screens/ResultScreen';
 import AdminScreen from './screens/AdminScreen';
 import SelectScreen from './screens/SelectScreen';
+import HistoryScreen from './screens/HistoryScreen';
 import UAAMScreen from './screens/uaam/UAAMScreen';
 import UAAMLoadingScreen from './screens/uaam/UAAMLoadingScreen';
 import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
@@ -100,6 +101,8 @@ export default function App() {
     return null;
   });
   const [uaamError, setUaamError] = useState('');
+  const [selectedAttempt, setSelectedAttempt] = useState(null);
+  const [selectedAttemptKind, setSelectedAttemptKind] = useState(null);
 
   useEffect(() => {
     if (devMode) return;
@@ -155,6 +158,8 @@ export default function App() {
   const handleSubmit = async (formData) => {
     setError('');
     setResult(null);
+    setSelectedAttempt(null);
+    setSelectedAttemptKind(null);
     setScreen('loading');
     try {
       if (!auth.currentUser) {
@@ -195,6 +200,8 @@ export default function App() {
   const handleUaamSubmit = async (answers, vAnswers = {}) => {
     setUaamError('');
     setUaamResult(null);
+    setSelectedAttempt(null);
+    setSelectedAttemptKind(null);
     setScreen('uaam-loading');
     try {
       if (!auth.currentUser) {
@@ -233,6 +240,8 @@ export default function App() {
 
   // 開発テスト用：ダミーデータで結果画面に直接遷移
   const handleUaamTestResult = () => {
+    setSelectedAttempt(null);
+    setSelectedAttemptKind(null);
     const dummyAnswers = {};
     for (let i = 1; i <= 48; i++) {
       dummyAnswers[i] = Math.floor(Math.random() * 5) + 1;
@@ -261,7 +270,20 @@ export default function App() {
     setUser(null);
     setResult(null);
     setUaamResult(null);
+    setSelectedAttempt(null);
+    setSelectedAttemptKind(null);
     setScreen('login');
+  };
+
+  const handleSelectHistory = (kind) => {
+    setSelectedAttempt(null);
+    setSelectedAttemptKind(null);
+    setScreen(kind === 'uaam' ? 'history-uaam' : 'history-saikaku');
+  };
+
+  const clearSelectedAttempt = () => {
+    setSelectedAttempt(null);
+    setSelectedAttemptKind(null);
   };
 
   // 管理者スコア復元：APIレスポンスのスコアでReact stateを直接更新（リロード不要）
@@ -331,13 +353,39 @@ export default function App() {
     return <UAAMLoadingScreen />;
   }
 
-  if (screen === 'uaam-result' && uaamResult) {
+  if (screen === 'history-saikaku' || screen === 'history-uaam') {
+    const kind = screen === 'history-uaam' ? 'uaam' : 'saikaku';
+    return (
+      <HistoryScreen
+        user={user}
+        kind={kind}
+        onBack={() => { clearSelectedAttempt(); setScreen('select'); }}
+        onSelectAttempt={(attempt) => {
+          setSelectedAttempt(attempt);
+          setSelectedAttemptKind(kind);
+          setScreen(kind === 'uaam' ? 'uaam-result' : 'result');
+        }}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (screen === 'uaam-result' && (uaamResult || (selectedAttempt && selectedAttemptKind === 'uaam'))) {
     return (
       <UAAMResultScreen
         user={user}
         result={uaamResult}
+        attemptData={selectedAttemptKind === 'uaam' ? selectedAttempt : null}
         isAdmin={isAdmin}
-        onReset={() => { setUaamResult(null); setScreen('uaam'); }}
+        onReset={() => {
+          if (selectedAttemptKind === 'uaam') {
+            clearSelectedAttempt();
+            setScreen(uaamResult ? 'uaam-result' : 'uaam');
+            return;
+          }
+          setUaamResult(null);
+          setScreen('uaam');
+        }}
         onAdmin={() => setScreen('admin')}
         onLogout={handleLogout}
         onScoresRestored={handleScoresRestored}
@@ -349,14 +397,23 @@ export default function App() {
     return <LoadingScreen />;
   }
 
-  if (screen === 'result' && result) {
+  if (screen === 'result' && (result || (selectedAttempt && selectedAttemptKind === 'saikaku'))) {
     return (
       <ResultScreen
-        key={result.updatedAt || result.kakuchiiki || 'result'}
+        key={selectedAttemptKind === 'saikaku' ? selectedAttempt?.id : result.updatedAt || result.kakuchiiki || 'result'}
         user={user}
         result={result}
+        attemptData={selectedAttemptKind === 'saikaku' ? selectedAttempt : null}
         isAdmin={isAdmin}
-        onReset={() => { setResult(null); setScreen('select'); }}
+        onReset={() => {
+          if (selectedAttemptKind === 'saikaku') {
+            clearSelectedAttempt();
+            setScreen(result ? 'result' : 'select');
+            return;
+          }
+          setResult(null);
+          setScreen('select');
+        }}
         onAdmin={() => setScreen('admin')}
         onLogout={handleLogout}
       />
@@ -381,8 +438,9 @@ export default function App() {
     <SelectScreen
       user={user}
       isAdmin={isAdmin}
-      onSelectSaikaku={() => setScreen('input')}
-      onSelectUaam={() => setScreen('uaam')}
+      onSelectSaikaku={() => { clearSelectedAttempt(); setScreen('input'); }}
+      onSelectUaam={() => { clearSelectedAttempt(); setScreen('uaam'); }}
+      onSelectHistory={handleSelectHistory}
       onAdmin={() => setScreen('admin')}
       onLogout={handleLogout}
     />

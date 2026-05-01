@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
 import {
   UAAM_AXES,
@@ -20,6 +20,7 @@ import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
 import SaikakuIntegration from './SaikakuIntegration';
 import { normalizeScores } from '../../utils/normalize';
+import { attemptToResultProps } from '../../utils/attemptAdapter';
 
 /* ============================================================
  * 定数
@@ -1843,17 +1844,29 @@ function DevelopmentStageCard({ personalityLevel, leadershipStage, coachConfirme
 /* ============================================================
  * メインコンポーネント
  * ============================================================ */
-export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
-  const { vAnswers, answers } = result;
+export default function UAAMResultScreen({ user, result, attemptData, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
+  const attemptProps = useMemo(
+    () => (attemptData ? attemptToResultProps(attemptData, 'uaam') : null),
+    [attemptData],
+  );
+  const effectiveResult = attemptProps?.result ?? result;
+  const isHistoryView = !!attemptData;
+  const { vAnswers, answers } = effectiveResult ?? {};
   // scores はローカル state で管理（復元時に即時反映）
   // normalizeScores が domainSubs/domainTotal を補完する唯一の場所
-  const [scores, setScores] = useState(() => normalizeScores(result.scores) ?? result.scores);
+  const [scores, setScores] = useState(() => normalizeScores(effectiveResult?.scores) ?? effectiveResult?.scores);
   // 統合分析は state で管理（バックフィル後に更新できるように）
-  const [analysis, setAnalysis] = useState(result.analysis || null);
+  const [analysis, setAnalysis] = useState(effectiveResult?.analysis || null);
   const [integrating, setIntegrating] = useState(false);
   const [integrateError, setIntegrateError] = useState('');
 
+  useEffect(() => {
+    setScores(normalizeScores(effectiveResult?.scores) ?? effectiveResult?.scores);
+    setAnalysis(effectiveResult?.analysis || null);
+  }, [effectiveResult]);
+
   const runIntegration = async () => {
+    if (isHistoryView) return;
     setIntegrating(true);
     setIntegrateError('');
     try {
@@ -1883,6 +1896,36 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
   // 妥当性チェック（V問フラグ判定）── @deprecated 残置
   const validityResult = (vAnswers && answers) ? checkValidity(vAnswers, answers) : null;
+
+  if (!scores) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: LIGHT_BG,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: TEXT_PRIMARY, fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>
+            結果データを表示できませんでした
+          </p>
+          <button onClick={onReset} style={{
+            border: `1px solid ${BORDER}`,
+            background: WHITE,
+            color: TEXT_PRIMARY,
+            borderRadius: 10,
+            padding: '10px 18px',
+            cursor: 'pointer',
+            fontWeight: 700,
+          }}>
+            戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // 自己評価バイアス（3段階表記・45-95%）── 新方式
   // result.bias_message があればそれを使い、無ければクライアント側でフォールバック計算
@@ -1949,7 +1992,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
           }}>- 才覚発動マトリックス -</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {isAdmin && (
+          {isAdmin && !isHistoryView && (
             <>
               <button onClick={onAdmin} style={{
                 padding: '6px 12px', borderRadius: 6, border: `1px solid ${BORDER}`,
@@ -1996,6 +2039,26 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
       </div>
 
       <div className="pdf-content-wrapper" style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}>
+        {isHistoryView && (
+          <button
+            onClick={onReset}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: '#4A6FA5',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              textUnderlineOffset: 4,
+              marginBottom: 14,
+              padding: 0,
+            }}
+          >
+            最新の結果に戻る
+          </button>
+        )}
 
         {/* ===== 名前 + Activation Type + 今、発動している力（最上部） ===== */}
         <ActivationPanel scores={
@@ -2046,7 +2109,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
                 boxShadow: '0 2px 12px rgba(0,0,0,0.10)', border: `1px solid #E8E0D4` }}>
                 <SaikakuIntegration integration={analysis.saikaku_integration} />
               </div>
-            ) : (
+            ) : !isHistoryView ? (
               <Section>
                 <SectionHeader title="才覚発動統合分析" subtitle="才覚領域 × UAAM Integration" />
                 <p style={{ fontSize: 14, color: TEXT_SECONDARY, marginBottom: 16, lineHeight: 1.9 }}>
@@ -2075,7 +2138,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
                   </p>
                 )}
               </Section>
-            )}
+            ) : null}
 
           </>
         )}
