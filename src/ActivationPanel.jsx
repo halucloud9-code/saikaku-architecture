@@ -254,14 +254,28 @@ function TypeBadge({ type, userName, vAnswers, biasData }) {
               fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
               fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
             }}>Universal Ability Assessment Model</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
               <div style={{
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 fontSize: 20, fontWeight: 700, color: TEXT_PRIMARY,
               }}>{userName}</div>
               {vFlags && (
-                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                  {dot('V1')}{dot('V2')}{dot('V3')}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                    {dot('V1')}{dot('V2')}{dot('V3')}
+                  </div>
+                  {/* V1/V2/V3 の真下に自己評価バイアス% を1行表示（健全=null は表示なし） */}
+                  {biasData && (
+                    <div style={{
+                      fontSize: 10,
+                      color: biasColor,
+                      fontWeight: 600,
+                      letterSpacing: '0.02em',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      自己評価バイアス {biasData.biasPct}%
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -292,9 +306,9 @@ function TypeBadge({ type, userName, vAnswers, biasData }) {
         </div>
       </div>
 
-      {/* ── 右カラム：タイプ説明 ＋ 自己評価バイアス1行 ── */}
+      {/* ── 右カラム：タイプ説明 ── */}
       <div style={{
-        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        display: 'flex', alignItems: 'center',
         borderLeft: `1px solid ${BORDER}`,
         paddingLeft: 20,
       }}>
@@ -304,18 +318,6 @@ function TypeBadge({ type, userName, vAnswers, biasData }) {
         }}>
           {TYPE_DESC[type.main] || ''}
         </p>
-        {/* バイアス1行表示（健全=null なら何も出さない） */}
-        {biasData && (
-          <div style={{
-            marginTop: 10,
-            fontSize: 11,
-            color: biasColor,
-            fontWeight: 600,
-            letterSpacing: '0.02em',
-          }}>
-            自己評価バイアス {biasData.biasPct}%
-          </div>
-        )}
       </div>
     </div>
   );
