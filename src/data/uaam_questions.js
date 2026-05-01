@@ -731,7 +731,118 @@ export function calculateThreeElementScores(subs) {
 }
 
 /**
- * 3要素スコアから 主要素・副要素・最弱要素を特定
+ * 16才覚の日本語ラベル
+ */
+export const SUB_LABELS_JP = {
+  meaning: '基軸力', mindfulness: '認知力', mindshift: '転換力', mastery: '熟達力',
+  learning: '謙学力', logical: '論理力', life: '活用力', leadership: '統率力',
+  critical: '本質力', creativity: '創造力', communication: '伝達力', collaboration: '協働力',
+  idea: '構想力', innovation: '変革力', implementation: '実装力', influence: '影響力',
+};
+
+/**
+ * 16才覚を志知技衝の4軸どこに属するかのマップ
+ */
+export const SUB_TO_AXIS = {
+  meaning: '志', mindfulness: '志', mindshift: '志', mastery: '志',
+  learning: '知', logical: '知', life: '知', leadership: '知',
+  critical: '技', creativity: '技', communication: '技', collaboration: '技',
+  idea: '衝', innovation: '衝', implementation: '衝', influence: '衝',
+};
+
+/**
+ * 各要素の中で「立ってる才覚（強み）」と「弱い才覚（補強すべき）」を抽出
+ *
+ * その要素の重要才覚（重み2以上）の中から：
+ * - 立ってる：個人スコア（subs[k]）が高い順に上位 n 個
+ * - 弱い：個人スコアが低い順に上位 n 個（重要才覚の中での弱者）
+ *
+ * @param {Object} subs - { meaning: 0-20, ..., influence: 0-20 } 各才覚スコア
+ * @param {Object} weights - ELEMENT_WEIGHTS[elementKey]（その要素の重み係数）
+ * @param {number} [topN=2] - 抽出する個数
+ * @returns {Object} { standing: [{key,jp,axis,weight,score}], weak: [...] }
+ */
+export function extractElementTalents(subs, weights, topN = 2) {
+  if (!subs || !weights) return { standing: [], weak: [] };
+  const importantThreshold = 2; // 重み2以上を「重要才覚」とみなす
+  const items = Object.entries(weights)
+    .filter(([_, w]) => w >= importantThreshold)
+    .map(([key, w]) => ({
+      key,
+      jp: SUB_LABELS_JP[key] || key,
+      axis: SUB_TO_AXIS[key] || '',
+      weight: w,
+      score: subs[key] || 0,
+    }));
+  const standing = items.slice().sort((a, b) => b.score - a.score).slice(0, topN);
+  const weak = items.slice().sort((a, b) => a.score - b.score).slice(0, topN);
+  return { standing, weak };
+}
+
+/**
+ * 段階に応じた処方フェーズを判定
+ *
+ * Notion ページ6 の「段階別の使い分け」に準拠：
+ *   段階1〜4（自発・自立・自律・自導 ／ L1〜L4）
+ *     → 強み集中フェーズ：各要素内の立ってる才覚を磨く
+ *   段階5〜7（他導・総導・天導 ／ L5〜L7）
+ *     → 4軸バランスフェーズ：各要素内の弱い軸を補う
+ *
+ * @param {Object} leadershipStage - { stage, name }
+ * @returns {string} 'strength_focus' | 'balance_4axis'
+ */
+export function determineDevelopmentPhase(leadershipStage) {
+  const stage = leadershipStage?.stage ?? 1;
+  return stage >= 5 ? 'balance_4axis' : 'strength_focus';
+}
+
+/**
+ * 要素ごとの独立処方を生成（國創学準拠）
+ *
+ * 3要素は比較しない。要素ごとに独立した処方を返す：
+ *   strength_focus（段階1〜4）：その要素内の立ってる才覚を磨け
+ *   balance_4axis（段階5〜）：その要素内の弱い軸を補え
+ *
+ * @param {string} elementKey - 'leadership' | 'teamBuilding' | 'management'
+ * @param {string} phase - 'strength_focus' | 'balance_4axis'
+ * @param {Object} talents - extractElementTalents の戻り値
+ * @returns {Object} { headline, lines }
+ */
+export function getElementPrescription(elementKey, phase, talents) {
+  const label = ELEMENT_LABELS[elementKey] || { jp: elementKey, short: '' };
+  const standingNames = talents.standing.map((t) => t.jp).join('・');
+  const weakNames = talents.weak.map((t) => t.jp).join('・');
+  const standingAxes = [...new Set(talents.standing.map((t) => t.axis))].join('×');
+  const weakAxes = [...new Set(talents.weak.map((t) => t.axis))].join('・');
+
+  if (phase === 'strength_focus') {
+    return {
+      headline: `${standingNames}を集中的に磨く時期`,
+      lines: [
+        `${standingNames}が、あなたの${label.jp}を支える中核（${standingAxes}軸）`,
+        '毎日意識的に発動する時間を積み重ね、これを「型」にする',
+        '弱い軸は今は気にしない。偏りこそが、あなたの型を作る',
+      ],
+    };
+  }
+
+  // balance_4axis
+  return {
+    headline: `${weakNames}を補い、4軸均等に立てる時期`,
+    lines: [
+      `${standingNames}は型として確立している（${standingAxes}軸が定まっている状態）`,
+      `次の段階は、${weakNames}（${weakAxes}軸）を意識的に補う`,
+      `4軸が均等に立つことで、あなたの${label.jp}が次のステージへ進む`,
+    ],
+  };
+}
+
+/**
+ * @deprecated 2026-05より要素ごとの独立処方に移行。
+ * 主・副・最弱の比較は國創学の処方思想と合わないため廃止。
+ * 新規実装は extractElementTalents() / getElementPrescription() を使うこと。
+ *
+ * 3要素スコアから 主要素・副要素・最弱要素を特定（旧API）
  * @param {Object} threeScores - { leadership, teamBuilding, management }
  * @returns {Object} { primary, primaryScore, secondary, secondaryScore, weakest, weakestScore }
  */
@@ -749,19 +860,11 @@ export function identifyElementProfile(threeScores) {
 }
 
 /**
- * 処方モードを判定（極める／広げる／統合）
+ * @deprecated 2026-05より要素ごとの独立処方に移行。
+ * 「3要素のうち主のものを集中せよ」という比較型の処方思想を廃止。
+ * 新規実装は determineDevelopmentPhase() / getElementPrescription() を使うこと。
  *
- * モード1：focus（極める）
- *   - 主要素 < 70% または 段階1〜4
- *
- * モード2A：expand（広げる）
- *   - 主要素 ≥ 70% かつ 副要素 < 60% または 段階5
- *
- * モード2B：integrate（統合）
- *   - 全要素 ≥ 75% または 段階6・7
- *
- * @param {Object} threeScores - calculateThreeElementScores の戻り値
- * @param {Object} leadershipStage - { stage, name }
+ * 処方モードを判定（極める／広げる／統合）（旧API）
  * @returns {string} 'focus' | 'expand' | 'integrate'
  */
 export function determinePrescriptionMode(threeScores, leadershipStage) {
@@ -825,19 +928,11 @@ export const ELEMENT_LABELS = {
 };
 
 /**
- * モード別の処方文言を生成（國創学準拠）
+ * @deprecated 2026-05より要素ごとの独立処方に移行。
+ * focus/expand/integrate の3モード方式は「3要素を比較する」前提なので廃止。
+ * 新規実装は getElementPrescription() を使うこと。
  *
- * focus（極める）：才覚領域に集中、型を作る段階
- * expand（広げる）：型が立った。関数（在り方）と変数（才覚）の橋渡し
- * integrate（統合）：関数×変数が一体化、一族化していく段階
- *   - integrate は段階別に分岐：
- *     段階5（L5 他導）→「3要素が立ち上がった、人の才覚を動かし始める」
- *     段階6（L6 総導）→「要素の境界が消え、在り方そのものが場を動かす」
- *     段階7（L7 天導）→「言葉も行動もいらない、天地を繋ぐ段階」
- *
- * @param {string} mode - 'focus' | 'expand' | 'integrate'
- * @param {Object} profile - identifyElementProfile の戻り値
- * @param {Object} [leadershipStage] - { stage, name }（integrate の段階別分岐に使う）
+ * モード別の処方文言を生成（旧API・後方互換のため残置）
  * @returns {Object} { mode, headline, coreFocus }
  */
 export function getModeAdvice(mode, profile, leadershipStage) {

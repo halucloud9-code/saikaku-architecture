@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '../../firebase';
 import {
   UAAM_AXES,
@@ -10,17 +10,17 @@ import {
   assessConfidence,
   extractAxisStats,
   calculateThreeElementScores,
-  identifyElementProfile,
-  determinePrescriptionMode,
-  getModeAdvice,
   ELEMENT_LABELS,
+  ELEMENT_WEIGHTS,
+  extractElementTalents,
+  determineDevelopmentPhase,
+  getElementPrescription,
 } from '../../data/uaam_questions';
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
 import SaikakuIntegration from './SaikakuIntegration';
 import { normalizeScores } from '../../utils/normalize';
-import { attemptToResultProps } from '../../utils/attemptAdapter';
 
 /* ============================================================
  * 定数
@@ -1507,66 +1507,46 @@ function RadarChart16({ scores }) {
 }
 
 /* ============================================================
- * ThreeElementCard：3要素診断（國創学準拠・Claude design）
+ * ThreeElementCard：3要素診断（國創学準拠・要素別独立処方）
  *
- * 國創学の三軸：
- *   リーダーシップ → 在り方の軸（関数）
- *   マネジメント   → 才覚の設計（変数）
- *   チームビルディング → 関数×変数の統合（一族化）
- *
- * 視覚言語：白背景＋細罫線＋金色アクセント。明朝で品良く。
+ * ハル指示の方式：
+ *   - 3要素は比較しない（主・副・最弱の概念ナシ）
+ *   - 各要素ごとに、その人の中で立ってる才覚／弱い才覚を抽出
+ *   - 段階フェーズ（strength_focus / balance_4axis）で処方が変わる
+ *     L1〜L4：強み集中（立ってる才覚を磨く）
+ *     L5〜L7：4軸バランス（弱い軸を補う）
  * ============================================================ */
-function ThreeElementCard({ threeElements, leadershipStage }) {
+function ThreeElementCard({ threeElements, leadershipStage, scores }) {
   if (!threeElements) return null;
 
-  const { leadership, teamBuilding, management,
-          primary_element, secondary_element, weakest_element,
-          prescription_mode } = threeElements;
+  // 16才覚スコア（subs）を取得：scores から直接抽出
+  const subs = scores
+    ? Object.values(scores).reduce((acc, domain) => {
+        if (domain?.subs) Object.assign(acc, domain.subs);
+        return acc;
+      }, {})
+    : {};
 
-  const profile = {
-    primary: primary_element,
-    secondary: secondary_element,
-    weakest: weakest_element,
-    primaryScore: threeElements[primary_element],
-    secondaryScore: threeElements[secondary_element],
-    weakestScore: threeElements[weakest_element],
-  };
-  // integrate モードの段階別分岐のため leadershipStage を渡す
-  const advice = getModeAdvice(prescription_mode, profile, leadershipStage);
+  // 段階フェーズ判定
+  const phase = threeElements.development_phase
+    || determineDevelopmentPhase(leadershipStage);
+  const stage = leadershipStage?.stage ?? 1;
 
-  // モードの本質を一文で定義（ハル指摘：「極める」が何か画面上で分からない）
-  const stage = leadershipStage?.stage ?? 5;
-  const META_BY_MODE = {
-    focus: {
-      jp: '極める', en: 'Focus',
-      caption: '主要素を集中して『型』を作る',
-      definition: '主要素を徹底的に磨き、自分の中核（型）にする段階。他2要素は今は気にしない。偏りこそが、あなたの型を作る。',
+  const PHASE_META = {
+    strength_focus: {
+      label: '強み集中',
+      en: 'Strength Focus',
+      caption: '段階1〜4：各要素の中で立ってる才覚を磨く',
+      definition: '在り方の軸（型）を作る前段階。各要素について、その人の中で立ってる才覚を集中的に磨いて、自分の中核を確立する時期。弱い軸は今は気にしない。偏りこそが、あなたの型を作る。',
     },
-    expand: {
-      jp: '広げる', en: 'Expand',
-      caption: '主が確立、副要素を発動する',
-      definition: '主要素が型として確立した次の段階。副要素を意識的に発動し、関数（在り方）と変数（才覚）の交点で影響圏を広げる段階。',
-    },
-    integrate_l5: {
-      jp: '統合', en: 'Integrate',
-      caption: '一族化が始まる段階',
-      definition: '3要素が立ち上がり、自分の生き方が人の才覚を動かし始める段階。共通の価値観で繋がる「一族」の輪郭がここから育つ。',
-    },
-    integrate_l6: {
-      jp: '統合', en: 'Integrate',
-      caption: '要素の境界が消える段階',
-      definition: '要素の境界が消え、在り方の高さで、一族が一つの魂で動き出す段階。才覚が社会システムを動かし始める。',
-    },
-    integrate_l7: {
-      jp: '統合', en: 'Integrate',
-      caption: '天地を繋ぐ段階',
-      definition: '3要素の境界はもう存在しない。言葉も行動もいらず、在り方そのもので、上方・情報・物理の三空間が動く段階。',
+    balance_4axis: {
+      label: '4軸バランス',
+      en: 'Four-Axis Balance',
+      caption: '段階5〜：各要素の中で弱い軸を補う',
+      definition: '主要素が型として確立した次の段階。各要素について、立ってる才覚はそのままに、弱い軸を意識的に補う時期。4軸が均等に立つことで、在り方が次のステージへ進む。',
     },
   };
-  const integrateKey = stage >= 7 ? 'integrate_l7' : stage === 6 ? 'integrate_l6' : 'integrate_l5';
-  const meta = prescription_mode === 'integrate'
-    ? META_BY_MODE[integrateKey]
-    : (META_BY_MODE[prescription_mode] || { jp: '', en: '', caption: '', definition: '' });
+  const phaseMeta = PHASE_META[phase] || PHASE_META.strength_focus;
 
   const order = ['leadership', 'teamBuilding', 'management'];
   const ROLE_TAG = {
@@ -1585,10 +1565,10 @@ function ThreeElementCard({ threeElements, leadershipStage }) {
       borderTop: `3px solid ${ACCENT_GOLD}`,
       boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
     }}>
-      {/* ヘッダー：左にラベル＋基準説明、右にモード */}
+      {/* ヘッダー：左にラベル＋基準、右にフェーズ */}
       <div style={{
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-        gap: 12, marginBottom: 18, paddingBottom: 14,
+        gap: 12, marginBottom: 14, paddingBottom: 14,
         borderBottom: `1px solid ${BORDER}`,
       }}>
         <div>
@@ -1598,10 +1578,8 @@ function ThreeElementCard({ threeElements, leadershipStage }) {
           }}>
             Three Elements Diagnosis
           </div>
-          <div style={{
-            fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4,
-          }}>
-            16才覚スコアの加重平均（0–100%）
+          <div style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4 }}>
+            16才覚スコアの加重平均（0–100%）／3要素は比較しない
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -1609,77 +1587,82 @@ function ThreeElementCard({ threeElements, leadershipStage }) {
             fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
             fontWeight: 700, textTransform: 'uppercase', marginBottom: 2,
           }}>
-            {meta.en} Mode
+            Phase
           </div>
           <div style={{
-            fontFamily: "'Noto Serif JP', serif", fontSize: 18, fontWeight: 700,
-            color: ACCENT_GOLD, lineHeight: 1,
+            fontFamily: "'Noto Serif JP', serif", fontSize: 16, fontWeight: 700,
+            color: ACCENT_GOLD, lineHeight: 1.2,
           }}>
-            {meta.jp}
+            {phaseMeta.label}
           </div>
           <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
-            {meta.caption}
+            {phaseMeta.caption}
           </div>
         </div>
       </div>
 
-      {/* 3要素一覧（要素別の色：朱・緑・藍） */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* フェーズ定義：このフェーズでの動き方の説明 */}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 8,
+        padding: '10px 14px', marginBottom: 22,
+        background: LIGHT_BG, borderRadius: 6,
+        borderLeft: `2px solid ${ACCENT_GOLD}`,
+      }}>
+        <span style={{
+          fontSize: 9, letterSpacing: '0.15em', color: ACCENT_GOLD,
+          fontWeight: 700, textTransform: 'uppercase', flex: '0 0 auto',
+        }}>
+          このフェーズの動き方
+        </span>
+        <span style={{
+          fontFamily: "'Noto Serif JP', serif",
+          fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7, flex: 1,
+        }}>
+          {phaseMeta.definition}
+        </span>
+      </div>
+
+      {/* 各要素ごとに独立した処方カード */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {order.map((key) => {
           const score = threeElements[key];
-          const isPrimary = key === primary_element;
-          const isSecondary = key === secondary_element;
           const lbl = ELEMENT_LABELS[key];
           const elemColor = lbl.color;
           const elemColorText = lbl.colorText;
+          const elemColorBg = lbl.colorBg;
+
+          // 要素ごとに「立ってる才覚」「弱い才覚」を抽出
+          const talents = extractElementTalents(subs, ELEMENT_WEIGHTS[key], 2);
+          const prescription = getElementPrescription(key, phase, talents);
 
           return (
             <div key={key} style={{
-              paddingLeft: isPrimary ? 14 : 0,
-              borderLeft: isPrimary ? `3px solid ${elemColor}` : 'none',
-              transition: 'all 0.3s',
+              paddingLeft: 16,
+              borderLeft: `3px solid ${elemColor}`,
             }}>
-              {/* 上行：要素名 + 主/副バッジ + 数値 */}
+              {/* 要素ヘッダー：名前・英・スコア */}
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
                 <span style={{
                   fontFamily: "'Noto Serif JP', serif",
-                  fontSize: isPrimary ? 17 : 15, fontWeight: 700,
-                  color: isPrimary ? elemColorText : elemColor,
+                  fontSize: 17, fontWeight: 700, color: elemColorText,
                   letterSpacing: '0.02em',
                 }}>{lbl.jp}</span>
                 <span style={{
                   fontSize: 9, letterSpacing: '0.12em', color: elemColor,
                   fontWeight: 600, textTransform: 'uppercase', opacity: 0.75,
                 }}>{lbl.en}</span>
-                {isPrimary && (
-                  <span style={{
-                    fontSize: 9, padding: '2px 7px', borderRadius: 9999,
-                    background: elemColor, color: WHITE,
-                    fontWeight: 700, letterSpacing: '0.05em',
-                  }}>主</span>
-                )}
-                {isSecondary && (
-                  <span style={{
-                    fontSize: 9, padding: '2px 7px', borderRadius: 9999,
-                    background: 'transparent', color: elemColor,
-                    border: `1px solid ${elemColor}`,
-                    fontWeight: 700, letterSpacing: '0.05em',
-                  }}>副</span>
-                )}
                 <span style={{
                   marginLeft: 'auto',
                   fontFamily: NUM_FONT,
-                  fontSize: isPrimary ? 22 : 18, fontWeight: 700,
-                  color: isPrimary ? elemColorText : elemColor,
-                  lineHeight: 1,
+                  fontSize: 22, fontWeight: 700, color: elemColorText, lineHeight: 1,
                 }}>{score}<span style={{ fontSize: 11, color: elemColor, opacity: 0.6, marginLeft: 2 }}>%</span></span>
               </div>
 
-              {/* 中行：定義（明朝・小） */}
+              {/* 定義 */}
               <div style={{
                 fontFamily: "'Noto Serif JP', serif",
                 fontSize: 12, color: TEXT_SECONDARY,
-                marginBottom: 6, lineHeight: 1.6,
+                marginBottom: 8, lineHeight: 1.6,
               }}>
                 {lbl.short}
                 <span style={{ fontSize: 10, color: TEXT_MUTED, marginLeft: 8 }}>
@@ -1687,83 +1670,102 @@ function ThreeElementCard({ threeElements, leadershipStage }) {
                 </span>
               </div>
 
-              {/* 下行：細い進捗バー（要素別の色） */}
+              {/* 進捗バー */}
               <div style={{
                 position: 'relative', width: '100%',
-                background: lbl.colorBg, height: 5, borderRadius: 2, overflow: 'hidden',
+                background: elemColorBg, height: 5, borderRadius: 2, overflow: 'hidden',
+                marginBottom: 12,
               }}>
                 <div style={{
-                  background: elemColor,
-                  opacity: isPrimary ? 1 : (isSecondary ? 0.85 : 0.65),
-                  height: '100%', borderRadius: 2,
+                  background: elemColor, height: '100%', borderRadius: 2,
                   width: `${score}%`, transition: 'width 0.6s ease',
                 }} />
+              </div>
+
+              {/* 立ってる才覚 / 弱い才覚 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                <TalentList
+                  label="立ってる"
+                  talents={talents.standing}
+                  bg={elemColorBg}
+                  color={elemColor}
+                  textColor={elemColorText}
+                />
+                <TalentList
+                  label="弱い"
+                  talents={talents.weak}
+                  bg="#FFFFFF"
+                  color={elemColor + '70'}
+                  textColor={TEXT_SECONDARY}
+                  borderStyle="dashed"
+                />
+              </div>
+
+              {/* 段階フェーズ別の処方 */}
+              <div style={{
+                padding: '10px 14px',
+                background: elemColorBg,
+                borderRadius: 6,
+              }}>
+                <div style={{
+                  fontFamily: "'Noto Serif JP', serif",
+                  fontSize: 13, fontWeight: 700, color: elemColorText,
+                  marginBottom: 6, lineHeight: 1.5,
+                }}>
+                  → {prescription.headline}
+                </div>
+                <ul style={{
+                  margin: 0, padding: '0 0 0 16px',
+                  fontFamily: "'Noto Serif JP', serif",
+                  fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7,
+                }}>
+                  {prescription.lines.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
               </div>
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
 
-      {/* 処方：モード定義 + ヘッドライン + コアフォーカス */}
+/** 立ってる/弱い 才覚の小さなチップリスト */
+function TalentList({ label, talents, bg, color, textColor, borderStyle = 'solid' }) {
+  return (
+    <div style={{
+      padding: '8px 10px',
+      background: bg,
+      borderRadius: 6,
+      border: `1px ${borderStyle} ${color}`,
+    }}>
       <div style={{
-        marginTop: 24, paddingTop: 18,
-        borderTop: `1px solid ${BORDER}`,
+        fontSize: 9, letterSpacing: '0.12em', color,
+        fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
       }}>
-        <div style={{
-          fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
-          fontWeight: 700, textTransform: 'uppercase', marginBottom: 10,
-        }}>
-          Prescription
-        </div>
-
-        {/* モードの本質定義：「極めるとは何か？」を1文で説明 */}
-        {meta.definition && (
-          <div style={{
-            display: 'flex', alignItems: 'baseline', gap: 8,
-            padding: '10px 14px', marginBottom: 14,
-            background: LIGHT_BG, borderRadius: 6,
-            borderLeft: `2px solid ${ACCENT_GOLD}`,
-          }}>
-            <span style={{
-              fontSize: 9, letterSpacing: '0.15em', color: ACCENT_GOLD,
-              fontWeight: 700, textTransform: 'uppercase', flex: '0 0 auto',
-            }}>
-              「{meta.jp}」とは
-            </span>
-            <span style={{
-              fontFamily: "'Noto Serif JP', serif",
-              fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7, flex: 1,
-            }}>
-              {meta.definition}
-            </span>
-          </div>
-        )}
-
-        <p style={{
-          fontFamily: "'Noto Serif JP', serif",
-          fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY,
-          margin: 0, marginBottom: 14, lineHeight: 1.6,
-        }}>
-          {advice.headline}
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {advice.coreFocus.map((line, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'baseline', gap: 10,
-              fontFamily: "'Noto Serif JP', serif",
-              fontSize: 13, color: TEXT_SECONDARY, lineHeight: 1.7,
-            }}>
-              <span style={{
-                flex: '0 0 auto', width: 16,
-                fontFamily: NUM_FONT, fontSize: 11,
-                color: ACCENT_GOLD, fontWeight: 700,
-              }}>{i + 1}.</span>
-              <span style={{ flex: 1 }}>{line}</span>
-            </div>
-          ))}
-        </div>
+        {label}
       </div>
-
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {talents.length === 0 ? (
+          <span style={{ fontSize: 11, color: TEXT_MUTED }}>—</span>
+        ) : (
+          talents.map((t) => (
+            <span key={t.key} style={{
+              display: 'inline-flex', alignItems: 'baseline', gap: 4,
+              fontFamily: "'Noto Serif JP', serif",
+              fontSize: 12, fontWeight: 600, color: textColor,
+            }}>
+              {t.jp}
+              <span style={{
+                fontFamily: NUM_FONT, fontSize: 10,
+                color, opacity: 0.7,
+              }}>{t.score}</span>
+            </span>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -1902,29 +1904,17 @@ function DevelopmentStageCard({ personalityLevel, leadershipStage, coachConfirme
 /* ============================================================
  * メインコンポーネント
  * ============================================================ */
-export default function UAAMResultScreen({ user, result, attemptData, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
-  const attemptProps = useMemo(
-    () => (attemptData ? attemptToResultProps(attemptData, 'uaam') : null),
-    [attemptData],
-  );
-  const effectiveResult = attemptProps?.result ?? result;
-  const isHistoryView = !!attemptData;
-  const { vAnswers, answers } = effectiveResult ?? {};
+export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
+  const { vAnswers, answers } = result;
   // scores はローカル state で管理（復元時に即時反映）
   // normalizeScores が domainSubs/domainTotal を補完する唯一の場所
-  const [scores, setScores] = useState(() => normalizeScores(effectiveResult?.scores) ?? effectiveResult?.scores);
+  const [scores, setScores] = useState(() => normalizeScores(result.scores) ?? result.scores);
   // 統合分析は state で管理（バックフィル後に更新できるように）
-  const [analysis, setAnalysis] = useState(effectiveResult?.analysis || null);
+  const [analysis, setAnalysis] = useState(result.analysis || null);
   const [integrating, setIntegrating] = useState(false);
   const [integrateError, setIntegrateError] = useState('');
 
-  useEffect(() => {
-    setScores(normalizeScores(effectiveResult?.scores) ?? effectiveResult?.scores);
-    setAnalysis(effectiveResult?.analysis || null);
-  }, [effectiveResult]);
-
   const runIntegration = async () => {
-    if (isHistoryView) return;
     setIntegrating(true);
     setIntegrateError('');
     try {
@@ -1955,36 +1945,6 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   // 妥当性チェック（V問フラグ判定）── @deprecated 残置
   const validityResult = (vAnswers && answers) ? checkValidity(vAnswers, answers) : null;
 
-  if (!scores) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: LIGHT_BG,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ color: TEXT_PRIMARY, fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>
-            結果データを表示できませんでした
-          </p>
-          <button onClick={onReset} style={{
-            border: `1px solid ${BORDER}`,
-            background: WHITE,
-            color: TEXT_PRIMARY,
-            borderRadius: 10,
-            padding: '10px 18px',
-            cursor: 'pointer',
-            fontWeight: 700,
-          }}>
-            戻る
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // 自己評価バイアス（3段階表記・45-95%）── 新方式
   // result.bias_message があればそれを使い、無ければクライアント側でフォールバック計算
   const { totalPct: totalPctForBias, minAxisPct, axisSpread } = extractAxisStats(scores);
@@ -2005,20 +1965,21 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   };
 
   // Phase 3：3要素診断（既存データ下位互換）
-  const threeElements = result.three_elements || (() => {
+  // 國創学方針：3要素は比較しない。スコア + フェーズのみ持つ。
+  // 旧フィールド（primary/secondary/weakest/prescription_mode）は保持されてても無視される。
+  const threeElements = (() => {
+    if (result.three_elements && result.three_elements.development_phase) {
+      return result.three_elements;
+    }
+    // フォールバック：scores から動的計算
     const subs = Object.values(scores || {}).reduce((acc, domain) => {
       if (domain?.subs) Object.assign(acc, domain.subs);
       return acc;
     }, {});
     const tes = calculateThreeElementScores(subs);
-    const profile = identifyElementProfile(tes);
-    const mode = determinePrescriptionMode(tes, leadershipStage);
     return {
       ...tes,
-      primary_element: profile.primary,
-      secondary_element: profile.secondary,
-      weakest_element: profile.weakest,
-      prescription_mode: mode,
+      development_phase: determineDevelopmentPhase(leadershipStage),
     };
   })();
 
@@ -2050,7 +2011,7 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
           }}>- 才覚発動マトリックス -</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {isAdmin && !isHistoryView && (
+          {isAdmin && (
             <>
               <button onClick={onAdmin} style={{
                 padding: '6px 12px', borderRadius: 6, border: `1px solid ${BORDER}`,
@@ -2097,26 +2058,6 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
       </div>
 
       <div className="pdf-content-wrapper" style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}>
-        {isHistoryView && (
-          <button
-            onClick={onReset}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: '#4A6FA5',
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              textUnderlineOffset: 4,
-              marginBottom: 14,
-              padding: 0,
-            }}
-          >
-            最新の結果に戻る
-          </button>
-        )}
 
         {/* ===== 名前 + Activation Type + 今、発動している力（最上部） ===== */}
         <ActivationPanel scores={
@@ -2134,10 +2075,14 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
           coachConfirmed={coachConfirmed}
         />
 
-        {/* ===== Phase 3：3要素診断（リーダーシップ／チームビルディング／マネジメント） =====
-            主要素・副要素・最弱要素を表示し、極める／広げる／統合 のモード別処方を出す。
-            integrate モードは leadershipStage で段階別分岐（L5/L6/L7）。 */}
-        <ThreeElementCard threeElements={threeElements} leadershipStage={leadershipStage} />
+        {/* ===== Phase 3：3要素診断（要素別独立処方） =====
+            3要素は比較しない。各要素ごとに「立ってる才覚 / 弱い才覚」を抽出し、
+            段階フェーズ（強み集中 or 4軸バランス）で処方を切り替える。 */}
+        <ThreeElementCard
+          threeElements={threeElements}
+          leadershipStage={leadershipStage}
+          scores={scores}
+        />
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
@@ -2167,7 +2112,7 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
                 boxShadow: '0 2px 12px rgba(0,0,0,0.10)', border: `1px solid #E8E0D4` }}>
                 <SaikakuIntegration integration={analysis.saikaku_integration} />
               </div>
-            ) : !isHistoryView ? (
+            ) : (
               <Section>
                 <SectionHeader title="才覚発動統合分析" subtitle="才覚領域 × UAAM Integration" />
                 <p style={{ fontSize: 14, color: TEXT_SECONDARY, marginBottom: 16, lineHeight: 1.9 }}>
@@ -2196,7 +2141,7 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
                   </p>
                 )}
               </Section>
-            ) : null}
+            )}
 
           </>
         )}
