@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { db, signOutUser } from '../firebase';
-import { loadAttemptDetails, summarizeFromParent } from '../utils/attemptLoader';
+import { signOutUser } from '../firebase';
+import { loadAttemptDetails, summarizeFromParent, timestampToMillis } from '../utils/attemptLoader';
 
 const TOKENS = {
   saikaku: {
@@ -23,7 +23,8 @@ const TOKENS = {
 
 function formatDate(value) {
   if (!value) return '日付未設定';
-  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+  const ms = timestampToMillis(value);
+  const date = ms === null ? new Date(value) : new Date(ms);
   if (Number.isNaN(date.getTime())) return '日付未設定';
 
   return new Intl.DateTimeFormat('ja-JP', {
@@ -64,7 +65,7 @@ function getPendingNotice(summary, pendingAttempt) {
     return 'データ不整合の可能性があるため、サポートまでお問い合わせください。';
   }
 
-  const ms = pendingAttempt.createdAt?.toMillis?.() ?? Date.now();
+  const ms = timestampToMillis(pendingAttempt.createdAt) ?? Date.now();
   const longPending = (Date.now() - ms) >= 10 * 60 * 1000;
   return longPending
     ? '処理中の診断が長時間完了していません。データ不整合の可能性があるため、サポートまでお問い合わせください。'
@@ -97,7 +98,7 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onL
       setError('');
 
       try {
-        const nextDetails = await loadAttemptDetails({ db, uid: user.uid, kind });
+        const nextDetails = await loadAttemptDetails({ user, kind });
         if (!cancelled) setDetails(nextDetails);
       } catch (e) {
         if (!cancelled) {

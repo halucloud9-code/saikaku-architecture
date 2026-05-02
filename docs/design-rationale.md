@@ -170,3 +170,46 @@ const isStartBlocked = hasPending || committedCount >= 2;
 - **`parent.updatedAt` で経過時間判定**: 別フィールド更新で汚染される (Round 3)
 - **サーバ側 `committedCount` の本 PR 内導入**: スコープ超過。フロント側の整合だけ先に解消し、サーバ SSoT 統合は follow-up issue へ
 - **HistoryScreen を緩めて pending も含める**: replay 不能エントリで UX 混乱 (Round 1)
+
+---
+
+## 7. データ取得経路: クライアント直読みは禁止、API 経由を原則とする
+
+### 採用案
+
+Firestore のデータは **原則 API server (Admin SDK) 経由** で取得する。クライアント (Firebase JS SDK) からの直接読み取りは **以下の例外のみ許可**:
+
+| 許可 | 例 |
+|---|---|
+| ✅ 認証 UID と一致する **親 doc** の onSnapshot/get（リアルタイム性が UX に必須なバッジ等） | `useDiagnosisStatus` の `results/{uid}` 監視 |
+| ❌ サブコレクション (`{parent}/{x}/...`) の get/list | 履歴の `attempts/*` は `/api/history` へ |
+| ❌ 他人 doc・他コレクションの読み取り | 例外なく禁止 |
+
+### なぜこうしたか
+
+- **rules deploy 漏れに対する fail-safe**: クライアント直読みは Firestore rules の deploy 状態に強く依存する。`firestore.rules` を変更しても CI に auto-deploy が無く、過去 (PR #27 → issue #36) で「リポジトリの rules は正しいが本番に deploy されておらず本番だけ permission denied」が発生 (issue #36 で実害発覚)。**Admin SDK は rules を bypass するため、API 経由なら rules deploy 状態に左右されない**
+- **アーキテクチャ整合性**: AdminScreen は元から `/api/admin/*` 経由 (`api/admin/users.js` 等) で取得しており、HistoryScreen だけがクライアント直読みだった非対称性を解消
+- **rules 厳格化が可能**: クライアント直読みを使わないコレクション (`attempts/*`) は rules で `allow read, write: if false` に厳格化済み。**書き戻しても破壊的変更にならない**ため再発防止策として強い。後から間違って `getDocs(collection(parentRef, 'attempts'))` を書いても dev/CI で即落ちる
+- **テスト容易性**: API 経由の取得は supertest + emulator で再現可能 (`tests/api/history.test.js`)。クライアント直読みは E2E でしか検証できず、emulator pass = production OK の保証にならない
+
+### 例外を認める基準
+
+「親 doc の onSnapshot」だけは UX 上の理由で許可：
+- バッジが診断完了から数秒以内にリアルタイム更新される必要がある (polling では UX 劣化)
+- 親 doc は1ユーザーあたり1件で、`allow read: if signedInAs(uid)` というシンプルな rule で済む
+- 万一 rules deploy 漏れが起きても、影響は「バッジが更新されない」止まりで、データ表示崩れには至らない
+
+### なぜ別案を採らなかったか
+
+- **クライアント完全廃止 (親 doc も API)**: realtime 性が失われる。WebSocket / SSE で代替可能だが工数が高く、今回の問題の本質ではない
+- **rules CI auto-deploy だけ追加**: 対症療法。rules 変更時の deploy ミスは依然として発生し得るし、構造的に「クライアント直読みパターン自体が deploy 状態にロックインされる脆さ」が残る (#36 follow-up でつかさ判断: 構造改修を選択)
+
+### 共有モジュール `shared/attemptLogic.js`
+
+クライアントとサーバで同じ純関数 (`summarizeFromParent` / `listFromAttempts` / `legacyDocToAttempt`) を使うため、`shared/` 直下に配置。両側から ES module で import する (Vite + Vercel function 両方で動作確認済み)。
+
+### 適用範囲
+
+- 既存: `AdminScreen` は対応済み
+- 本 PR で対応: `HistoryScreen` を `/api/history` に切替 + `attempts/*` の rules を `if false` に厳格化
+- 将来: 新規データアクセスを書く時は **API 経由を default に**、クライアント直読みは「親 doc の onSnapshot 限定」というレビュー観点で判定する
