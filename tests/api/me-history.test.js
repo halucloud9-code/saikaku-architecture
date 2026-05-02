@@ -111,6 +111,25 @@ describe('API /api/me/history', () => {
     });
   });
 
+  it('falls back to analysis.primary_type for UAAM legacy records without type_name', async () => {
+    const uid = 'u-me-history-uaam-primary-type';
+    await clearUserState('uaam_results', uid);
+    const createdAt = Timestamp.fromDate(new Date('2026-05-01T00:00:00.000Z'));
+
+    await seedParent('uaam_results', uid, { attemptCount: 1, createdAt });
+    await seedAttempt('uaam_results', uid, 'legacy-no-type-name', {
+      status: 'committed',
+      createdAt,
+      full: { analysis: { primary_type: 'NAVIGATOR' }, scores: { mindset: { total: 50 } } },
+    });
+
+    const response = await api.get('/api/me/history?kind=uaam').set('x-test-uid', uid);
+
+    expect(response.status).toBe(200);
+    expect(response.body.attempts).toHaveLength(1);
+    expect(response.body.attempts[0].summary.typeName).toBe('NAVIGATOR');
+  });
+
   it('builds summary from committed attempt docs when parent attemptCount is stale', async () => {
     const uid = 'u-me-history-summary-divergence';
     await clearUserState('results', uid);

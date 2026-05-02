@@ -53,7 +53,10 @@ export function backfillAttemptSummary(attemptData, kind) {
   }
 
   return {
-    typeName: summary.typeName ?? full?.analysis?.type_name ?? null,
+    typeName: summary.typeName
+      ?? full?.analysis?.type_name
+      ?? full?.analysis?.primary_type
+      ?? null,
     createdAt,
   };
 }
