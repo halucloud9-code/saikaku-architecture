@@ -130,6 +130,18 @@ export function saikakuAttempt() {
   };
 }
 
+export function pendingAttempt(createdAtOffsetMs = 0) {
+  const createdAt = Timestamp.fromMillis(Date.now() + createdAtOffsetMs);
+  return {
+    status: 'pending',
+    createdAt,
+    updatedAt: Timestamp.now(),
+    summary: { createdAt },
+    full: null,
+    raw: { input: {} },
+  };
+}
+
 function saikakuResult() {
   return {
     name: 'E2E User',

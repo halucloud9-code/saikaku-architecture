@@ -163,13 +163,23 @@ npm run dev       # Vite dev server (localhost:5173)
 Vite が emulator に繋がる: `.env.local` に `VITE_USE_FIREBASE_EMULATOR=true`
 
 ```bash
-# テスト
+# UI テスト (vitest + @testing-library/react, jsdom)
+npm test            # 全 UI テスト 1 回実行
+npm run test:watch  # 監視モード
+
+# 個別テストスイート (Firebase emulator 経由)
 npm run test:unit   # SelectScreen / attemptAdapter (10 テスト)
 npm run test:rules  # Firestore rules (20 テスト)
 npm run test:api    # Reservation Tx 統合 (12 テスト)
 npm run test:e2e    # Playwright (3 フロー)
 npm run test:all    # 全部
 ```
+
+主要 UI テスト:
+- `tests/LoginScreen.test.jsx` — メール認証フロー
+- `tests/AllPairsTriangle.test.jsx` — GRIFFON CODE カード複数同時展開 (Issue #4)
+
+> 手動スクリプト (`tests/send-email.test.mjs`, `tests/check-user.mjs`) は `vite.config.js` の `test.exclude` で対象外
 
 詳細: [docs/testing.md](./docs/testing.md)
 

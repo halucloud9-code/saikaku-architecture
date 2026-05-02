@@ -13,18 +13,24 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   const [hoverSaikakuHistory, setHoverSaikakuHistory] = useState(false);
   const [hoverUaamHistory, setHoverUaamHistory] = useState(false);
   const status = useDiagnosisStatus(user);
-  const saikakuAttemptCount = status?.saikaku?.attemptCount ?? 0;
-  const uaamAttemptCount = status?.uaam?.attemptCount ?? 0;
-  const isSaikakuLimitReached = status !== null && saikakuAttemptCount >= 2;
-  const isUaamLimitReached = status !== null && uaamAttemptCount >= 2;
+  const saikakuStatus = status?.saikaku ?? null;
+  const uaamStatus = status?.uaam ?? null;
+  const saikakuAttemptCount = saikakuStatus?.committedCount ?? 0;
+  const uaamAttemptCount = uaamStatus?.committedCount ?? 0;
+  const isSaikakuLimitReached = !!saikakuStatus?.isStartBlocked;
+  const isUaamLimitReached = !!uaamStatus?.isStartBlocked;
 
-  const showLimitAlert = () => {
+  const showLimitAlert = (kindStatus) => {
+    if (kindStatus?.hasPending) {
+      alert('処理中の診断があります。完了をお待ちいただくか、長時間続く場合はサポートまでお問い合わせください。');
+      return;
+    }
     alert('診断は最大2回まで実施済みです。履歴を確認する場合は「履歴を見る」からどうぞ。');
   };
 
   const handleSaikakuClick = () => {
     if (isSaikakuLimitReached) {
-      showLimitAlert();
+      showLimitAlert(saikakuStatus);
       return;
     }
     onSelectSaikaku();
@@ -32,7 +38,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
 
   const handleUaamClick = () => {
     if (isUaamLimitReached) {
-      showLimitAlert();
+      showLimitAlert(uaamStatus);
       return;
     }
     setPass('');
@@ -49,9 +55,9 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
     }
   };
 
-  const getCardPadding = (count) => {
-    if (status === null || count <= 0) return '32px 28px';
-    return count >= 2 ? '32px 28px 78px' : '32px 28px 58px';
+  const getCardPadding = (count, hasPending) => {
+    if (status === null || (count <= 0 && !hasPending)) return '32px 28px';
+    return count >= 2 || hasPending ? '32px 28px 78px' : '32px 28px 58px';
   };
 
   const renderBadge = (count, palette, testId) => {
@@ -76,8 +82,8 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
     );
   };
 
-  const renderHistoryArea = (kind, count, color, hover, setHover) => {
-    if (status === null || count <= 0) return null;
+  const renderHistoryArea = (kind, count, hasPending, color, hover, setHover) => {
+    if (status === null || (count <= 0 && !hasPending)) return null;
     return (
       <div style={{
         position: 'absolute',
@@ -100,31 +106,43 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             診断は最大2回まで実施済み
           </span>
         )}
-        <button
-          data-testid={`history-link-${kind}`}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelectHistory(kind);
-          }}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            padding: 0,
-            color,
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            cursor: 'pointer',
-            textDecoration: hover ? 'underline' : 'none',
-            textUnderlineOffset: 3,
-            pointerEvents: 'auto',
-          }}
-        >
-          履歴を見る ({count})
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            data-testid={`history-link-${kind}`}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectHistory(kind);
+            }}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              color,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              cursor: 'pointer',
+              textDecoration: hover ? 'underline' : 'none',
+              textUnderlineOffset: 3,
+              pointerEvents: 'auto',
+            }}
+          >
+            履歴を見る ({count})
+          </button>
+          {hasPending && (
+            <span style={{
+              color: '#8A8070',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+            }}>
+              処理中…
+            </span>
+          )}
+        </div>
       </div>
     );
   };
@@ -254,7 +272,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               color: '#E8C47A',
             }, 'badge-saikaku')}
 
-            <div style={{ padding: getCardPadding(saikakuAttemptCount) }}>
+            <div style={{ padding: getCardPadding(saikakuAttemptCount, !!saikakuStatus?.hasPending) }}>
             {/* サブラベル */}
             <div style={{
               display: 'inline-flex', alignItems: 'center',
@@ -322,7 +340,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             </div>
             </div>
           </button>
-          {renderHistoryArea('saikaku', saikakuAttemptCount, '#E8C47A', hoverSaikakuHistory, setHoverSaikakuHistory)}
+          {renderHistoryArea('saikaku', saikakuAttemptCount, !!saikakuStatus?.hasPending, '#E8C47A', hoverSaikakuHistory, setHoverSaikakuHistory)}
         </div>
 
         {/* ─── 才覚発動領域カード ─── */}
@@ -362,7 +380,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               color: '#8FB4E0',
             }, 'badge-uaam')}
 
-            <div style={{ padding: getCardPadding(uaamAttemptCount) }}>
+            <div style={{ padding: getCardPadding(uaamAttemptCount, !!uaamStatus?.hasPending) }}>
             {/* サブラベル */}
             <div style={{
               display: 'inline-flex', alignItems: 'center',
@@ -463,7 +481,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             </div>
             </div>
           </button>
-          {renderHistoryArea('uaam', uaamAttemptCount, '#8FB4E0', hoverUaamHistory, setHoverUaamHistory)}
+          {renderHistoryArea('uaam', uaamAttemptCount, !!uaamStatus?.hasPending, '#8FB4E0', hoverUaamHistory, setHoverUaamHistory)}
         </div>
 
         {/* フッター */}

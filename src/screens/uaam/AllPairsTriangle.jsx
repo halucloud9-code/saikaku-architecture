@@ -781,7 +781,12 @@ export default function AllPairsTriangle({ scores, maxSub = 20, mirror = false, 
 export function SymmetricMatrix({ scores, maxSub = 20 }) {
   const smap = useMemo(() => buildScoreMap(scores, maxSub), [scores, maxSub]);
   const [tip, setTip] = useState(null);
-  const [expandedPair, setExpandedPair] = useState(null);
+  const [expandedPairs, setExpandedPairs] = useState(() => new Set());
+  const toggleExpanded = (z) => setExpandedPairs(prev => {
+    const next = new Set(prev);
+    if (next.has(z)) { next.delete(z); } else { next.add(z); }
+    return next;
+  });
 
   const SCELL = 28, SGAP = 2;
   const LABEL_W = 36;
@@ -1033,11 +1038,11 @@ export function SymmetricMatrix({ scores, maxSub = 20 }) {
                 const scores = pairs.map(p => p.sA + p.sB);
                 const minS = Math.min(...scores), maxS = Math.max(...scores);
                 const rangeStr = minS === maxS ? `${minS}` : `${minS}–${maxS}`;
-                const isExpanded = expandedPair === z;
+                const isExpanded = expandedPairs.has(z);
                 return (
                   <div
                     key={z}
-                    onClick={() => setExpandedPair(isExpanded ? null : z)}
+                    onClick={() => toggleExpanded(z)}
                     style={{
                       borderRadius: 14,
                       border: `1.5px solid ${zc}55`,

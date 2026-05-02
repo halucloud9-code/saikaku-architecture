@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -52,6 +53,9 @@ async function fillAndSubmit(user, container, { email, password, displayName, mo
   }
   await user.type(screen.getByPlaceholderText('メールアドレス'), email);
   await user.type(screen.getByPlaceholderText('パスワード（6文字以上）'), password);
+  if (mode === 'signup') {
+    await user.type(screen.getByPlaceholderText('パスワード（確認のため再入力）'), password);
+  }
 
   // login-btn-gold クラスの送信ボタンをクリック
   const submitBtn = container.querySelector('.login-btn-gold');

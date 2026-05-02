@@ -150,6 +150,32 @@ LLM (Anthropic API) は 5-30 秒かかる高コスト呼び出し。ユーザー
 ### realtime/onSnapshot を捨てた根拠
 バッジ・履歴は画面遷移時に getDoc 相当の一回読み取りで十分。realtime 性は本機能では不要。むしろ onSnapshot の error コールバックが silent fail する設計が #36 #40 を生んだ。
 
+### 履歴整合性: parent doc + attempts を共有純粋関数で導出
+issue #36 の pending attempt 対応は `shared/attemptLogic.js` に集約し、BFF 側で再利用する。
+
+```
+results/{uid} / uaam_results/{uid}
+  attemptCount
+  pendingAttemptId
+  result/scores/analysis
+        ↓ summarizeFromParent
+  { committedCount, attemptCount, hasPending, pendingAttemptId, hasResult, isStartBlocked }
+
+attempts/{aid}[]
+        ↓ listFromAttempts
+  { committedAttempts, pendingAttempt }
+```
+
+`/api/me/diagnosis-status` は kind ごとに `hasPending` / `pendingAttemptId` を返し、`/api/me/history?kind=...` は `{ attempts, pendingAttempt, summary }` を返す。`HistoryScreen` は `summary.hasPending` と `pendingAttempt.createdAt` を組み合わせ、10分未満・10分以上・orphan (`pendingAttemptId` はあるが attempt doc がない) の3状態 notice を表示する。
+
+この設計により、main の pendingAttempt UX は残しつつ、データアクセスは PR #41 の `/api/me/*` BFF に統一される。旧 `/api/history` は `/api/me/history` に supersede されるため保持しない。
+
+### issue #36 から引き継いだ判断
+- **二重カウント防止**: `legacyFloor` は `Math.max(rawCommitted, legacyFloor)` で適用し、modern user (`attemptCount=1, result有`) を2回扱いにしない
+- **legacy synth の条件**: `listFromAttempts` は `attemptDocs.length === 0` のときだけ legacy attempt を合成し、attempts と legacy synth を共存させない
+- **pending 経過時間の基準**: `parent.updatedAt` は他フィールド更新で汚染されるため使わず、`attempts/<pendingId>.createdAt` を使う
+- **orphan の扱い**: `pendingAttemptId` が残っていて attempt doc がない場合は「履歴なし」ではなくデータ不整合 notice を表示する
+
 ### consent read の例外維持
 `src/App.jsx:118` と `src/screens/LoginScreen.jsx` の `saveConsent` で `results/{uid}` 親を直読みして `consentAt` 有無を確認している。この「書き込み前の事前確認」用途のみ rules で `signedInAs(uid)` を残す。完全な閉鎖は別 issue (`/api/me/consent` 追加) で対応予定。
 

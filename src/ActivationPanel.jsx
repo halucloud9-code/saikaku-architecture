@@ -83,14 +83,26 @@ const TEXT_MUTED     = '#666666';
 // mode: "top"    = TypeBadgeのみ（名前 + Activation Type）
 //       "bottom"  = ✅現在発動している「才覚」 + 🔑次に動かす力
 //       "all"     = すべて（デフォルト互換）
-export default function ActivationPanel({ scores, threshold = 13, userName, mode = 'all', vAnswers, biasData }) {
+export default function ActivationPanel({
+  scores, threshold = 13, userName, mode = 'all',
+  vAnswers, biasData,
+  personalityLevel, leadershipStage, coachConfirmed,
+}) {
   if (!scores) return null;
   const { active, sleeping, type } = getActivationAnalysis(scores, threshold);
 
   if (mode === 'top') {
     return (
       <div style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif", maxWidth: 640, margin: '0 auto' }}>
-        <TypeBadge type={type} userName={userName} vAnswers={vAnswers} biasData={biasData} />
+        <TypeBadge
+          type={type}
+          userName={userName}
+          vAnswers={vAnswers}
+          biasData={biasData}
+          personalityLevel={personalityLevel}
+          leadershipStage={leadershipStage}
+          coachConfirmed={coachConfirmed}
+        />
       </div>
     );
   }
@@ -203,8 +215,87 @@ export default function ActivationPanel({ scores, threshold = 13, userName, mode
   );
 }
 
-/* ── 才覚タイプバッジ ── */
-function TypeBadge({ type, userName, vAnswers, biasData }) {
+/* ── 発達段階ボックス（数値 + 7段階ビジュアル） ── */
+function StageBox({ label, numLabel, numText, currentIndex, labels, accent, accentBg, accentLight }) {
+  return (
+    <div style={{
+      padding: '12px 14px',
+      background: accentBg,
+      borderRadius: 10,
+      borderLeft: `3px solid ${accent}`,
+    }}>
+      <div style={{
+        fontSize: 9, letterSpacing: '0.12em', color: TEXT_MUTED,
+        marginBottom: 8, fontWeight: 700, textTransform: 'uppercase',
+      }}>
+        {label}
+      </div>
+
+      {/* 数値表示 */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12 }}>
+        <span style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 30, fontWeight: 700, color: accent, lineHeight: 1,
+          letterSpacing: '0.02em',
+        }}>
+          {numLabel}
+        </span>
+        <span style={{
+          fontFamily: "'Noto Serif JP', serif", fontSize: 14,
+          color: TEXT_PRIMARY, fontWeight: 700,
+        }}>
+          {numText}
+        </span>
+      </div>
+
+      {/* 7段階ドットトラック */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0, justifyContent: 'space-between' }}>
+        {labels.map((lbl, i) => {
+          const isCurrent = i === currentIndex;
+          const isPassed = i < currentIndex;
+          return (
+            <div key={i} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              flex: 1, position: 'relative',
+            }}>
+              {/* 接続線（最後以外） */}
+              {i < labels.length - 1 && (
+                <div style={{
+                  position: 'absolute',
+                  top: 4, left: '60%', right: '-40%', height: 1.5,
+                  background: i < currentIndex ? accent : accentLight,
+                  zIndex: 0,
+                }} />
+              )}
+              {/* ドット */}
+              <div style={{
+                width: isCurrent ? 10 : 7, height: isCurrent ? 10 : 7,
+                borderRadius: '50%',
+                background: isCurrent ? accent : (isPassed ? accent : accentLight),
+                border: isCurrent ? `2px solid ${accent}` : 'none',
+                boxShadow: isCurrent ? `0 0 0 3px ${accent}33` : 'none',
+                zIndex: 1,
+                transition: 'all 0.3s',
+              }} />
+              {/* ラベル */}
+              <div style={{
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: 8.5, fontWeight: isCurrent ? 700 : 500,
+                color: isCurrent ? accent : (isPassed ? accent + 'CC' : TEXT_MUTED),
+                lineHeight: 1, marginTop: 2,
+              }}>
+                {lbl}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── 才覚タイプバッジ＋人格L＋リーダー段階の統合プロフィールカード ── */
+function TypeBadge({ type, userName, vAnswers, biasData, personalityLevel, leadershipStage, coachConfirmed }) {
   if (!type?.main) return null;
   const mainBlock = BLOCKS.find(b => b.name === type.main);
   const subBlock  = BLOCKS.find(b => b.name === type.sub);
@@ -232,6 +323,17 @@ function TypeBadge({ type, userName, vAnswers, biasData }) {
     );
   };
 
+  // Development Stage：信頼度の色＆ラベル＆背景
+  const isCoached = !!(coachConfirmed?.personality_level || coachConfirmed?.leadership_stage);
+  const confKey = isCoached ? 'coach' : (personalityLevel?.confidence || 'medium');
+  const CONF_STYLE = {
+    coach:  { label: 'コーチ確定', dot: '#8B35C8', bg: '#F4EEFF', text: '#5B1F8B' },
+    high:   { label: '信頼度：高', dot: '#2E8B57', bg: '#EFF8F3', text: '#1E7A4A' },
+    medium: { label: '信頼度：中', dot: '#B8960C', bg: '#FAF5E9', text: '#A07A18' },
+    low:    { label: '信頼度：低', dot: '#A84432', bg: '#FAF0EE', text: '#C0614A' },
+  };
+  const confStyle = CONF_STYLE[confKey] || CONF_STYLE.medium;
+
   return (
     <div style={{
       marginBottom: 24,
@@ -241,84 +343,166 @@ function TypeBadge({ type, userName, vAnswers, biasData }) {
       border: `1px solid ${mainColor}30`,
       borderTop: `3px solid ${mainColor}`,
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '0 20px',
     }}>
-      {/* ── 左カラム ── */}
-      <div>
-        {/* 名前 + UAAM ラベル */}
-        {userName && (
-          <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${BORDER}` }}>
+      {/* ====== 上段A：名前 + V問 + バイアス（全幅・1行で） ====== */}
+      {userName && (
+        <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${mainColor}25` }}>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+            fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
+          }}>Universal Ability Assessment Model</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
             <div style={{
-              fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
-              fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
-            }}>Universal Ability Assessment Model</div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{
-                fontFamily: "'Noto Serif JP', Georgia, serif",
-                fontSize: 20, fontWeight: 700, color: TEXT_PRIMARY,
-              }}>{userName}</div>
-              {vFlags && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                    {dot('V1')}{dot('V2')}{dot('V3')}
-                  </div>
-                  {/* V1/V2/V3 の真下に自己評価バイアス% を1行表示（健全=null は表示なし） */}
-                  {biasData && (
-                    <div style={{
-                      fontSize: 10,
-                      color: biasColor,
-                      fontWeight: 600,
-                      letterSpacing: '0.02em',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      自己評価バイアス {biasData.biasPct}%
-                    </div>
-                  )}
+              fontFamily: "'Noto Serif JP', Georgia, serif",
+              fontSize: 22, fontWeight: 700, color: TEXT_PRIMARY, lineHeight: 1.1,
+            }}>{userName}</div>
+            {vFlags && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                  {dot('V1')}{dot('V2')}{dot('V3')}
                 </div>
-              )}
-            </div>
+                {biasData && (
+                  <div style={{
+                    fontSize: 11, color: biasColor, fontWeight: 700,
+                    letterSpacing: '0.02em', whiteSpace: 'nowrap',
+                    padding: '3px 10px', background: `${biasColor}15`,
+                    borderRadius: 9999,
+                  }}>
+                    自己評価バイアス {biasData.biasPct}%
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Activation Type ラベル */}
-        <div style={{
-          fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
-          marginBottom: 10, fontWeight: 700, textTransform: 'uppercase',
-        }}>Activation Type</div>
+      {/* ====== 上段B：ACTIVATION TYPE × タイプ説明（grid 1fr 1fr） ====== */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '0 20px',
+        alignItems: 'stretch',
+      }}>
+        {/* 左：Activation Type */}
+        <div>
+          <div style={{
+            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+            marginBottom: 10, fontWeight: 700, textTransform: 'uppercase',
+          }}>Activation Type</div>
 
-        {/* メイン × サブ */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: mainColor, marginBottom: 2 }}>{type.main}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_PRIMARY, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1 }}>{TYPE_JP[type.main] || type.main}</div>
-            <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{mainBlock?.jp}</div>
-          </div>
-          {subBlock && <div style={{ fontSize: 20, color: '#CCBBAA', fontWeight: 300, lineHeight: 1 }}>×</div>}
-          {subBlock && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: subColor, marginBottom: 2 }}>{type.sub}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_SECONDARY, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1 }}>{TYPE_JP[type.sub] || type.sub}</div>
-              <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{subBlock.jp}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: mainColor, marginBottom: 2 }}>{type.main}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: TEXT_PRIMARY, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1 }}>{TYPE_JP[type.main] || type.main}</div>
+              <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{mainBlock?.jp}</div>
             </div>
-          )}
+            {subBlock && <div style={{ fontSize: 22, color: `${mainColor}55`, fontWeight: 300, lineHeight: 1 }}>×</div>}
+            {subBlock && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: subColor, marginBottom: 2 }}>{type.sub}</div>
+                <div style={{ fontSize: 19, fontWeight: 700, color: subColor, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1, opacity: 0.85 }}>{TYPE_JP[type.sub] || type.sub}</div>
+                <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{subBlock.jp}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 右：タイプ説明（高さ揃えで上下にしっかり充填） */}
+        <div style={{
+          display: 'flex', alignItems: 'stretch',
+          borderLeft: `1px solid ${mainColor}25`,
+          paddingLeft: 20,
+        }}>
+          <p style={{
+            fontSize: 13, color: TEXT_SECONDARY, lineHeight: 1.85,
+            margin: 0, fontFamily: "'Noto Serif JP', serif",
+            padding: '14px 18px',
+            background: `${mainColor}08`,
+            borderRadius: 8,
+            borderLeft: `2px solid ${mainColor}40`,
+            flex: 1,
+            display: 'flex', alignItems: 'center',
+          }}>
+            {TYPE_DESC[type.main] || ''}
+          </p>
         </div>
       </div>
 
-      {/* ── 右カラム：タイプ説明 ── */}
-      <div style={{
-        display: 'flex', alignItems: 'center',
-        borderLeft: `1px solid ${BORDER}`,
-        paddingLeft: 20,
-      }}>
-        <p style={{
-          fontSize: 13, color: TEXT_SECONDARY, lineHeight: 1.85,
-          margin: 0, fontFamily: "'Noto Serif JP', serif",
+      {/* ====== 下段：Development Stage（同じカード内に統合・色合い強化） ====== */}
+      {personalityLevel && leadershipStage && (
+        <div style={{
+          marginTop: 18, paddingTop: 16,
+          borderTop: `1px solid ${mainColor}25`,
         }}>
-          {TYPE_DESC[type.main] || ''}
-        </p>
-      </div>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: 14,
+          }}>
+            <div style={{
+              fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
+              fontWeight: 700, textTransform: 'uppercase',
+            }}>
+              Development Stage
+            </div>
+            {/* 信頼度ピル：色付き背景で目立つ */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '3px 10px',
+              background: confStyle.bg,
+              borderRadius: 9999,
+              fontSize: 10, color: confStyle.text, fontWeight: 600,
+            }}>
+              <span style={{
+                display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                background: confStyle.dot,
+              }} />
+              {confStyle.label}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            {/* 人格発達レベル — 金色アクセント */}
+            <StageBox
+              label="人格発達レベル"
+              numLabel={coachConfirmed?.personality_level || personalityLevel.level}
+              numText={coachConfirmed?.personality_level ? '確定' : personalityLevel.name}
+              currentIndex={Number((coachConfirmed?.personality_level || personalityLevel.level).replace('L', '')) - 1}
+              labels={['L1','L2','L3','L4','L5','L6','L7']}
+              accent={ACCENT_GOLD}
+              accentBg="#FAF5E9"
+              accentLight="#F5EAC8"
+            />
+
+            {/* リーダーシップ段階 — 主色アクセント */}
+            <StageBox
+              label="リーダーシップ段階"
+              numLabel={`第${coachConfirmed?.leadership_stage || leadershipStage.stage}`}
+              numText={coachConfirmed?.leadership_stage ? '確定' : leadershipStage.name}
+              currentIndex={(coachConfirmed?.leadership_stage || leadershipStage.stage) - 1}
+              labels={['1','2','3','4','5','6','7']}
+              accent={mainColor}
+              accentBg={`${mainColor}10`}
+              accentLight={`${mainColor}30`}
+            />
+          </div>
+
+          {/* コーチ観察ノート（あれば） */}
+          {coachConfirmed?.observation_note && (
+            <div style={{
+              marginTop: 12, padding: '10px 14px',
+              background: confStyle.bg,
+              borderLeft: `3px solid ${confStyle.dot}`,
+              borderRadius: 6,
+              fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7,
+              whiteSpace: 'pre-wrap',
+              fontFamily: "'Noto Serif JP', serif",
+            }}>
+              📝 {coachConfirmed.observation_note}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

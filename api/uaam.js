@@ -1,5 +1,6 @@
 import { getAuth } from 'firebase-admin/auth';
 import { db } from './lib/firebaseAdmin.js';
+import { createMessage } from './lib/anthropicClient.js';
 import {
   ConflictError,
   LimitExceededError,
@@ -7,7 +8,6 @@ import {
   reserveAttempt,
   rollbackAttempt,
 } from './lib/attempts.js';
-import { createMessage } from './lib/anthropicClient.js';
 
 /**
  * 自己評価バイアスメッセージ生成（旗カウント・45-95%版）
@@ -454,23 +454,6 @@ export default async function handler(req, res) {
   // スコア計算
   const scores = calculateScores(answers, QUESTIONS);
 
-  let attemptId;
-  try {
-    ({ attemptId } = await reserveAttempt({
-      collection: 'uaam_results',
-      uid: decoded.uid,
-      kind: 'uaam',
-    }));
-  } catch (e) {
-    if (e instanceof LimitExceededError) {
-      return res.status(429).json({ error: e.message, code: 'LIMIT_EXCEEDED' });
-    }
-    if (e instanceof ConflictError) {
-      return res.status(409).json({ error: e.message, code: 'PENDING_CONFLICT' });
-    }
-    throw e;
-  }
-
   // 自己評価バイアスメッセージ生成（旗カウント方式・45-95%版）
   // 4軸合計 / 320（最大スコア） * 100 で総合%を算出（旧 Lv.1〜Lv.6 廃止後の判定基準）
   const totalPct = Math.round(
@@ -495,6 +478,8 @@ export default async function handler(req, res) {
   console.log(`[UAAM] personality_level: ${personalityLevel.level} (${personalityLevel.confidence}) leadership_stage: 第${leadershipStage.stage}（${leadershipStage.name}） axisSpread:${axisSpread} signals:[${personalityLevel.signals.join(',')}]`);
 
   // Phase 3：3要素診断（16才覚スコアの加重平均）
+  // 國創学方針：3要素は比較しない。各要素ごとに独立した処方を出す。
+  // 主・副・最弱の比較やfocus/expand/integrateモードは廃止（UI側で要素別に処方生成）。
   const subs = {
     ...scores.mindset.subs,
     ...scores.literacy.subs,
@@ -502,16 +487,12 @@ export default async function handler(req, res) {
     ...scores.impact.subs,
   };
   const threeElementScores = calculateThreeElementScores(subs);
-  const elementProfile = identifyElementProfile(threeElementScores);
-  const prescriptionMode = determinePrescriptionMode(threeElementScores, leadershipStage);
+  const developmentPhase = leadershipStage.stage >= 5 ? 'balance_4axis' : 'strength_focus';
   const threeElements = {
     ...threeElementScores,
-    primary_element: elementProfile.primary,
-    secondary_element: elementProfile.secondary,
-    weakest_element: elementProfile.weakest,
-    prescription_mode: prescriptionMode,
+    development_phase: developmentPhase,
   };
-  console.log(`[UAAM] three_elements: L=${threeElementScores.leadership}% T=${threeElementScores.teamBuilding}% M=${threeElementScores.management}% primary=${elementProfile.primary} mode=${prescriptionMode}`);
+  console.log(`[UAAM] three_elements: L=${threeElementScores.leadership}% T=${threeElementScores.teamBuilding}% M=${threeElementScores.management}% phase=${developmentPhase}`);
 
   // 才覚領域データを取得
   let saikakuData = null;
@@ -554,6 +535,23 @@ ${Object.entries(scores.competency.subs).map(([k, v]) => `  ${k}: ${v}/20`).join
 合計スコア: ${scores.impact.total}/${scores.impact.max} (${scores.impact.percentage}%)
 サブ項目:
 ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n')}`;
+
+  let attemptId;
+  try {
+    ({ attemptId } = await reserveAttempt({
+      collection: 'uaam_results',
+      uid: decoded.uid,
+      kind: 'uaam',
+    }));
+  } catch (e) {
+    if (e instanceof LimitExceededError) {
+      return res.status(429).json({ error: e.message, code: 'LIMIT_EXCEEDED' });
+    }
+    if (e instanceof ConflictError) {
+      return res.status(409).json({ error: e.message, code: 'PENDING_CONFLICT' });
+    }
+    throw e;
+  }
 
   let analysis = null;
   try {
@@ -602,15 +600,7 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
       uid: decoded.uid,
       attemptId,
       summary: { typeName: analysis.type_name, createdAt: null },
-      full: {
-        result: null,
-        analysis,
-        scores,
-        bias_message: biasMessage,
-        personality_level: personalityLevel,
-        leadership_stage: leadershipStage,
-        three_elements: threeElements,
-      },
+      full: { result: null, analysis, scores },
       raw: { input: { answers, vAnswers: vAnswers || {} } },
       parentMerge: {
         uid: decoded.uid,
@@ -625,8 +615,8 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
         personality_level: personalityLevel, // Phase 2：自動推定L1〜L7（confidence/signals 付き）
         leadership_stage: leadershipStage,   // Phase 2：自動推定 第1〜第7
         three_elements: threeElements,       // Phase 3：3要素診断＋処方モード
-        // coach_confirmed_personality_level / coach_confirmed_leadership_stage /
-        // coach_observation_note は AdminScreen でハル本人が編集する領域（自動上書き禁止）
+        // coach_confirmed_personality_level / coach_confirmed_leadership_stage / coach_observation_note は
+        // AdminScreen でハル本人が編集する領域（自動上書き禁止）
       },
     });
   } catch (e) {

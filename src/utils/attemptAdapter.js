@@ -1,3 +1,5 @@
+export { legacyDocToAttempt } from '../../shared/attemptLogic.js';
+
 export function attemptToResultProps(attempt, kind) {
   if (!attempt) return null;
 
