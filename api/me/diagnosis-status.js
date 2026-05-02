@@ -1,6 +1,7 @@
 import { db } from '../lib/firebaseAdmin.js';
 import { getKindConfig, hasParentResult } from '../lib/legacy.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
+import { summarizeFromParent } from '../../shared/attemptLogic.js';
 
 const KINDS = ['saikaku', 'uaam'];
 
@@ -25,16 +26,24 @@ async function loadKindStatus(kind, uid) {
   const parentRef = db.collection(collection).doc(uid);
   const parentSnap = await parentRef.get();
 
-  if (!parentSnap.exists) return { attemptCount: 0, hasResult: false };
+  if (!parentSnap.exists) return summarizeFromParent(null);
 
   const data = parentSnap.data() || {};
   const hasResult = hasParentResult(data, kind);
-  const parentAttemptCount = typeof data.attemptCount === 'number' ? data.attemptCount : 0;
+  const parentSummary = summarizeFromParent(data);
   const committedAttemptsCount = await countCommittedAttempts(parentRef);
+  const committedCount = Math.max(
+    parentSummary.committedCount,
+    committedAttemptsCount,
+    hasResult ? 1 : 0,
+  );
 
   return {
-    attemptCount: Math.max(parentAttemptCount, committedAttemptsCount, hasResult ? 1 : 0),
+    ...parentSummary,
+    committedCount,
+    attemptCount: committedCount,
     hasResult,
+    isStartBlocked: parentSummary.hasPending || committedCount >= 2,
   };
 }
 
