@@ -244,16 +244,16 @@ function TypeBadge({ type, userName, vAnswers, biasData, personalityLevel, leade
     );
   };
 
-  // Development Stage：信頼度の色＆ラベル
+  // Development Stage：信頼度の色＆ラベル＆背景
   const isCoached = !!(coachConfirmed?.personality_level || coachConfirmed?.leadership_stage);
-  const confLabel = personalityLevel
-    ? (isCoached
-        ? 'コーチ確定'
-        : ({ high: '信頼度：高', medium: '信頼度：中', low: '信頼度：低' })[personalityLevel.confidence] || '')
-    : '';
-  const confDotColor = personalityLevel
-    ? ({ high: '#2E8B57', medium: '#B8960C', low: '#A84432' })[personalityLevel.confidence] || TEXT_MUTED
-    : TEXT_MUTED;
+  const confKey = isCoached ? 'coach' : (personalityLevel?.confidence || 'medium');
+  const CONF_STYLE = {
+    coach:  { label: 'コーチ確定', dot: '#8B35C8', bg: '#F4EEFF', text: '#5B1F8B' },
+    high:   { label: '信頼度：高', dot: '#2E8B57', bg: '#EFF8F3', text: '#1E7A4A' },
+    medium: { label: '信頼度：中', dot: '#B8960C', bg: '#FAF5E9', text: '#A07A18' },
+    low:    { label: '信頼度：低', dot: '#A84432', bg: '#FAF0EE', text: '#C0614A' },
+  };
+  const confStyle = CONF_STYLE[confKey] || CONF_STYLE.medium;
 
   return (
     <div style={{
@@ -275,7 +275,7 @@ function TypeBadge({ type, userName, vAnswers, biasData, personalityLevel, leade
         <div>
           {/* 名前 + UAAM ラベル */}
           {userName && (
-            <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${BORDER}` }}>
+            <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${mainColor}25` }}>
               <div style={{
                 fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
                 fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
@@ -317,40 +317,45 @@ function TypeBadge({ type, userName, vAnswers, biasData, personalityLevel, leade
               <div style={{ fontSize: 22, fontWeight: 800, color: TEXT_PRIMARY, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1 }}>{TYPE_JP[type.main] || type.main}</div>
               <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{mainBlock?.jp}</div>
             </div>
-            {subBlock && <div style={{ fontSize: 20, color: '#CCBBAA', fontWeight: 300, lineHeight: 1 }}>×</div>}
+            {subBlock && <div style={{ fontSize: 22, color: `${mainColor}55`, fontWeight: 300, lineHeight: 1 }}>×</div>}
             {subBlock && (
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: subColor, marginBottom: 2 }}>{type.sub}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_SECONDARY, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1 }}>{TYPE_JP[type.sub] || type.sub}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: subColor, fontFamily: "'Noto Serif JP', serif", lineHeight: 1.1, opacity: 0.85 }}>{TYPE_JP[type.sub] || type.sub}</div>
                 <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>{subBlock.jp}</div>
               </div>
             )}
           </div>
         </div>
 
-        {/* ── 右カラム：タイプ説明 ── */}
+        {/* ── 右カラム：タイプ説明（薄い主色背景でメリハリ） ── */}
         <div style={{
           display: 'flex', alignItems: 'center',
-          borderLeft: `1px solid ${BORDER}`, paddingLeft: 20,
+          borderLeft: `1px solid ${mainColor}25`,
+          paddingLeft: 20,
         }}>
           <p style={{
             fontSize: 13, color: TEXT_SECONDARY, lineHeight: 1.85,
             margin: 0, fontFamily: "'Noto Serif JP', serif",
+            padding: '12px 16px',
+            background: `${mainColor}08`,
+            borderRadius: 8,
+            borderLeft: `2px solid ${mainColor}40`,
           }}>
             {TYPE_DESC[type.main] || ''}
           </p>
         </div>
       </div>
 
-      {/* ====== 下段：Development Stage（同じカード内に統合） ====== */}
+      {/* ====== 下段：Development Stage（同じカード内に統合・色合い強化） ====== */}
       {personalityLevel && leadershipStage && (
         <div style={{
           marginTop: 18, paddingTop: 16,
-          borderTop: `1px solid ${BORDER}`,
+          borderTop: `1px solid ${mainColor}25`,
         }}>
           <div style={{
-            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-            marginBottom: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: 14,
           }}>
             <div style={{
               fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
@@ -358,36 +363,47 @@ function TypeBadge({ type, userName, vAnswers, biasData, personalityLevel, leade
             }}>
               Development Stage
             </div>
-            {confLabel && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 10, color: TEXT_MUTED,
-              }}>
-                <span style={{
-                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-                  background: confDotColor,
-                }} />
-                {confLabel}
-              </div>
-            )}
+            {/* 信頼度ピル：色付き背景で目立つ */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '3px 10px',
+              background: confStyle.bg,
+              borderRadius: 9999,
+              fontSize: 10, color: confStyle.text, fontWeight: 600,
+            }}>
+              <span style={{
+                display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                background: confStyle.dot,
+              }} />
+              {confStyle.label}
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             {/* 人格発達レベル */}
-            <div>
-              <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, letterSpacing: '0.05em' }}>
+            <div style={{
+              padding: '12px 14px',
+              background: `${mainColor}08`,
+              borderRadius: 8,
+              borderLeft: `3px solid ${mainColor}`,
+            }}>
+              <div style={{
+                fontSize: 9, letterSpacing: '0.12em', color: TEXT_MUTED,
+                marginBottom: 6, fontWeight: 700, textTransform: 'uppercase',
+              }}>
                 人格発達レベル
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <span style={{
                   fontFamily: "'Outfit', sans-serif",
-                  fontSize: 26, fontWeight: 700, color: TEXT_PRIMARY, lineHeight: 1,
+                  fontSize: 28, fontWeight: 700, color: mainColor, lineHeight: 1,
+                  letterSpacing: '0.02em',
                 }}>
                   {coachConfirmed?.personality_level || personalityLevel.level}
                 </span>
                 <span style={{
                   fontFamily: "'Noto Serif JP', serif", fontSize: 14,
-                  color: TEXT_SECONDARY, fontWeight: 600,
+                  color: TEXT_PRIMARY, fontWeight: 700,
                 }}>
                   {coachConfirmed?.personality_level ? '確定' : personalityLevel.name}
                 </span>
@@ -395,20 +411,29 @@ function TypeBadge({ type, userName, vAnswers, biasData, personalityLevel, leade
             </div>
 
             {/* リーダーシップ段階 */}
-            <div>
-              <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, letterSpacing: '0.05em' }}>
+            <div style={{
+              padding: '12px 14px',
+              background: `${mainColor}08`,
+              borderRadius: 8,
+              borderLeft: `3px solid ${mainColor}`,
+            }}>
+              <div style={{
+                fontSize: 9, letterSpacing: '0.12em', color: TEXT_MUTED,
+                marginBottom: 6, fontWeight: 700, textTransform: 'uppercase',
+              }}>
                 リーダーシップ段階
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <span style={{
                   fontFamily: "'Outfit', sans-serif",
-                  fontSize: 26, fontWeight: 700, color: TEXT_PRIMARY, lineHeight: 1,
+                  fontSize: 28, fontWeight: 700, color: mainColor, lineHeight: 1,
+                  letterSpacing: '0.02em',
                 }}>
                   第{coachConfirmed?.leadership_stage || leadershipStage.stage}
                 </span>
                 <span style={{
                   fontFamily: "'Noto Serif JP', serif", fontSize: 14,
-                  color: TEXT_SECONDARY, fontWeight: 600,
+                  color: TEXT_PRIMARY, fontWeight: 700,
                 }}>
                   {coachConfirmed?.leadership_stage ? '確定' : leadershipStage.name}
                 </span>
@@ -419,9 +444,11 @@ function TypeBadge({ type, userName, vAnswers, biasData, personalityLevel, leade
           {/* コーチ観察ノート（あれば） */}
           {coachConfirmed?.observation_note && (
             <div style={{
-              marginTop: 12, padding: '8px 12px',
-              background: LIGHT_BG, borderRadius: 6,
-              fontSize: 11, color: TEXT_SECONDARY, lineHeight: 1.6,
+              marginTop: 12, padding: '10px 14px',
+              background: confStyle.bg,
+              borderLeft: `3px solid ${confStyle.dot}`,
+              borderRadius: 6,
+              fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7,
               whiteSpace: 'pre-wrap',
               fontFamily: "'Noto Serif JP', serif",
             }}>
