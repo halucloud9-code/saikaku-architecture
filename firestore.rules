@@ -32,8 +32,8 @@ service cloud.firestore {
     }
 
     match /results/{uid}/attempts/{aid} {
-      allow read: if signedInAs(uid);
-      allow write: if false;
+      // クライアント直読み禁止。Admin SDK 経由の /api/history のみ。
+      allow read, write: if false;
     }
 
     match /results/{uid}/_locks/{lockId} {
@@ -46,8 +46,8 @@ service cloud.firestore {
     }
 
     match /uaam_results/{uid}/attempts/{aid} {
-      allow read: if signedInAs(uid);
-      allow write: if false;
+      // クライアント直読み禁止。Admin SDK 経由の /api/history のみ。
+      allow read, write: if false;
     }
 
     match /uaam_results/{uid}/_locks/{lockId} {
