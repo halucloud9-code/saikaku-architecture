@@ -40,12 +40,29 @@ export default withMeHandler(async function handler(req, res) {
   if (!config) return res.status(422).json({ error: 'kind must be saikaku or uaam' });
 
   const parentRef = db.collection(config.collection).doc(decoded.uid);
-  const [parentSnap, attemptsSnap] = await Promise.all([
-    parentRef.get(),
-    parentRef.collection('attempts').get(),
+  const attemptsRef = parentRef.collection('attempts');
+  const parentSnapPromise = parentRef.get();
+  const committedSnapPromise = attemptsRef
+    .where('status', '==', 'committed')
+    .orderBy('createdAt', 'desc')
+    .limit(20)
+    .get();
+  const pendingSnapPromise = parentSnapPromise.then((parentSnap) => {
+    const pendingAttemptId = parentSnap.exists ? parentSnap.data()?.pendingAttemptId : null;
+    return pendingAttemptId ? attemptsRef.doc(pendingAttemptId).get() : null;
+  });
+
+  const [parentSnap, committedSnap, pendingSnap] = await Promise.all([
+    parentSnapPromise,
+    committedSnapPromise,
+    pendingSnapPromise,
   ]);
   const parentData = parentSnap.exists ? parentSnap.data() : null;
-  const attemptDocs = attemptsSnap.docs.map((docSnap) => attemptFromDoc(docSnap, kind));
+  const committedDocs = committedSnap.docs.map((docSnap) => attemptFromDoc(docSnap, kind));
+  const pendingAttemptDoc = pendingSnap?.exists ? attemptFromDoc(pendingSnap, kind) : null;
+  const attemptDocs = pendingAttemptDoc?.status === 'pending'
+    ? [...committedDocs, pendingAttemptDoc]
+    : committedDocs;
   const { committedAttempts, pendingAttempt } = listFromAttempts(attemptDocs, parentData, kind);
   const attempts = committedAttempts.map((attempt) => attemptListItem(attempt, kind));
   const pendingListItem = pendingAttempt ? attemptListItem(pendingAttempt, kind) : null;
