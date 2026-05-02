@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { auth, signOutUser } from '../firebase';
+import { summarizeFromParent, timestampToMillis } from '../../shared/attemptLogic.js';
 
 const TOKENS = {
   saikaku: {
@@ -63,28 +64,52 @@ function getAttemptOrdinal(attempt, index, total) {
   return `${total - index}回目`;
 }
 
+function emptyDetails() {
+  return {
+    attempts: [],
+    pendingAttempt: null,
+    summary: summarizeFromParent(null),
+  };
+}
+
+function getPendingNotice(summary, pendingAttempt) {
+  if (!summary?.hasPending) return '';
+  if (pendingAttempt === null) {
+    return 'データ不整合の可能性があるため、サポートまでお問い合わせください。';
+  }
+
+  const ms = timestampToMillis(pendingAttempt.createdAt) ?? Date.now();
+  const longPending = (Date.now() - ms) >= 10 * 60 * 1000;
+  return longPending
+    ? '処理中の診断が長時間完了していません。データ不整合の可能性があるため、サポートまでお問い合わせください。'
+    : '処理中の診断があります。完了をお待ちください。';
+}
+
 export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, onLogout }) {
-  const [attempts, setAttempts] = useState(null);
+  const [details, setDetails] = useState(null);
   const [error, setError] = useState('');
   const [hoveredId, setHoveredId] = useState('');
   const tokens = TOKENS[kind] ?? TOKENS.saikaku;
+  const attempts = details?.attempts ?? null;
+  const summary = details?.summary ?? null;
+  const pendingNotice = getPendingNotice(summary, details?.pendingAttempt ?? null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       if (!user?.uid) {
-        setAttempts([]);
+        setDetails(emptyDetails());
         return;
       }
 
-      setAttempts(null);
+      setDetails(null);
       setError('');
 
       try {
         const idToken = await auth.currentUser?.getIdToken();
         if (!idToken) {
-          if (!cancelled) setAttempts([]);
+          if (!cancelled) setDetails(emptyDetails());
           return;
         }
 
@@ -92,16 +117,22 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, o
           headers: { Authorization: `Bearer ${idToken}` },
         });
         if (!res.ok) {
-          if (!cancelled) setAttempts([]);
+          if (!cancelled) setDetails(emptyDetails());
           return;
         }
 
         const data = await res.json();
-        if (!cancelled) setAttempts(data.attempts ?? []);
+        if (!cancelled) {
+          setDetails({
+            attempts: data.attempts ?? [],
+            pendingAttempt: data.pendingAttempt ?? null,
+            summary: data.summary ?? summarizeFromParent(null),
+          });
+        }
       } catch {
         if (!cancelled) {
           setError('');
-          setAttempts([]);
+          setDetails(emptyDetails());
         }
       }
     }
@@ -242,7 +273,26 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, o
           </div>
         )}
 
-        {attempts !== null && attempts.length === 0 && (
+        {attempts !== null && pendingNotice && (
+          <div
+            data-testid="pending-notice"
+            style={{
+              border: `1px solid ${tokens.border}`,
+              background: tokens.soft,
+              borderRadius: 16,
+              padding: '18px 20px',
+              color: '#F5F0E8',
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1.8,
+              marginBottom: 14,
+            }}
+          >
+            {pendingNotice}
+          </div>
+        )}
+
+        {attempts !== null && attempts.length === 0 && !summary?.hasPending && (
           <div style={{
             border: `1px solid ${tokens.border}`,
             background: 'rgba(26,22,16,0.72)',

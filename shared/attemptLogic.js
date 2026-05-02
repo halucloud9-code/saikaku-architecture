@@ -11,7 +11,14 @@ function timestampToMillis(value) {
   }
 
   const ms = Number(value);
-  return Number.isFinite(ms) ? ms : null;
+  if (Number.isFinite(ms)) return ms;
+
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
 }
 
 function createdAtMillis(attempt) {
