@@ -1953,14 +1953,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
 
-        {/* ===== Phase 3：3要素診断（要素別独立処方）── ハル指示で Matrix の下へ ===== */}
-        <ThreeElementCard
-          threeElements={threeElements}
-          leadershipStage={leadershipStage}
-          scores={scores}
-        />
-
-        {/* ===== ✅ 今、発動している力（MLCI直下） ===== */}
+        {/* ===== ✅ 今、発動している力（再展開：MLCI直下） ===== */}
         <ActivationPanel scores={
           Object.values(scores || {}).reduce((acc, domain) => {
             if (domain?.subs) Object.assign(acc, domain.subs);
@@ -1970,6 +1963,15 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
         {/* ===== 16×16 正方形対称マトリクス（右上：FULL+ACTIVE ／ 左下：POTENTIAL） ===== */}
         <SymmetricMatrix scores={scores} maxSub={MAX_SUB} />
+
+        {/* ===== Phase 3：3要素診断（要素別独立処方）
+            ハル指示：『再展開とマトリックス』の下に持ってくる。
+            視線の流れ：個人プロフィール → 全体俯瞰（Matrix）→ 細部展開 → 対称行列 → 3要素処方 → AI分析 */}
+        <ThreeElementCard
+          threeElements={threeElements}
+          leadershipStage={leadershipStage}
+          scores={scores}
+        />
 
         {/* 次に動かす力は AllPairsTriangle の TOP 10 カードに統合済み */}
 
