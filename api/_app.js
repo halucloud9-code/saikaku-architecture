@@ -13,7 +13,6 @@ app.use(express.json({ limit: '10mb' }));
 
 const analyzeHandler = await import('./analyze.js');
 const uaamHandler = await import('./uaam.js');
-const historyHandler = await import('./history.js');
 
 let adminHandlers = {};
 let meHandlers = {};
@@ -73,11 +72,6 @@ app.all('/api/analyze', (req, res) => {
 
 app.all('/api/uaam', (req, res) => {
   const handler = uaamHandler.default || uaamHandler;
-  return handler(req, res);
-});
-
-app.all('/api/history', (req, res) => {
-  const handler = historyHandler.default || historyHandler;
   return handler(req, res);
 });
 
