@@ -2,7 +2,7 @@ import { db } from '../lib/firebaseAdmin.js';
 import { backfillAttemptSummary, getKindConfig } from '../lib/legacy.js';
 import { serializeTimestamps } from '../lib/serialize.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
-import { listFromAttempts, summarizeFromParent } from '../../shared/attemptLogic.js';
+import { listFromAttempts, summarizeFromAttemptsAndParent } from '../../shared/attemptLogic.js';
 
 function readKind(req) {
   const value = Array.isArray(req.query.kind) ? req.query.kind[0] : req.query.kind;
@@ -49,7 +49,7 @@ export default withMeHandler(async function handler(req, res) {
   const { committedAttempts, pendingAttempt } = listFromAttempts(attemptDocs, parentData, kind);
   const attempts = committedAttempts.map((attempt) => attemptListItem(attempt, kind));
   const pendingListItem = pendingAttempt ? attemptListItem(pendingAttempt, kind) : null;
-  const summary = summarizeFromParent(parentData);
+  const summary = summarizeFromAttemptsAndParent(attemptDocs, parentData);
 
   return res.status(200).json(serializeTimestamps({
     attempts,

@@ -111,6 +111,41 @@ describe('API /api/me/history', () => {
     });
   });
 
+  it('builds summary from committed attempt docs when parent attemptCount is stale', async () => {
+    const uid = 'u-me-history-summary-divergence';
+    await clearUserState('results', uid);
+    const older = Timestamp.fromDate(new Date('2026-05-01T00:00:00.000Z'));
+    const newer = Timestamp.fromDate(new Date('2026-05-02T00:00:00.000Z'));
+
+    await seedParent('results', uid, {
+      attemptCount: 0,
+      pendingAttemptId: null,
+      createdAt: older,
+    });
+    await seedAttempt('results', uid, 'older', {
+      status: 'committed',
+      createdAt: older,
+      summary: { kakuchiiki: '古い結果', createdAt: older },
+    });
+    await seedAttempt('results', uid, 'newer', {
+      status: 'committed',
+      createdAt: newer,
+      summary: { kakuchiiki: '新しい結果', createdAt: newer },
+    });
+
+    const response = await api.get('/api/me/history?kind=saikaku').set('x-test-uid', uid);
+
+    expect(response.status).toBe(200);
+    expect(response.body.attempts.map((attempt) => attempt.id)).toEqual(['newer', 'older']);
+    expect(response.body.summary).toMatchObject({
+      committedCount: 2,
+      attemptCount: 2,
+      hasPending: false,
+      pendingAttemptId: null,
+      isStartBlocked: true,
+    });
+  });
+
   it('returns pendingAttempt and pending summary when parent references a pending attempt', async () => {
     const uid = 'u-me-history-pending';
     await clearUserState('results', uid);
@@ -152,7 +187,7 @@ describe('API /api/me/history', () => {
     });
   });
 
-  it('returns orphan pending summary when parent pendingAttemptId has no matching attempt doc', async () => {
+  it('normalizes orphan pending summary when parent pendingAttemptId has no matching attempt doc', async () => {
     const uid = 'u-me-history-orphan';
     await clearUserState('results', uid);
 
@@ -169,10 +204,10 @@ describe('API /api/me/history', () => {
     expect(response.body.summary).toMatchObject({
       committedCount: 0,
       attemptCount: 0,
-      hasPending: true,
-      pendingAttemptId: 'missing-pending',
+      hasPending: false,
+      pendingAttemptId: null,
       hasResult: false,
-      isStartBlocked: true,
+      isStartBlocked: false,
     });
   });
 
