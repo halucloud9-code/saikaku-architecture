@@ -168,6 +168,60 @@ describe('API /api/me/diagnosis-status', () => {
     });
   });
 
+  it('ignores pendingAttemptId when the attempt document is missing', async () => {
+    const uid = 'u-me-status-orphan-pending';
+    await clearUserState('results', uid);
+    await clearUserState('uaam_results', uid);
+    const createdAt = Timestamp.fromDate(new Date('2026-05-04T00:00:00.000Z'));
+
+    await seedParent('results', uid, {
+      attemptCount: 1,
+      pendingAttemptId: 'orphan-id',
+      createdAt,
+    });
+
+    const response = await api.get('/api/me/diagnosis-status').set('x-test-uid', uid);
+
+    expect(response.status).toBe(200);
+    expect(response.body.saikaku).toMatchObject({
+      committedCount: 0,
+      attemptCount: 0,
+      hasPending: false,
+      pendingAttemptId: null,
+      hasResult: false,
+      isStartBlocked: false,
+    });
+  });
+
+  it('ignores pendingAttemptId when the attempt document is already committed', async () => {
+    const uid = 'u-me-status-committed-pending-id';
+    await clearUserState('results', uid);
+    await clearUserState('uaam_results', uid);
+    const createdAt = Timestamp.fromDate(new Date('2026-05-05T00:00:00.000Z'));
+
+    await seedParent('results', uid, {
+      attemptCount: 1,
+      pendingAttemptId: 'committed-id',
+      createdAt,
+    });
+    await seedAttempt('results', uid, 'committed-id', {
+      status: 'committed',
+      createdAt,
+    });
+
+    const response = await api.get('/api/me/diagnosis-status').set('x-test-uid', uid);
+
+    expect(response.status).toBe(200);
+    expect(response.body.saikaku).toMatchObject({
+      committedCount: 1,
+      attemptCount: 1,
+      hasPending: false,
+      pendingAttemptId: null,
+      hasResult: false,
+      isStartBlocked: false,
+    });
+  });
+
   it('returns 401 when no x-test-uid and no Authorization header are present', async () => {
     const response = await api.get('/api/me/diagnosis-status');
 

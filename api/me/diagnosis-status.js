@@ -30,20 +30,26 @@ async function loadKindStatus(kind, uid) {
 
   const data = parentSnap.data() || {};
   const hasResult = hasParentResult(data, kind);
-  const parentSummary = summarizeFromParent(data);
-  const committedAttemptsCount = await countCommittedAttempts(parentRef);
-  const committedCount = Math.max(
-    parentSummary.committedCount,
-    committedAttemptsCount,
-    hasResult ? 1 : 0,
-  );
+  const pendingAttemptIdRaw = data.pendingAttemptId ?? null;
+
+  const [committedAttemptsCount, pendingSnap] = await Promise.all([
+    countCommittedAttempts(parentRef),
+    pendingAttemptIdRaw
+      ? parentRef.collection('attempts').doc(pendingAttemptIdRaw).get()
+      : Promise.resolve(null),
+  ]);
+
+  const hasPending = !!(pendingSnap?.exists && pendingSnap.data()?.status === 'pending');
+  const pendingAttemptId = hasPending ? pendingAttemptIdRaw : null;
+  const committedCount = Math.max(committedAttemptsCount, hasResult ? 1 : 0);
 
   return {
-    ...parentSummary,
     committedCount,
     attemptCount: committedCount,
+    hasPending,
+    pendingAttemptId,
     hasResult,
-    isStartBlocked: parentSummary.hasPending || committedCount >= 2,
+    isStartBlocked: hasPending || committedCount >= 2,
   };
 }
 
