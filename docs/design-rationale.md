@@ -122,3 +122,51 @@ LLM (Anthropic API) は 5-30 秒かかる高コスト呼び出し。ユーザー
 
 ### TEST_BYPASS_AUTH ガード
 本番混入を防ぐため三重ガード: `TEST_BYPASS_AUTH=1` AND `NODE_ENV=test` AND `FIRESTORE_EMULATOR_HOST` セット時のみ有効。
+
+---
+
+## 6. 履歴整合性: parent doc 単一購読 + 純関数導出 (issue #36)
+
+### 採用案
+`SelectScreen` (バッジ + 履歴リンク) と `HistoryScreen` (履歴一覧) が表示する診断回数を、**parent doc 1つだけから純関数で導出する**設計に統一した。
+
+```
+results/{uid} (parent doc)
+  attemptCount      ← reserve で +1, commit で不変, rollback で -1
+  pendingAttemptId  ← reserve で set, commit/rollback で null
+  result/scores/analysis ← legacy 互換用サマリ
+        ↓ summarizeFromParent (純関数)
+  { committedCount, hasPending, pendingAttemptId, hasResult, isStartBlocked }
+```
+
+導出ロジック (`src/utils/attemptLoader.js#summarizeFromParent`):
+```js
+const hasPending = !!data.pendingAttemptId;
+const hasResult  = !!(data.result || data.scores || data.analysis);
+const rawCommitted = (data.attemptCount ?? 0) - (hasPending ? 1 : 0);
+const legacyFloor  = hasResult ? 1 : 0;
+const committedCount = Math.max(rawCommitted, legacyFloor);
+const isStartBlocked = hasPending || committedCount >= 2;
+```
+
+`HistoryScreen` は遷移時に `loadAttemptDetails` で **parent doc + attempts subcoll を一発 `Promise.all` 取得** する (`onSnapshot` 不使用)。
+
+### なぜこうしたか
+- **race condition 回避**: parent と attempts を別々に `onSnapshot` 購読すると、reserve/commit/rollback の中間状態を捉えてフリッカー (Round 3 Gemini 指摘)。SelectScreen は parent 1つだけ購読することで購読間レースを根絶
+- **二重カウント防止 (Round 2 Gemini 致命指摘)**: `legacyFloor` を `Math.max(rawCommitted, legacyFloor)` で適用することで、modern user (`attemptCount=1, result有`) でも `committedCount=1` を維持。`legacyDocToAttempt` による synth は `attemptDocs.length === 0` のときだけに厳格化し、attempts と legacy synth が共存しない
+- **経過時間は `attempts/<pendingId>.createdAt` 基準**: `parent.updatedAt` は他フィールド更新で汚染されるため使わない。リロード後も一貫した経過時間表示を保証 (Round 3 Gemini 指摘)
+- **fail-closed エラーハンドリング**: hook が onSnapshot エラーを受けたら `isStartBlocked: true` を返す。読めないときは新規開始させない安全側設計
+- **HistoryScreen の `Promise.all` torn state**: 並列クエリ間に書込みが入る理論上の torn state は残存するが、画面遷移時の1回のみで実用上許容 (Round 4 Gemini 指摘)
+
+### 中長期 follow-up (別 issue)
+- サーバ側に `committedCount` / `pendingStartedAt` を atomic 維持する SSoT 統合 (issue 化済み)
+- `getPendingNotice` を純関数に外出し + unit test 追加 (codex review C4)
+- `useDiagnosisStatus` のエラー経路 unit test 追加 (codex review C3)
+- `createdAtMillis` ヘルパー共通化 (codex review C1)
+
+### なぜ別案を採らなかったか
+- **parent と attempts を別 onSnapshot 購読**: race condition でフリッカー (Round 3)
+- **`pendingObservedAt = Date.now()` で経過時間管理**: リロードで0リセットされ一貫性を失う (Round 2)
+- **`parent.updatedAt` で経過時間判定**: 別フィールド更新で汚染される (Round 3)
+- **サーバ側 `committedCount` の本 PR 内導入**: スコープ超過。フロント側の整合だけ先に解消し、サーバ SSoT 統合は follow-up issue へ
+- **HistoryScreen を緩めて pending も含める**: replay 不能エントリで UX 混乱 (Round 1)
