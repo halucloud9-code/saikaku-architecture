@@ -3,17 +3,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./tests/setup.js'],
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      'tests/send-email.test.mjs',
-      'tests/check-user.mjs',
-    ],
-  },
+  // テスト設定は vitest.config.js を参照 (vitest はそちらを優先するため、
+  // ここに test を書いても無視される)。
   server: {
     host: true,
     proxy: {
