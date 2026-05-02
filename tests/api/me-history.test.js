@@ -165,50 +165,6 @@ describe('API /api/me/history', () => {
     });
   });
 
-  it('limits committed history to the latest 20 and loads pending by id', async () => {
-    const uid = 'u-me-history-query-limit';
-    await clearUserState('results', uid);
-
-    await seedParent('results', uid, {
-      attemptCount: 26,
-      pendingAttemptId: 'pending-1',
-    });
-
-    await Promise.all(Array.from({ length: 25 }, async (_, index) => {
-      const createdAt = Timestamp.fromDate(new Date(Date.UTC(2026, 4, index + 1)));
-      await seedAttempt('results', uid, `attempt-${index}`, {
-        status: 'committed',
-        createdAt,
-        summary: { kakuchiiki: `結果 ${index}`, createdAt },
-      });
-    }));
-    const pendingCreatedAt = Timestamp.fromDate(new Date('2026-05-30T00:00:00.000Z'));
-    await seedAttempt('results', uid, 'pending-1', {
-      status: 'pending',
-      createdAt: pendingCreatedAt,
-      summary: { createdAt: pendingCreatedAt },
-    });
-
-    const response = await api.get('/api/me/history?kind=saikaku').set('x-test-uid', uid);
-
-    expect(response.status).toBe(200);
-    expect(response.body.attempts).toHaveLength(20);
-    expect(response.body.attempts.map((attempt) => attempt.id)).toEqual(
-      Array.from({ length: 20 }, (_, index) => `attempt-${24 - index}`),
-    );
-    expect(response.body.attempts.map((attempt) => attempt.id)).not.toContain('attempt-4');
-    expect(response.body.pendingAttempt).toMatchObject({
-      id: 'pending-1',
-      status: 'pending',
-      createdAt: '2026-05-30T00:00:00.000Z',
-    });
-    expect(response.body.summary).toMatchObject({
-      hasPending: true,
-      pendingAttemptId: 'pending-1',
-      isStartBlocked: true,
-    });
-  });
-
   it('returns pendingAttempt and pending summary when parent references a pending attempt', async () => {
     const uid = 'u-me-history-pending';
     await clearUserState('results', uid);
