@@ -4,9 +4,9 @@
 
 | 層 | コマンド | カバレッジ | 所要時間 |
 |----|----------|------------|----------|
-| Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter | < 1 秒 |
-| Rules | `npm run test:rules` | Firestore rules 20 シナリオ | 〜2 秒 |
-| API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency 12 シナリオ | 〜20 秒 |
+| Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter (8 tests) | < 1 秒 |
+| Rules | `npm run test:rules` | Firestore rules 21 シナリオ (`/api/me/*` 経由化で attempts/uaam_results parent の read deny を反転検証) | 〜2 秒 |
+| API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF (34 tests) | 〜20 秒 |
 | E2E | `npm run test:e2e` | Playwright 3 フロー (badge/history/limit) | 〜60 秒 |
 | **All** | `npm run test:all` | 全部直列実行 | 〜90 秒 |
 

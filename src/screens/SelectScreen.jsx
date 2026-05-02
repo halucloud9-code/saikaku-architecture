@@ -12,15 +12,20 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   const [hoverUaam, setHoverUaam] = useState(false);
   const [hoverSaikakuHistory, setHoverSaikakuHistory] = useState(false);
   const [hoverUaamHistory, setHoverUaamHistory] = useState(false);
-  const status = useDiagnosisStatus(user);
+  const { status, error, refresh } = useDiagnosisStatus(user);
   const saikakuStatus = status?.saikaku ?? null;
   const uaamStatus = status?.uaam ?? null;
   const saikakuAttemptCount = saikakuStatus?.committedCount ?? 0;
   const uaamAttemptCount = uaamStatus?.committedCount ?? 0;
-  const isSaikakuLimitReached = !!saikakuStatus?.isStartBlocked;
-  const isUaamLimitReached = !!uaamStatus?.isStartBlocked;
+  const hasStatusError = error !== null;
+  const isSaikakuLimitReached = hasStatusError || !!saikakuStatus?.isStartBlocked;
+  const isUaamLimitReached = hasStatusError || !!uaamStatus?.isStartBlocked;
 
   const showLimitAlert = (kindStatus) => {
+    if (hasStatusError) {
+      alert('読み込みに失敗しました。再読み込みしてください。');
+      return;
+    }
     if (kindStatus?.hasPending) {
       alert('処理中の診断があります。完了をお待ちいただくか、長時間続く場合はサポートまでお問い合わせください。');
       return;
@@ -234,6 +239,47 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             あなたの才覚を解き明かすプログラムを選択してください
           </p>
         </div>
+
+        {hasStatusError && (
+          <div
+            role="alert"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '12px 14px',
+              borderRadius: 8,
+              background: 'rgba(220,68,68,0.10)',
+              border: '1px solid rgba(220,68,68,0.30)',
+              color: '#F5D0D0',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.03em',
+            }}
+          >
+            <span>読み込みに失敗しました</span>
+            <button
+              type="button"
+              onClick={refresh}
+              style={{
+                flex: '0 0 auto',
+                border: '1px solid rgba(245,208,208,0.35)',
+                borderRadius: 6,
+                background: 'rgba(255,255,255,0.06)',
+                color: '#F5D0D0',
+                padding: '6px 10px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              再読み込み
+            </button>
+          </div>
+        )}
 
         {/* ─── 才覚領域カード ─── */}
         <div style={{ width: '100%', position: 'relative' }}>

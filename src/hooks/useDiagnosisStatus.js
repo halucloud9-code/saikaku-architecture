@@ -1,67 +1,97 @@
-import { useEffect, useState } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
-import { summarizeFromParent } from '../utils/attemptLoader';
-
-const ERROR_STATUS = {
-  committedCount: 0,
-  attemptCount: 0,
-  hasPending: false,
-  pendingAttemptId: null,
-  hasResult: false,
-  isStartBlocked: true,
-};
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { auth } from '../firebase';
 
 export default function useDiagnosisStatus(user) {
   const [status, setStatus] = useState(null);
+  const [error, setError] = useState(null);
+  const requestSeq = useRef(0);
+  const mountedRef = useRef(false);
+  const uid = user?.uid ?? null;
 
   useEffect(() => {
-    if (!user?.uid) {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestSeq.current += 1;
+    };
+  }, []);
+
+  const applyState = useCallback((requestId, nextStatus, nextError) => {
+    if (!mountedRef.current || requestSeq.current !== requestId) return;
+    setStatus(nextStatus);
+    setError(nextError);
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const requestId = requestSeq.current + 1;
+    requestSeq.current = requestId;
+
+    if (!uid) {
       setStatus(null);
-      return undefined;
+      setError(null);
+      return;
     }
 
-    let cancelled = false;
-    let saikakuReady = false;
-    let uaamReady = false;
-    let latestStatus = {};
+    setStatus(null);
+    setError(null);
 
-    const setKindStatus = (kind, nextStatus) => {
-      if (cancelled) return;
-      if (kind === 'saikaku') {
-        saikakuReady = true;
-      }
-      if (kind === 'uaam') {
-        uaamReady = true;
-      }
-      latestStatus = { ...latestStatus, [kind]: nextStatus };
+    let idToken;
+    try {
+      idToken = await auth.currentUser?.getIdToken();
+    } catch {
+      applyState(requestId, null, 'auth');
+      return;
+    }
 
-      if (!saikakuReady || !uaamReady) {
-        setStatus(null);
-        return;
-      }
+    if (!idToken) {
+      applyState(requestId, null, 'auth');
+      return;
+    }
 
-      setStatus(latestStatus);
+    let res;
+    try {
+      res = await fetch('/api/me/diagnosis-status', {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+    } catch {
+      applyState(requestId, null, 'network');
+      return;
+    }
+
+    if (!res.ok) {
+      applyState(requestId, null, 'fetch');
+      return;
+    }
+
+    let json;
+    try {
+      json = await res.json();
+    } catch {
+      applyState(requestId, null, 'fetch');
+      return;
+    }
+
+    applyState(requestId, json, null);
+  }, [applyState, uid]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!uid) return undefined;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
     };
 
-    const unsubSaikaku = onSnapshot(
-      doc(db, 'results', user.uid),
-      (snap) => setKindStatus('saikaku', summarizeFromParent(snap.exists() ? snap.data() : null)),
-      () => setKindStatus('saikaku', ERROR_STATUS),
-    );
-
-    const unsubUaam = onSnapshot(
-      doc(db, 'uaam_results', user.uid),
-      (snap) => setKindStatus('uaam', summarizeFromParent(snap.exists() ? snap.data() : null)),
-      () => setKindStatus('uaam', ERROR_STATUS),
-    );
-
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
-      cancelled = true;
-      unsubSaikaku();
-      unsubUaam();
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user?.uid]);
+  }, [refresh, uid]);
 
-  return status;
+  return { status, error, refresh };
 }

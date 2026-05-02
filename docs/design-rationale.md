@@ -1,8 +1,8 @@
 # 設計判断の根拠 (Design Rationale)
 
 > このドキュメントは「なぜこうしたか」を記録する。コード/SETUP は「何をしたか」「どう動かすか」だけ書く。
-> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限)
-> 確定: 2026-05-02
+> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限), #36 (履歴空表示), #40 (UAAM 履歴非表示)
+> 確定: 2026-05-02 / 追記: 2026-05-03 (Section 6 追加)
 
 ---
 
@@ -122,94 +122,76 @@ LLM (Anthropic API) は 5-30 秒かかる高コスト呼び出し。ユーザー
 
 ### TEST_BYPASS_AUTH ガード
 本番混入を防ぐため三重ガード: `TEST_BYPASS_AUTH=1` AND `NODE_ENV=test` AND `FIRESTORE_EMULATOR_HOST` セット時のみ有効。
+さらに `/api/me/*` は `VERCEL` env または `NODE_ENV=production` が立っている場合は bypass を強制 false にする多重防御 (PR #40 追加)。
 
 ---
 
-## 6. 履歴整合性: parent doc 単一購読 + 純関数導出 (issue #36)
+## 6. 読み取りパスの API 化 (BFF / `/api/me/*`) — issue #36, #40
 
 ### 採用案
-`SelectScreen` (バッジ + 履歴リンク) と `HistoryScreen` (履歴一覧) が表示する診断回数を、**parent doc 1つだけから純関数で導出する**設計に統一した。
+診断結果・履歴・診断ステータスの読み取りを **すべて `/api/me/*` BFF 経由に統一**。Firestore client SDK での直読みは `results/{uid}` 親ドキュメントの consent 確認用途のみ残す。
 
 ```
-results/{uid} (parent doc)
-  attemptCount      ← reserve で +1, commit で不変, rollback で -1
-  pendingAttemptId  ← reserve で set, commit/rollback で null
-  result/scores/analysis ← legacy 互換用サマリ
-        ↓ summarizeFromParent (純関数)
-  { committedCount, hasPending, pendingAttemptId, hasResult, isStartBlocked }
+クライアント → /api/me/diagnosis-status   (バッジ・履歴件数)
+         → /api/me/uaam-result        (保存済み UAAM 結果)
+         → /api/me/history?kind=...   (履歴一覧、summary のみ)
+         → /api/me/history/<id>?kind=...  (履歴詳細、full + raw)
+         → /results/{uid} 直読み      (consent 確認のみ、rules: signedInAs(uid))
 ```
 
-導出ロジック (`src/utils/attemptLoader.js#summarizeFromParent`):
-```js
-const hasPending = !!data.pendingAttemptId;
-const hasResult  = !!(data.result || data.scores || data.analysis);
-const rawCommitted = (data.attemptCount ?? 0) - (hasPending ? 1 : 0);
-const legacyFloor  = hasResult ? 1 : 0;
-const committedCount = Math.max(rawCommitted, legacyFloor);
-const isStartBlocked = hasPending || committedCount >= 2;
-```
-
-`HistoryScreen` は遷移時に `loadAttemptDetails` で **parent doc + attempts subcoll を一発 `Promise.all` 取得** する (`onSnapshot` 不使用)。
+`firestore.rules` は `uaam_results/*` および全 attempts subcollection を `read: if false` に縮小。`results/{uid}` 親のみ `signedInAs(uid)` を維持。
 
 ### なぜこうしたか
-- **race condition 回避**: parent と attempts を別々に `onSnapshot` 購読すると、reserve/commit/rollback の中間状態を捉えてフリッカー (Round 3 Gemini 指摘)。SelectScreen は parent 1つだけ購読することで購読間レースを根絶
-- **二重カウント防止 (Round 2 Gemini 致命指摘)**: `legacyFloor` を `Math.max(rawCommitted, legacyFloor)` で適用することで、modern user (`attemptCount=1, result有`) でも `committedCount=1` を維持。`legacyDocToAttempt` による synth は `attemptDocs.length === 0` のときだけに厳格化し、attempts と legacy synth が共存しない
-- **経過時間は `attempts/<pendingId>.createdAt` 基準**: `parent.updatedAt` は他フィールド更新で汚染されるため使わない。リロード後も一貫した経過時間表示を保証 (Round 3 Gemini 指摘)
-- **fail-closed エラーハンドリング**: hook が onSnapshot エラーを受けたら `isStartBlocked: true` を返す。読めないときは新規開始させない安全側設計
-- **HistoryScreen の `Promise.all` torn state**: 並列クエリ間に書込みが入る理論上の torn state は残存するが、画面遷移時の1回のみで実用上許容 (Round 4 Gemini 指摘)
+1. **rules デプロイ漏れ・auth プロビジョンタイミングへの脆さ**: issue #36 (履歴空表示) と issue #40 (UAAM バッジ非表示) は、いずれも client onSnapshot が permission denied で silent fail → 状態が `null` のまま badge/履歴が非表示になる経路で発生。Firestore rules → デプロイ → client SDK の三段リレーが壊れやすい。
+2. **書き込み系との対称性**: 書き込みは既に Admin SDK 経由 (`/api/analyze`, `/api/uaam`) で統一されていたが、読み取りだけ rules ベースの client 直読みでアーキテクチャが非対称だった。本 PR で読み取りも API に揃えた。
+3. **認可境界をサーバー側に集約**: rules で「迂回」するのではなく、認可責務を Firestore rules → API ハンドラに **移設**。各ハンドラは `decoded.uid` のみで Firestore path を組み立て、`req.query.uid` / `req.body.uid` を信用しない。`api/me/_auth.js` の `withMeHandler` で try/catch + JSON 500 を統一。
+4. **UAAM 結果のスナップショット性**: 履歴詳細の `full`/`raw` をサーバー側で凍結することで、後日ロジック変更があっても過去の attempt の表示は変わらない（current behavior と同等）。
 
-### 中長期 follow-up (別 issue)
-- サーバ側に `committedCount` / `pendingStartedAt` を atomic 維持する SSoT 統合 (issue 化済み)
-- `getPendingNotice` を純関数に外出し + unit test 追加 (codex review C4)
-- `useDiagnosisStatus` のエラー経路 unit test 追加 (codex review C3)
-- `createdAtMillis` ヘルパー共通化 (codex review C1)
+### realtime/onSnapshot を捨てた根拠
+バッジ・履歴は画面遷移時に getDoc 相当の一回読み取りで十分。realtime 性は本機能では不要。むしろ onSnapshot の error コールバックが silent fail する設計が #36 #40 を生んだ。
 
-### なぜ別案を採らなかったか
-- **parent と attempts を別 onSnapshot 購読**: race condition でフリッカー (Round 3)
-- **`pendingObservedAt = Date.now()` で経過時間管理**: リロードで0リセットされ一貫性を失う (Round 2)
-- **`parent.updatedAt` で経過時間判定**: 別フィールド更新で汚染される (Round 3)
-- **サーバ側 `committedCount` の本 PR 内導入**: スコープ超過。フロント側の整合だけ先に解消し、サーバ SSoT 統合は follow-up issue へ
-- **HistoryScreen を緩めて pending も含める**: replay 不能エントリで UX 混乱 (Round 1)
+### 履歴整合性: parent doc + attempts を共有純粋関数で導出
+issue #36 の pending attempt 対応は `shared/attemptLogic.js` に集約し、BFF 側で再利用する。
 
----
+```
+results/{uid} / uaam_results/{uid}
+  attemptCount
+  pendingAttemptId
+  result/scores/analysis
+        ↓ summarizeFromParent
+  { committedCount, attemptCount, hasPending, pendingAttemptId, hasResult, isStartBlocked }
 
-## 7. データ取得経路: クライアント直読みは禁止、API 経由を原則とする
+attempts/{aid}[]
+        ↓ listFromAttempts
+  { committedAttempts, pendingAttempt }
+```
 
-### 採用案
+`/api/me/diagnosis-status` は kind ごとに `hasPending` / `pendingAttemptId` を返し、`/api/me/history?kind=...` は `{ attempts, pendingAttempt, summary }` を返す。`HistoryScreen` は `summary.hasPending` と `pendingAttempt.createdAt` を組み合わせ、10分未満・10分以上・orphan (`pendingAttemptId` はあるが attempt doc がない) の3状態 notice を表示する。
 
-Firestore のデータは **原則 API server (Admin SDK) 経由** で取得する。クライアント (Firebase JS SDK) からの直接読み取りは **以下の例外のみ許可**:
+この設計により、main の pendingAttempt UX は残しつつ、データアクセスは PR #41 の `/api/me/*` BFF に統一される。旧 `/api/history` は `/api/me/history` に supersede されるため保持しない。
 
-| 許可 | 例 |
-|---|---|
-| ✅ 認証 UID と一致する **親 doc** の onSnapshot/get（リアルタイム性が UX に必須なバッジ等） | `useDiagnosisStatus` の `results/{uid}` 監視 |
-| ❌ サブコレクション (`{parent}/{x}/...`) の get/list | 履歴の `attempts/*` は `/api/history` へ |
-| ❌ 他人 doc・他コレクションの読み取り | 例外なく禁止 |
+### issue #36 から引き継いだ判断
+- **二重カウント防止**: `legacyFloor` は `Math.max(rawCommitted, legacyFloor)` で適用し、modern user (`attemptCount=1, result有`) を2回扱いにしない
+- **legacy synth の条件**: `listFromAttempts` は `attemptDocs.length === 0` のときだけ legacy attempt を合成し、attempts と legacy synth を共存させない
+- **pending 経過時間の基準**: `parent.updatedAt` は他フィールド更新で汚染されるため使わず、`attempts/<pendingId>.createdAt` を使う
+- **orphan の扱い**: `pendingAttemptId` が残っていて attempt doc がない場合は「履歴なし」ではなくデータ不整合 notice を表示する
 
-### なぜこうしたか
+### consent read の例外維持
+`src/App.jsx:118` と `src/screens/LoginScreen.jsx` の `saveConsent` で `results/{uid}` 親を直読みして `consentAt` 有無を確認している。この「書き込み前の事前確認」用途のみ rules で `signedInAs(uid)` を残す。完全な閉鎖は別 issue (`/api/me/consent` 追加) で対応予定。
 
-- **rules deploy 漏れに対する fail-safe**: クライアント直読みは Firestore rules の deploy 状態に強く依存する。`firestore.rules` を変更しても CI に auto-deploy が無く、過去 (PR #27 → issue #36) で「リポジトリの rules は正しいが本番に deploy されておらず本番だけ permission denied」が発生 (issue #36 で実害発覚)。**Admin SDK は rules を bypass するため、API 経由なら rules deploy 状態に左右されない**
-- **アーキテクチャ整合性**: AdminScreen は元から `/api/admin/*` 経由 (`api/admin/users.js` 等) で取得しており、HistoryScreen だけがクライアント直読みだった非対称性を解消
-- **rules 厳格化が可能**: クライアント直読みを使わないコレクション (`attempts/*`) は rules で `allow read, write: if false` に厳格化済み。**書き戻しても破壊的変更にならない**ため再発防止策として強い。後から間違って `getDocs(collection(parentRef, 'attempts'))` を書いても dev/CI で即落ちる
-- **テスト容易性**: API 経由の取得は supertest + emulator で再現可能 (`tests/api/history.test.js`)。クライアント直読みは E2E でしか検証できず、emulator pass = production OK の保証にならない
+### handleLogin race condition の修正 (PR 中で発覚)
+`handleLogin` が `await loadSavedUaamResult` の **後に** `setScreen('select')` を呼ぶ実装だったため、await 中にユーザーが他画面 (HistoryScreen 等) に遷移すると遅延した `setScreen('select')` で SelectScreen に強制的に戻されていた。E2E `history-flow.spec.js` の失敗で発覚 → `setScreen((prev) => prev === 'login' ? 'select' : prev)` (prev guard) + 即座に画面遷移してから `await` する順序に変更。
 
-### 例外を認める基準
+### Tier 1 セキュリティ強化 (codex-code-review 指摘)
+- `/api/me/_auth.js`: `VERCEL`/`NODE_ENV=production` での bypass 強制無効化、`x-test-uid` 形式バリデーション (`/^[a-zA-Z0-9_-]{1,128}$/`)
+- `/api/me/history/[id].js`: `status === 'committed'` 必須化、`id` 形式バリデーション
+- 全 `/api/me/*`: `withMeHandler` で top-level try/catch + JSON 500 wrapper
 
-「親 doc の onSnapshot」だけは UX 上の理由で許可：
-- バッジが診断完了から数秒以内にリアルタイム更新される必要がある (polling では UX 劣化)
-- 親 doc は1ユーザーあたり1件で、`allow read: if signedInAs(uid)` というシンプルな rule で済む
-- 万一 rules deploy 漏れが起きても、影響は「バッジが更新されない」止まりで、データ表示崩れには至らない
+### legacy 判定の意図的な非対称
+`hasLegacyAttemptData(saikaku)` は `!!data.result` のみで判定（`data.analysis` を見ない）。理由: `attemptToResultProps(.., 'saikaku')` が `full.result` 必須のため、analysis のみ存在する legacy parent は ResultScreen で render 不能。`api/lib/legacy.js` にコメントで明示。
 
-### なぜ別案を採らなかったか
-
-- **クライアント完全廃止 (親 doc も API)**: realtime 性が失われる。WebSocket / SSE で代替可能だが工数が高く、今回の問題の本質ではない
-- **rules CI auto-deploy だけ追加**: 対症療法。rules 変更時の deploy ミスは依然として発生し得るし、構造的に「クライアント直読みパターン自体が deploy 状態にロックインされる脆さ」が残る (#36 follow-up でつかさ判断: 構造改修を選択)
-
-### 共有モジュール `shared/attemptLogic.js`
-
-クライアントとサーバで同じ純関数 (`summarizeFromParent` / `listFromAttempts` / `legacyDocToAttempt`) を使うため、`shared/` 直下に配置。両側から ES module で import する (Vite + Vercel function 両方で動作確認済み)。
-
-### 適用範囲
-
-- 既存: `AdminScreen` は対応済み
-- 本 PR で対応: `HistoryScreen` を `/api/history` に切替 + `attempts/*` の rules を `if false` に厳格化
-- 将来: 新規データアクセスを書く時は **API 経由を default に**、クライアント直読みは「親 doc の onSnapshot 限定」というレビュー観点で判定する
+### 将来改善 (本 PR スコープ外)
+- consent 確認・書込みを `/api/me/consent` (POST/GET) に移行 → `results/{uid}` 親 read も完全に `false` 化
+- attempts.js の `reserveAttempt` の stale pending 復旧不能バグ
+- attempts.js の `rollbackAttempt` 重複 rollback 時の負数化
+- クライアント `loading/error/data` 三状態化 (現状は permission error も「データなし」に潰れる)

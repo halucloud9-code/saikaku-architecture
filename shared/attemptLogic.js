@@ -11,7 +11,14 @@ function timestampToMillis(value) {
   }
 
   const ms = Number(value);
-  return Number.isFinite(ms) ? ms : null;
+  if (Number.isFinite(ms)) return ms;
+
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
 }
 
 function createdAtMillis(attempt) {
@@ -84,6 +91,30 @@ export function summarizeFromParent(parentData) {
     pendingAttemptId: data.pendingAttemptId ?? null,
     hasResult,
     isStartBlocked,
+  };
+}
+
+export function summarizeFromAttemptsAndParent(attemptDocs, parentData) {
+  const data = parentData ?? {};
+  const attempts = Array.isArray(attemptDocs) ? attemptDocs : [];
+  const pendingAttemptId = data.pendingAttemptId ?? null;
+  const hasPending = !!pendingAttemptId && attempts.some((attempt) => (
+    attempt.id === pendingAttemptId && attempt.status === 'pending'
+  ));
+  const hasResult = !!(data.result || data.scores || data.analysis);
+  const legacyFloor = hasResult ? 1 : 0;
+  const committedCount = Math.max(
+    attempts.filter((attempt) => attempt.status === 'committed').length,
+    legacyFloor,
+  );
+
+  return {
+    committedCount,
+    attemptCount: committedCount,
+    hasPending,
+    pendingAttemptId: hasPending ? pendingAttemptId : null,
+    hasResult,
+    isStartBlocked: hasPending || committedCount >= 2,
   };
 }
 

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { signOutUser } from '../firebase';
-import { loadAttemptDetails, summarizeFromParent, timestampToMillis } from '../utils/attemptLoader';
+import { useCallback, useEffect, useState } from 'react';
+import { auth, signOutUser } from '../firebase';
+import { summarizeFromParent, timestampToMillis } from '../../shared/attemptLogic.js';
 
 const TOKENS = {
   saikaku: {
@@ -22,9 +22,18 @@ const TOKENS = {
 };
 
 function formatDate(value) {
-  if (!value) return '日付未設定';
-  const ms = timestampToMillis(value);
-  const date = ms === null ? new Date(value) : new Date(ms);
+  if (value === null || value === undefined) return '日付未設定';
+  let date;
+  if (typeof value === 'string') {
+    date = new Date(value);
+  } else if (typeof value?.toDate === 'function') {
+    date = value.toDate();
+  } else if (typeof value?._seconds === 'number') {
+    date = new Date(value._seconds * 1000);
+  } else {
+    date = new Date(value);
+  }
+
   if (Number.isNaN(date.getTime())) return '日付未設定';
 
   return new Intl.DateTimeFormat('ja-JP', {
@@ -43,20 +52,24 @@ function getAttemptDate(attempt) {
 function getAttemptLabel(attempt, kind) {
   if (kind === 'uaam') {
     return attempt.summary?.typeName
-      ?? attempt.full?.analysis?.type_name
-      ?? attempt.full?.analysis?.primary_type
       ?? 'MATRIX 診断結果';
   }
 
   return attempt.summary?.kakuchiiki
-    ?? attempt.full?.selectedKakuchiiki
-    ?? attempt.full?.result?.kakuchiiki
     ?? '才覚領域 診断結果';
 }
 
 function getAttemptOrdinal(attempt, index, total) {
   if (attempt.isLegacy) return '保存済み履歴';
   return `${total - index}回目`;
+}
+
+function emptyDetails() {
+  return {
+    attempts: [],
+    pendingAttempt: null,
+    summary: summarizeFromParent(null),
+  };
 }
 
 function getPendingNotice(summary, pendingAttempt) {
@@ -72,51 +85,84 @@ function getPendingNotice(summary, pendingAttempt) {
     : '処理中の診断があります。完了をお待ちください。';
 }
 
-export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onLogout }) {
+function historyErrorMessage(status) {
+  if (status === 401) return 'ログイン状態を確認できませんでした。再ログインしてください。';
+  if (status === 422) return 'リクエストが不正です。';
+  return '履歴を読み込めませんでした。時間をおいて再度お試しください。';
+}
+
+export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, onLogout }) {
   const [details, setDetails] = useState(null);
   const [error, setError] = useState('');
   const [hoveredId, setHoveredId] = useState('');
   const tokens = TOKENS[kind] ?? TOKENS.saikaku;
-  const attempts = details?.committedAttempts ?? null;
+  const attempts = details?.attempts ?? null;
   const summary = details?.summary ?? null;
   const pendingNotice = getPendingNotice(summary, details?.pendingAttempt ?? null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async (isCancelled = () => false) => {
+    const apply = (update) => {
+      if (!isCancelled()) update();
+    };
 
-    async function load() {
-      if (!user?.uid) {
-        setDetails({
-          committedAttempts: [],
-          pendingAttempt: null,
-          summary: summarizeFromParent(null),
+    if (!user?.uid) {
+      apply(() => {
+        setError('');
+        setDetails(emptyDetails());
+      });
+      return;
+    }
+
+    apply(() => {
+      setDetails(null);
+      setError('');
+    });
+
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        apply(() => {
+          setError(historyErrorMessage(401));
+          setDetails(emptyDetails());
         });
         return;
       }
 
-      setDetails(null);
-      setError('');
-
-      try {
-        const nextDetails = await loadAttemptDetails({ user, kind });
-        if (!cancelled) setDetails(nextDetails);
-      } catch (e) {
-        if (!cancelled) {
-          setError(e.message || '履歴の読み込みに失敗しました');
-          setDetails({
-            committedAttempts: [],
-            pendingAttempt: null,
-            summary: summarizeFromParent(null),
-          });
-        }
+      const res = await fetch(`/api/me/history?kind=${encodeURIComponent(kind)}`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (!res.ok) {
+        apply(() => {
+          setError(historyErrorMessage(res.status));
+          setDetails(emptyDetails());
+        });
+        return;
       }
-    }
 
-    load();
+      const data = await res.json();
+      apply(() => {
+        setError('');
+        setDetails({
+          attempts: data.attempts ?? [],
+          pendingAttempt: data.pendingAttempt ?? null,
+          summary: data.summary ?? summarizeFromParent(null),
+        });
+      });
+    } catch {
+      apply(() => {
+        setError('通信エラーが発生しました。');
+        setDetails(emptyDetails());
+      });
+    }
+  }, [user?.uid, kind]);
+
+  useEffect(() => {
+    let cancelled = false;
+    load(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [user?.uid, kind]);
+  }, [load]);
 
   return (
     <div style={{
@@ -267,7 +313,41 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onL
           </div>
         )}
 
-        {attempts !== null && attempts.length === 0 && summary?.hasPending === false && (
+        {attempts !== null && error && (
+          <div
+            role="alert"
+            style={{
+              border: `1px solid ${tokens.border}`,
+              background: 'rgba(26,22,16,0.86)',
+              borderRadius: 16,
+              padding: '22px 24px',
+              textAlign: 'center',
+              color: '#F5F0E8',
+              marginBottom: 14,
+            }}
+          >
+            <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 16px', lineHeight: 1.7 }}>
+              {error}
+            </p>
+            <button
+              onClick={() => load()}
+              style={{
+                fontSize: 12,
+                color: tokens.light,
+                background: tokens.soft,
+                border: `1px solid ${tokens.border}`,
+                borderRadius: 8,
+                padding: '8px 14px',
+                cursor: 'pointer',
+                fontWeight: 700,
+              }}
+            >
+              再読み込み
+            </button>
+          </div>
+        )}
+
+        {attempts !== null && attempts.length === 0 && !error && !summary?.hasPending && (
           <div style={{
             border: `1px solid ${tokens.border}`,
             background: 'rgba(26,22,16,0.72)',
@@ -278,11 +358,6 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onL
             <p style={{ color: '#F5F0E8', fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>
               まだ診断履歴がありません
             </p>
-            {error && (
-              <p style={{ color: '#8A8070', fontSize: 12, margin: 0, lineHeight: 1.7 }}>
-                {error}
-              </p>
-            )}
           </div>
         )}
 
@@ -297,7 +372,7 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onL
                 <button
                   data-testid="history-item"
                   key={attempt.id}
-                  onClick={() => onSelectAttempt(attempt)}
+                  onClick={() => onSelectAttemptId(attempt.id, kind)}
                   onMouseEnter={() => setHoveredId(attempt.id)}
                   onMouseLeave={() => setHoveredId('')}
                   style={{

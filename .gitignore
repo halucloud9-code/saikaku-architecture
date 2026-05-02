@@ -17,3 +17,7 @@ tests/.env.*
 .vercel/
 .vercel
 .env*.local
+
+# Local-only AI working dirs (codex reviews, llm debates)
+codex/
+debate/

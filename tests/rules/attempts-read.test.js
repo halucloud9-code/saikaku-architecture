@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
+import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { assertFails } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { authedDb, cleanupRulesTest, seedDoc, setupRulesTest } from './_helpers.js';
 
@@ -20,7 +20,7 @@ describe('Firestore rules: attempts read', () => {
       status: 'committed',
       createdAt: Timestamp.now(),
     });
-    await seedDoc(testEnv, 'uaam_results/u1/attempts/x', {
+    await seedDoc(testEnv, 'uaam_results/u1', {
       status: 'committed',
       createdAt: Timestamp.now(),
     });
@@ -30,24 +30,14 @@ describe('Firestore rules: attempts read', () => {
     await cleanupRulesTest(testEnv);
   });
 
-  it('denies the owner reading their result attempt (get)', async () => {
+  it('denies the owner reading their attempt (get)', async () => {
     const db = authedDb(testEnv, 'u1');
     await assertFails(getDoc(doc(db, 'results/u1/attempts/x')));
   });
 
-  it('denies the owner listing their result attempts', async () => {
+  it('denies the owner listing their attempts', async () => {
     const db = authedDb(testEnv, 'u1');
     await assertFails(getDocs(collection(db, 'results/u1/attempts')));
-  });
-
-  it('denies the owner reading their uaam attempt (get)', async () => {
-    const db = authedDb(testEnv, 'u1');
-    await assertFails(getDoc(doc(db, 'uaam_results/u1/attempts/x')));
-  });
-
-  it('denies the owner listing their uaam attempts', async () => {
-    const db = authedDb(testEnv, 'u1');
-    await assertFails(getDocs(collection(db, 'uaam_results/u1/attempts')));
   });
 
   it('denies another user reading the attempt (get)', async () => {
@@ -60,10 +50,8 @@ describe('Firestore rules: attempts read', () => {
     await assertFails(getDocs(collection(db, 'results/u1/attempts')));
   });
 
-  it('allows server-side bypass reads used by Admin SDK routes', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      const snap = await getDoc(doc(context.firestore(), 'results/u1/attempts/x'));
-      expect(snap.exists()).toBe(true);
-    });
+  it('denies the owner reading their uaam_results parent (get)', async () => {
+    const db = authedDb(testEnv, 'u1');
+    await assertFails(getDoc(doc(db, 'uaam_results/u1')));
   });
 });
