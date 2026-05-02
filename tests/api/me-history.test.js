@@ -22,7 +22,18 @@ describe('API /api/me/history', () => {
     const response = await api.get('/api/me/history?kind=saikaku').set('x-test-uid', uid);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ attempts: [] });
+    expect(response.body).toEqual({
+      attempts: [],
+      pendingAttempt: null,
+      summary: {
+        committedCount: 0,
+        attemptCount: 0,
+        hasPending: false,
+        pendingAttemptId: null,
+        hasResult: false,
+        isStartBlocked: false,
+      },
+    });
   });
 
   it('returns one legacy attempt when parent has result data and no committed attempts', async () => {
@@ -43,6 +54,15 @@ describe('API /api/me/history', () => {
     expect(typeof response.body.attempts[0].createdAt).toBe('string');
     expect(response.body.attempts[0]).not.toHaveProperty('full');
     expect(response.body.attempts[0]).not.toHaveProperty('raw');
+    expect(response.body.pendingAttempt).toBeNull();
+    expect(response.body.summary).toMatchObject({
+      committedCount: 1,
+      attemptCount: 1,
+      hasPending: false,
+      pendingAttemptId: null,
+      hasResult: true,
+      isStartBlocked: false,
+    });
   });
 
   it('returns committed attempts in descending order with summary backfilled from full.analysis.type_name', async () => {
@@ -81,6 +101,79 @@ describe('API /api/me/history', () => {
     expect(response.body.attempts[0].summary.createdAt).toBe('2026-05-02T00:00:00.000Z');
     expect(response.body.attempts[0]).not.toHaveProperty('full');
     expect(response.body.attempts[0]).not.toHaveProperty('raw');
+    expect(response.body.pendingAttempt).toBeNull();
+    expect(response.body.summary).toMatchObject({
+      committedCount: 2,
+      attemptCount: 2,
+      hasPending: false,
+      pendingAttemptId: null,
+      isStartBlocked: true,
+    });
+  });
+
+  it('returns pendingAttempt and pending summary when parent references a pending attempt', async () => {
+    const uid = 'u-me-history-pending';
+    await clearUserState('results', uid);
+    const createdAt = Timestamp.fromDate(new Date('2026-05-03T00:00:00.000Z'));
+
+    await seedParent('results', uid, {
+      attemptCount: 1,
+      pendingAttemptId: 'pending-1',
+      createdAt,
+    });
+    await seedAttempt('results', uid, 'pending-1', {
+      status: 'pending',
+      createdAt,
+      summary: { createdAt },
+      full: { result: { kakuchiiki: '未確定' } },
+      raw: { input: { q1: 'pending input' } },
+    });
+
+    const response = await api.get('/api/me/history?kind=saikaku').set('x-test-uid', uid);
+
+    expect(response.status).toBe(200);
+    expect(response.body.attempts).toEqual([]);
+    expect(response.body.pendingAttempt).toMatchObject({
+      id: 'pending-1',
+      status: 'pending',
+      createdAt: '2026-05-03T00:00:00.000Z',
+      summary: { createdAt: '2026-05-03T00:00:00.000Z' },
+      isLegacy: false,
+    });
+    expect(response.body.pendingAttempt).not.toHaveProperty('full');
+    expect(response.body.pendingAttempt).not.toHaveProperty('raw');
+    expect(response.body.summary).toMatchObject({
+      committedCount: 0,
+      attemptCount: 0,
+      hasPending: true,
+      pendingAttemptId: 'pending-1',
+      hasResult: false,
+      isStartBlocked: true,
+    });
+  });
+
+  it('returns orphan pending summary when parent pendingAttemptId has no matching attempt doc', async () => {
+    const uid = 'u-me-history-orphan';
+    await clearUserState('results', uid);
+
+    await seedParent('results', uid, {
+      attemptCount: 1,
+      pendingAttemptId: 'missing-pending',
+    });
+
+    const response = await api.get('/api/me/history?kind=saikaku').set('x-test-uid', uid);
+
+    expect(response.status).toBe(200);
+    expect(response.body.attempts).toEqual([]);
+    expect(response.body.pendingAttempt).toBeNull();
+    expect(response.body.summary).toMatchObject({
+      committedCount: 0,
+      attemptCount: 0,
+      hasPending: true,
+      pendingAttemptId: 'missing-pending',
+      hasResult: false,
+      isStartBlocked: true,
+    });
   });
 
   it('returns 422 when kind is missing or invalid', async () => {

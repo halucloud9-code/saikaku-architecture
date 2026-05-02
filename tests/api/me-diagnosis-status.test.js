@@ -23,8 +23,22 @@ describe('API /api/me/diagnosis-status', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      saikaku: { attemptCount: 0, hasResult: false },
-      uaam: { attemptCount: 0, hasResult: false },
+      saikaku: {
+        committedCount: 0,
+        attemptCount: 0,
+        hasPending: false,
+        pendingAttemptId: null,
+        hasResult: false,
+        isStartBlocked: false,
+      },
+      uaam: {
+        committedCount: 0,
+        attemptCount: 0,
+        hasPending: false,
+        pendingAttemptId: null,
+        hasResult: false,
+        isStartBlocked: false,
+      },
     });
   });
 
@@ -54,8 +68,22 @@ describe('API /api/me/diagnosis-status', () => {
     const response = await api.get('/api/me/diagnosis-status').set('x-test-uid', uid);
 
     expect(response.status).toBe(200);
-    expect(response.body.saikaku).toEqual({ attemptCount: 2, hasResult: true });
-    expect(response.body.uaam).toEqual({ attemptCount: 2, hasResult: true });
+    expect(response.body.saikaku).toMatchObject({
+      committedCount: 2,
+      attemptCount: 2,
+      hasPending: false,
+      pendingAttemptId: null,
+      hasResult: true,
+      isStartBlocked: true,
+    });
+    expect(response.body.uaam).toMatchObject({
+      committedCount: 2,
+      attemptCount: 2,
+      hasPending: false,
+      pendingAttemptId: null,
+      hasResult: true,
+      isStartBlocked: true,
+    });
   });
 
   it('returns attemptCount 1 for legacy parents with result data and no attempts', async () => {
@@ -73,8 +101,71 @@ describe('API /api/me/diagnosis-status', () => {
     const response = await api.get('/api/me/diagnosis-status').set('x-test-uid', uid);
 
     expect(response.status).toBe(200);
-    expect(response.body.saikaku).toEqual({ attemptCount: 1, hasResult: true });
-    expect(response.body.uaam).toEqual({ attemptCount: 1, hasResult: true });
+    expect(response.body.saikaku).toMatchObject({
+      committedCount: 1,
+      attemptCount: 1,
+      hasPending: false,
+      pendingAttemptId: null,
+      hasResult: true,
+      isStartBlocked: false,
+    });
+    expect(response.body.uaam).toMatchObject({
+      committedCount: 1,
+      attemptCount: 1,
+      hasPending: false,
+      pendingAttemptId: null,
+      hasResult: true,
+      isStartBlocked: false,
+    });
+  });
+
+  it('includes pending state per kind without counting pending attempts as committed', async () => {
+    const uid = 'u-me-status-pending';
+    await clearUserState('results', uid);
+    await clearUserState('uaam_results', uid);
+    const createdAt = Timestamp.fromDate(new Date('2026-05-03T00:00:00.000Z'));
+
+    await seedParent('results', uid, {
+      attemptCount: 1,
+      pendingAttemptId: 'pending-saikaku',
+      createdAt,
+    });
+    await seedAttempt('results', uid, 'pending-saikaku', {
+      status: 'pending',
+      createdAt,
+    });
+
+    await seedParent('uaam_results', uid, {
+      attemptCount: 1,
+      pendingAttemptId: null,
+      scores: { mindset: { total: 60 } },
+      analysis: { type_name: 'Committed UAAM' },
+      createdAt,
+    });
+    await seedAttempt('uaam_results', uid, 'uaam-1', {
+      status: 'committed',
+      createdAt,
+    });
+
+    const response = await api.get('/api/me/diagnosis-status').set('x-test-uid', uid);
+
+    expect(response.status).toBe(200);
+    expect(response.body.saikaku).toMatchObject({
+      committedCount: 0,
+      attemptCount: 0,
+      hasPending: true,
+      pendingAttemptId: 'pending-saikaku',
+      hasResult: false,
+      isStartBlocked: true,
+    });
+    expect(response.body.uaam).toMatchObject({
+      committedCount: 1,
+      attemptCount: 1,
+      hasPending: false,
+      pendingAttemptId: null,
+      hasResult: true,
+      isStartBlocked: false,
+    });
   });
 
   it('returns 401 when no x-test-uid and no Authorization header are present', async () => {
