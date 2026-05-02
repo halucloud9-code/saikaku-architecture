@@ -1,28 +1,19 @@
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import { listFromAttempts, summarizeFromParent } from '../../shared/attemptLogic.js';
-
 export {
   listFromAttempts,
   summarizeFromParent,
   timestampToMillis,
 } from '../../shared/attemptLogic.js';
 
-export async function loadAttemptDetails({ db, uid, kind }) {
-  const collName = kind === 'uaam' ? 'uaam_results' : 'results';
-  const parentRef = doc(db, collName, uid);
+export async function loadAttemptDetails({ user, kind }) {
+  const idToken = await user.getIdToken();
+  const res = await fetch(`/api/history?kind=${encodeURIComponent(kind)}`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
 
-  const [parentSnap, attemptsSnap] = await Promise.all([
-    getDoc(parentRef),
-    getDocs(collection(parentRef, 'attempts')),
-  ]);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `履歴の読み込みに失敗しました (${res.status})`);
+  }
 
-  const parentData = parentSnap.exists() ? parentSnap.data() : null;
-  const attemptDocs = attemptsSnap.docs.map((attempt) => ({
-    id: attempt.id,
-    ...attempt.data(),
-  }));
-  const { committedAttempts, pendingAttempt } = listFromAttempts(attemptDocs, parentData, kind);
-  const summary = summarizeFromParent(parentData);
-
-  return { committedAttempts, pendingAttempt, summary };
+  return res.json();
 }
