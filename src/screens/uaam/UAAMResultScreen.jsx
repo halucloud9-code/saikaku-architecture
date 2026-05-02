@@ -1770,136 +1770,7 @@ function TalentList({ label, talents, bg, color, textColor, borderStyle = 'solid
   );
 }
 
-/* ============================================================
- * DevelopmentStageCard：人格L＋リーダー段階の推定表示（Claude design）
- * personality.name は既に「反応型」「天地型」など"型"を含むのでそのまま表示。
- * ============================================================ */
-function DevelopmentStageCard({ personalityLevel, leadershipStage, coachConfirmed }) {
-  if (!personalityLevel || !leadershipStage) return null;
-
-  const isCoached = !!(coachConfirmed?.personality_level || coachConfirmed?.leadership_stage);
-  const confLabel = isCoached
-    ? 'コーチ確定'
-    : ({
-        high:   '信頼度：高',
-        medium: '信頼度：中',
-        low:    '信頼度：低 ／ コーチ確認推奨',
-      })[personalityLevel.confidence] || '';
-  const confDotColor = ({
-    high: '#2E8B57', medium: ACCENT_GOLD, low: '#A84432',
-  })[personalityLevel.confidence] || TEXT_MUTED;
-
-  return (
-    <div style={{
-      marginBottom: 28,
-      padding: '20px 24px',
-      borderRadius: 14,
-      background: WHITE,
-      border: `1px solid ${BORDER}`,
-      borderTop: `3px solid ${ACCENT_GOLD}`,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-    }}>
-      {/* ヘッダー */}
-      <div style={{
-        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-        marginBottom: 16, paddingBottom: 12,
-        borderBottom: `1px solid ${BORDER}`,
-      }}>
-        <div>
-          <div style={{
-            fontSize: 9, letterSpacing: '0.22em', color: TEXT_MUTED,
-            fontWeight: 700, textTransform: 'uppercase', marginBottom: 3,
-          }}>
-            Development Stage
-          </div>
-          <div style={{
-            fontFamily: "'Noto Serif JP', serif", fontSize: 15, fontWeight: 700,
-            color: TEXT_PRIMARY,
-          }}>
-            人格発達 × リーダーシップ段階
-          </div>
-        </div>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          fontSize: 10, color: TEXT_MUTED,
-        }}>
-          <span style={{
-            display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-            background: confDotColor,
-          }} />
-          {confLabel}
-        </div>
-      </div>
-
-      {/* メインの2項目 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        {/* 人格発達レベル */}
-        <div>
-          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, letterSpacing: '0.05em' }}>
-            人格発達レベル
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span style={{
-              fontFamily: NUM_FONT, fontSize: 32, fontWeight: 700,
-              color: TEXT_PRIMARY, lineHeight: 1,
-            }}>
-              {coachConfirmed?.personality_level || personalityLevel.level}
-            </span>
-            <span style={{
-              fontFamily: "'Noto Serif JP', serif", fontSize: 15,
-              color: TEXT_SECONDARY, fontWeight: 600,
-            }}>
-              {coachConfirmed?.personality_level ? '確定' : personalityLevel.name}
-            </span>
-          </div>
-        </div>
-
-        {/* リーダーシップ段階 */}
-        <div>
-          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4, letterSpacing: '0.05em' }}>
-            リーダーシップ段階
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span style={{
-              fontFamily: NUM_FONT, fontSize: 32, fontWeight: 700,
-              color: TEXT_PRIMARY, lineHeight: 1,
-            }}>
-              第{coachConfirmed?.leadership_stage || leadershipStage.stage}
-            </span>
-            <span style={{
-              fontFamily: "'Noto Serif JP', serif", fontSize: 15,
-              color: TEXT_SECONDARY, fontWeight: 600,
-            }}>
-              {coachConfirmed?.leadership_stage ? '確定' : leadershipStage.name}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* コーチ観察ノート（あれば） */}
-      {coachConfirmed?.observation_note && (
-        <div style={{
-          marginTop: 16, paddingTop: 14,
-          borderTop: `1px solid ${BORDER}`,
-        }}>
-          <div style={{
-            fontSize: 9, letterSpacing: '0.18em', color: TEXT_MUTED,
-            fontWeight: 700, textTransform: 'uppercase', marginBottom: 6,
-          }}>
-            Coach Note
-          </div>
-          <p style={{
-            fontFamily: "'Noto Serif JP', serif",
-            fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7,
-            margin: 0, whiteSpace: 'pre-wrap',
-          }}>
-            {coachConfirmed.observation_note}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
+/* DevelopmentStageCard は ActivationPanel(top) に統合済みのため削除 */
 
 /* ============================================================
  * メインコンポーネント
@@ -2059,21 +1930,25 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
       <div className="pdf-content-wrapper" style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}>
 
-        {/* ===== 名前 + Activation Type + 今、発動している力（最上部） ===== */}
-        <ActivationPanel scores={
-          Object.values(scores || {}).reduce((acc, domain) => {
-            if (domain?.subs) Object.assign(acc, domain.subs);
-            return acc;
-          }, {})
-        } threshold={13} userName={user.displayName} mode="top" vAnswers={vAnswers} biasData={biasData} />
-
-        {/* ===== Phase 2：人格L＋リーダー段階の推定 / コーチ確定値 =====
-            自動推定値が出る。コーチ確定値があればそちらを優先表示。 */}
-        <DevelopmentStageCard
+        {/* ===== 統合プロフィールカード（名前/V問/バイアス/Activation Type/Development Stage） ===== */}
+        <ActivationPanel
+          scores={
+            Object.values(scores || {}).reduce((acc, domain) => {
+              if (domain?.subs) Object.assign(acc, domain.subs);
+              return acc;
+            }, {})
+          }
+          threshold={13}
+          userName={user.displayName}
+          mode="top"
+          vAnswers={vAnswers}
+          biasData={biasData}
           personalityLevel={personalityLevel}
           leadershipStage={leadershipStage}
           coachConfirmed={coachConfirmed}
         />
+
+        {/* Development Stage は ActivationPanel(top) に統合済み（同じカードに表示） */}
 
         {/* ===== Phase 3：3要素診断（要素別独立処方） =====
             3要素は比較しない。各要素ごとに「立ってる才覚 / 弱い才覚」を抽出し、
