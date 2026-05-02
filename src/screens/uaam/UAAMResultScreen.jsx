@@ -1950,17 +1950,15 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
 
         {/* Development Stage は ActivationPanel(top) に統合済み（同じカードに表示） */}
 
-        {/* ===== Phase 3：3要素診断（要素別独立処方） =====
-            3要素は比較しない。各要素ごとに「立ってる才覚 / 弱い才覚」を抽出し、
-            段階フェーズ（強み集中 or 4軸バランス）で処方を切り替える。 */}
+        {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
+        <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
+
+        {/* ===== Phase 3：3要素診断（要素別独立処方）── ハル指示で Matrix の下へ ===== */}
         <ThreeElementCard
           threeElements={threeElements}
           leadershipStage={leadershipStage}
           scores={scores}
         />
-
-        {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
-        <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
 
         {/* ===== ✅ 今、発動している力（MLCI直下） ===== */}
         <ActivationPanel scores={
