@@ -1,9 +1,12 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { getAuth } from 'firebase-admin/auth';
-import { FieldValue } from 'firebase-admin/firestore';
-import { db } from './lib/firebaseAdmin.js';
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import {
+  ConflictError,
+  LimitExceededError,
+  commitAttempt,
+  reserveAttempt,
+  rollbackAttempt,
+} from './lib/attempts.js';
+import { createMessage } from './lib/anthropicClient.js';
 
 const SYSTEM_PROMPT = `あなたは才覚領域アーキテクチャの専門分析AIです。
 ユーザーの才能・価値観・情熱から、その人だけの才覚領域を導き出します。
@@ -236,7 +239,20 @@ export default async function handler(req, res) {
   // 認証
   let decoded;
   try {
-    decoded = await getAuth().verifyIdToken(idToken);
+    if (
+      process.env.TEST_BYPASS_AUTH === '1'
+      && process.env.NODE_ENV === 'test'
+      && !!process.env.FIRESTORE_EMULATOR_HOST
+    ) {
+      decoded = {
+        uid: req.headers['x-test-uid'] || 'test-user',
+        email: 'test@example.com',
+        name: 'Test',
+        picture: '',
+      };
+    } else {
+      decoded = await getAuth().verifyIdToken(idToken);
+    }
   } catch {
     return res.status(401).json({ error: '認証に失敗しました。再度ログインしてください。' });
   }
@@ -297,74 +313,124 @@ export default async function handler(req, res) {
     userMsg = `名前：${name || 'あなた'}\n才能：${talentLegacy}\n価値観：${valueLegacy}\n情熱：${passionLegacy}`;
   }
 
-  let result = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const message = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8192,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userMsg }],
-      });
-      const text = message.content[0].text;
-      const match =
-        text.match(/```json\n?([\s\S]*?)\n?```/) ||
-        text.match(/```\n?([\s\S]*?)\n?```/) ||
-        text.match(/(\{[\s\S]*\})/);
-      const jsonStr = match ? match[1] || match[0] : text;
-      const parsed = JSON.parse(jsonStr.trim());
-
-      // 必須フィールドの確認
-      if (!parsed.talent || !parsed.value || !parsed.passion || !parsed.kakuchiiki) {
-        throw new Error('APIレスポンスが不完全です');
-      }
-      // kakuchiiki_options がなければ kakuchiiki から生成
-      if (!parsed.kakuchiiki_options || !Array.isArray(parsed.kakuchiiki_options)) {
-        parsed.kakuchiiki_options = [parsed.kakuchiiki];
-      }
-
-      result = parsed;
-      break;
-    } catch (e) {
-      if (attempt === 2)
-        return res.status(500).json({ error: '解析に失敗しました。もう一度お試しください。' });
-      await new Promise((r) => setTimeout(r, 1000));
+  let attemptId;
+  try {
+    ({ attemptId } = await reserveAttempt({
+      collection: 'results',
+      uid: decoded.uid,
+      kind: 'saikaku',
+    }));
+  } catch (e) {
+    if (e instanceof LimitExceededError) {
+      return res.status(429).json({ error: e.message, code: 'LIMIT_EXCEEDED' });
     }
+    if (e instanceof ConflictError) {
+      return res.status(409).json({ error: e.message, code: 'PENDING_CONFLICT' });
+    }
+    throw e;
   }
 
-  const docRef = db.collection('results').doc(decoded.uid);
+  let result = null;
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const message = await createMessage({
+          fixtureKey: 'saikaku',
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 8192,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: userMsg }],
+        });
+        const text = message.content[0].text;
+        const match =
+          text.match(/```json\n?([\s\S]*?)\n?```/) ||
+          text.match(/```\n?([\s\S]*?)\n?```/) ||
+          text.match(/(\{[\s\S]*\})/);
+        const jsonStr = match ? match[1] || match[0] : text;
+        const parsed = JSON.parse(jsonStr.trim());
 
-  // 既存ドキュメントを確認（createdAt/consentAt は初回のみセット）
-  const existingDoc = await docRef.get();
-  const existing = existingDoc.data() || {};
+        // 必須フィールドの確認
+        if (!parsed.talent || !parsed.value || !parsed.passion || !parsed.kakuchiiki) {
+          throw new Error('APIレスポンスが不完全です');
+        }
+        // kakuchiiki_options がなければ kakuchiiki から生成
+        if (!parsed.kakuchiiki_options || !Array.isArray(parsed.kakuchiiki_options)) {
+          parsed.kakuchiiki_options = [parsed.kakuchiiki];
+        }
 
-  await docRef.set(
-    {
+        result = parsed;
+        break;
+      } catch (e) {
+        if (attempt === 2) throw e;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+  } catch (e) {
+    try {
+      await rollbackAttempt({ collection: 'results', uid: decoded.uid, attemptId });
+    } catch (rollbackError) {
+      console.error('[analyze] rollback failed:', rollbackError.message || rollbackError);
+    }
+    return res.status(500).json({ error: '解析に失敗しました。もう一度お試しください。' });
+  }
+
+  const selected = selectedKakuchiiki || result.kakuchiiki;
+  const rawInput = {
+    talent: talent_top5 || talentLegacy || '',
+    value: value_top5 || valueLegacy || '',
+    passion: passion_top5 || passionLegacy || '',
+    talentTop5: talent_top5 || '',
+    talentOther: talent_other || '',
+    valueTop5: value_top5 || '',
+    valueOther: value_other || '',
+    passionTop5: passion_top5 || '',
+    passionOther: passion_other || '',
+    q1: q1 || '',
+    q2: q2 || '',
+    q3: q3 || '',
+  };
+
+  try {
+    await commitAttempt({
+      collection: 'results',
       uid: decoded.uid,
-      name: name || decoded.name || '',
-      email: decoded.email || '',
-      photoURL: decoded.picture || '',
-      // 新フォーマットで保存（旧フィールドは後方互換のため維持）
-      inputTalent:  talent_top5  || talentLegacy  || '',
-      inputValue:   value_top5   || valueLegacy   || '',
-      inputPassion: passion_top5 || passionLegacy || '',
-      inputTalentTop5:   talent_top5  || '',
-      inputTalentOther:  talent_other || '',
-      inputValueTop5:    value_top5   || '',
-      inputValueOther:   value_other  || '',
-      inputPassionTop5:  passion_top5  || '',
-      inputPassionOther: passion_other || '',
-      inputQ1: q1 || '',
-      inputQ2: q2 || '',
-      inputQ3: q3 || '',
-      result,
-      selectedKakuchiiki: selectedKakuchiiki || result.kakuchiiki,
-      updatedAt: FieldValue.serverTimestamp(),
-      ...(!existing.createdAt ? { createdAt: FieldValue.serverTimestamp() } : {}),
-      ...(!existing.consentAt ? { consentAt: FieldValue.serverTimestamp() } : {}),
-    },
-    { merge: true }
-  );
+      attemptId,
+      summary: { kakuchiiki: result.kakuchiiki, typeName: null, createdAt: null },
+      full: { result, analysis: null, scores: null, selectedKakuchiiki: selected },
+      raw: { input: rawInput },
+      parentMerge: {
+        uid: decoded.uid,
+        name: name || decoded.name || '',
+        email: decoded.email || '',
+        photoURL: decoded.picture || '',
+        // 新フォーマットで保存（旧フィールドは後方互換のため維持）
+        inputTalent: rawInput.talent,
+        inputValue: rawInput.value,
+        inputPassion: rawInput.passion,
+        inputTalentTop5: rawInput.talentTop5,
+        inputTalentOther: rawInput.talentOther,
+        inputValueTop5: rawInput.valueTop5,
+        inputValueOther: rawInput.valueOther,
+        inputPassionTop5: rawInput.passionTop5,
+        inputPassionOther: rawInput.passionOther,
+        inputQ1: rawInput.q1,
+        inputQ2: rawInput.q2,
+        inputQ3: rawInput.q3,
+        result,
+        selectedKakuchiiki: selected,
+      },
+    });
+  } catch (e) {
+    try {
+      await rollbackAttempt({ collection: 'results', uid: decoded.uid, attemptId });
+    } catch (rollbackError) {
+      console.error('[analyze] rollback failed:', rollbackError.message || rollbackError);
+    }
+    if (e instanceof ConflictError) {
+      return res.status(409).json({ error: e.message, code: 'PENDING_CONFLICT' });
+    }
+    throw e;
+  }
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   return res.status(200).json(result);

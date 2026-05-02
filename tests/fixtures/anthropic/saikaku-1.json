@@ -1,0 +1,100 @@
+{
+  "name": "テストユーザー",
+  "talent": {
+    "axis1": {
+      "name": "言語化",
+      "english": "Articulation",
+      "description": "感じたことを言葉にする力",
+      "items": ["観察", "対話"],
+      "percentage": 40,
+      "top5": ["観察", "対話"]
+    },
+    "axis2": {
+      "name": "設計力",
+      "english": "Design",
+      "description": "流れを組み立てる力",
+      "items": ["構造化"],
+      "percentage": 35,
+      "top5": ["構造化"]
+    },
+    "axis3": {
+      "name": "共感力",
+      "english": "Empathy",
+      "description": "相手の奥にある願いを読む力",
+      "items": ["伴走"],
+      "percentage": 25,
+      "top5": ["伴走"]
+    }
+  },
+  "value": {
+    "axis1": {
+      "name": "誠実",
+      "english": "Integrity",
+      "description": "本音と行動をそろえる価値観",
+      "items": ["誠実"],
+      "percentage": 45,
+      "top5": ["誠実"]
+    },
+    "axis2": {
+      "name": "成長",
+      "english": "Growth",
+      "description": "変化を歓迎する価値観",
+      "items": ["成長"],
+      "percentage": 35,
+      "top5": ["成長"]
+    },
+    "axis3": {
+      "name": "貢献",
+      "english": "Contribution",
+      "description": "誰かの一歩を支える価値観",
+      "items": ["貢献"],
+      "percentage": 20,
+      "top5": ["貢献"]
+    }
+  },
+  "passion": {
+    "axis1": {
+      "name": "探究",
+      "english": "Inquiry",
+      "description": "問いを深め続ける情熱",
+      "items": ["探究"],
+      "percentage": 42,
+      "top5": ["探究"]
+    },
+    "axis2": {
+      "name": "発信",
+      "english": "Expression",
+      "description": "気づきを外へ届ける情熱",
+      "items": ["発信"],
+      "percentage": 33,
+      "top5": ["発信"]
+    },
+    "axis3": {
+      "name": "実践",
+      "english": "Practice",
+      "description": "試しながら形にする情熱",
+      "items": ["実践"],
+      "percentage": 25,
+      "top5": ["実践"]
+    }
+  },
+  "core_words": {
+    "talent_core": "言語化",
+    "value_core": "誠実",
+    "passion_core": "探究"
+  },
+  "kakuchiiki": "問いに火を灯す人",
+  "kakuchiiki_options": ["問いに火を灯す人", "本音を形にする案内人", "探究を道に変える人"],
+  "insight": "まだ言葉にならない願いを見つけ、次の一歩へ変えていく力があります。",
+  "what": {
+    "products": ["対話メモを作る", "小さな勉強会を開く", "問いのワークを設計する", "伴走セッションを届ける", "探究コミュニティを育てる"],
+    "actions": "今日浮かんだ問いを一つ書き出す",
+    "offer": "本音から動き出す人を増やす"
+  },
+  "reward": {
+    "economic": "対話セッションや講座として収益化できる",
+    "social": "誰かの決断の場面に立ち会える",
+    "intrinsic": "問いを見つけるほど自然に動き出す",
+    "model": "問いを言葉にし、人の一歩を支えることで生きていける"
+  }
+}

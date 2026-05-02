@@ -3,6 +3,219 @@ import { getAuth } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './lib/firebaseAdmin.js';
 
+/**
+ * 自己評価バイアスメッセージ生成（旗カウント・45-95%版）
+ * src/data/uaam_questions.js の calculateBiasMessage と同一ロジック。
+ * APIは自己完結を保つため、ロジックをインライン化している。
+ *
+ * @param {Object} vAnswers - { V1, V2, V3 } raw値（1-5）
+ * @param {number} totalPct - 総合% (0-100)
+ * @returns {Object|null} - null なら健全（表示なし）
+ */
+function calculateBiasMessage(vAnswers, totalPct) {
+  if (!vAnswers || typeof vAnswers !== 'object') return null;
+
+  const flagsPerQ = ['V1', 'V2', 'V3'].map((id) => {
+    const raw = vAnswers[id];
+    if (raw === 1) return 2;
+    if (raw === 2) return 1;
+    return 0;
+  });
+
+  const flagsCount = flagsPerQ.reduce((a, b) => a + b, 0);
+  if (flagsCount === 0) return null;
+
+  const BIAS_TABLE = { 1: 45, 2: 55, 3: 65, 4: 75, 5: 86, 6: 95 };
+  const biasPct = BIAS_TABLE[flagsCount];
+
+  const activeFlags = ['V1', 'V2', 'V3'].filter((_, i) => flagsPerQ[i] > 0);
+  const criticalFlags = ['V1', 'V2', 'V3'].filter((_, i) => flagsPerQ[i] === 2);
+
+  let stage, color;
+  if (flagsCount <= 2) { stage = 'mild'; color = 'yellow'; }
+  else if (flagsCount <= 4) { stage = 'moderate'; color = 'orange'; }
+  else { stage = 'strong'; color = 'red'; }
+
+  if (stage === 'mild') {
+    const focus = activeFlags[0];
+    const focusMessage = {
+      V1: '盲点を意識する習慣を持つことで、さらに深まります',
+      V2: '他者からのフィードバックを定期的に取り入れる習慣を',
+      V3: '他のやり方も試してみる柔軟性を持つと、可能性が広がります',
+    }[focus] || '軽微なバイアス傾向。日常の小さな実践で十分整います。';
+
+    return { biasPct, level: stage, color,
+      title: `自己評価バイアス：${biasPct}%（軽度）`,
+      message: focusMessage, activeFlags };
+  }
+
+  if (stage === 'moderate') {
+    if (totalPct >= 95) {
+      return { biasPct, level: 'high_stage', color: 'red',
+        title: `自己評価バイアス：${biasPct}%（高段階解釈）`,
+        message: `数字（${totalPct}%）が L7 圏 ＋ フラグ ＝ 高段階到達の証拠。「自分には盲点がほぼない」という感覚は、本物の自己客観視を超えた状態を示しています。`,
+        pattern: '真の天地型',
+        action: 'コーチによる外部観察での確認を推奨',
+        activeFlags };
+    }
+    if (totalPct >= 78) {
+      return { biasPct, level: 'transition', color: 'red',
+        title: `自己評価バイアス：${biasPct}%（移行期解釈）`,
+        message: `数字（${totalPct}%）は L5-L6 圏。フラグは 2通りの解釈：① 真の高段階への移行 ② 自己評価が実態より高い可能性。`,
+        pattern: 'L5-L6 移行期',
+        action: 'コーチによる外部観察での確認が必須',
+        activeFlags };
+    }
+    const combo = activeFlags.slice().sort().join('+');
+    const baseMessage = {
+      'V1+V2': '内省と他者理解の両方を意識する時期',
+      'V1+V3': '盲点と硬直化を見直す時期',
+      'V2+V3': '他者FBと柔軟性を再構築する時期',
+      'V1+V2+V3': '3軸すべてに目を向ける時期',
+    }[combo] || '客観視の精度向上をテーマに';
+
+    return { biasPct, level: stage, color,
+      title: `自己評価バイアス：${biasPct}%（中度）`,
+      message: baseMessage,
+      action: '30日間の客観視ワーク：週１回、信頼できる人にFBを求める',
+      activeFlags, criticalFlags };
+  }
+
+  if (totalPct >= 95) {
+    return { biasPct, level: 'high_stage', color: 'red',
+      title: `自己評価バイアス：${biasPct}%（高段階解釈）`,
+      message: `数字（${totalPct}%）が L7 圏 ＋ 強度フラグ ＝ 高段階到達の証拠。`,
+      pattern: '真の天地型',
+      action: 'コーチによる外部観察での確認を推奨',
+      activeFlags };
+  }
+  if (totalPct >= 78) {
+    return { biasPct, level: 'transition', color: 'red',
+      title: `自己評価バイアス：${biasPct}%（移行期解釈）`,
+      message: `数字（${totalPct}%）は L5-L6 圏。① 真の高段階への移行 ② 自己評価が実態より高い可能性。`,
+      pattern: 'L5-L6 移行期',
+      action: 'コーチによる外部観察での確認が必須',
+      activeFlags };
+  }
+  return { biasPct, level: stage, color,
+    title: `自己評価バイアス：${biasPct}%（強度）`,
+    message: `数字（${totalPct}%）に対して、客観視の精度に大きな課題。3つの盲点を全方位で抱えています。`,
+    pattern: '強インフレ警告',
+    action: 'コーチング介入を強く推奨。最初の課題は「謙虚さ」の獲得',
+    activeFlags };
+}
+
+/* ============================================================
+ * Phase 2：人格L＋リーダー段階の自動推定
+ * src/data/uaam_questions.js の同関数群と同一ロジック（API自己完結のためインライン）
+ * ============================================================ */
+
+function determinePersonalityLevel(totalPct, minAxisPct) {
+  if (totalPct >= 95 && minAxisPct >= 75) return { level: 'L7', name: '天地型', confidence: 'high' };
+  if (totalPct >= 88 && minAxisPct >= 70) return { level: 'L6', name: '共鳴型', confidence: 'medium' };
+  if (totalPct >= 78) return { level: 'L5', name: '統合型', confidence: 'medium' };
+  if (totalPct >= 65) return { level: 'L4', name: '自律型', confidence: 'medium' };
+  if (totalPct >= 55) return { level: 'L3', name: '適応型', confidence: 'medium' };
+  if (totalPct >= 40) return { level: 'L2', name: '取引型', confidence: 'medium' };
+  return { level: 'L1', name: '反応型', confidence: 'medium' };
+}
+
+function determineLeadershipStage(totalPct, minAxisPct) {
+  if (totalPct >= 95 && minAxisPct >= 75) return { stage: 7, name: '天導' };
+  if (totalPct >= 88 && minAxisPct >= 70) return { stage: 6, name: '総導' };
+  if (totalPct >= 78) return { stage: 5, name: '他導' };
+  if (totalPct >= 68) return { stage: 4, name: '自導' };
+  if (totalPct >= 58) return { stage: 3, name: '自律' };
+  if (totalPct >= 48) return { stage: 2, name: '自立' };
+  return { stage: 1, name: '自発' };
+}
+
+function assessConfidence(baseEstimate, biasMessage, axisSpread) {
+  const signals = [];
+  let confidence = baseEstimate.confidence;
+
+  if (biasMessage) {
+    if (biasMessage.level === 'transition') signals.push('bias_transition');
+    else if (biasMessage.level === 'high_stage') signals.push('bias_high_stage');
+    else if (biasMessage.level === 'strong') {
+      signals.push('bias_inflation');
+      confidence = 'low';
+    } else if (biasMessage.level === 'moderate') {
+      signals.push('bias_moderate');
+      if (confidence === 'high') confidence = 'medium';
+    }
+  }
+
+  if (axisSpread >= 18) {
+    signals.push('axis_imbalance');
+    if (confidence === 'high') confidence = 'medium';
+  }
+
+  return { ...baseEstimate, confidence, signals };
+}
+
+/* ============================================================
+ * Phase 3：3要素診断（リーダーシップ／チームビルディング／マネジメント）
+ * src/data/uaam_questions.js の同関数群と同一ロジック（API自己完結のためインライン）
+ * ============================================================ */
+
+const ELEMENT_WEIGHTS = {
+  leadership: {
+    meaning: 4, mindfulness: 0, mindshift: 1, mastery: 2,
+    learning: 0, logical: 1, life: 0, leadership: 3,
+    critical: 3, creativity: 1, communication: 2, collaboration: 0,
+    idea: 4, innovation: 4, implementation: 1, influence: 8,
+  },
+  teamBuilding: {
+    meaning: 2, mindfulness: 3, mindshift: 0, mastery: 0,
+    learning: 2, logical: 0, life: 1, leadership: 6,
+    critical: 1, creativity: 2, communication: 2, collaboration: 9,
+    idea: 1, innovation: 1, implementation: 0, influence: 1,
+  },
+  management: {
+    meaning: 1, mindfulness: 2, mindshift: 1, mastery: 2,
+    learning: 1, logical: 6, life: 3, leadership: 4,
+    critical: 3, creativity: 1, communication: 0, collaboration: 1,
+    idea: 1, innovation: 1, implementation: 8, influence: 0,
+  },
+};
+
+function calculateThreeElementScores(subs) {
+  if (!subs) return { leadership: 0, teamBuilding: 0, management: 0 };
+  const compute = (weights) => {
+    let sum = 0, total = 0;
+    for (const [k, w] of Object.entries(weights)) {
+      sum += w * (subs[k] || 0);
+      total += w;
+    }
+    return total === 0 ? 0 : Math.round((sum / total / 20) * 100);
+  };
+  return {
+    leadership:   compute(ELEMENT_WEIGHTS.leadership),
+    teamBuilding: compute(ELEMENT_WEIGHTS.teamBuilding),
+    management:   compute(ELEMENT_WEIGHTS.management),
+  };
+}
+
+function identifyElementProfile(threeScores) {
+  const entries = Object.entries(threeScores);
+  entries.sort((a, b) => b[1] - a[1]);
+  return {
+    primary: entries[0][0], primaryScore: entries[0][1],
+    secondary: entries[1][0], secondaryScore: entries[1][1],
+    weakest: entries[2][0], weakestScore: entries[2][1],
+  };
+}
+
+function determinePrescriptionMode(threeScores, leadershipStage) {
+  const stage = leadershipStage?.stage || 1;
+  const profile = identifyElementProfile(threeScores);
+  if ((threeScores.leadership >= 75 && threeScores.teamBuilding >= 75 && threeScores.management >= 75)
+      || stage >= 6) return 'integrate';
+  if ((profile.primaryScore >= 70 && profile.secondaryScore < 60) || stage === 5) return 'expand';
+  return 'focus';
+}
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
@@ -224,6 +437,46 @@ export default async function handler(req, res) {
   // スコア計算
   const scores = calculateScores(answers, QUESTIONS);
 
+  // 自己評価バイアスメッセージ生成（旗カウント方式・45-95%版）
+  // 4軸合計 / 320（最大スコア） * 100 で総合%を算出（旧 Lv.1〜Lv.6 廃止後の判定基準）
+  const totalPct = Math.round(
+    (scores.mindset.total + scores.literacy.total +
+     scores.competency.total + scores.impact.total) / 320 * 100
+  );
+  const biasMessage = calculateBiasMessage(vAnswers, totalPct);
+  console.log('[UAAM] biasMessage:', biasMessage ? `${biasMessage.biasPct}% (${biasMessage.level})` : 'null（健全）');
+
+  // Phase 2：人格L＋リーダー段階の自動推定
+  const axisPcts = [
+    scores.mindset.percentage, scores.literacy.percentage,
+    scores.competency.percentage, scores.impact.percentage,
+  ];
+  const minAxisPct = Math.min(...axisPcts);
+  const maxAxisPct = Math.max(...axisPcts);
+  const axisSpread = maxAxisPct - minAxisPct;
+
+  const baseLevel = determinePersonalityLevel(totalPct, minAxisPct);
+  const personalityLevel = assessConfidence(baseLevel, biasMessage, axisSpread);
+  const leadershipStage = determineLeadershipStage(totalPct, minAxisPct);
+  console.log(`[UAAM] personality_level: ${personalityLevel.level} (${personalityLevel.confidence}) leadership_stage: 第${leadershipStage.stage}（${leadershipStage.name}） axisSpread:${axisSpread} signals:[${personalityLevel.signals.join(',')}]`);
+
+  // Phase 3：3要素診断（16才覚スコアの加重平均）
+  // 國創学方針：3要素は比較しない。各要素ごとに独立した処方を出す。
+  // 主・副・最弱の比較やfocus/expand/integrateモードは廃止（UI側で要素別に処方生成）。
+  const subs = {
+    ...scores.mindset.subs,
+    ...scores.literacy.subs,
+    ...scores.competency.subs,
+    ...scores.impact.subs,
+  };
+  const threeElementScores = calculateThreeElementScores(subs);
+  const developmentPhase = leadershipStage.stage >= 5 ? 'balance_4axis' : 'strength_focus';
+  const threeElements = {
+    ...threeElementScores,
+    development_phase: developmentPhase,
+  };
+  console.log(`[UAAM] three_elements: L=${threeElementScores.leadership}% T=${threeElementScores.teamBuilding}% M=${threeElementScores.management}% phase=${developmentPhase}`);
+
   // 才覚領域データを取得
   let saikakuData = null;
   try {
@@ -313,6 +566,12 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
       vAnswers: vAnswers || {},
       scores,
       analysis,
+      bias_message: biasMessage,           // 新：3段階バイアス表記（null=健全）
+      personality_level: personalityLevel, // Phase 2：自動推定L1〜L7（confidence/signals 付き）
+      leadership_stage: leadershipStage,   // Phase 2：自動推定 第1〜第7
+      three_elements: threeElements,       // Phase 3：3要素診断＋処方モード
+      // coach_confirmed_personality_level / coach_confirmed_leadership_stage / coach_observation_note は
+      // AdminScreen でハル本人が編集する領域（自動上書き禁止）
       updatedAt: FieldValue.serverTimestamp(),
       ...(!existing.createdAt ? { createdAt: FieldValue.serverTimestamp() } : {}),
     },
@@ -320,5 +579,12 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
   );
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  return res.status(200).json({ scores, analysis });
+  return res.status(200).json({
+    scores,
+    analysis,
+    bias_message: biasMessage,
+    personality_level: personalityLevel,
+    leadership_stage: leadershipStage,
+    three_elements: threeElements,
+  });
 }

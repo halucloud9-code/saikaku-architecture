@@ -125,30 +125,7 @@ vercel --prod
 
 ---
 
-## 7. テストの実行
-
-vitest + @testing-library/react による UI テスト：
-
-```bash
-# 1回実行
-npm test
-
-# 監視モード
-npm run test:watch
-```
-
-- 設定: `vite.config.js` の `test` セクション
-- 環境: `jsdom`（ブラウザ DOM をエミュレート）
-- セットアップ: `tests/setup.js`（`@testing-library/jest-dom` 拡張マッチャー）
-- 手動スクリプト (`tests/send-email.test.mjs`, `tests/check-user.mjs`) は `exclude` で対象外
-
-**主要テスト**:
-- `tests/LoginScreen.test.jsx` — メール認証フロー
-- `tests/AllPairsTriangle.test.jsx` — GRIFFON CODE カード複数同時展開（Issue #4）
-
----
-
-## 8. 動作確認チェックリスト
+## 7. 動作確認チェックリスト
 
 - [ ] Firebase の Google SSO でログインできる
 - [ ] 同意チェックなしではボタンが押せない
@@ -159,6 +136,52 @@ npm run test:watch
 - [ ] 管理者メールでログインすると「管理画面」リンクが表示される
 - [ ] 管理画面で参加者一覧が表示される
 - [ ] CSVエクスポートができる
+
+---
+
+## 8. 診断履歴 / 2回上限 (issue #1, #2)
+
+- 各診断 (才覚領域 / MATRIX) は **最大 2 回** 実施できる。3 回目以降は API が 429 (`LIMIT_EXCEEDED`) を返す
+- SelectScreen に「診断済み (n/2)」バッジと「履歴を見る (n)」リンクが表示される
+- 履歴は `results/{uid}/attempts/{aid}` (才覚領域) と `uaam_results/{uid}/attempts/{aid}` (MATRIX) サブコレクションに保存
+- 詳細は [docs/design-rationale.md](./docs/design-rationale.md)
+
+---
+
+## 9. ローカル開発・テスト
+
+```bash
+# 全部同時起動 (emulator + API + Vite)
+npm run dev:local
+
+# 個別
+npm run emu       # Firebase emulator (auth:9099, firestore:8080, UI:4000)
+npm run api       # API server (localhost:3001)
+npm run dev       # Vite dev server (localhost:5173)
+```
+
+Vite が emulator に繋がる: `.env.local` に `VITE_USE_FIREBASE_EMULATOR=true`
+
+```bash
+# UI テスト (vitest + @testing-library/react, jsdom)
+npm test            # 全 UI テスト 1 回実行
+npm run test:watch  # 監視モード
+
+# 個別テストスイート (Firebase emulator 経由)
+npm run test:unit   # SelectScreen / attemptAdapter (10 テスト)
+npm run test:rules  # Firestore rules (20 テスト)
+npm run test:api    # Reservation Tx 統合 (12 テスト)
+npm run test:e2e    # Playwright (3 フロー)
+npm run test:all    # 全部
+```
+
+主要 UI テスト:
+- `tests/LoginScreen.test.jsx` — メール認証フロー
+- `tests/AllPairsTriangle.test.jsx` — GRIFFON CODE カード複数同時展開 (Issue #4)
+
+> 手動スクリプト (`tests/send-email.test.mjs`, `tests/check-user.mjs`) は `vite.config.js` の `test.exclude` で対象外
+
+詳細: [docs/testing.md](./docs/testing.md)
 
 ---
 
