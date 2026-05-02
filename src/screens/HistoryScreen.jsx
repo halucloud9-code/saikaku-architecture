@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
 import { db, signOutUser } from '../firebase';
-import { legacyDocToAttempt } from '../utils/attemptAdapter';
+import { loadAttemptDetails, summarizeFromParent } from '../utils/attemptLoader';
 
 const TOKENS = {
   saikaku: {
@@ -59,43 +58,55 @@ function getAttemptOrdinal(attempt, index, total) {
   return `${total - index}回目`;
 }
 
+function getPendingNotice(summary, pendingAttempt) {
+  if (!summary?.hasPending) return '';
+  if (pendingAttempt === null) {
+    return 'データ不整合の可能性があるため、サポートまでお問い合わせください。';
+  }
+
+  const ms = pendingAttempt.createdAt?.toMillis?.() ?? Date.now();
+  const longPending = (Date.now() - ms) >= 10 * 60 * 1000;
+  return longPending
+    ? '処理中の診断が長時間完了していません。データ不整合の可能性があるため、サポートまでお問い合わせください。'
+    : '処理中の診断があります。完了をお待ちください。';
+}
+
 export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onLogout }) {
-  const [attempts, setAttempts] = useState(null);
+  const [details, setDetails] = useState(null);
   const [error, setError] = useState('');
   const [hoveredId, setHoveredId] = useState('');
   const tokens = TOKENS[kind] ?? TOKENS.saikaku;
+  const attempts = details?.committedAttempts ?? null;
+  const summary = details?.summary ?? null;
+  const pendingNotice = getPendingNotice(summary, details?.pendingAttempt ?? null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       if (!user?.uid) {
-        setAttempts([]);
+        setDetails({
+          committedAttempts: [],
+          pendingAttempt: null,
+          summary: summarizeFromParent(null),
+        });
         return;
       }
 
-      setAttempts(null);
+      setDetails(null);
       setError('');
 
       try {
-        const collName = kind === 'uaam' ? 'uaam_results' : 'results';
-        const parentRef = doc(db, collName, user.uid);
-        const subSnap = await getDocs(query(collection(parentRef, 'attempts'), orderBy('createdAt', 'desc')));
-        const list = subSnap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((attempt) => attempt.status === 'committed');
-
-        if (list.length === 0) {
-          const parentSnap = await getDoc(parentRef);
-          const synth = legacyDocToAttempt(parentSnap.exists() ? parentSnap.data() : null, kind);
-          if (synth) list.push(synth);
-        }
-
-        if (!cancelled) setAttempts(list);
+        const nextDetails = await loadAttemptDetails({ db, uid: user.uid, kind });
+        if (!cancelled) setDetails(nextDetails);
       } catch (e) {
         if (!cancelled) {
           setError(e.message || '履歴の読み込みに失敗しました');
-          setAttempts([]);
+          setDetails({
+            committedAttempts: [],
+            pendingAttempt: null,
+            summary: summarizeFromParent(null),
+          });
         }
       }
     }
@@ -236,7 +247,26 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onL
           </div>
         )}
 
-        {attempts !== null && attempts.length === 0 && (
+        {attempts !== null && pendingNotice && (
+          <div
+            data-testid="pending-notice"
+            style={{
+              border: `1px solid ${tokens.border}`,
+              background: tokens.soft,
+              borderRadius: 16,
+              padding: '18px 20px',
+              color: '#F5F0E8',
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1.8,
+              marginBottom: 14,
+            }}
+          >
+            {pendingNotice}
+          </div>
+        )}
+
+        {attempts !== null && attempts.length === 0 && summary?.hasPending === false && (
           <div style={{
             border: `1px solid ${tokens.border}`,
             background: 'rgba(26,22,16,0.72)',
