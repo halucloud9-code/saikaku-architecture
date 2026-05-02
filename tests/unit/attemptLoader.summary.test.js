@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeFromParent } from '../../src/utils/attemptLoader';
+import { summarizeFromParent } from '../../shared/attemptLogic.js';
 
 describe('summarizeFromParent', () => {
   it('returns zero summary for an empty parent', () => {

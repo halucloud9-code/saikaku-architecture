@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { listFromAttempts } from '../../src/utils/attemptLoader';
+import { listFromAttempts } from '../../shared/attemptLogic.js';
 
 function timestamp(ms) {
   return { toMillis: () => ms };
