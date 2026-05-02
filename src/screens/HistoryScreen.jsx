@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
-import { db, signOutUser } from '../firebase';
-import { legacyDocToAttempt } from '../utils/attemptAdapter';
+import { auth, signOutUser } from '../firebase';
 
 const TOKENS = {
   saikaku: {
@@ -23,8 +21,18 @@ const TOKENS = {
 };
 
 function formatDate(value) {
-  if (!value) return '日付未設定';
-  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+  if (value === null || value === undefined) return '日付未設定';
+  let date;
+  if (typeof value === 'string') {
+    date = new Date(value);
+  } else if (typeof value?.toDate === 'function') {
+    date = value.toDate();
+  } else if (typeof value?._seconds === 'number') {
+    date = new Date(value._seconds * 1000);
+  } else {
+    date = new Date(value);
+  }
+
   if (Number.isNaN(date.getTime())) return '日付未設定';
 
   return new Intl.DateTimeFormat('ja-JP', {
@@ -43,14 +51,10 @@ function getAttemptDate(attempt) {
 function getAttemptLabel(attempt, kind) {
   if (kind === 'uaam') {
     return attempt.summary?.typeName
-      ?? attempt.full?.analysis?.type_name
-      ?? attempt.full?.analysis?.primary_type
       ?? 'MATRIX 診断結果';
   }
 
   return attempt.summary?.kakuchiiki
-    ?? attempt.full?.selectedKakuchiiki
-    ?? attempt.full?.result?.kakuchiiki
     ?? '才覚領域 診断結果';
 }
 
@@ -59,7 +63,7 @@ function getAttemptOrdinal(attempt, index, total) {
   return `${total - index}回目`;
 }
 
-export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onLogout }) {
+export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, onLogout }) {
   const [attempts, setAttempts] = useState(null);
   const [error, setError] = useState('');
   const [hoveredId, setHoveredId] = useState('');
@@ -78,23 +82,25 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onL
       setError('');
 
       try {
-        const collName = kind === 'uaam' ? 'uaam_results' : 'results';
-        const parentRef = doc(db, collName, user.uid);
-        const subSnap = await getDocs(query(collection(parentRef, 'attempts'), orderBy('createdAt', 'desc')));
-        const list = subSnap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((attempt) => attempt.status === 'committed');
-
-        if (list.length === 0) {
-          const parentSnap = await getDoc(parentRef);
-          const synth = legacyDocToAttempt(parentSnap.exists() ? parentSnap.data() : null, kind);
-          if (synth) list.push(synth);
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) {
+          if (!cancelled) setAttempts([]);
+          return;
         }
 
-        if (!cancelled) setAttempts(list);
-      } catch (e) {
+        const res = await fetch(`/api/me/history?kind=${encodeURIComponent(kind)}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (!res.ok) {
+          if (!cancelled) setAttempts([]);
+          return;
+        }
+
+        const data = await res.json();
+        if (!cancelled) setAttempts(data.attempts ?? []);
+      } catch {
         if (!cancelled) {
-          setError(e.message || '履歴の読み込みに失敗しました');
+          setError('');
           setAttempts([]);
         }
       }
@@ -266,7 +272,7 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttempt, onL
                 <button
                   data-testid="history-item"
                   key={attempt.id}
-                  onClick={() => onSelectAttempt(attempt)}
+                  onClick={() => onSelectAttemptId(attempt.id, kind)}
                   onMouseEnter={() => setHoveredId(attempt.id)}
                   onMouseLeave={() => setHoveredId('')}
                   style={{

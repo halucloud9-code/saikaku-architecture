@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import { auth, getRedirectResult, db } from './firebase';
 import LoginScreen from './screens/LoginScreen';
 import InputScreen from './screens/InputScreen';
@@ -26,18 +25,23 @@ const devMode = params.get('dev');
 const pageParam = params.get('page'); // ?page=uaam-result で直接結果画面へ
 
 /**
- * Firestoreから保存済みUAAM結果を読み込む
+ * 保存済みUAAM結果を読み込む
  */
 async function loadSavedUaamResult(uid) {
+  void uid;
   try {
-    const docRef = doc(db, 'uaam_results', uid);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const data = snap.data();
-      if (data.scores && data.analysis) {
-        return { scores: data.scores, analysis: data.analysis };
-      }
-    }
+    if (!auth.currentUser) return null;
+
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/me/uaam-result', {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (!data.scores || !data.analysis) return null;
+
+    return { scores: data.scores, analysis: data.analysis };
   } catch (e) {
     console.warn('[UAAM] Failed to load saved result:', e);
   }
@@ -146,13 +150,13 @@ export default function App() {
 
   const handleLogin = async (u) => {
     setUser(u);
-    // ログイン時にも保存済みUAAM結果を読み込む
+    // 即座にセレクト画面へ遷移してから、保存済みUAAM結果をバックグラウンド読み込み
+    // （await中にユーザーが他画面へ遷移した場合に setScreen('select') で戻されるのを防ぐ）
+    setScreen((prev) => (prev === 'login' ? 'select' : prev));
     const saved = await loadSavedUaamResult(u.uid);
     if (saved) {
       setUaamResult(saved);
     }
-    // 常にセレクト画面へ（才覚領域 / 才覚発動領域 の選択画面）
-    setScreen('select');
   };
 
   const handleSubmit = async (formData) => {
@@ -360,10 +364,27 @@ export default function App() {
         user={user}
         kind={kind}
         onBack={() => { clearSelectedAttempt(); setScreen('select'); }}
-        onSelectAttempt={(attempt) => {
-          setSelectedAttempt(attempt);
-          setSelectedAttemptKind(kind);
-          setScreen(kind === 'uaam' ? 'uaam-result' : 'result');
+        onSelectAttemptId={async (id, selectedKind) => {
+          try {
+            if (!auth.currentUser) {
+              throw new Error('ログインセッションが切れました。再度ログインしてください。');
+            }
+
+            const idToken = await auth.currentUser.getIdToken();
+            const res = await fetch(`/api/me/history/${encodeURIComponent(id)}?kind=${encodeURIComponent(selectedKind)}`, {
+              headers: { Authorization: `Bearer ${idToken}` },
+            });
+            if (!res.ok) {
+              throw new Error('履歴の読み込みに失敗しました');
+            }
+
+            const attempt = await res.json();
+            setSelectedAttempt(attempt);
+            setSelectedAttemptKind(selectedKind);
+            setScreen(selectedKind === 'uaam' ? 'uaam-result' : 'result');
+          } catch (e) {
+            alert(e.message || '履歴の読み込みに失敗しました');
+          }
         }}
         onLogout={handleLogout}
       />

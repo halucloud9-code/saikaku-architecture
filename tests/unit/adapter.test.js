@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attemptToResultProps, legacyDocToAttempt } from '../../src/utils/attemptAdapter';
+import { attemptToResultProps } from '../../src/utils/attemptAdapter';
 
 describe('attemptAdapter', () => {
   it('returns null when attempt is null', () => {
@@ -48,28 +48,5 @@ describe('attemptAdapter', () => {
         vAnswers: { V1: 4 },
       },
     });
-  });
-
-  it('creates a synthetic legacy saikaku attempt from a parent doc', () => {
-    const attempt = legacyDocToAttempt({
-      result: { kakuchiiki: '問いに火を灯す人' },
-      selectedKakuchiiki: '問いに火を灯す人',
-      createdAt: '2026-05-01',
-    }, 'saikaku');
-
-    expect(attempt).toMatchObject({
-      id: 'legacy-fallback',
-      isLegacy: true,
-      status: 'committed',
-      summary: { kakuchiiki: '問いに火を灯す人' },
-      full: {
-        result: { kakuchiiki: '問いに火を灯す人' },
-        selectedKakuchiiki: '問いに火を灯す人',
-      },
-    });
-  });
-
-  it('returns null for empty legacy saikaku parents', () => {
-    expect(legacyDocToAttempt({}, 'saikaku')).toBeNull();
   });
 });

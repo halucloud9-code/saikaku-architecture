@@ -1,8 +1,8 @@
 # 設計判断の根拠 (Design Rationale)
 
 > このドキュメントは「なぜこうしたか」を記録する。コード/SETUP は「何をしたか」「どう動かすか」だけ書く。
-> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限)
-> 確定: 2026-05-02
+> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限), #36 (履歴空表示), #40 (UAAM 履歴非表示)
+> 確定: 2026-05-02 / 追記: 2026-05-03 (Section 6 追加)
 
 ---
 
@@ -122,3 +122,50 @@ LLM (Anthropic API) は 5-30 秒かかる高コスト呼び出し。ユーザー
 
 ### TEST_BYPASS_AUTH ガード
 本番混入を防ぐため三重ガード: `TEST_BYPASS_AUTH=1` AND `NODE_ENV=test` AND `FIRESTORE_EMULATOR_HOST` セット時のみ有効。
+さらに `/api/me/*` は `VERCEL` env または `NODE_ENV=production` が立っている場合は bypass を強制 false にする多重防御 (PR #40 追加)。
+
+---
+
+## 6. 読み取りパスの API 化 (BFF / `/api/me/*`) — issue #36, #40
+
+### 採用案
+診断結果・履歴・診断ステータスの読み取りを **すべて `/api/me/*` BFF 経由に統一**。Firestore client SDK での直読みは `results/{uid}` 親ドキュメントの consent 確認用途のみ残す。
+
+```
+クライアント → /api/me/diagnosis-status   (バッジ・履歴件数)
+         → /api/me/uaam-result        (保存済み UAAM 結果)
+         → /api/me/history?kind=...   (履歴一覧、summary のみ)
+         → /api/me/history/<id>?kind=...  (履歴詳細、full + raw)
+         → /results/{uid} 直読み      (consent 確認のみ、rules: signedInAs(uid))
+```
+
+`firestore.rules` は `uaam_results/*` および全 attempts subcollection を `read: if false` に縮小。`results/{uid}` 親のみ `signedInAs(uid)` を維持。
+
+### なぜこうしたか
+1. **rules デプロイ漏れ・auth プロビジョンタイミングへの脆さ**: issue #36 (履歴空表示) と issue #40 (UAAM バッジ非表示) は、いずれも client onSnapshot が permission denied で silent fail → 状態が `null` のまま badge/履歴が非表示になる経路で発生。Firestore rules → デプロイ → client SDK の三段リレーが壊れやすい。
+2. **書き込み系との対称性**: 書き込みは既に Admin SDK 経由 (`/api/analyze`, `/api/uaam`) で統一されていたが、読み取りだけ rules ベースの client 直読みでアーキテクチャが非対称だった。本 PR で読み取りも API に揃えた。
+3. **認可境界をサーバー側に集約**: rules で「迂回」するのではなく、認可責務を Firestore rules → API ハンドラに **移設**。各ハンドラは `decoded.uid` のみで Firestore path を組み立て、`req.query.uid` / `req.body.uid` を信用しない。`api/me/_auth.js` の `withMeHandler` で try/catch + JSON 500 を統一。
+4. **UAAM 結果のスナップショット性**: 履歴詳細の `full`/`raw` をサーバー側で凍結することで、後日ロジック変更があっても過去の attempt の表示は変わらない（current behavior と同等）。
+
+### realtime/onSnapshot を捨てた根拠
+バッジ・履歴は画面遷移時に getDoc 相当の一回読み取りで十分。realtime 性は本機能では不要。むしろ onSnapshot の error コールバックが silent fail する設計が #36 #40 を生んだ。
+
+### consent read の例外維持
+`src/App.jsx:118` と `src/screens/LoginScreen.jsx` の `saveConsent` で `results/{uid}` 親を直読みして `consentAt` 有無を確認している。この「書き込み前の事前確認」用途のみ rules で `signedInAs(uid)` を残す。完全な閉鎖は別 issue (`/api/me/consent` 追加) で対応予定。
+
+### handleLogin race condition の修正 (PR 中で発覚)
+`handleLogin` が `await loadSavedUaamResult` の **後に** `setScreen('select')` を呼ぶ実装だったため、await 中にユーザーが他画面 (HistoryScreen 等) に遷移すると遅延した `setScreen('select')` で SelectScreen に強制的に戻されていた。E2E `history-flow.spec.js` の失敗で発覚 → `setScreen((prev) => prev === 'login' ? 'select' : prev)` (prev guard) + 即座に画面遷移してから `await` する順序に変更。
+
+### Tier 1 セキュリティ強化 (codex-code-review 指摘)
+- `/api/me/_auth.js`: `VERCEL`/`NODE_ENV=production` での bypass 強制無効化、`x-test-uid` 形式バリデーション (`/^[a-zA-Z0-9_-]{1,128}$/`)
+- `/api/me/history/[id].js`: `status === 'committed'` 必須化、`id` 形式バリデーション
+- 全 `/api/me/*`: `withMeHandler` で top-level try/catch + JSON 500 wrapper
+
+### legacy 判定の意図的な非対称
+`hasLegacyAttemptData(saikaku)` は `!!data.result` のみで判定（`data.analysis` を見ない）。理由: `attemptToResultProps(.., 'saikaku')` が `full.result` 必須のため、analysis のみ存在する legacy parent は ResultScreen で render 不能。`api/lib/legacy.js` にコメントで明示。
+
+### 将来改善 (本 PR スコープ外)
+- consent 確認・書込みを `/api/me/consent` (POST/GET) に移行 → `results/{uid}` 親 read も完全に `false` 化
+- attempts.js の `reserveAttempt` の stale pending 復旧不能バグ
+- attempts.js の `rollbackAttempt` 重複 rollback 時の負数化
+- クライアント `loading/error/data` 三状態化 (現状は permission error も「データなし」に潰れる)

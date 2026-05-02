@@ -159,7 +159,7 @@ export async function rollbackAttempt({ collection, uid, attemptId }) {
   });
 }
 
-function extractSummary(data, kind) {
+export function extractSummary(data, kind) {
   if (kind === 'saikaku') {
     return {
       kakuchiiki: data?.result?.kakuchiiki ?? data?.selectedKakuchiiki ?? null,
@@ -174,7 +174,7 @@ function extractSummary(data, kind) {
   };
 }
 
-function extractFull(data, kind) {
+export function extractFull(data, kind) {
   if (kind === 'saikaku') {
     return {
       result: data?.result ?? null,
@@ -191,7 +191,7 @@ function extractFull(data, kind) {
   };
 }
 
-function extractRaw(data, kind) {
+export function extractRaw(data, kind) {
   if (kind === 'saikaku') {
     return {
       input: {
