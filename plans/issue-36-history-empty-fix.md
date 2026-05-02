@@ -246,10 +246,11 @@ if (attemptDocs.length === 0) {
 
 ## Phase 9: 完了 `depends-on: docs`
 
-- [ ] [id:pr] PR を作成（base=main, head=fix/issue-36-history-empty）
+- [x] [id:pr] PR を作成（base=main, head=fix/issue-36-history-empty）
+  - PR #38 を作成: https://github.com/halucloud9-code/saikaku-architecture/pull/38
   - タイトル: `fix: 診断履歴のカウントと表示の不整合を解消 (#36)`
-  - 本文: 原因（SSoT 不一致）、設計判断（parent 単一購読への変更）、テストケース一覧、関連 issue (#33, follow-up #?)
 - [ ] [id:review-req] レビュー依頼 + Codex 最終レビュー `depends-on: pr`
+  - PR レビュー依頼はつかさが実施 / Codex 最終レビューは Phase 6 で APPROVE_WITH_COMMENTS 取得済み
 
 ---
 
