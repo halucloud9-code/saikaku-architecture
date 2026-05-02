@@ -16,6 +16,17 @@ import SelectScreen from '../../../src/screens/SelectScreen';
 const user = { uid: 'u1', displayName: 'Test User' };
 const noop = () => {};
 
+function statusOf({ committedCount = 0, hasPending = false, hasResult = false } = {}) {
+  return {
+    committedCount,
+    attemptCount: committedCount,
+    hasPending,
+    pendingAttemptId: hasPending ? 'pending-1' : null,
+    hasResult,
+    isStartBlocked: hasPending || committedCount >= 2,
+  };
+}
+
 function renderSelect() {
   return render(
     <SelectScreen
@@ -42,8 +53,8 @@ describe('SelectScreen badge', () => {
 
   it('shows 1/2 for saikaku when attemptCount=1', () => {
     useDiagnosisStatus.mockReturnValue({
-      saikaku: { attemptCount: 1, hasResult: true },
-      uaam: { attemptCount: 0, hasResult: false },
+      saikaku: statusOf({ committedCount: 1, hasResult: true }),
+      uaam: statusOf(),
     });
 
     renderSelect();
@@ -54,8 +65,8 @@ describe('SelectScreen badge', () => {
 
   it('shows 2/2 and the limit notice for saikaku', () => {
     useDiagnosisStatus.mockReturnValue({
-      saikaku: { attemptCount: 2, hasResult: true },
-      uaam: { attemptCount: 0, hasResult: false },
+      saikaku: statusOf({ committedCount: 2, hasResult: true }),
+      uaam: statusOf(),
     });
 
     renderSelect();
@@ -66,8 +77,8 @@ describe('SelectScreen badge', () => {
 
   it('shows the hook-normalized legacy fallback count', () => {
     useDiagnosisStatus.mockReturnValue({
-      saikaku: { attemptCount: 1, hasResult: true },
-      uaam: { attemptCount: 0, hasResult: false },
+      saikaku: statusOf({ committedCount: 1, hasResult: true }),
+      uaam: statusOf(),
     });
 
     renderSelect();
@@ -77,13 +88,26 @@ describe('SelectScreen badge', () => {
 
   it('shows uaam badge independently from saikaku', () => {
     useDiagnosisStatus.mockReturnValue({
-      saikaku: { attemptCount: 0, hasResult: false },
-      uaam: { attemptCount: 1, hasResult: true },
+      saikaku: statusOf(),
+      uaam: statusOf({ committedCount: 1, hasResult: true }),
     });
 
     renderSelect();
 
     expect(screen.queryByTestId('badge-saikaku')).toBeNull();
     expect(screen.getByTestId('badge-uaam')).toHaveTextContent('診断済み (1/2)');
+  });
+
+  it('shows history area and pending indicator for pending-only state', () => {
+    useDiagnosisStatus.mockReturnValue({
+      saikaku: statusOf({ hasPending: true }),
+      uaam: statusOf(),
+    });
+
+    renderSelect();
+
+    expect(screen.queryByTestId('badge-saikaku')).toBeNull();
+    expect(screen.getByTestId('history-link-saikaku')).toHaveTextContent('履歴を見る (0)');
+    expect(screen.getByText('処理中…')).toBeInTheDocument();
   });
 });
