@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 vi.mock('../../../src/firebase', () => ({
   signOutUser: vi.fn(),
@@ -27,7 +28,11 @@ function statusOf({ committedCount = 0, hasPending = false, hasResult = false } 
   };
 }
 
-function renderSelect() {
+function hookValue(status, error = null, refresh = vi.fn()) {
+  return { status, error, refresh };
+}
+
+function renderSelect(overrides = {}) {
   return render(
     <SelectScreen
       user={user}
@@ -37,13 +42,19 @@ function renderSelect() {
       onSelectHistory={noop}
       onAdmin={noop}
       onLogout={noop}
+      {...overrides}
     />,
   );
 }
 
 describe('SelectScreen badge', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
   it('hides badges while loading', () => {
-    useDiagnosisStatus.mockReturnValue(null);
+    useDiagnosisStatus.mockReturnValue(hookValue(null));
 
     renderSelect();
 
@@ -52,10 +63,10 @@ describe('SelectScreen badge', () => {
   });
 
   it('shows 1/2 for saikaku when attemptCount=1', () => {
-    useDiagnosisStatus.mockReturnValue({
+    useDiagnosisStatus.mockReturnValue(hookValue({
       saikaku: statusOf({ committedCount: 1, hasResult: true }),
       uaam: statusOf(),
-    });
+    }));
 
     renderSelect();
 
@@ -64,10 +75,10 @@ describe('SelectScreen badge', () => {
   });
 
   it('shows 2/2 and the limit notice for saikaku', () => {
-    useDiagnosisStatus.mockReturnValue({
+    useDiagnosisStatus.mockReturnValue(hookValue({
       saikaku: statusOf({ committedCount: 2, hasResult: true }),
       uaam: statusOf(),
-    });
+    }));
 
     renderSelect();
 
@@ -76,10 +87,10 @@ describe('SelectScreen badge', () => {
   });
 
   it('shows the hook-normalized legacy fallback count', () => {
-    useDiagnosisStatus.mockReturnValue({
+    useDiagnosisStatus.mockReturnValue(hookValue({
       saikaku: statusOf({ committedCount: 1, hasResult: true }),
       uaam: statusOf(),
-    });
+    }));
 
     renderSelect();
 
@@ -87,10 +98,10 @@ describe('SelectScreen badge', () => {
   });
 
   it('shows uaam badge independently from saikaku', () => {
-    useDiagnosisStatus.mockReturnValue({
+    useDiagnosisStatus.mockReturnValue(hookValue({
       saikaku: statusOf(),
       uaam: statusOf({ committedCount: 1, hasResult: true }),
-    });
+    }));
 
     renderSelect();
 
@@ -99,15 +110,44 @@ describe('SelectScreen badge', () => {
   });
 
   it('shows history area and pending indicator for pending-only state', () => {
-    useDiagnosisStatus.mockReturnValue({
+    useDiagnosisStatus.mockReturnValue(hookValue({
       saikaku: statusOf({ hasPending: true }),
       uaam: statusOf(),
-    });
+    }));
 
     renderSelect();
 
     expect(screen.queryByTestId('badge-saikaku')).toBeNull();
     expect(screen.getByTestId('history-link-saikaku')).toHaveTextContent('履歴を見る (0)');
     expect(screen.getByText('処理中…')).toBeInTheDocument();
+  });
+
+  it('shows a reloadable notice when diagnosis status loading fails', async () => {
+    const refresh = vi.fn();
+    useDiagnosisStatus.mockReturnValue(hookValue(null, 'fetch', refresh));
+
+    renderSelect();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('読み込みに失敗しました');
+    await userEvent.click(screen.getByRole('button', { name: '再読み込み' }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks both start buttons while diagnosis status loading has failed', async () => {
+    const onSelectSaikaku = vi.fn();
+    const onSelectUaam = vi.fn();
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    useDiagnosisStatus.mockReturnValue(hookValue(null, 'fetch'));
+
+    renderSelect({ onSelectSaikaku, onSelectUaam });
+
+    await userEvent.click(screen.getByTestId('card-saikaku'));
+    await userEvent.click(screen.getByTestId('card-uaam'));
+
+    expect(onSelectSaikaku).not.toHaveBeenCalled();
+    expect(onSelectUaam).not.toHaveBeenCalled();
+    expect(screen.queryByPlaceholderText('パスワード')).toBeNull();
+    expect(alertSpy).toHaveBeenCalledTimes(2);
+    expect(alertSpy).toHaveBeenCalledWith('読み込みに失敗しました。再読み込みしてください。');
   });
 });
