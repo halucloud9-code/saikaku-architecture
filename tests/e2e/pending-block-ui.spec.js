@@ -26,7 +26,7 @@ test('pending residue blocks starting another saikaku diagnosis', async ({ page 
     window.alert = (msg) => window.__captureAlert(String(msg));
   });
 
-  await page.getByTestId('card-saikaku').click();
+  await page.getByTestId('card-saikaku-overlay').click();
   await expect.poll(() => alertMessages.length, { timeout: 5000 }).toBeGreaterThan(0);
   expect(alertMessages[0]).toContain('処理中の診断があります');
   await expect(page.getByText('才覚領域を発見する')).toHaveCount(0);

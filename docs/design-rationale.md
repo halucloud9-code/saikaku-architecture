@@ -1,8 +1,8 @@
 # 設計判断の根拠 (Design Rationale)
 
 > このドキュメントは「なぜこうしたか」を記録する。コード/SETUP は「何をしたか」「どう動かすか」だけ書く。
-> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限), #36 (履歴空表示), #40 (UAAM 履歴非表示)
-> 確定: 2026-05-02 / 追記: 2026-05-03 (Section 6 追加)
+> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限), #36 (履歴空表示), #40 (UAAM 履歴非表示), #48 #49 (履歴戻り導線), #47 (SelectScreen レイアウト刷新)
+> 確定: 2026-05-02 / 追記: 2026-05-03 (Section 6 追加, Section 7 追加 履歴戻り導線, Section 8 追加 SelectScreen Block Link/透過オーバーレイ)
 
 ---
 
@@ -233,3 +233,81 @@ UI (`UAAMResultScreen.jsx:1534`) は `leadershipStage?.stage` を期待するが
 ### スコープ外
 - ブラウザ戻るボタン対応 (issue #50)
 - UAAM 結果画面の巨大化 (2129 行) を分割するリファクタ（codex-code-review 指摘）
+
+---
+
+## 8. SelectScreen レイアウト刷新 (issue #47): 透過オーバーレイ Block Link + SWR + 固定高さ
+
+### 採用案 (最終形)
+- **透過オーバーレイ button パターン** (Gemini 独立レビュー提案):
+  - カード `<div data-testid="card-saikaku/uaam">` は完全に**非インタラクティブ** (`role`/`tabIndex`/`onKeyDown`/`onClick` 一切なし、`position: relative` のみ)
+  - 子要素として **透過 `<button data-testid="card-saikaku-overlay" / "card-uaam-overlay">`** を配置（`position: absolute; inset: 0; zIndex: 1; transparent`、`aria-label` 付き）。これがカード全体クリックを担当
+  - 既存 CTA pill は `<div aria-hidden="true">` + `pointerEvents: 'none'` の視覚装飾に降格（クリックは overlay に貫通）
+  - 履歴 `<button>`・badge・パスワードアイコンは `position: relative; zIndex: 2` で overlay より前面（DOM 上は **兄弟要素 (Sibling)**、ARIA 違反なし）
+- **下部メタ領域は全状態で固定高さ** (28px、`visibility: hidden + aria-hidden` プレースホルダでレイアウトジャンプ根絶)
+- **`useDiagnosisStatus` を stale-while-revalidate 化** (refresh 中も前回値を保持、tab 復帰時のチラつき解消)
+- **uid 切替時は同期クリア** (statusUidRef で前回 uid を記録、変化検知時に `setStatus(null)` + `requestSeq++` で in-flight 破棄 + render-time guard)
+- **スマホでバッジ被り解消**: サブラベル wrapper に `paddingRight: 112` で badge スロット予約
+
+### 棄却した代替案
+**(A) カード `<button>` 直接化 (初期実装)**
+- 棄却: button-in-button 問題（履歴ボタン・lock アイコンを内包できない）
+
+**(B) `<div role="button" tabIndex={0} onKeyDown>` (P1#1 で却下)**
+- 棄却: ARIA widget role に focusable button 子要素は仕様違反 (Codex review bot P1#1)。SR がフォーカス位置を判別不能になる
+
+**(C) `<div onClick>` のみ (P1#2-3 で却下)**
+- 棄却: カード body のキーボード操作不可。CTA button だけが keyboard activatable で「視覚的にクリック可能に見えるのにキーボードで届かない」 false promise (Codex review bot P1#2-3)
+
+**(D) カード全体クリック廃止 (CTA full-width 化)**
+- 棄却: モバイル UX 退化（Fitts 法則違反、タップ領域大幅縮小）。Round 1 debate で Codex+Gemini 両者が「明らかな改悪」と批判。Codex review bot 対応で一時実装したが、Gemini 独立レビューで「A11y vs UX は二項対立ではなく、適切な DOM 構造で両立可能」と再棄却
+
+**(E) AdminScreen パターン追従 (非クリックカード + 内部 button のみ)**
+- 棄却: 管理画面 data row 用途で、ユーザー向けプライマリ操作カードには不適。「hover リフトはあるが非クリック」は UX 上の虚偽表示
+
+**(F) `flex-wrap` でバッジ被り解消**
+- 棄却: 絶対配置のバッジは flex flow 外なので flex-wrap は効かない (Round 1 で Gemini が CSS 仕様無視と指摘)
+
+### 透過オーバーレイパターンの実装ディテール
+- カード `<div>` に `position: relative` (子の absolute origin)
+- 透過 overlay button の z-index 設計:
+  - overlay = z-index 1（背面）
+  - 履歴 button / badge / lock indicator = z-index 2（前面、DOM 兄弟）
+- overlay button の hover/focus 時に既存 `hoverSaikaku/Uaam` state を駆動 → カード div の視覚 lift・gradient はそのまま機能
+- 履歴 button / lock indicator は `pointerEvents: 'none'` を持つ要素（badge 等）を経由して overlay クリック貫通を妨げない
+- overlay の `aria-label` で SR ユーザーに「才覚領域の診断を開始する」と明示（カード内テキストの組み合わせよりも明確）
+
+### A11y vs UX のジレンマ解消
+Codex review bot から3回連続で受けた P1 指摘:
+1. nested-interactive (`role="button"` + 内部 button)
+2. キーボード操作不可 (`<div onClick>`)
+3. 同上
+
+二項対立に見えたが Gemini 独立レビューで第3の道が判明:
+> 「A11y か UX か」ではなく、「両者を成立させる適切な DOM 構造（透過オーバーレイ）」を提示できなかったことに起因する誤ったトレードオフ
+
+兄弟要素として配置することで親子ネストを回避しつつ、overlay は real `<button>` で WCAG 2.1.1/4.1.2 を満たす。
+
+### 固定高さメタ領域の WHY
+Round 1 debate で「`status=null` だけプレースホルダ + `count=0` で領域消滅」案は**結局ジャンプを起こす**と判明。loaded&count=0/loaded&count>=1/hasPending=true/status=null の **4状態すべて同じ高さ** を確保することで物理的にジャンプを根絶。空白の見た目は許容 (ジャンプ防止 > 余白の見た目)。
+
+### SWR + uid 切替時の同期クリア
+SWR 化 (`setStatus(null)` 削除) で focus 復帰時のチラつきは消えたが、uid 変化時に**他ユーザーの status が一瞬表示される**バグが新たに生じる (codex-code-review B1)。`statusUidRef = useRef(uid)` で前回 uid を記録し、`useEffect([uid])` で変化検知 → `setStatus(null) + requestSeq++` で in-flight invalidation。**さらに**返値で `statusUidRef.current === uid ? status : null` の render-time guard を追加し、effect 反映前の 1 frame でも漏れない二重防御。
+
+### スマホ対応 (375px-430px)
+バッジは絶対配置 (`top:18 right:18`) でフローから外れるため、サブラベル側に `paddingRight: 112` で恒久的に badge スロットを予約。`maxWidth: '100%'` でサブラベル文言が長くなっても折り返す。`@media` クエリは使わず fluid layout (プロジェクト慣習)。
+
+### マルチ AI レビューが効いた事例
+- Round 1 debate (Codex + Gemini + Claude): 「カード全体クリック維持」を方針決定
+- Codex review bot: 3回連続で a11y P1 指摘、ジレンマを顕在化
+- Codex 実装案 (canonical full-width CTA): a11y は解決するが Round 1 方針を覆す
+- **Gemini 独立レビュー**: 第3の道（透過オーバーレイ）で a11y と UX を両立
+
+「Codex 実装 → Codex review → Gemini レビュー」のクロスチェックで、単一 LLM の盲点（二項対立の罠）を回避できた。
+
+### 観測結果
+- vitest unit: 47/47 pass (新規 Block Link テスト 2件 + SWR テスト 4件)
+- test:rules: 21/21 pass
+- test:api: 41/41 pass
+- test:e2e (Playwright): 13/13 pass (badge-flow / history-flow×2 / limit-flow / modern-user-no-double-count / pending-block-ui / issue-47-snapshots×7)
+- スクリーンショット 28枚 (4 状態 × 4 幅 × saikaku/uaam) を `screenshots/issue-47/` に保存
