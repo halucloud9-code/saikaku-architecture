@@ -4,7 +4,7 @@
  * 才覚領域（WHY/HOW/WHAT）× UAAM4軸（志/知/技/衝）の
  * クロス分析をMcKinsey級レイアウトで表示する
  */
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 /* ── パレット ─────────────────────── */
 const P = {
@@ -168,9 +168,80 @@ function toJP(text) {
   );
 }
 
+function formatSavedTime(date) {
+  if (!date) return '';
+  const savedAt = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(savedAt.getTime())) return '';
+  const hh = String(savedAt.getHours()).padStart(2, '0');
+  const mm = String(savedAt.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 /* ── メインコンポーネント ────────────── */
-export default function SaikakuIntegration({ integration }) {
+export default function SaikakuIntegration({
+  integration,
+  answersMap = {},
+  onSave,
+  saving = false,
+  lastSavedAt = null,
+}) {
   const [open, setOpen] = useState(false);
+  const [draftAnswers, setDraftAnswers] = useState([]);
+  const [dirtyIndexes, setDirtyIndexes] = useState(() => new Set());
+  const [saveError, setSaveError] = useState('');
+  const coachingQuestions = useMemo(
+    () => (Array.isArray(integration?.coaching_questions) ? integration.coaching_questions : []),
+    [integration?.coaching_questions]
+  );
+  const answerEntries = useMemo(() => Object.values(answersMap || {}), [answersMap]);
+  const savedTime = useMemo(() => formatSavedTime(lastSavedAt), [lastSavedAt]);
+  const hasDraftAnswer = coachingQuestions.some((_, i) => (draftAnswers[i] || '').trim().length > 0);
+  const canSave = !!onSave && !saving && hasDraftAnswer;
+
+  useEffect(() => {
+    setDraftAnswers((prev) => coachingQuestions.map((questionText, i) => {
+      if (dirtyIndexes.has(i)) return prev[i] || '';
+      if (typeof questionText !== 'string') return '';
+      const trimmedQuestion = questionText.trim();
+      const saved = answerEntries.find((entry) => (
+        typeof entry?.questionText === 'string'
+        && entry.questionText.trim() === trimmedQuestion
+      ));
+      return typeof saved?.answer === 'string' ? saved.answer : '';
+    }));
+  }, [answerEntries, coachingQuestions, dirtyIndexes]);
+
+  const updateDraftAnswer = (index, value) => {
+    setDirtyIndexes((prev) => {
+      const next = new Set(prev);
+      next.add(index);
+      return next;
+    });
+    setDraftAnswers((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const handleSaveDrafts = async () => {
+    if (!canSave) return;
+    setSaveError('');
+    const items = coachingQuestions
+      .map((questionText, i) => ({ questionText, answer: draftAnswers[i] || '' }))
+      .filter(({ questionText, answer }) => (
+        typeof questionText === 'string'
+        && questionText.trim().length > 0
+        && answer.trim().length > 0
+      ));
+    if (items.length === 0) return;
+
+    try {
+      await onSave(items);
+    } catch (e) {
+      setSaveError(e?.message || '回答を保存できませんでした。再度お試しください。');
+    }
+  };
 
   if (!integration) return null;
 
@@ -186,19 +257,25 @@ export default function SaikakuIntegration({ integration }) {
     flow_route = '',
     hidden_potential = '',
     roadmap = {},
-    coaching_questions = [],
   } = integration;
 
   return (
     <div style={{ marginTop: 0 }}>
       {/* ── ヘッダータップでアコーディオン ── */}
-      <div
+      <button
+        type="button"
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-controls="saikaku-integration-body"
         style={{
+          width: '100%',
+          textAlign: 'left',
           background: `linear-gradient(135deg, #0D2137 0%, #1A3A52 100%)`,
           padding: '18px 20px 16px',
+          border: 'none',
           cursor: 'pointer', userSelect: 'none',
           borderTop: `3px solid ${P.gold}`,
+          font: 'inherit',
         }}
       >
         {/* タイトル行 */}
@@ -243,11 +320,11 @@ export default function SaikakuIntegration({ integration }) {
             「{toJP(activation_equation)}」
           </div>
         )}
-      </div>
+      </button>
 
       {/* ── アコーディオン本体 ── */}
       {open && (
-        <div style={{ background: P.surface, animation: 'amFadeIn 0.25s ease' }}>
+        <div id="saikaku-integration-body" style={{ background: P.surface, animation: 'amFadeIn 0.25s ease' }}>
 
           {/* 最高レバレッジポイント */}
           {leverage_point && (
@@ -329,23 +406,95 @@ export default function SaikakuIntegration({ integration }) {
           )}
 
           {/* ── コーチングキー質問 ── */}
-          {coaching_questions.length > 0 && (
+          {coachingQuestions.length > 0 && (
             <div style={{ padding: '0 20px 24px', borderTop: `1px solid ${P.border}`, paddingTop: 20 }}>
               <SectionHeader title="コーチングキー質問" sub="COACHING KEY QUESTIONS" />
-              {coaching_questions.map((q, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-start',
-                }}>
+              {coachingQuestions.map((q, i) => (
+                <div key={i} style={{ marginBottom: 16 }}>
                   <div style={{
-                    minWidth: 22, height: 22, background: `${P.gold}22`,
-                    borderRadius: '50%', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: 11, fontWeight: 700, color: P.gold,
-                    flexShrink: 0, fontFamily: "'Outfit', sans-serif",
-                  }}>{i + 1}</div>
-                  <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
-                    fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
+                    display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start',
+                  }}>
+                    <div style={{
+                      minWidth: 22, height: 22, background: `${P.gold}22`,
+                      borderRadius: '50%', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontSize: 11, fontWeight: 700, color: P.gold,
+                      flexShrink: 0, fontFamily: "'Outfit', sans-serif",
+                    }}>{i + 1}</div>
+                    <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
+                      fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
+                  </div>
+                  <textarea
+                    value={draftAnswers[i] || ''}
+                    onChange={(e) => updateDraftAnswer(i, e.target.value)}
+                    disabled={saving}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="あなたの考えを書いてみてください"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      minHeight: 88,
+                      padding: '10px 12px',
+                      border: `1px solid ${P.border}`,
+                      borderRadius: 8,
+                      background: saving ? '#F7F3EC' : P.surface,
+                      color: P.text,
+                      fontSize: 13,
+                      lineHeight: 1.7,
+                      fontFamily: "'Noto Serif JP', serif",
+                      resize: 'vertical',
+                      outlineOffset: 2,
+                      opacity: saving ? 0.72 : 1,
+                    }}
+                  />
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={handleSaveDrafts}
+                disabled={!canSave}
+                style={{
+                  width: '100%',
+                  marginTop: 2,
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: 8,
+                  background: canSave
+                    ? `linear-gradient(135deg, ${P.gold} 0%, ${P.goldDim} 100%)`
+                    : P.border,
+                  color: canSave ? '#fff' : P.muted,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: canSave ? 'pointer' : 'not-allowed',
+                  fontFamily: "'Noto Serif JP', serif",
+                  transition: 'opacity 0.2s ease',
+                  outlineOffset: 2,
+                }}
+              >
+                {saving ? '保存中…' : '💾 回答を保存'}
+              </button>
+              {saveError && (
+                <div role="alert" style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: P.score_lo,
+                  textAlign: 'center',
+                  fontFamily: "'Noto Serif JP', serif",
+                }}>
+                  {saveError}
+                </div>
+              )}
+              {savedTime && (
+                <div style={{
+                  marginTop: 8,
+                  fontSize: 11,
+                  color: P.muted,
+                  textAlign: 'center',
+                  fontFamily: "'Outfit', sans-serif",
+                }}>
+                  最終保存: {savedTime}
+                </div>
+              )}
             </div>
           )}
         </div>

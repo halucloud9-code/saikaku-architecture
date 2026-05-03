@@ -21,6 +21,7 @@ import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
 import SaikakuIntegration from './SaikakuIntegration';
+import { loadCoachingAnswers, saveCoachingAnswers } from '../../api/coachingAnswers';
 import { normalizeScores } from '../../utils/normalize';
 import { attemptToResultProps } from '../../utils/attemptAdapter';
 
@@ -1805,6 +1806,9 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   const [analysis, setAnalysis] = useState(() => effectiveResult?.analysis ?? null);
   const [integrating, setIntegrating] = useState(false);
   const [integrateError, setIntegrateError] = useState('');
+  const [coachingAnswersMap, setCoachingAnswersMap] = useState({});
+  const [coachingSaving, setCoachingSaving] = useState(false);
+  const [coachingLastSavedAt, setCoachingLastSavedAt] = useState(null);
 
   useEffect(() => {
     setScores(normalizedResultScores);
@@ -1814,6 +1818,15 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
     setAnalysis(effectiveResult?.analysis ?? null);
     setIntegrateError('');
   }, [effectiveResult?.analysis]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+    loadCoachingAnswers().then((map) => {
+      if (!cancelled) setCoachingAnswersMap(map || {});
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.uid]);
 
   if (!effectiveResult) {
     return (
@@ -1864,6 +1877,20 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
       setIntegrateError(e.message);
     } finally {
       setIntegrating(false);
+    }
+  };
+
+  const handleCoachingSave = async (items) => {
+    setCoachingSaving(true);
+    try {
+      const updated = await saveCoachingAnswers(items);
+      setCoachingAnswersMap(updated);
+      setCoachingLastSavedAt(new Date());
+    } catch (e) {
+      console.warn('[coaching] save failed:', e);
+      throw e;
+    } finally {
+      setCoachingSaving(false);
     }
   };
 
@@ -2066,7 +2093,13 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
             {analysis.saikaku_integration?.integration_score !== undefined ? (
               <div style={{ marginBottom: 20, borderRadius: 16, overflow: 'hidden',
                 boxShadow: '0 2px 12px rgba(0,0,0,0.10)', border: `1px solid #E8E0D4` }}>
-                <SaikakuIntegration integration={analysis.saikaku_integration} />
+                <SaikakuIntegration
+                  integration={analysis.saikaku_integration}
+                  answersMap={coachingAnswersMap}
+                  onSave={handleCoachingSave}
+                  saving={coachingSaving}
+                  lastSavedAt={coachingLastSavedAt}
+                />
               </div>
             ) : (
               <Section>
