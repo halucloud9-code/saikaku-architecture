@@ -41,6 +41,10 @@ function legacyIntegrationFromParent(parentData) {
   if (!integration) return null;
 
   const generatedAt = parentData.integrationUpdatedAt ?? null;
+  const legacySource = {
+    saikakuLabel: parentData.analysis?.saikaku_attempt_label ?? null,
+    uaamLabel: parentData.analysis?.uaam_attempt_label ?? null,
+  };
 
   return {
     id: 'legacy-fallback__legacy-fallback',
@@ -49,7 +53,7 @@ function legacyIntegrationFromParent(parentData) {
     integration,
     regenerationCount: 0,
     model: 'unknown-legacy',
-    source: { saikakuLabel: 'legacy', uaamLabel: 'legacy' },
+    source: legacySource,
     createdAt: generatedAt,
     updatedAt: generatedAt,
     status: 'active',
@@ -106,6 +110,8 @@ function integrationSummary(integrationDoc, kind, latestIds) {
     uaamAttemptId: integrationDoc.uaamAttemptId,
     status: responseStatusForIntegration(integrationDoc, kind, latestIds),
     regenerationCount: integrationDoc.regenerationCount ?? 0,
+    source: integrationDoc.source ?? null,
+    integration: body,
   };
 }
 
@@ -151,14 +157,17 @@ function attemptListItem(attempt, kind, integrations, latestIds) {
 }
 
 export default withMeHandler(async function handler(req, res) {
-  if (req.method !== 'GET') return res.status(405).end();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+
+  if (req.method !== 'GET') return res.status(405).json({ code: 'method_not_allowed' });
 
   const decoded = await authenticateMeRequest(req, res);
   if (!decoded) return undefined;
 
   const kind = readKind(req);
   const config = getKindConfig(kind);
-  if (!config) return res.status(422).json({ error: 'kind must be saikaku or uaam' });
+  if (!config) return res.status(422).json({ error: 'kind must be saikaku or uaam', code: 'invalid_input', field: 'kind' });
 
   const parentRef = db.collection(config.collection).doc(decoded.uid);
   const saikakuParentRef = db.collection('results').doc(decoded.uid);

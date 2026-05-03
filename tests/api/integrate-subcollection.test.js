@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../api/lib/firebaseAdmin.js';
+import {
+  IntegrationConflictError,
+  acquireIntegrationLock,
+  commitIntegration,
+} from '../../api/lib/integrations.js';
 import { buildPairKey } from '../../shared/integrationsKey.js';
 import {
   Timestamp,
@@ -219,7 +224,7 @@ describe('API /api/integrate per-pair subcollection writes', () => {
     const third = await postIntegrate(idToken, body);
 
     expect(third.status).toBe(409);
-    expect(third.body.code).toBe('LimitExceededError');
+    expect(third.body.code).toBe('cap_exceeded');
     expect(third.body.error).toContain('最大2回');
     const afterThird = (await integrationRef(uid, pairKey).get()).data();
     expect(afterThird.regenerationCount).toBe(1);
@@ -239,7 +244,7 @@ describe('API /api/integrate per-pair subcollection writes', () => {
     const statuses = [firstResponse.status, secondResponse.status].sort();
     expect(statuses).toEqual([200, 409]);
     const conflict = [firstResponse, secondResponse].find((response) => response.status === 409);
-    expect(conflict.body.code).toBe('ConflictError');
+    expect(conflict.body.code).toBe('lock_conflict');
     const doc = (await integrationRef(uid, pairKey).get()).data();
     expect(doc.regenerationCount).toBe(0);
   });
@@ -261,5 +266,77 @@ describe('API /api/integrate per-pair subcollection writes', () => {
     expect(response.body.regenerationCount).toBe(0);
     expect((await integrationRef(uid, pairKey).get()).data().regenerationCount).toBe(0);
     expect((await lockRef(uid, pairKey).get()).exists).toBe(false);
+  });
+
+  it('rejects stale owner commit after another request takes over and commits', async () => {
+    const { uid, pairKey } = await seedReadyUser();
+    const ownerA = 'owner-a';
+    const ownerB = 'owner-b';
+
+    const lockA = await acquireIntegrationLock({ uid, pairKey, ownerId: ownerA });
+    expect(lockA.ownerId).toBe(ownerA);
+    await lockA.lockRef.update({
+      acquiredAt: Timestamp.fromMillis(Date.now() - (11 * 60 * 1000)),
+    });
+
+    const lockB = await acquireIntegrationLock({ uid, pairKey, ownerId: ownerB });
+    expect(lockB.ownerId).toBe(ownerB);
+    await commitIntegration({
+      uid,
+      pairKey,
+      saikakuAttemptId: SAIKAKU_ATTEMPT_ID,
+      uaamAttemptId: UAAM_ATTEMPT_ID,
+      integration: { integration_score: 91, activation_core: 'Owner B', activation_equation: 'Owner B equation' },
+      model: MODEL,
+      source: { saikakuLabel: SAIKAKU_LABEL, uaamLabel: UAAM_LABEL },
+      ownerId: ownerB,
+    });
+
+    const afterB = (await integrationRef(uid, pairKey).get()).data();
+    await expect(commitIntegration({
+      uid,
+      pairKey,
+      saikakuAttemptId: SAIKAKU_ATTEMPT_ID,
+      uaamAttemptId: UAAM_ATTEMPT_ID,
+      integration: { integration_score: 66, activation_core: 'Owner A', activation_equation: 'Owner A equation' },
+      model: MODEL,
+      source: { saikakuLabel: SAIKAKU_LABEL, uaamLabel: UAAM_LABEL },
+      ownerId: ownerA,
+    })).rejects.toBeInstanceOf(IntegrationConflictError);
+
+    const afterA = (await integrationRef(uid, pairKey).get()).data();
+    expect(afterA.integration.integration_score).toBe(91);
+    expect(afterA.integration.activation_core).toBe('Owner B');
+    expect(afterA.regenerationCount).toBe(0);
+    expect(afterA.updatedAt.toMillis()).toBe(afterB.updatedAt.toMillis());
+  });
+
+  it.each([
+    ['saikakuAttemptId', 'a/b'],
+    ['saikakuAttemptId', 'a.b'],
+    ['saikakuAttemptId', '..'],
+    ['uaamAttemptId', '__reserved__'],
+  ])('rejects invalid %s with 422 instead of a Firestore 500', async (field, value) => {
+    const response = await postIntegrate('stub-token', { [field]: value });
+
+    expect(response.status).toBe(422);
+    expect(response.body).toMatchObject({
+      code: 'invalid_input',
+      field,
+    });
+  });
+
+  it('does not leak unexpected internal error messages to the client', async () => {
+    const { idToken } = await seedReadyUser();
+    process.env.MOCK_ANTHROPIC_FAIL = '1';
+
+    const response = await postIntegrate(idToken);
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      code: 'internal_error',
+      requestId: expect.any(String),
+    });
+    expect(JSON.stringify(response.body)).not.toContain('mock LLM failure');
   });
 });

@@ -45,6 +45,21 @@ describe('API /api/me/uaam-result', () => {
     expect(response.body).toEqual({ scores: null, analysis: null });
   });
 
+  it.each(['a/b', 'a.b', '..', '__reserved__'])(
+    'returns 422 for invalid attemptId %s without a Firestore path error',
+    async (attemptId) => {
+      const response = await api
+        .get(`/api/me/uaam-result?attemptId=${encodeURIComponent(attemptId)}`)
+        .set('x-test-uid', 'u-me-uaam-result-invalid-attempt');
+
+      expect(response.status).toBe(422);
+      expect(response.body).toMatchObject({
+        code: 'invalid_input',
+        field: 'attemptId',
+      });
+    },
+  );
+
   it('returns JSON 500 when Firestore throws unexpectedly', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(db, 'collection').mockImplementation(() => {
@@ -55,6 +70,9 @@ describe('API /api/me/uaam-result', () => {
 
     expect(response.status).toBe(500);
     expect(response.type).toMatch(/json/);
-    expect(response.body).toEqual({ error: 'internal_error' });
+    expect(response.body).toEqual({
+      code: 'internal_error',
+      requestId: expect.any(String),
+    });
   });
 });

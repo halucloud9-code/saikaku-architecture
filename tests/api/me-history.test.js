@@ -250,6 +250,9 @@ describe('API /api/me/history', () => {
 
     expect(response.status).toBe(500);
     expect(response.type).toMatch(/json/);
-    expect(response.body).toEqual({ error: 'internal_error' });
+    expect(response.body).toEqual({
+      code: 'internal_error',
+      requestId: expect.any(String),
+    });
   });
 });

@@ -21,8 +21,35 @@ function timestampToMillis(value) {
   return null;
 }
 
+const ATTEMPT_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+const RESERVED_ATTEMPT_ID_RE = /^__.*__$/;
+
+export function isValidAttemptId(value) {
+  return typeof value === 'string'
+    && ATTEMPT_ID_RE.test(value)
+    && !RESERVED_ATTEMPT_ID_RE.test(value);
+}
+
 function createdAtMillis(attempt) {
   return timestampToMillis(attempt?.createdAt);
+}
+
+function integrationUpdatedMillis(integration) {
+  return timestampToMillis(integration?.updatedAt)
+    ?? timestampToMillis(integration?.createdAt)
+    ?? Number.NEGATIVE_INFINITY;
+}
+
+function compareIntegrationMatches(a, b, attemptIdField) {
+  const ta = integrationUpdatedMillis(a);
+  const tb = integrationUpdatedMillis(b);
+  if (ta !== tb) return tb - ta;
+
+  const attemptCompare = String(a?.[attemptIdField] ?? '')
+    .localeCompare(String(b?.[attemptIdField] ?? ''));
+  if (attemptCompare !== 0) return attemptCompare;
+
+  return String(a?.id ?? '').localeCompare(String(b?.id ?? ''));
 }
 
 export function legacyDocToAttempt(parentData, kind) {
@@ -147,11 +174,16 @@ export function selectIntegrationForAttempt(integrations, kind, attemptId) {
   const list = Array.isArray(integrations) ? integrations : [];
 
   if (kind === 'uaam') {
-    return list.find((integration) => integration?.uaamAttemptId === attemptId) ?? null;
+    return list
+      .filter((integration) => integration?.uaamAttemptId === attemptId)
+      .sort((a, b) => compareIntegrationMatches(a, b, 'saikakuAttemptId'))[0]
+      ?? null;
   }
 
   if (kind === 'saikaku') {
-    return list.filter((integration) => integration?.saikakuAttemptId === attemptId);
+    return list
+      .filter((integration) => integration?.saikakuAttemptId === attemptId)
+      .sort((a, b) => compareIntegrationMatches(a, b, 'uaamAttemptId'));
   }
 
   return kind === 'saikaku' ? [] : null;

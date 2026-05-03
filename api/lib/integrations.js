@@ -4,7 +4,8 @@ import { buildPairKey } from '../../shared/integrationsKey.js';
 import { db } from './firebaseAdmin.js';
 
 // MUST stay aligned with api/lib/attempts.js RESERVATION_LOCK_TTL_MS.
-export const RESERVATION_LOCK_TTL_MS = 10 * 60 * 1000;
+export const LOCK_TTL_MS = 10 * 60 * 1000;
+export const RESERVATION_LOCK_TTL_MS = LOCK_TTL_MS;
 
 export class IntegrationConflictError extends Error {
   constructor(message = '同じ組み合わせの統合分析を生成中です') {
@@ -29,7 +30,7 @@ function lockExpired(lockData) {
     ? acquiredAt.toMillis()
     : new Date(acquiredAt).getTime();
   if (!Number.isFinite(acquiredMs)) return false;
-  return Date.now() - acquiredMs > RESERVATION_LOCK_TTL_MS;
+  return Date.now() - acquiredMs > LOCK_TTL_MS;
 }
 
 export function deriveIntegrationPairKey(saikakuAttemptId, uaamAttemptId) {
@@ -45,9 +46,8 @@ function refsFor(uid, pairKey) {
   };
 }
 
-export async function acquireIntegrationLock({ uid, pairKey }) {
+export async function acquireIntegrationLock({ uid, pairKey, ownerId = randomUUID() }) {
   const { integrationRef, lockRef } = refsFor(uid, pairKey);
-  const ownerId = randomUUID();
 
   await db.runTransaction(async (tx) => {
     const lockSnap = await tx.get(lockRef);
@@ -74,7 +74,7 @@ export async function acquireIntegrationLock({ uid, pairKey }) {
     }
   });
 
-  return { pairKey, ownerId };
+  return { pairKey, ownerId, lockRef };
 }
 
 export async function releaseIntegrationLock({ uid, pairKey, ownerId }) {
@@ -96,16 +96,25 @@ export async function commitIntegration({
   integration,
   model,
   source,
+  ownerId,
 }) {
   const expectedPairKey = deriveIntegrationPairKey(saikakuAttemptId, uaamAttemptId);
   if (pairKey !== expectedPairKey) {
     throw new Error('pairKey mismatch');
   }
+  if (!ownerId) {
+    throw new IntegrationConflictError('統合分析のロックが失効しました。再度お試しください');
+  }
 
-  const { parentRef, integrationRef } = refsFor(uid, pairKey);
+  const { parentRef, integrationRef, lockRef } = refsFor(uid, pairKey);
 
   const regenerationCount = await db.runTransaction(async (tx) => {
+    const lockSnap = await tx.get(lockRef);
     const integrationSnap = await tx.get(integrationRef);
+    const lockData = lockSnap.exists ? lockSnap.data() : null;
+    if (!lockSnap.exists || lockData?.ownerId !== ownerId || lockExpired(lockData)) {
+      throw new IntegrationConflictError('統合分析のロックが失効しました。再度お試しください');
+    }
     const now = FieldValue.serverTimestamp();
 
     if (integrationSnap.exists) {
@@ -128,6 +137,7 @@ export async function commitIntegration({
       });
       // Parent fast-flag only; never write analysis.saikaku_integration here.
       tx.update(parentRef, { hasSaikakuIntegration: true });
+      tx.delete(lockRef);
       return nextCount;
     }
 
@@ -149,6 +159,7 @@ export async function commitIntegration({
     );
     // Parent fast-flag only; never write analysis.saikaku_integration here.
     tx.update(parentRef, { hasSaikakuIntegration: true });
+    tx.delete(lockRef);
     return 0;
   });
 

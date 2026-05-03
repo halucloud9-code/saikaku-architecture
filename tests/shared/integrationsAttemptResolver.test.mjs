@@ -75,7 +75,7 @@ describe('inferIntegrationAttemptPair', () => {
     });
   });
 
-  it('uses strict less-than and does not select an equal createdAt attempt', () => {
+  it('selects an equal createdAt attempt because integration is generated at or after attempt commit', () => {
     const result = inferIntegrationAttemptPair({
       uid: 'u-strict',
       integrationUpdatedAt: at(3000),
@@ -90,8 +90,8 @@ describe('inferIntegrationAttemptPair', () => {
     });
 
     expect(result).toEqual({
-      saikakuAttemptId: 'saikaku-earlier',
-      uaamAttemptId: 'uaam-earlier',
+      saikakuAttemptId: 'saikaku-equal',
+      uaamAttemptId: 'uaam-equal',
       source: 'inferred',
     });
   });

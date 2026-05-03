@@ -136,7 +136,12 @@ async function seedLegacyUaamParent(uid, mode) {
   const body = integrationBody(77, mode === 'literal' ? 'Literal Core' : 'Nested Core');
   const data = {
     scores: scoresFor(UAAM_A),
-    analysis: { type_name: 'Legacy UAAM', narrative: 'legacy' },
+    analysis: {
+      type_name: 'Legacy UAAM',
+      narrative: 'legacy',
+      saikaku_attempt_label: 'Legacy Saikaku',
+      uaam_attempt_label: 'Legacy UAAM',
+    },
     integrationUpdatedAt: GENERATED_AT,
     createdAt: at(1),
   };
@@ -171,6 +176,8 @@ describe('API /api/me history integration summaries', () => {
       uaamAttemptId: UAAM_A,
       status: 'active',
       regenerationCount: 0,
+      source: { saikakuLabel: `Saikaku ${SAIKAKU_A}`, uaamLabel: `UAAM ${UAAM_A}` },
+      integration: integrationBody(91, 'Active Pair'),
     });
   });
 
@@ -187,6 +194,11 @@ describe('API /api/me history integration summaries', () => {
     expect(response.status).toBe(200);
     expect(response.body.attempts[0].integrationSummary.status).toBe('stale');
     expect(response.body.attempts[0].integrationSummary.saikakuAttemptId).toBe(SAIKAKU_A);
+    expect(response.body.attempts[0].integrationSummary.source).toEqual({
+      saikakuLabel: `Saikaku ${SAIKAKU_A}`,
+      uaamLabel: `UAAM ${UAAM_A}`,
+    });
+    expect(response.body.attempts[0].integrationSummary.integration).toEqual(integrationBody());
   });
 
   it('synthesizes a legacy fallback summary from nested parent-doc integration data', async () => {
@@ -207,6 +219,8 @@ describe('API /api/me history integration summaries', () => {
       uaamAttemptId: 'legacy-fallback',
       status: 'active',
       regenerationCount: 0,
+      source: { saikakuLabel: 'Legacy Saikaku', uaamLabel: 'Legacy UAAM' },
+      integration: integrationBody(77, 'Nested Core'),
     });
   });
 
@@ -227,6 +241,8 @@ describe('API /api/me history integration summaries', () => {
       uaamAttemptId: 'legacy-fallback',
       status: 'active',
       regenerationCount: 0,
+      source: { saikakuLabel: 'Legacy Saikaku', uaamLabel: 'Legacy UAAM' },
+      integration: integrationBody(77, 'Literal Core'),
     });
   });
 
@@ -267,6 +283,8 @@ describe('API /api/me history integration summaries', () => {
         integrationScore: 81,
         activationCore: 'First UAAM',
         status: 'stale',
+        source: { saikakuLabel: `Saikaku ${SAIKAKU_A}`, uaamLabel: `UAAM ${UAAM_A}` },
+        integration: integrationBody(81, 'First UAAM'),
       }),
       expect.objectContaining({
         saikakuAttemptId: SAIKAKU_A,
@@ -275,6 +293,8 @@ describe('API /api/me history integration summaries', () => {
         activationCore: 'Second UAAM',
         status: 'active',
         regenerationCount: 1,
+        source: { saikakuLabel: `Saikaku ${SAIKAKU_A}`, uaamLabel: `UAAM ${UAAM_B}` },
+        integration: integrationBody(92, 'Second UAAM'),
       }),
     ]));
   });
@@ -309,6 +329,8 @@ describe('API /api/me history integration summaries', () => {
       uaamAttemptId: UAAM_A,
       status: 'active',
       regenerationCount: 0,
+      source: { saikakuLabel: `Saikaku ${SAIKAKU_A}`, uaamLabel: `UAAM ${UAAM_A}` },
+      integration: integrationBody(71, 'Queried Attempt'),
     });
   });
 });

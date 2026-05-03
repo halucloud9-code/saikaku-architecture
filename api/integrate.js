@@ -8,20 +8,24 @@
  * POST /api/integrate
  * body: { idToken }
  */
+import { randomUUID } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAuth } from 'firebase-admin/auth';
 import { db } from './lib/firebaseAdmin.js';
 import {
   IntegrationConflictError,
   IntegrationLimitExceededError,
+  LOCK_TTL_MS,
   acquireIntegrationLock,
   commitIntegration,
   deriveIntegrationPairKey,
   releaseIntegrationLock,
 } from './lib/integrations.js';
 import { validateAndFix } from './lib/validateIntegration.js';
+import { isValidAttemptId } from '../shared/attemptLogic.js';
 
 const INTEGRATION_MODEL = 'claude-sonnet-4-20250514';
+const UPSTREAM_TIMEOUT_MS = LOCK_TTL_MS - 30_000;
 
 let client = null;
 function getAnthropicClient() {
@@ -75,24 +79,61 @@ const MOCK_INTEGRATION = {
   ],
 };
 
-async function createIntegrationMessage(params) {
+function abortReason(signal) {
+  if (signal?.reason instanceof Error) return signal.reason;
+  const error = new Error('The operation was aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+function delay(ms, signal) {
+  if (!ms) return Promise.resolve();
+  throwIfAborted(signal);
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener?.('abort', onAbort);
+      resolve();
+    }, ms);
+
+    function onAbort() {
+      clearTimeout(timeout);
+      reject(abortReason(signal));
+    }
+
+    signal?.addEventListener?.('abort', onAbort, { once: true });
+  });
+}
+
+function isTimeoutError(error) {
+  return error?.name === 'TimeoutError'
+    || error?.name === 'AbortError'
+    || error?.code === 'ABORT_ERR';
+}
+
+async function createIntegrationMessage(params, signal) {
+  throwIfAborted(signal);
   if (process.env.MOCK_ANTHROPIC === '1') {
     if (process.env.MOCK_ANTHROPIC_FAIL === '1') {
       throw new Error('mock LLM failure');
     }
-    const delay = Number(process.env.MOCK_ANTHROPIC_DELAY_MS || 0);
-    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+    const delayMs = Number(process.env.MOCK_ANTHROPIC_DELAY_MS || 0);
+    if (delayMs > 0) await delay(delayMs, signal);
     return { content: [{ type: 'text', text: JSON.stringify(MOCK_INTEGRATION) }] };
   }
 
-  return getAnthropicClient().messages.create(params);
+  return getAnthropicClient().messages.create(params, { signal });
 }
 
 class InvalidIntegrationRequestError extends Error {
-  constructor(message) {
+  constructor(message, field = null) {
     super(message);
-    this.name = 'InvalidBodyError';
+    this.name = 'InvalidInputError';
     this.status = 422;
+    this.field = field;
   }
 }
 
@@ -188,15 +229,18 @@ WHAT（情熱） × 志（MindSet）  → 情熱の内的充足度
 
 function optionalAttemptId(value, name) {
   if (value === undefined || value === null) return null;
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new InvalidIntegrationRequestError(`${name} must be a non-empty string when provided`);
+  if (!isValidAttemptId(value)) {
+    throw new InvalidIntegrationRequestError(
+      `${name} must match /^[A-Za-z0-9_-]{1,128}$/ and must not use reserved __...__ ids`,
+      name,
+    );
   }
   return value;
 }
 
 function requiredAttemptId(value, name) {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new InvalidIntegrationRequestError(`${name} is required`);
+  if (!isValidAttemptId(value)) {
+    throw new InvalidIntegrationRequestError(`${name} is required and must be a valid attempt id`, name);
   }
   return value;
 }
@@ -290,7 +334,7 @@ function resolveSource({ saikaku, uaam }) {
   };
 }
 
-async function generateIntegration({ uid, integrationMsg }) {
+async function generateIntegration({ uid, integrationMsg, signal }) {
   let integration = null;
 
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -300,7 +344,7 @@ async function generateIntegration({ uid, integrationMsg }) {
         max_tokens: 4096,
         system: INTEGRATION_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: integrationMsg }],
-      });
+      }, signal);
       const parsed = parseJsonFromText(message.content[0].text);
       if (!parsed.activation_core || !parsed.activation_equation) {
         throw new Error('統合分析レスポンスが不完全です');
@@ -314,8 +358,9 @@ async function generateIntegration({ uid, integrationMsg }) {
       break;
     } catch (e) {
       console.error(`[integrate] attempt ${attempt + 1} failed:`, e.message);
+      if (isTimeoutError(e)) throw e;
       if (attempt === 2) throw e;
-      await new Promise((r) => setTimeout(r, 1000));
+      await delay(1000, signal);
     }
   }
 
@@ -323,7 +368,11 @@ async function generateIntegration({ uid, integrationMsg }) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
+  const requestId = randomUUID();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+
+  if (req.method !== 'POST') return res.status(405).json({ code: 'method_not_allowed' });
 
   const body = req.body || {};
   const { idToken } = body;
@@ -334,7 +383,7 @@ export default async function handler(req, res) {
     requestedSaikakuAttemptId = optionalAttemptId(body.saikakuAttemptId, 'saikakuAttemptId');
     requestedUaamAttemptId = optionalAttemptId(body.uaamAttemptId, 'uaamAttemptId');
   } catch (e) {
-    return res.status(422).json({ error: e.message, code: e.name });
+    return res.status(422).json({ error: e.message, code: 'invalid_input', field: e.field ?? null });
   }
 
   // 認証
@@ -342,7 +391,10 @@ export default async function handler(req, res) {
   try {
     decoded = await getAuth().verifyIdToken(idToken);
   } catch {
-    return res.status(401).json({ error: '認証に失敗しました。再度ログインしてください。' });
+    return res.status(401).json({
+      error: '認証に失敗しました。再度ログインしてください。',
+      code: 'unauthorized',
+    });
   }
 
   const uid = decoded.uid;
@@ -373,7 +425,8 @@ export default async function handler(req, res) {
     } catch (e) {
       throw new InvalidIntegrationRequestError(e.message);
     }
-    lock = await acquireIntegrationLock({ uid, pairKey });
+    const ownerId = randomUUID();
+    lock = await acquireIntegrationLock({ uid, pairKey, ownerId });
 
     const saikakuData = resolveSaikakuData(saikaku);
     const { scores, analysis } = resolveUaamData(uaam);
@@ -410,7 +463,11 @@ export default async function handler(req, res) {
 才覚発動タイプ: ${analysis?.type_name || ''}
 ナラティブ: ${analysis?.narrative || ''}`;
 
-    const integration = await generateIntegration({ uid, integrationMsg });
+    const integration = await generateIntegration({
+      uid,
+      integrationMsg,
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
     const commit = await commitIntegration({
       uid,
       pairKey,
@@ -419,10 +476,10 @@ export default async function handler(req, res) {
       integration,
       model: INTEGRATION_MODEL,
       source,
+      ownerId: lock.ownerId,
     });
 
     console.log(`[integrate] ${uid} ${pairKey} score: ${integration.integration_score}`);
-    await releaseIntegrationLock({ uid, pairKey: lock.pairKey, ownerId: lock.ownerId });
     lock = null;
     return res.status(200).json({
       integration,
@@ -430,16 +487,31 @@ export default async function handler(req, res) {
       regenerationCount: commit.regenerationCount,
       saikakuAttemptId: saikaku.attemptId,
       uaamAttemptId: uaam.attemptId,
+      source,
+      generatedAt: new Date().toISOString(),
     });
   } catch (e) {
     if (e instanceof InvalidIntegrationRequestError) {
-      return res.status(422).json({ error: e.message, code: e.name });
+      return res.status(422).json({ error: e.message, code: 'invalid_input', field: e.field ?? null });
     }
-    if (e instanceof IntegrationConflictError || e instanceof IntegrationLimitExceededError) {
-      return res.status(409).json({ error: e.message, code: e.name });
+    if (e instanceof IntegrationConflictError) {
+      return res.status(409).json({ error: e.message, code: 'lock_conflict' });
     }
-    console.error('[integrate] unexpected failure:', e);
-    return res.status(500).json({ error: `統合分析に失敗しました: ${e.message || e}` });
+    if (e instanceof IntegrationLimitExceededError) {
+      return res.status(409).json({ error: e.message, code: 'cap_exceeded' });
+    }
+    if (isTimeoutError(e)) {
+      return res.status(504).json({
+        error: '統合分析の生成がタイムアウトしました。時間をおいて再度お試しください。',
+        code: 'upstream_timeout',
+      });
+    }
+    console.error('[integrate] unexpected failure:', {
+      requestId,
+      message: e?.message ?? String(e),
+      stack: e?.stack,
+    });
+    return res.status(500).json({ code: 'internal_error', requestId });
   } finally {
     if (lock) {
       try {

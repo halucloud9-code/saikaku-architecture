@@ -1,3 +1,7 @@
+// Attempt inference treats an integration timestamp equal to an attempt commit
+// timestamp as valid because Firestore timestamps are compared at millisecond
+// precision here. Invariant: integration is generated at or after the attempts
+// it combines.
 function timestampToMillis(value) {
   if (!value) return null;
   if (typeof value.toMillis === 'function') return value.toMillis();
@@ -40,7 +44,7 @@ function latestCommittedBefore(attempts, cutoffMillis) {
   for (const attempt of committed) {
     const createdAtMillis = timestampToMillis(attempt?.createdAt);
     if (createdAtMillis === null) continue;
-    if (createdAtMillis < cutoffMillis) {
+    if (createdAtMillis <= cutoffMillis) {
       selected = attempt;
       continue;
     }

@@ -1,9 +1,7 @@
 import { db } from '../lib/firebaseAdmin.js';
 import { serializeTimestamps } from '../lib/serialize.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
-import { selectIntegrationForAttempt } from '../../shared/attemptLogic.js';
-
-const ATTEMPT_ID_RE = /^[A-Za-z0-9_-]+$/;
+import { isValidAttemptId, selectIntegrationForAttempt } from '../../shared/attemptLogic.js';
 
 function readSingleQueryValue(value) {
   return Array.isArray(value) ? value[0] : value;
@@ -12,7 +10,7 @@ function readSingleQueryValue(value) {
 function readAttemptId(req) {
   const value = readSingleQueryValue(req.query.attemptId);
   if (value === undefined) return null;
-  if (typeof value !== 'string' || value.length > 128 || !ATTEMPT_ID_RE.test(value)) {
+  if (!isValidAttemptId(value)) {
     return undefined;
   }
   return value;
@@ -36,6 +34,10 @@ function legacyIntegrationFromParent(parentData) {
   if (!integration) return null;
 
   const generatedAt = parentData.integrationUpdatedAt ?? null;
+  const legacySource = {
+    saikakuLabel: parentData.analysis?.saikaku_attempt_label ?? null,
+    uaamLabel: parentData.analysis?.uaam_attempt_label ?? null,
+  };
 
   return {
     id: 'legacy-fallback__legacy-fallback',
@@ -44,7 +46,7 @@ function legacyIntegrationFromParent(parentData) {
     integration,
     regenerationCount: 0,
     model: 'unknown-legacy',
-    source: { saikakuLabel: 'legacy', uaamLabel: 'legacy' },
+    source: legacySource,
     createdAt: generatedAt,
     updatedAt: generatedAt,
     status: 'active',
@@ -92,6 +94,8 @@ function integrationSummary(integrationDoc, latestSaikakuAttemptId) {
     uaamAttemptId: integrationDoc.uaamAttemptId,
     status: responseStatusForIntegration(integrationDoc, latestSaikakuAttemptId),
     regenerationCount: integrationDoc.regenerationCount ?? 0,
+    source: integrationDoc.source ?? null,
+    integration: body,
   };
 }
 
@@ -112,14 +116,17 @@ function emptyResult(includeIntegrationSummary) {
 }
 
 export default withMeHandler(async function handler(req, res) {
-  if (req.method !== 'GET') return res.status(405).end();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+
+  if (req.method !== 'GET') return res.status(405).json({ code: 'method_not_allowed' });
 
   const decoded = await authenticateMeRequest(req, res);
   if (!decoded) return undefined;
 
   const requestedAttemptId = readAttemptId(req);
   if (requestedAttemptId === undefined) {
-    return res.status(422).json({ error: 'attemptId is invalid' });
+    return res.status(422).json({ error: 'attemptId is invalid', code: 'invalid_input', field: 'attemptId' });
   }
 
   const parentRef = db.collection('uaam_results').doc(decoded.uid);
@@ -147,7 +154,7 @@ export default withMeHandler(async function handler(req, res) {
   if (requestedAttemptId && requestedAttemptId !== 'legacy-fallback') {
     const attemptSnap = await parentRef.collection('attempts').doc(requestedAttemptId).get();
     if (!attemptSnap.exists || attemptSnap.data()?.status !== 'committed') {
-      return res.status(404).json({ error: 'attempt not found' });
+      return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
     }
 
     const full = attemptSnap.data()?.full ?? {};
