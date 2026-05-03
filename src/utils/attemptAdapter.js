@@ -35,7 +35,8 @@ export function attemptToResultProps(attempt, kind) {
       leadership_stage: normalizeLeadershipStage(attempt.full?.leadership_stage),
       three_elements: attempt.full?.three_elements ?? null,
       coach_confirmed_personality_level: attempt.full?.coach_confirmed_personality_level ?? null,
-      coach_confirmed_leadership_stage: normalizeLeadershipStage(attempt.full?.coach_confirmed_leadership_stage),
+      // ActivationPanel が `第${coachConfirmed.leadership_stage}` のように scalar として参照するため正規化しない
+      coach_confirmed_leadership_stage: attempt.full?.coach_confirmed_leadership_stage ?? null,
       coach_observation_note: attempt.full?.coach_observation_note ?? null,
     },
   };

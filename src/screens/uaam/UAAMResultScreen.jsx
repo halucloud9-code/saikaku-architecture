@@ -1889,8 +1889,11 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   // Phase 3：3要素診断（既存データ下位互換）
   // 國創学方針：3要素は比較しない。スコア + フェーズのみ持つ。
   // 旧フィールド（primary/secondary/weakest/prescription_mode）は保持されてても無視される。
-  const threeElements = effectiveResult?.three_elements ?? (() => {
-    // フォールバック：scores から動的計算
+  const threeElements = (() => {
+    if (effectiveResult?.three_elements && effectiveResult.three_elements.development_phase) {
+      return effectiveResult.three_elements;
+    }
+    // フォールバック：scores から動的計算（旧フィールド primary/secondary/weakest/prescription_mode しか持たない legacy データもこちら）
     const subs = Object.values(scores || {}).reduce((acc, domain) => {
       if (domain?.subs) Object.assign(acc, domain.subs);
       return acc;
