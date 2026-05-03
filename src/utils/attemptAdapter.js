@@ -30,7 +30,9 @@ export function attemptToResultProps(attempt, kind) {
       answers: attempt.raw?.input?.answers ?? {},
       vAnswers: attempt.raw?.input?.vAnswers ?? {},
       name: attempt.full?.name ?? null,
-      bias_message: attempt.full?.bias_message ?? null,
+      // bias_message は null（= 健全、表示なし）と undefined（= 未保存 legacy、要再計算）を
+      // UI 側で区別する。`?? null` で潰すと健全の null と legacy の undefined を区別できなくなる。
+      bias_message: attempt.full?.bias_message,
       personality_level: attempt.full?.personality_level ?? null,
       leadership_stage: normalizeLeadershipStage(attempt.full?.leadership_stage),
       three_elements: attempt.full?.three_elements ?? null,

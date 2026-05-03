@@ -65,7 +65,8 @@ export function legacyDocToAttempt(parentData, kind) {
       result: null,
       analysis: parentData.analysis ?? null,
       scores: parentData.scores ?? null,
-      bias_message: parentData.bias_message ?? null,
+      // bias_message は null（健全）と undefined（未保存）を区別するため `?? null` で潰さない
+      bias_message: parentData.bias_message,
       personality_level: parentData.personality_level ?? null,
       leadership_stage: parentData.leadership_stage ?? null,
       three_elements: parentData.three_elements ?? null,
