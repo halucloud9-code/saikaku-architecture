@@ -401,7 +401,7 @@ export default function App() {
         onReset={() => {
           if (selectedAttemptKind === 'uaam') {
             clearSelectedAttempt();
-            setScreen(uaamResult ? 'uaam-result' : 'uaam');
+            setScreen('history-uaam');
             return;
           }
           setUaamResult(null);
@@ -429,7 +429,7 @@ export default function App() {
         onReset={() => {
           if (selectedAttemptKind === 'saikaku') {
             clearSelectedAttempt();
-            setScreen(result ? 'result' : 'select');
+            setScreen('history-saikaku');
             return;
           }
           setResult(null);
