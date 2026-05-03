@@ -155,7 +155,7 @@ vercel --prod
 npm run dev:local
 
 # 個別
-npm run emu       # Firebase emulator (auth:9099, firestore:8080, UI:4000)
+npm run emu       # Firebase emulator (auth:9099, firestore:8090, UI:4000)
 npm run api       # API server (localhost:3001)
 npm run dev       # Vite dev server (localhost:5173)
 ```

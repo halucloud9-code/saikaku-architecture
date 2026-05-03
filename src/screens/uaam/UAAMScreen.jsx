@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { UAAM_QUESTIONS, LIKERT_LABELS, VALIDITY_QUESTIONS, getShuffledQuestions } from '../../data/uaam_questions';
 import { signOutUser } from '../../firebase';
 
@@ -9,12 +9,40 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
   const [answers, setAnswers] = useState({});       // 本問 { id(number): score }
   const [vAnswers, setVAnswers] = useState({});      // V問 { 'V1'|'V2'|'V3': score }
   const [currentPage, setCurrentPage] = useState(0);
+  const [visitedPages, setVisitedPages] = useState(() => new Set([0]));
+  const [focusTarget, setFocusTarget] = useState(null);
+  const previousPageRef = useRef(currentPage);
+  const focusNonceRef = useRef(0);
 
   // 初回マウント時に1回だけシャッフル
   const shuffledQuestions = useMemo(() => getShuffledQuestions(), []);
 
-  const totalQuestions = shuffledQuestions.length; // 51
+  const totalQuestions = shuffledQuestions.length; // 67
   const totalPages = Math.ceil(totalQuestions / QUESTIONS_PER_PAGE);
+
+  const pageCompleteList = useMemo(() => {
+    const pageCount = Math.ceil(shuffledQuestions.length / QUESTIONS_PER_PAGE);
+
+    return Array.from({ length: pageCount }, (_, i) => {
+      const pageStart = i * QUESTIONS_PER_PAGE;
+      const pageEnd = Math.min((i + 1) * QUESTIONS_PER_PAGE, shuffledQuestions.length);
+      const pageQs = shuffledQuestions.slice(pageStart, pageEnd);
+
+      return pageQs.every((q) =>
+        q.validity ? vAnswers[q.id] !== undefined : answers[q.id] !== undefined
+      );
+    });
+  }, [answers, vAnswers, shuffledQuestions]);
+
+  const firstIncompletePage = useMemo(
+    () => pageCompleteList.findIndex((isComplete) => !isComplete),
+    [pageCompleteList]
+  );
+
+  const maxReachablePage = useMemo(
+    () => firstIncompletePage === -1 ? totalPages - 1 : firstIncompletePage,
+    [firstIncompletePage, totalPages]
+  );
 
   // 現在ページの質問
   const pageQuestions = shuffledQuestions.slice(
@@ -24,6 +52,7 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
 
   // 全回答数（本問 + V問）
   const totalAnswered = Object.keys(answers).length + Object.keys(vAnswers).length;
+  const remaining = totalQuestions - totalAnswered;
   const progressPct = Math.round((totalAnswered / totalQuestions) * 100);
 
   // 回答ハンドラ：V問と本問を自動分離
@@ -47,13 +76,67 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
     onSubmit(answers, vAnswers);
   };
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  // impl-2/3: 質問カード側はこの形式の DOM id を付与する。
+  const getFirstUnansweredQuestionId = (page) => {
+    const pageStart = page * QUESTIONS_PER_PAGE;
+    const pageEnd = Math.min((page + 1) * QUESTIONS_PER_PAGE, totalQuestions);
+    const firstUnanswered = shuffledQuestions.slice(pageStart, pageEnd).find((q) =>
+      !(q.validity ? vAnswers[q.id] !== undefined : answers[q.id] !== undefined)
+    );
+
+    return firstUnanswered ? `uaam-q-${firstUnanswered.id}` : null;
   };
+
+  const createFocusTarget = (id) => {
+    const now = Date.now();
+    const nonce = now <= focusNonceRef.current ? focusNonceRef.current + 1 : now;
+    focusNonceRef.current = nonce;
+    return { id, nonce };
+  };
+
+  const handlePageChange = (target) => {
+    if (target > maxReachablePage) {
+      setVisitedPages((prev) => new Set(prev).add(maxReachablePage));
+
+      if (currentPage !== maxReachablePage) {
+        setCurrentPage(maxReachablePage);
+      }
+
+      const firstUnansweredId = getFirstUnansweredQuestionId(maxReachablePage);
+      setFocusTarget(firstUnansweredId ? createFocusTarget(firstUnansweredId) : null);
+      return;
+    }
+
+    setVisitedPages((prev) => new Set(prev).add(target));
+    setCurrentPage(target);
+
+    const firstUnansweredId = getFirstUnansweredQuestionId(target);
+    setFocusTarget(firstUnansweredId ? createFocusTarget(firstUnansweredId) : null);
+  };
+
+  useEffect(() => {
+    const pageChanged = previousPageRef.current !== currentPage;
+
+    if (focusTarget) {
+      document.getElementById(focusTarget.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      previousPageRef.current = currentPage;
+      setFocusTarget(null);
+      return;
+    }
+
+    if (pageChanged) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      previousPageRef.current = currentPage;
+    }
+  }, [currentPage, focusTarget?.nonce]);
 
   // 通し番号（シャッフル後の表示順）
   const getDisplayNumber = (pageIdx) => currentPage * QUESTIONS_PER_PAGE + pageIdx + 1;
+
+  const nextEnabled = currentPage < maxReachablePage;
+  const nextLabel = nextEnabled
+    ? '次へ →'
+    : `次へ → (あと${pageQuestions.filter((q) => getAnswerValue(q) === undefined).length}問)`;
 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F0E8' }}>
@@ -158,27 +241,31 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
 
       {/* ページインジケーター */}
       <div style={{ padding: '16px 24px 0', maxWidth: 800, margin: '0 auto' }}>
+        <span data-testid="uaam-current-page" data-current-page={currentPage} style={{ display: 'none' }} />
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
           {Array.from({ length: totalPages }, (_, i) => {
-            const pageStart = i * QUESTIONS_PER_PAGE;
-            const pageEnd = Math.min((i + 1) * QUESTIONS_PER_PAGE, totalQuestions);
-            const pageQs = shuffledQuestions.slice(pageStart, pageEnd);
-            const pageAnswered = pageQs.filter(q =>
-              q.validity ? vAnswers[q.id] !== undefined : answers[q.id] !== undefined
-            ).length;
-            const isComplete = pageAnswered === pageQs.length;
+            const isComplete = pageCompleteList[i];
             const isActive = i === currentPage;
+            const isReachable = i <= maxReachablePage;
+            const isVisitedIncomplete = visitedPages.has(i) && !isComplete;
 
             return (
               <button
                 key={i}
+                data-testid={`uaam-page-dot-${i}`}
+                aria-disabled={!isReachable}
                 onClick={() => handlePageChange(i)}
                 style={{
                   width: 40, height: 40,
                   borderRadius: 10,
-                  border: isActive ? `2px solid ${ACCENT}` : '1px solid #D4C9B0',
+                  border: isActive
+                    ? `2px solid ${ACCENT}`
+                    : isVisitedIncomplete
+                      ? '2px solid #A84432'
+                      : '1px solid #D4C9B0',
                   background: isComplete ? '#2E8B5720' : isActive ? `${ACCENT}15` : '#FDFCFA',
-                  cursor: 'pointer',
+                  cursor: isReachable ? 'pointer' : 'not-allowed',
+                  opacity: isReachable ? 1 : 0.4,
                   display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center',
                   transition: 'all 0.2s',
@@ -211,6 +298,7 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
           return (
             <div
               key={q.id}
+              id={`uaam-q-${q.id}`}
               style={{
                 background: '#FDFCFA',
                 border: selectedValue !== undefined ? `1px solid ${ACCENT}60` : '1px solid #D4C9B0',
@@ -242,6 +330,7 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
                   return (
                     <button
                       key={opt.value}
+                      data-testid={`uaam-likert-${displayNum}-${opt.value}`}
                       onClick={() => handleAnswer(q, opt.value)}
                       style={{
                         flex: 1, minWidth: 50, padding: '8px 4px', borderRadius: 8,
@@ -279,35 +368,56 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
           )}
           {currentPage < totalPages - 1 && (
             <button
+              data-testid="uaam-next-btn"
+              aria-disabled={!nextEnabled}
               onClick={() => handlePageChange(currentPage + 1)}
               style={{
                 flex: 1, padding: '14px 20px', borderRadius: 10,
-                border: 'none', background: ACCENT,
-                color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                border: 'none', background: nextEnabled ? ACCENT : '#D4C9B0',
+                color: '#fff', fontSize: 15, fontWeight: 600,
+                cursor: nextEnabled ? 'pointer' : 'not-allowed',
               }}
             >
-              次へ →
+              {nextLabel}
             </button>
           )}
         </div>
 
         {/* 送信ボタン（最終ページ） */}
         {currentPage === totalPages - 1 && (
-          <button
-            onClick={handleSubmit}
-            disabled={!allAnswered}
-            style={{
-              width: '100%', padding: '16px 20px', borderRadius: 12, border: 'none',
-              background: allAnswered
-                ? 'linear-gradient(135deg, #4A6FA5, #2E8B57, #C4922A, #A84432)'
-                : '#D4C9B0',
-              color: '#fff', fontSize: 18, fontWeight: 700,
-              cursor: allAnswered ? 'pointer' : 'not-allowed',
-              letterSpacing: '0.05em', marginBottom: 16,
-            }}
-          >
-            {allAnswered ? '診断結果を見る' : `あと${totalQuestions - totalAnswered}問`}
-          </button>
+          <>
+            <button
+              onClick={handleSubmit}
+              disabled={!allAnswered}
+              style={{
+                width: '100%', padding: '16px 20px', borderRadius: 12, border: 'none',
+                background: allAnswered
+                  ? 'linear-gradient(135deg, #4A6FA5, #2E8B57, #C4922A, #A84432)'
+                  : '#D4C9B0',
+                color: '#fff', fontSize: 18, fontWeight: 700,
+                cursor: allAnswered ? 'pointer' : 'not-allowed',
+                letterSpacing: '0.05em', marginBottom: 16,
+              }}
+            >
+              {allAnswered ? '診断結果を見る' : `あと${remaining}問`}
+            </button>
+            {!allAnswered && (
+              <button
+                type="button"
+                data-testid="uaam-jump-incomplete-btn"
+                aria-label="最初の未回答ページへ移動"
+                onClick={() => handlePageChange(firstIncompletePage)}
+                style={{
+                  width: '100%', padding: '12px 20px', borderRadius: 10,
+                  border: '1px solid #A84432', background: '#FDFCFA',
+                  color: '#A84432', fontSize: 14, fontWeight: 600,
+                  cursor: 'pointer', marginBottom: 12,
+                }}
+              >
+                {`未回答ページへ戻る (あと${remaining}問)`}
+              </button>
+            )}
+          </>
         )}
 
         {error && (

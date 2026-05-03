@@ -462,3 +462,24 @@ issue #44 の根本原因がこの構造にある。firebase-admin v12.7.0 は `
 - **Section 2** — ロックフェンシング (Reservation Transaction) の設計パターンを統合ロック (`acquireIntegrationLock` / `commitIntegration`) に転用。TTL・tx.create による衝突検出・冪等コミットは同一原則
 - **Section 5** — テスト戦略の emulator E2E 層 (`tests/api/`) に統合 E2E (`integrate-subcollection.test.js`, `me-history-integration.test.js`) を追加。ドットキーバグは `tests/api/firestore-merge-debug.test.js` でリグレッション防止
 - **Section 6** — BFF `/api/me/*` の読み取り統一方針に準拠。統合一覧も `/api/me/integrations` として同じ認可ゲート (`withMeHandler`) を通す
+
+---
+
+## 11. UAAM page-skip prevention (issue #55)
+
+### 背景
+production で UAAM 回答者が 57/67 のまま結果送信できず、調査すると 5 ページ目が未回答だった。従来 UI はページドットから任意ページへジャンプできたため、途中ページを飛ばして最終ページまで進めてしまう。一方、最終ページでは未回答が残っている理由や戻るべきページが十分に見えず、ユーザーには「全部進んだのに送信できない」状態として見えていた。
+
+これは API validation だけでは解決しない。サーバー側で 67 問すべての回答を必須にしても、クライアントが「どこが未回答か」「どう戻るか」を示さなければ、同じ詰まり方が残る。したがって `src/screens/uaam/UAAMScreen.jsx` 側で、未完了ページを飛ばせないナビゲーションと、未回答ページへ戻す明示導線を同時に入れる必要があった。
+
+### 採用案
+`maxReachablePage` を UI 上の到達可能範囲として持ち、現在ページまでの回答完了状態から次に進める上限を決める。これにより、ページドットで未回答ページの先へ直接飛ぶ経路を閉じつつ、既に訪問・回答済みのページへ戻る操作は維持する。
+
+ページドットは HTML の `disabled` ではなく `aria-disabled` 表現にした。見た目と支援技術には「現在は無効」を伝えるが、クリックハンドラ自体は常に発火させる。到達不能ページを押した場合も `handlePageChange` が一度受け取り、先頭の未完了ページへリダイレクトするためである。plan-with-debate の 3-AI consensus でも、この設計は「onClick must always fire」を満たすため `aria-disabled + force-click in E2E` として合意した。
+
+さらに、最終ページに到達しているが `allAnswered` ではない場合だけ「未回答ページへ戻る」ヘルパーボタンを出す。通常の回答中は余計な導線を増やさず、production incident と同じ「最後まで来たが送信できない」局面にだけ、次の一手を明示するためである。
+
+### なぜ別案を採らなかったか
+HTML の `disabled` は棄却した。ブラウザがクリックイベントを抑止するため、到達不能ページを押した時に `handlePageChange` で未回答ページへ戻す redirect path 自体が動かない。今回の目的は単に操作を無視することではなく、誤ったジャンプ操作を「戻るべき未回答ページ」へ変換することだった。
+
+sessionStorage による回答ドラフト保存も同時対応しなかった。入力途中のリロード・離脱耐性は Critical UX issue だが、今回の根本原因はページスキップによる未回答の不可視化であり、保存戦略とは責務が違う。ドラフト永続化は設計範囲と副作用が大きいため、別 issue の関心として切り分けた。

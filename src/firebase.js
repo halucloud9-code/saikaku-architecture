@@ -18,9 +18,11 @@ export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
 if (import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
-  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-  connectFirestoreEmulator(db, 'localhost', 8080);
-  console.log('[firebase] connected to local emulators (auth:9099, firestore:8080)');
+  const authPort = Number(import.meta.env.VITE_FIREBASE_EMULATOR_AUTH_PORT) || 9099;
+  const firestorePort = Number(import.meta.env.VITE_FIREBASE_EMULATOR_FIRESTORE_PORT) || 8090;
+  connectAuthEmulator(auth, `http://localhost:${authPort}`, { disableWarnings: true });
+  connectFirestoreEmulator(db, 'localhost', firestorePort);
+  console.log(`[firebase] connected to local emulators (auth:${authPort}, firestore:${firestorePort})`);
 }
 
 export const signInWithGoogle = async () => {
