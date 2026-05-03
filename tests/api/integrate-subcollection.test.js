@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../api/lib/firebaseAdmin.js';
 import {
@@ -5,6 +8,7 @@ import {
   acquireIntegrationLock,
   commitIntegration,
 } from '../../api/lib/integrations.js';
+import { runMigration } from '../../scripts/migrate-integrations-to-subcollection.mjs';
 import { buildPairKey } from '../../shared/integrationsKey.js';
 import {
   Timestamp,
@@ -66,6 +70,14 @@ function uaamAnalysis() {
   };
 }
 
+function legacyIntegration() {
+  return {
+    integration_score: 77,
+    activation_core: '問いを実装へ',
+    activation_equation: '観察を次の行動に変える',
+  };
+}
+
 async function seedReadyUser() {
   const { uid, idToken } = await createAuthSession();
   const createdAt = Timestamp.fromDate(new Date('2026-05-01T00:00:00.000Z'));
@@ -119,6 +131,58 @@ async function seedReadyUser() {
   ]);
 
   return { uid, idToken, pairKey };
+}
+
+async function seedLegacyUser(uid, { pending = false, includeBiasMessage = false } = {}) {
+  const createdAt = Timestamp.fromDate(new Date('2026-04-01T00:00:00.000Z'));
+  const result = saikakuResult();
+  const scores = uaamScores();
+  const analysis = {
+    ...uaamAnalysis(),
+    saikaku_integration: legacyIntegration(),
+  };
+
+  await Promise.all([
+    db.collection('results').doc(uid).set({
+      selectedKakuchiiki: SAIKAKU_LABEL,
+      result,
+      inputTalentTop5: '観察\n対話\n構造化\n伴走\n説明',
+      inputValueTop5: '誠実\n成長\n貢献\n自由\n探究',
+      inputPassionTop5: '教育\n対話\n旅\n創作\n起業',
+      createdAt,
+      updatedAt: createdAt,
+      ...(pending ? { pendingAttemptId: 'in-flight-saikaku' } : {}),
+    }),
+    db.collection('uaam_results').doc(uid).set({
+      scores,
+      analysis,
+      personality_level: 'L3',
+      leadership_stage: 'S2',
+      three_elements: ['meaning', 'critical', 'implementation'],
+      name: 'Legacy User',
+      coach_confirmed_personality_level: 'L3',
+      coach_confirmed_leadership_stage: 'S2',
+      coach_observation_note: 'steady',
+      ...(includeBiasMessage ? { bias_message: 'bias note' } : {}),
+      createdAt,
+      updatedAt: createdAt,
+      ...(pending ? { pendingAttemptId: 'in-flight-uaam' } : {}),
+    }),
+  ]);
+
+  return { createdAt };
+}
+
+async function runPatchAttempts(options = {}) {
+  process.env.FIREBASE_PROJECT_ID ||= 'demo-saikaku';
+  return runMigration({
+    mode: 'patch-attempts',
+    dryRun: true,
+    limit: null,
+    uid: null,
+    snapshot: null,
+    ...options,
+  });
 }
 
 function integrationRef(uid, pairKey) {
@@ -340,39 +404,136 @@ describe('API /api/integrate per-pair subcollection writes', () => {
     expect(JSON.stringify(response.body)).not.toContain('mock LLM failure');
   });
 
-  it('falls back to legacy parent-doc data when attempts subcollection is empty', async () => {
+  it('regenerates normally after patch-attempts creates legacy-v1 attempts', async () => {
     const { uid, idToken } = await createAuthSession();
-    const createdAt = Timestamp.fromDate(new Date('2026-04-01T00:00:00.000Z'));
+    await seedLegacyUser(uid);
 
-    await Promise.all([
-      db.collection('results').doc(uid).set({
-        selectedKakuchiiki: SAIKAKU_LABEL,
+    const migration = await runPatchAttempts({ uid, dryRun: false });
+
+    expect(migration.summary).toMatchObject({
+      processed: 1,
+      patched: 1,
+      dry_run_planned: 0,
+    });
+
+    const saikakuAttempt = await db.collection('results').doc(uid).collection('attempts').doc('legacy-v1').get();
+    expect(saikakuAttempt.exists).toBe(true);
+    expect(saikakuAttempt.data()).toMatchObject({
+      status: 'committed',
+      isLegacy: true,
+      summary: { kakuchiiki: SAIKAKU_LABEL },
+      full: {
         result: saikakuResult(),
-        inputTalentTop5: '観察\n対話\n構造化\n伴走\n説明',
-        inputValueTop5: '誠実\n成長\n貢献\n自由\n探究',
-        inputPassionTop5: '教育\n対話\n旅\n創作\n起業',
-        createdAt,
-        updatedAt: createdAt,
-      }),
-      db.collection('uaam_results').doc(uid).set({
+        analysis: null,
+        scores: null,
+        selectedKakuchiiki: SAIKAKU_LABEL,
+      },
+    });
+
+    const uaamAttempt = await db.collection('uaam_results').doc(uid).collection('attempts').doc('legacy-v1').get();
+    expect(uaamAttempt.exists).toBe(true);
+    expect(uaamAttempt.data()).toMatchObject({
+      status: 'committed',
+      isLegacy: true,
+      summary: { typeName: UAAM_LABEL },
+      full: {
+        result: null,
+        analysis: { type_name: UAAM_LABEL, saikaku_integration: legacyIntegration() },
         scores: uaamScores(),
-        analysis: uaamAnalysis(),
-        createdAt,
-        updatedAt: createdAt,
-      }),
-    ]);
+        personality_level: 'L3',
+        leadership_stage: 'S2',
+        three_elements: ['meaning', 'critical', 'implementation'],
+        name: 'Legacy User',
+        coach_confirmed_personality_level: 'L3',
+        coach_confirmed_leadership_stage: 'S2',
+        coach_observation_note: 'steady',
+      },
+    });
+
+    const legacyPairKey = buildPairKey('legacy-v1', 'legacy-v1');
+    const patchedIntegration = await integrationRef(uid, legacyPairKey).get();
+    expect(patchedIntegration.exists).toBe(true);
+    expect(patchedIntegration.data()).toMatchObject({
+      saikakuAttemptId: 'legacy-v1',
+      uaamAttemptId: 'legacy-v1',
+      integration: legacyIntegration(),
+      regenerationCount: 0,
+      model: 'legacy-migration',
+      source: { saikakuLabel: SAIKAKU_LABEL, uaamLabel: UAAM_LABEL },
+      status: 'active',
+    });
 
     const response = await postIntegrate(idToken);
 
     expect(response.status).toBe(200);
-    expect(response.body.saikakuAttemptId).toBe('legacy-fallback');
-    expect(response.body.uaamAttemptId).toBe('legacy-fallback');
-    expect(response.body.pairKey).toBe(buildPairKey('legacy-fallback', 'legacy-fallback'));
-    expect(response.body.regenerationCount).toBe(0);
+    expect(response.body.saikakuAttemptId).toBe('legacy-v1');
+    expect(response.body.uaamAttemptId).toBe('legacy-v1');
+    expect(response.body.pairKey).toBe(legacyPairKey);
+    expect(response.body.regenerationCount).toBe(1);
 
     const stored = await integrationRef(uid, response.body.pairKey).get();
     expect(stored.exists).toBe(true);
-    expect(stored.data().saikakuAttemptId).toBe('legacy-fallback');
-    expect(stored.data().uaamAttemptId).toBe('legacy-fallback');
+    expect(stored.data().saikakuAttemptId).toBe('legacy-v1');
+    expect(stored.data().uaamAttemptId).toBe('legacy-v1');
+  });
+
+  it('writes a dry-run snapshot with fourteen legacy pre-states', async () => {
+    const prefix = `!patch-snapshot-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const uids = Array.from({ length: 14 }, (_value, index) => `${prefix}-${String(index).padStart(2, '0')}`);
+    await Promise.all(uids.map((uid) => seedLegacyUser(uid)));
+    const snapshotPath = path.join(os.tmpdir(), `${prefix.replaceAll('!', 'bang')}.json`);
+
+    const result = await runPatchAttempts({ dryRun: true, limit: 14, snapshot: snapshotPath });
+    const snapshot = JSON.parse(await fs.readFile(snapshotPath, 'utf8'));
+
+    expect(result.summary.dry_run_planned).toBe(14);
+    expect(snapshot.records).toHaveLength(14);
+    expect(snapshot.records.map((record) => record.uid).sort()).toEqual(uids.sort());
+    expect(snapshot.records[0].results.fields).toBeTruthy();
+    expect(snapshot.records[0].results.attemptsSize).toBe(0);
+    expect(snapshot.records[0].uaam_results.fields.analysis.saikaku_integration).toEqual(legacyIntegration());
+    expect(snapshot.records[0].uaam_results.attemptsSize).toBe(0);
+  });
+
+  it('skips patch-attempts when a parent has pendingAttemptId', async () => {
+    const uid = `patch-pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await seedLegacyUser(uid, { pending: true });
+
+    const result = await runPatchAttempts({ uid, dryRun: false });
+
+    expect(result.summary).toMatchObject({
+      processed: 1,
+      patched: 0,
+      skipped: { pending_attempt: 1 },
+    });
+    expect((await db.collection('results').doc(uid).collection('attempts').doc('legacy-v1').get()).exists).toBe(false);
+    expect((await db.collection('uaam_results').doc(uid).collection('integrations').doc(buildPairKey('legacy-v1', 'legacy-v1')).get()).exists).toBe(false);
+  });
+
+  it('omits undefined legacy UAAM fields instead of crashing batch writes', async () => {
+    const uid = `patch-undefined-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await seedLegacyUser(uid);
+
+    const result = await runPatchAttempts({ uid, dryRun: false });
+    const uaamAttempt = await db.collection('uaam_results').doc(uid).collection('attempts').doc('legacy-v1').get();
+
+    expect(result.summary.patched).toBe(1);
+    expect(uaamAttempt.exists).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(uaamAttempt.data().full, 'bias_message')).toBe(false);
+  });
+
+  it('is idempotent after patch-attempts has already written legacy-v1 docs', async () => {
+    const uid = `patch-idempotent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await seedLegacyUser(uid);
+
+    const first = await runPatchAttempts({ uid, dryRun: false });
+    const second = await runPatchAttempts({ uid, dryRun: false });
+
+    expect(first.summary.patched).toBe(1);
+    expect(second.summary).toMatchObject({
+      processed: 1,
+      patched: 0,
+      skipped: { already_patched: 1 },
+    });
   });
 });

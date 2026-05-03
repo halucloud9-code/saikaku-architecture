@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 import dotenv from 'dotenv';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
@@ -12,12 +13,17 @@ dotenv.config({ path: '.env.local', quiet: true });
 const REQUIRED_PRODUCTION_ENV = ['FIREBASE_PROJECT_ID', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL'];
 const MIGRATION_DIR = path.join('logs', 'migrations');
 const LEGACY_FALLBACK = 'legacy-fallback';
+const LEGACY_ATTEMPT_ID = 'legacy-v1';
+const PATCH_ATTEMPTS_PAIR_KEY = buildPairKey(LEGACY_ATTEMPT_ID, LEGACY_ATTEMPT_ID);
+const MODES = new Set(['integrations-only', 'patch-attempts']);
 
 function parseArgs(argv) {
   const options = {
     dryRun: true,
     limit: null,
     uid: null,
+    mode: 'integrations-only',
+    snapshot: null,
   };
 
   for (const arg of argv) {
@@ -50,6 +56,24 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (arg.startsWith('--mode=')) {
+      const mode = arg.slice('--mode='.length).trim();
+      if (!MODES.has(mode)) {
+        throw new Error('--mode must be one of: integrations-only, patch-attempts');
+      }
+      options.mode = mode;
+      continue;
+    }
+
+    if (arg.startsWith('--snapshot=')) {
+      const snapshot = arg.slice('--snapshot='.length).trim();
+      if (!snapshot) {
+        throw new Error('--snapshot must be a non-empty path');
+      }
+      options.snapshot = snapshot;
+      continue;
+    }
+
     if (arg === '--help' || arg === '-h') {
       options.help = true;
       continue;
@@ -58,18 +82,25 @@ function parseArgs(argv) {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
+  if (options.snapshot && !options.dryRun) {
+    throw new Error('--snapshot is dry-run only; remove --apply before writing a rollback snapshot');
+  }
+
   return options;
 }
 
 function usage() {
   return [
-    'Usage: node scripts/migrate-integrations-to-subcollection.mjs [--dry-run] [--apply] [--limit=N] [--uid=xxx]',
+    'Usage: node scripts/migrate-integrations-to-subcollection.mjs [--mode=integrations-only|patch-attempts] [--dry-run] [--apply] [--limit=N] [--uid=xxx] [--snapshot=PATH]',
     '',
     'Options:',
-    '  --dry-run   Plan writes only. This is the default.',
-    '  --apply     Perform writes to uaam_results/{uid}/integrations/{pairKey}.',
-    '  --limit=N   Stop after processing N uaam_results docs.',
-    '  --uid=xxx   Process only one uid.',
+    '  --mode=integrations-only  Migrate parent legacy integrations into integrations subcollections. This is the default.',
+    '  --mode=patch-attempts     Create legacy-v1 attempts plus legacy-v1__legacy-v1 integration docs for legacy users.',
+    '  --dry-run                 Plan writes only. This is the default.',
+    '  --apply                   Perform writes. Required for actual writes in every mode.',
+    '  --limit=N                 Stop after processing N uaam_results docs.',
+    '  --uid=xxx                 Process only one uid.',
+    '  --snapshot=PATH           Dry-run only. Write matched patch-attempts pre-state JSON for rollback planning.',
   ].join('\n');
 }
 
@@ -119,6 +150,31 @@ function timestampForFile(date = new Date()) {
 
 function isNonEmptyPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
+}
+
+function isPlainObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function removeUndefined(value) {
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => removeUndefined(item))
+      .filter((item) => item !== undefined);
+  }
+  if (!isPlainObject(value)) return value;
+
+  const cleaned = {};
+  for (const [key, entry] of Object.entries(value)) {
+    const cleanedEntry = removeUndefined(entry);
+    if (cleanedEntry !== undefined) {
+      cleaned[key] = cleanedEntry;
+    }
+  }
+  return cleaned;
 }
 
 function optionalText(...values) {
@@ -224,9 +280,27 @@ function bucketForSource(source) {
   return 'both_legacy_fallback';
 }
 
-function initialSummary({ dryRun }) {
+function initialSummary({ dryRun, mode }) {
+  if (mode === 'patch-attempts') {
+    return {
+      dryRun,
+      mode,
+      processed: 0,
+      patched: 0,
+      skipped: {
+        already_patched: 0,
+        pending_attempt: 0,
+        no_legacy: 0,
+        has_attempts: 0,
+      },
+      error: 0,
+      dry_run_planned: 0,
+    };
+  }
+
   return {
     dryRun,
+    mode,
     processed: 0,
     migrated: 0,
     skipped: {
@@ -250,6 +324,179 @@ function initialSummary({ dryRun }) {
       uaamComparable: 0,
       uaamMatches: 0,
     },
+  };
+}
+
+function hasPendingAttempt(data) {
+  return data?.pendingAttemptId !== undefined && data.pendingAttemptId !== null;
+}
+
+function extractLegacySummary(data, kind) {
+  if (kind === 'saikaku') {
+    return {
+      kakuchiiki: data?.result?.kakuchiiki ?? data?.selectedKakuchiiki ?? null,
+      typeName: null,
+      createdAt: data?.createdAt ?? null,
+    };
+  }
+
+  return {
+    typeName: data?.analysis?.type_name ?? null,
+    createdAt: data?.createdAt ?? null,
+  };
+}
+
+function extractLegacyFull(data, kind) {
+  if (kind === 'saikaku') {
+    return {
+      result: data?.result ?? null,
+      analysis: null,
+      scores: null,
+      selectedKakuchiiki: data?.selectedKakuchiiki ?? null,
+    };
+  }
+
+  // Keep this aligned with api/lib/attempts.js extractFull plus the legacy
+  // UAAM parent fields consumed by shared/attemptLogic.js legacyDocToAttempt.
+  return {
+    result: null,
+    analysis: data?.analysis ?? null,
+    scores: data?.scores ?? null,
+    bias_message: data?.bias_message,
+    personality_level: data?.personality_level ?? null,
+    leadership_stage: data?.leadership_stage ?? null,
+    three_elements: data?.three_elements ?? null,
+    name: data?.name ?? null,
+    coach_confirmed_personality_level: data?.coach_confirmed_personality_level ?? null,
+    coach_confirmed_leadership_stage: data?.coach_confirmed_leadership_stage ?? null,
+    coach_observation_note: data?.coach_observation_note ?? null,
+  };
+}
+
+function extractLegacyRaw(data, kind) {
+  if (kind === 'saikaku') {
+    return {
+      input: {
+        talent: data?.inputTalent ?? '',
+        value: data?.inputValue ?? '',
+        passion: data?.inputPassion ?? '',
+        talentTop5: data?.inputTalentTop5 ?? '',
+        talentOther: data?.inputTalentOther ?? '',
+        valueTop5: data?.inputValueTop5 ?? '',
+        valueOther: data?.inputValueOther ?? '',
+        passionTop5: data?.inputPassionTop5 ?? '',
+        passionOther: data?.inputPassionOther ?? '',
+        q1: data?.inputQ1 ?? '',
+        q2: data?.inputQ2 ?? '',
+        q3: data?.inputQ3 ?? '',
+      },
+    };
+  }
+
+  return {
+    input: {
+      answers: data?.answers ?? null,
+      vAnswers: data?.vAnswers ?? null,
+    },
+  };
+}
+
+function legacyAttemptPayload(data, kind) {
+  return removeUndefined({
+    summary: extractLegacySummary(data, kind),
+    full: extractLegacyFull(data, kind),
+    raw: extractLegacyRaw(data, kind),
+    status: 'committed',
+    isLegacy: true,
+    createdAt: data?.createdAt ?? FieldValue.serverTimestamp(),
+  });
+}
+
+function legacyParentPatch() {
+  return removeUndefined({
+    latestAttemptId: LEGACY_ATTEMPT_ID,
+    attemptCount: 1,
+    pendingAttemptId: null,
+    hasSaikakuIntegration: true,
+  });
+}
+
+function legacyIntegrationPayload({ integration, uaamParentData, saikakuParentData }) {
+  return removeUndefined({
+    saikakuAttemptId: LEGACY_ATTEMPT_ID,
+    uaamAttemptId: LEGACY_ATTEMPT_ID,
+    integration,
+    regenerationCount: 0,
+    model: 'legacy-migration',
+    source: {
+      saikakuLabel: saikakuParentData?.selectedKakuchiiki ?? null,
+      uaamLabel: uaamParentData?.analysis?.type_name ?? null,
+    },
+    status: 'active',
+    createdAt: timestampForWrite(uaamParentData?.integrationUpdatedAt ?? uaamParentData?.createdAt),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
+function serializeFirestoreValue(value) {
+  if (value === undefined) return { __type: 'undefined' };
+  if (value === null) return null;
+  if (typeof value !== 'object') return value;
+
+  if (typeof value.toDate === 'function' && typeof value.toMillis === 'function') {
+    const date = value.toDate();
+    return {
+      __type: 'timestamp',
+      iso: date.toISOString(),
+      millis: value.toMillis(),
+      seconds: value.seconds ?? value._seconds ?? null,
+      nanoseconds: value.nanoseconds ?? value._nanoseconds ?? null,
+    };
+  }
+
+  if (value instanceof Date) {
+    return { __type: 'date', iso: value.toISOString(), millis: value.getTime() };
+  }
+
+  if (typeof value._methodName === 'string') {
+    return { __type: 'field_value', method: value._methodName };
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => serializeFirestoreValue(entry));
+  }
+
+  if (!isPlainObject(value)) {
+    return String(value);
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, serializeFirestoreValue(entry)])
+  );
+}
+
+async function snapshotPreState({ uid, saikakuParentSnap, uaamParentSnap, saikakuAttemptsSnap, uaamAttemptsSnap }) {
+  return {
+    uid,
+    results: {
+      exists: saikakuParentSnap.exists,
+      fields: saikakuParentSnap.exists ? serializeFirestoreValue(saikakuParentSnap.data() || {}) : null,
+      attemptsSize: saikakuAttemptsSnap.size,
+    },
+    uaam_results: {
+      exists: uaamParentSnap.exists,
+      fields: uaamParentSnap.exists ? serializeFirestoreValue(uaamParentSnap.data() || {}) : null,
+      attemptsSize: uaamAttemptsSnap.size,
+    },
+  };
+}
+
+function plannedWrite(pathSegments, op, data, options = null) {
+  return {
+    op,
+    path: pathSegments.join('/'),
+    data: serializeFirestoreValue(data),
+    ...(options ? { options } : {}),
   };
 }
 
@@ -303,7 +550,7 @@ async function maybeWriteIntegration({ db, integrationRef, payload, dryRun }) {
   await db.runTransaction(async (tx) => {
     const transactionSnap = await tx.get(integrationRef);
     if (transactionSnap.exists) return;
-    tx.create(integrationRef, payload);
+    tx.create(integrationRef, removeUndefined(payload));
     wrote = true;
   });
 
@@ -390,6 +637,156 @@ async function processDoc({ db, docSnap, dryRun }) {
   };
 }
 
+async function processPatchAttemptsDoc({ db, docSnap, dryRun }) {
+  const uid = docSnap.id;
+  const uaamParentRef = db.collection('uaam_results').doc(uid);
+  const saikakuParentRef = db.collection('results').doc(uid);
+  const saikakuLegacyAttemptRef = saikakuParentRef.collection('attempts').doc(LEGACY_ATTEMPT_ID);
+  const uaamLegacyAttemptRef = uaamParentRef.collection('attempts').doc(LEGACY_ATTEMPT_ID);
+  const integrationRef = uaamParentRef.collection('integrations').doc(PATCH_ATTEMPTS_PAIR_KEY);
+
+  const [
+    saikakuParentSnap,
+    uaamAttemptsSnap,
+    saikakuAttemptsSnap,
+    uaamAttemptsProbeSnap,
+    saikakuAttemptsProbeSnap,
+    saikakuLegacyAttemptSnap,
+    uaamLegacyAttemptSnap,
+    integrationSnap,
+  ] = await Promise.all([
+    saikakuParentRef.get(),
+    uaamParentRef.collection('attempts').get(),
+    saikakuParentRef.collection('attempts').get(),
+    uaamParentRef.collection('attempts').limit(1).get(),
+    saikakuParentRef.collection('attempts').limit(1).get(),
+    saikakuLegacyAttemptRef.get(),
+    uaamLegacyAttemptRef.get(),
+    integrationRef.get(),
+  ]);
+
+  const uaamParentData = docSnap.data() || {};
+  const saikakuParentData = saikakuParentSnap.exists ? saikakuParentSnap.data() || {} : {};
+  const preState = await snapshotPreState({
+    uid,
+    saikakuParentSnap,
+    uaamParentSnap: docSnap,
+    saikakuAttemptsSnap,
+    uaamAttemptsSnap,
+  });
+  const baseRecord = {
+    uid,
+    pairKey: PATCH_ATTEMPTS_PAIR_KEY,
+    preState,
+  };
+  const legacy = readLegacyIntegration(uaamParentData);
+
+  if (!legacy) {
+    return {
+      ...baseRecord,
+      status: 'no_legacy',
+      decision: 'skipped',
+      reason: 'no legacy integration body found',
+    };
+  }
+
+  if (hasPendingAttempt(saikakuParentData) || hasPendingAttempt(uaamParentData)) {
+    return {
+      ...baseRecord,
+      status: 'pending_attempt',
+      decision: 'skipped',
+      reason: 'parent pendingAttemptId is non-null',
+      pendingAttemptId: {
+        results: saikakuParentData.pendingAttemptId ?? null,
+        uaam_results: uaamParentData.pendingAttemptId ?? null,
+      },
+      legacySource: legacy.legacySource,
+    };
+  }
+
+  if (saikakuLegacyAttemptSnap.exists || uaamLegacyAttemptSnap.exists || integrationSnap.exists) {
+    return {
+      ...baseRecord,
+      status: 'already_patched',
+      decision: 'skipped',
+      reason: 'legacy-v1 attempt or legacy-v1__legacy-v1 integration already exists',
+      existing: {
+        resultsAttemptLegacyV1: saikakuLegacyAttemptSnap.exists,
+        uaamAttemptLegacyV1: uaamLegacyAttemptSnap.exists,
+        integrationLegacyPair: integrationSnap.exists,
+      },
+      legacySource: legacy.legacySource,
+    };
+  }
+
+  if (!saikakuAttemptsProbeSnap.empty || !uaamAttemptsProbeSnap.empty) {
+    return {
+      ...baseRecord,
+      status: 'has_attempts',
+      decision: 'skipped',
+      reason: 'attempts subcollection is not empty',
+      attemptsSize: {
+        results: saikakuAttemptsSnap.size,
+        uaam_results: uaamAttemptsSnap.size,
+      },
+      legacySource: legacy.legacySource,
+    };
+  }
+
+  if (!saikakuParentSnap.exists) {
+    return {
+      ...baseRecord,
+      status: 'error',
+      decision: 'error',
+      error: 'results parent doc is missing',
+      legacySource: legacy.legacySource,
+    };
+  }
+
+  const saikakuAttempt = legacyAttemptPayload(saikakuParentData, 'saikaku');
+  const uaamAttempt = legacyAttemptPayload(uaamParentData, 'uaam');
+  const saikakuParentPatch = legacyParentPatch();
+  const uaamParentPatch = legacyParentPatch();
+  const integration = legacyIntegrationPayload({
+    integration: legacy.integration,
+    uaamParentData,
+    saikakuParentData,
+  });
+  const plannedWrites = [
+    plannedWrite(['results', uid, 'attempts', LEGACY_ATTEMPT_ID], 'create', saikakuAttempt),
+    plannedWrite(['uaam_results', uid, 'attempts', LEGACY_ATTEMPT_ID], 'create', uaamAttempt),
+    plannedWrite(['results', uid], 'set', saikakuParentPatch, { merge: true }),
+    plannedWrite(['uaam_results', uid], 'set', uaamParentPatch, { merge: true }),
+    plannedWrite(['uaam_results', uid, 'integrations', PATCH_ATTEMPTS_PAIR_KEY], 'create', integration),
+  ];
+
+  if (dryRun) {
+    return {
+      ...baseRecord,
+      status: 'dry_run_planned',
+      decision: 'planned',
+      legacySource: legacy.legacySource,
+      plannedWrites,
+    };
+  }
+
+  const batch = db.batch();
+  batch.create(saikakuLegacyAttemptRef, removeUndefined(saikakuAttempt));
+  batch.create(uaamLegacyAttemptRef, removeUndefined(uaamAttempt));
+  batch.set(saikakuParentRef, removeUndefined(saikakuParentPatch), { merge: true });
+  batch.set(uaamParentRef, removeUndefined(uaamParentPatch), { merge: true });
+  batch.create(integrationRef, removeUndefined(integration));
+  await batch.commit();
+
+  return {
+    ...baseRecord,
+    status: 'patched',
+    decision: 'patched',
+    legacySource: legacy.legacySource,
+    actualWriteCount: plannedWrites.length,
+  };
+}
+
 async function listUaamDocs({ db, uid, limit }) {
   if (uid) {
     const snap = await db.collection('uaam_results').doc(uid).get();
@@ -403,6 +800,25 @@ async function listUaamDocs({ db, uid, limit }) {
 
 function applyRecordToSummary(summary, record) {
   summary.processed += 1;
+
+  if (summary.mode === 'patch-attempts') {
+    if (record.status === 'patched') {
+      summary.patched += 1;
+    } else if (record.status === 'already_patched') {
+      summary.skipped.already_patched += 1;
+    } else if (record.status === 'pending_attempt') {
+      summary.skipped.pending_attempt += 1;
+    } else if (record.status === 'no_legacy') {
+      summary.skipped.no_legacy += 1;
+    } else if (record.status === 'has_attempts') {
+      summary.skipped.has_attempts += 1;
+    } else if (record.status === 'error') {
+      summary.error += 1;
+    } else if (record.status === 'dry_run_planned') {
+      summary.dry_run_planned += 1;
+    }
+    return;
+  }
 
   if (record.status === 'migrated') {
     summary.migrated += 1;
@@ -425,6 +841,44 @@ function applyRecordToSummary(summary, record) {
 }
 
 function renderTextLog(payload) {
+  if (payload.options.mode === 'patch-attempts') {
+    const lines = [
+      'Patch-attempts migration log',
+      `Generated at: ${payload.generatedAt}`,
+      `Mode: ${payload.options.dryRun ? 'dry-run' : 'apply'}`,
+      `UID filter: ${payload.options.uid ?? '(none)'}`,
+      `Limit: ${payload.options.limit ?? '(none)'}`,
+      `Snapshot: ${payload.options.snapshot ?? '(none)'}`,
+      '',
+      'Summary:',
+      `  processed: ${payload.summary.processed}`,
+      `  patched: ${payload.summary.patched}`,
+      `  skipped(already_patched): ${payload.summary.skipped.already_patched}`,
+      `  skipped(pending_attempt): ${payload.summary.skipped.pending_attempt}`,
+      `  skipped(no_legacy): ${payload.summary.skipped.no_legacy}`,
+      `  skipped(has_attempts): ${payload.summary.skipped.has_attempts}`,
+      `  error: ${payload.summary.error}`,
+      `  dry_run_planned: ${payload.summary.dry_run_planned}`,
+      '',
+      'Records:',
+    ];
+
+    for (const record of payload.records) {
+      const details = [
+        `uid=${record.uid}`,
+        `status=${record.status}`,
+        record.legacySource ? `legacySource=${record.legacySource}` : null,
+        record.pairKey ? `pairKey=${record.pairKey}` : null,
+        record.actualWriteCount ? `actualWriteCount=${record.actualWriteCount}` : null,
+        record.reason ? `reason=${record.reason}` : null,
+        record.error ? `error=${record.error}` : null,
+      ].filter(Boolean);
+      lines.push(`  - ${details.join(' ')}`);
+    }
+
+    return `${lines.join('\n')}\n`;
+  }
+
   const lines = [
     'Integrations migration log',
     `Generated at: ${payload.generatedAt}`,
@@ -470,18 +924,33 @@ function renderTextLog(payload) {
   return `${lines.join('\n')}\n`;
 }
 
+async function writeSnapshot({ snapshotPath, records }) {
+  if (!snapshotPath) return null;
+
+  const snapshotPayload = {
+    generatedAt: new Date().toISOString(),
+    records: records
+      .filter((record) => record.status !== 'no_legacy')
+      .map((record) => record.preState),
+  };
+  await fs.mkdir(path.dirname(snapshotPath), { recursive: true });
+  await fs.writeFile(snapshotPath, `${JSON.stringify(snapshotPayload, null, 2)}\n`, 'utf8');
+  return snapshotPath;
+}
+
 async function writeLogs({ options, summary, records }) {
   await fs.mkdir(MIGRATION_DIR, { recursive: true });
   const generatedAt = new Date().toISOString();
   const stamp = timestampForFile(new Date(generatedAt));
+  const prefix = options.mode === 'patch-attempts' ? 'patch-attempts' : 'integrations';
   const payload = {
     generatedAt,
     options,
     summary,
     records,
   };
-  const jsonPath = path.join(MIGRATION_DIR, `integrations-${stamp}.json`);
-  const txtPath = path.join(MIGRATION_DIR, `integrations-${stamp}.txt`);
+  const jsonPath = path.join(MIGRATION_DIR, `${prefix}-${stamp}.json`);
+  const txtPath = path.join(MIGRATION_DIR, `${prefix}-${stamp}.txt`);
 
   await Promise.all([
     fs.writeFile(jsonPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8'),
@@ -492,6 +961,24 @@ async function writeLogs({ options, summary, records }) {
 }
 
 function printSummary({ options, summary, logPaths }) {
+  if (options.mode === 'patch-attempts') {
+    console.log('Patch-attempts migration complete');
+    console.log(`Mode: ${options.dryRun ? 'dry-run' : 'apply'}`);
+    console.log(`Logs: ${logPaths.jsonPath}, ${logPaths.txtPath}`);
+    if (logPaths.snapshotPath) {
+      console.log(`Snapshot: ${logPaths.snapshotPath}`);
+    }
+    console.log(`processed: ${summary.processed}`);
+    console.log(`patched: ${summary.patched}`);
+    console.log(`skipped(already_patched): ${summary.skipped.already_patched}`);
+    console.log(`skipped(pending_attempt): ${summary.skipped.pending_attempt}`);
+    console.log(`skipped(no_legacy): ${summary.skipped.no_legacy}`);
+    console.log(`skipped(has_attempts): ${summary.skipped.has_attempts}`);
+    console.log(`error: ${summary.error}`);
+    console.log(`dry_run_planned: ${summary.dry_run_planned}`);
+    return;
+  }
+
   const match = summary.latestAttemptIdShortcutMatch;
   console.log('Integrations migration complete');
   console.log(`Mode: ${options.dryRun ? 'dry-run' : 'apply'}`);
@@ -514,30 +1001,48 @@ function printSummary({ options, summary, logPaths }) {
   );
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
-  if (options.help) {
-    console.log(usage());
-    return;
+export async function runMigration(options) {
+  const normalizedOptions = {
+    dryRun: options.dryRun ?? true,
+    limit: options.limit ?? null,
+    uid: options.uid ?? null,
+    mode: options.mode ?? 'integrations-only',
+    snapshot: options.snapshot ?? null,
+  };
+  if (!MODES.has(normalizedOptions.mode)) {
+    throw new Error('--mode must be one of: integrations-only, patch-attempts');
+  }
+  if (normalizedOptions.snapshot && !normalizedOptions.dryRun) {
+    throw new Error('--snapshot is dry-run only; remove --apply before writing a rollback snapshot');
   }
 
   assertEnv();
   initFirebaseAdmin();
 
   const db = getFirestore();
-  const docs = await listUaamDocs({ db, uid: options.uid, limit: options.limit });
-  const summary = initialSummary({ dryRun: options.dryRun });
+  const docs = await listUaamDocs({
+    db,
+    uid: normalizedOptions.uid,
+    limit: normalizedOptions.limit,
+  });
+  const summary = initialSummary({
+    dryRun: normalizedOptions.dryRun,
+    mode: normalizedOptions.mode,
+  });
   const records = [];
 
   for (const docSnap of docs) {
     try {
-      const record = await processDoc({ db, docSnap, dryRun: options.dryRun });
+      const record = normalizedOptions.mode === 'patch-attempts'
+        ? await processPatchAttemptsDoc({ db, docSnap, dryRun: normalizedOptions.dryRun })
+        : await processDoc({ db, docSnap, dryRun: normalizedOptions.dryRun });
       records.push(record);
       applyRecordToSummary(summary, record);
     } catch (error) {
       const record = {
         uid: docSnap.id,
         status: 'error',
+        decision: 'error',
         error: errorSummary(error),
       };
       records.push(record);
@@ -546,11 +1051,40 @@ async function main() {
     }
   }
 
-  const logPaths = await writeLogs({ options, summary, records });
-  printSummary({ options, summary, logPaths });
+  const logPaths = await writeLogs({ options: normalizedOptions, summary, records });
+  const snapshotPath = normalizedOptions.mode === 'patch-attempts'
+    ? await writeSnapshot({ snapshotPath: normalizedOptions.snapshot, records })
+    : null;
+  const result = {
+    options: normalizedOptions,
+    summary,
+    records,
+    logPaths: {
+      ...logPaths,
+      ...(snapshotPath ? { snapshotPath } : {}),
+    },
+  };
+  return result;
 }
 
-main().catch((error) => {
-  console.error(`[migrate-integrations] ${errorSummary(error)}`);
-  process.exitCode = 1;
-});
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
+  if (options.help) {
+    console.log(usage());
+    return;
+  }
+
+  const result = await runMigration(options);
+  printSummary({ options: result.options, summary: result.summary, logPaths: result.logPaths });
+}
+
+function isDirectRun() {
+  return process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+}
+
+if (isDirectRun()) {
+  main().catch((error) => {
+    console.error(`[migrate-integrations] ${errorSummary(error)}`);
+    process.exitCode = 1;
+  });
+}
