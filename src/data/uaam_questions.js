@@ -780,60 +780,125 @@ export function extractElementTalents(subs, weights, topN = 2) {
 }
 
 /**
- * 段階に応じた処方フェーズを判定
+ * 段階別に「優先する軸の中で立ってる才覚」を抽出（國創学準拠）
  *
- * Notion ページ6 の「段階別の使い分け」に準拠：
- *   段階1〜4（自発・自立・自律・自導 ／ L1〜L4）
- *     → 強み集中フェーズ：各要素内の立ってる才覚を磨く
- *   段階5〜7（他導・総導・天導 ／ L5〜L7）
- *     → 4軸バランスフェーズ：各要素内の弱い軸を補う
+ * 段階別の処方軸：
+ *   1-3：全軸（高スコア順）
+ *   4：志軸を優先（在り方の核）
+ *   5：知＋技軸を優先（人を導く・協働）
+ *   6：衝軸を優先（社会へ実装）
+ *   7：抽出なし（完成段階・天命を全う）
  *
- * @param {Object} leadershipStage - { stage, name }
- * @returns {string} 'strength_focus' | 'balance_4axis'
+ * @param {Object} subs - 16才覚スコア
+ * @param {Object} weights - ELEMENT_WEIGHTS[elementKey]
+ * @param {number} stage - リーダー段階 1〜7
+ * @param {number} [topN=2]
+ * @returns {Object} { stage, axisFilter: ['志'|'知'|...], talents: [...], stageLabel, allEmpty }
  */
-export function determineDevelopmentPhase(leadershipStage) {
-  const stage = leadershipStage?.stage ?? 1;
-  return stage >= 5 ? 'balance_4axis' : 'strength_focus';
+export function extractStageTargetedTalents(subs, weights, stage, topN = 2) {
+  if (!subs || !weights) return { stage, axisFilter: null, talents: [], stageLabel: '', allEmpty: true };
+
+  // 段階7：抽出なし（完成・天命）
+  if (stage >= 7) {
+    return { stage, axisFilter: null, talents: [], stageLabel: '完成・天命', allEmpty: true };
+  }
+
+  // 段階別の優先軸
+  let axisFilter, stageLabel;
+  if (stage === 4) { axisFilter = ['志']; stageLabel = '志軸（在り方）を徹底'; }
+  else if (stage === 5) { axisFilter = ['知', '技']; stageLabel = '知＋技軸（人を導く）'; }
+  else if (stage === 6) { axisFilter = ['衝']; stageLabel = '衝軸（社会へ実装）'; }
+  else { axisFilter = null; stageLabel = '才覚を伸ばす'; } // 1-3
+
+  const importantThreshold = 2;
+  let items = Object.entries(weights)
+    .filter(([_, w]) => w >= importantThreshold)
+    .map(([key, w]) => ({
+      key,
+      jp: SUB_LABELS_JP[key] || key,
+      axis: SUB_TO_AXIS[key] || '',
+      weight: w,
+      score: subs[key] || 0,
+    }));
+
+  // 軸フィルタ適用
+  if (axisFilter) {
+    const filtered = items.filter((t) => axisFilter.includes(t.axis));
+    // フィルタ結果が空なら（その要素にはその軸の才覚がない）、フィルタなしにフォールバック
+    if (filtered.length > 0) items = filtered;
+  }
+
+  const talents = items.slice().sort((a, b) => b.score - a.score).slice(0, topN);
+  return { stage, axisFilter, talents, stageLabel, allEmpty: false };
 }
 
 /**
- * 要素ごとの独立処方を生成（國創学準拠）
+ * 段階に応じた処方フェーズを判定
  *
- * 3要素は比較しない。要素ごとに独立した処方を返す：
- *   strength_focus（段階1〜4）：その要素内の立ってる才覚を磨け
- *   balance_4axis（段階5〜）：その要素内の弱い軸を補え
+ * 段階別の処方軸（國創学準拠）：
+ *   段階1〜3（自発・自立・自律）：全軸の高スコア才覚を伸ばす
+ *   段階4（自導）：志軸を伸ばす（在り方の核）
+ *   段階5（他導）：知＋技軸を伸ばす（人を導く力）
+ *   段階6（総導）：衝軸を伸ばす（社会へ実装）
+ *   段階7（天導）：完成・天命を全う（処方なし）
+ *
+ * @param {Object} leadershipStage - { stage, name }
+ * @returns {string} 'foundation' | 'shi' | 'chi_gi' | 'sho' | 'completion'
+ */
+export function determineDevelopmentPhase(leadershipStage) {
+  const stage = leadershipStage?.stage ?? 1;
+  if (stage >= 7) return 'completion';
+  if (stage === 6) return 'sho';
+  if (stage === 5) return 'chi_gi';
+  if (stage === 4) return 'shi';
+  return 'foundation'; // 1-3
+}
+
+/**
+ * 要素ごとの段階別処方を生成（國創学準拠）
+ *
+ * 段階別フェーズ：
+ *   foundation（1-3）：才覚を伸ばす
+ *   shi（4）：志軸（在り方）を徹底
+ *   chi_gi（5）：知＋技軸（人を導く）
+ *   sho（6）：衝軸（社会へ実装）
+ *   completion（7）：完成・天命を全う（処方なし）
  *
  * @param {string} elementKey - 'leadership' | 'teamBuilding' | 'management'
- * @param {string} phase - 'strength_focus' | 'balance_4axis'
- * @param {Object} talents - extractElementTalents の戻り値
- * @returns {Object} { headline, lines }
+ * @param {string} phase - 'foundation' | 'shi' | 'chi_gi' | 'sho' | 'completion'
+ * @param {Object} subs - 16才覚スコア
+ * @param {Object} stageTargeted - extractStageTargetedTalents の戻り値
+ * @returns {Object} { phase, action, target, comment }
  */
-export function getElementPrescription(elementKey, phase, talents) {
+export function getElementPrescription(elementKey, phase, subs, stageTargeted) {
   const label = ELEMENT_LABELS[elementKey] || { jp: elementKey, short: '' };
-  const standingNames = talents.standing.map((t) => t.jp).join('・');
-  const weakNames = talents.weak.map((t) => t.jp).join('・');
-  const standingAxes = [...new Set(talents.standing.map((t) => t.axis))].join('×');
-  const weakAxes = [...new Set(talents.weak.map((t) => t.axis))].join('・');
 
-  if (phase === 'strength_focus') {
+  // 完成段階（第7・天導）：処方なし
+  if (phase === 'completion') {
     return {
-      headline: `${standingNames}を集中的に磨く時期`,
-      lines: [
-        `${standingNames}が、あなたの${label.jp}を支える中核（${standingAxes}軸）`,
-        '毎日意識的に発動する時間を積み重ね、これを「型」にする',
-        '弱い軸は今は気にしない。偏りこそが、あなたの型を作る',
-      ],
+      phase,
+      action: null,
+      target: [],
+      comment: `${label.jp}は完成段階。天命を全う。`,
     };
   }
 
-  // balance_4axis
+  const target = stageTargeted?.talents || [];
+
+  // 各フェーズのアクション文言
+  const FRAMING = {
+    foundation: { verb: '伸ばせ', comment: `${label.jp}を支える中核` },
+    shi:        { verb: '徹底せよ', comment: `${label.jp}の在り方の核（志軸）を作る段階` },
+    chi_gi:     { verb: '伸ばせ', comment: `${label.jp}で人を導く力（知＋技）` },
+    sho:        { verb: '伸ばせ', comment: `${label.jp}を社会へ実装する力（衝軸）` },
+  };
+  const f = FRAMING[phase] || FRAMING.foundation;
+
   return {
-    headline: `${weakNames}を補い、4軸均等に立てる時期`,
-    lines: [
-      `${standingNames}は型として確立している（${standingAxes}軸が定まっている状態）`,
-      `次の段階は、${weakNames}（${weakAxes}軸）を意識的に補う`,
-      `4軸が均等に立つことで、あなたの${label.jp}が次のステージへ進む`,
-    ],
+    phase,
+    action: f.verb,
+    target,
+    comment: f.comment,
   };
 }
 

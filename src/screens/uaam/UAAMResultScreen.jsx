@@ -13,6 +13,7 @@ import {
   ELEMENT_LABELS,
   ELEMENT_WEIGHTS,
   extractElementTalents,
+  extractStageTargetedTalents,
   determineDevelopmentPhase,
   getElementPrescription,
 } from '../../data/uaam_questions';
@@ -1533,20 +1534,38 @@ function ThreeElementCard({ threeElements, leadershipStage, scores }) {
   const stage = leadershipStage?.stage ?? 1;
 
   const PHASE_META = {
-    strength_focus: {
-      label: '強み集中',
-      en: 'Strength Focus',
-      caption: '段階1〜4：各要素の中で立ってる才覚を磨く',
-      definition: '在り方の軸（型）を作る前段階。各要素について、その人の中で立ってる才覚を集中的に磨いて、自分の中核を確立する時期。弱い軸は今は気にしない。偏りこそが、あなたの型を作る。',
+    foundation: {
+      label: '才覚を伸ばす',
+      en: 'Foundation',
+      caption: '段階1〜3：各要素の中で高い才覚を伸ばす',
+      definition: '才覚そのものをまず磨く段階。各要素について、その人の中で立ってる才覚を集中的に伸ばして、土台を作る時期。',
     },
-    balance_4axis: {
-      label: '4軸バランス',
-      en: 'Four-Axis Balance',
-      caption: '段階5〜：各要素の中で弱い軸を補う',
-      definition: '主要素が型として確立した次の段階。各要素について、立ってる才覚はそのままに、弱い軸を意識的に補う時期。4軸が均等に立つことで、在り方が次のステージへ進む。',
+    shi: {
+      label: '志を徹底',
+      en: 'Shi (Way of Being)',
+      caption: '段階4：志軸（在り方）を徹底させる',
+      definition: '在り方の軸を確立する段階。才覚領域が「自分のもの（SI）」になる時期。志軸（基軸・認知・転換・熟達）を徹底的に伸ばす。',
+    },
+    chi_gi: {
+      label: '人を導く',
+      en: 'Chi+Gi (Lead Others)',
+      caption: '段階5：知＋技軸を伸ばす（志ができてる前提）',
+      definition: '志（在り方）が確立した次の段階。知（伝える力）と技（協働力）を伸ばし、人の才覚を引き出す段階。',
+    },
+    sho: {
+      label: '社会へ実装',
+      en: 'Sho (Implement to Society)',
+      caption: '段階6：衝軸を伸ばす（4軸バランス取れてる前提）',
+      definition: '4軸のバランスが取れた次の段階。衝軸（構想・変革・実装・影響）を伸ばし、才覚を社会システムへ実装する段階。',
+    },
+    completion: {
+      label: '天命を全う',
+      en: 'Completion',
+      caption: '段階7：完成形',
+      definition: '3要素の境界はもう存在しない。在り方の一点に統合され、天地を繋ぐ存在として、ただ天命を全うする段階。',
     },
   };
-  const phaseMeta = PHASE_META[phase] || PHASE_META.strength_focus;
+  const phaseMeta = PHASE_META[phase] || PHASE_META.foundation;
 
   const order = ['leadership', 'teamBuilding', 'management'];
   const ROLE_TAG = {
@@ -1622,150 +1641,138 @@ function ThreeElementCard({ threeElements, leadershipStage, scores }) {
         </span>
       </div>
 
-      {/* 各要素ごとに独立した処方カード */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-        {order.map((key) => {
-          const score = threeElements[key];
-          const lbl = ELEMENT_LABELS[key];
-          const elemColor = lbl.color;
-          const elemColorText = lbl.colorText;
-          const elemColorBg = lbl.colorBg;
+      {/* 完成段階（第7・天導）：3要素の処方は出さず、完成メッセージのみ */}
+      {phase === 'completion' ? (
+        <div style={{
+          padding: '20px 24px',
+          background: `${ACCENT_GOLD}10`,
+          borderRadius: 10,
+          borderLeft: `3px solid ${ACCENT_GOLD}`,
+          textAlign: 'center',
+        }}>
+          <div style={{
+            fontFamily: "'Noto Serif JP', serif",
+            fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY,
+            marginBottom: 8, lineHeight: 1.7,
+          }}>
+            天命を全う ── 3要素の境界はもう存在しない
+          </div>
+          <div style={{
+            fontFamily: "'Noto Serif JP', serif",
+            fontSize: 13, color: TEXT_SECONDARY, lineHeight: 1.85,
+          }}>
+            在り方の一点に統合された段階。<br />
+            上方・情報・物理の三空間を貫く存在として、ただそこに在る。
+          </div>
+        </div>
+      ) : (
+        /* 各要素ごとに独立した処方カード */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {order.map((key) => {
+            const score = threeElements[key];
+            const lbl = ELEMENT_LABELS[key];
+            const elemColor = lbl.color;
+            const elemColorText = lbl.colorText;
+            const elemColorBg = lbl.colorBg;
 
-          // 要素ごとに「立ってる才覚」「弱い才覚」を抽出
-          const talents = extractElementTalents(subs, ELEMENT_WEIGHTS[key], 2);
-          const prescription = getElementPrescription(key, phase, talents);
+            // 段階別に「優先軸の中で立ってる才覚」を抽出
+            const targeted = extractStageTargetedTalents(subs, ELEMENT_WEIGHTS[key], stage, 2);
+            const prescription = getElementPrescription(key, phase, subs, targeted);
 
-          return (
-            <div key={key} style={{
-              paddingLeft: 16,
-              borderLeft: `3px solid ${elemColor}`,
-            }}>
-              {/* 要素ヘッダー：名前・英・スコア */}
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
-                <span style={{
-                  fontFamily: "'Noto Serif JP', serif",
-                  fontSize: 17, fontWeight: 700, color: elemColorText,
-                  letterSpacing: '0.02em',
-                }}>{lbl.jp}</span>
-                <span style={{
-                  fontSize: 9, letterSpacing: '0.12em', color: elemColor,
-                  fontWeight: 600, textTransform: 'uppercase', opacity: 0.75,
-                }}>{lbl.en}</span>
-                <span style={{
-                  marginLeft: 'auto',
-                  fontFamily: NUM_FONT,
-                  fontSize: 22, fontWeight: 700, color: elemColorText, lineHeight: 1,
-                }}>{score}<span style={{ fontSize: 11, color: elemColor, opacity: 0.6, marginLeft: 2 }}>%</span></span>
-              </div>
-
-              {/* 定義 */}
-              <div style={{
-                fontFamily: "'Noto Serif JP', serif",
-                fontSize: 12, color: TEXT_SECONDARY,
-                marginBottom: 8, lineHeight: 1.6,
+            return (
+              <div key={key} style={{
+                paddingLeft: 16,
+                borderLeft: `3px solid ${elemColor}`,
               }}>
-                {lbl.short}
-                <span style={{ fontSize: 10, color: TEXT_MUTED, marginLeft: 8 }}>
-                  ／{ROLE_TAG[key]}
-                </span>
-              </div>
-
-              {/* 進捗バー */}
-              <div style={{
-                position: 'relative', width: '100%',
-                background: elemColorBg, height: 5, borderRadius: 2, overflow: 'hidden',
-                marginBottom: 12,
-              }}>
-                <div style={{
-                  background: elemColor, height: '100%', borderRadius: 2,
-                  width: `${score}%`, transition: 'width 0.6s ease',
-                }} />
-              </div>
-
-              {/* 立ってる才覚 / 弱い才覚 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                <TalentList
-                  label="立ってる"
-                  talents={talents.standing}
-                  bg={elemColorBg}
-                  color={elemColor}
-                  textColor={elemColorText}
-                />
-                <TalentList
-                  label="弱い"
-                  talents={talents.weak}
-                  bg="#FFFFFF"
-                  color={elemColor + '70'}
-                  textColor={TEXT_SECONDARY}
-                  borderStyle="dashed"
-                />
-              </div>
-
-              {/* 段階フェーズ別の処方 */}
-              <div style={{
-                padding: '10px 14px',
-                background: elemColorBg,
-                borderRadius: 6,
-              }}>
-                <div style={{
-                  fontFamily: "'Noto Serif JP', serif",
-                  fontSize: 13, fontWeight: 700, color: elemColorText,
-                  marginBottom: 6, lineHeight: 1.5,
-                }}>
-                  → {prescription.headline}
+                {/* 要素ヘッダー：名前・英・スコア */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+                  <span style={{
+                    fontFamily: "'Noto Serif JP', serif",
+                    fontSize: 17, fontWeight: 700, color: elemColorText,
+                    letterSpacing: '0.02em',
+                  }}>{lbl.jp}</span>
+                  <span style={{
+                    fontSize: 9, letterSpacing: '0.12em', color: elemColor,
+                    fontWeight: 600, textTransform: 'uppercase', opacity: 0.75,
+                  }}>{lbl.en}</span>
+                  <span style={{
+                    marginLeft: 'auto',
+                    fontFamily: NUM_FONT,
+                    fontSize: 22, fontWeight: 700, color: elemColorText, lineHeight: 1,
+                  }}>{score}<span style={{ fontSize: 11, color: elemColor, opacity: 0.6, marginLeft: 2 }}>%</span></span>
                 </div>
-                <ul style={{
-                  margin: 0, padding: '0 0 0 16px',
-                  fontFamily: "'Noto Serif JP', serif",
-                  fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.7,
-                }}>
-                  {prescription.lines.map((line, i) => (
-                    <li key={i}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
-/** 立ってる/弱い 才覚の小さなチップリスト */
-function TalentList({ label, talents, bg, color, textColor, borderStyle = 'solid' }) {
-  return (
-    <div style={{
-      padding: '8px 10px',
-      background: bg,
-      borderRadius: 6,
-      border: `1px ${borderStyle} ${color}`,
-    }}>
-      <div style={{
-        fontSize: 9, letterSpacing: '0.12em', color,
-        fontWeight: 700, textTransform: 'uppercase', marginBottom: 4,
-      }}>
-        {label}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {talents.length === 0 ? (
-          <span style={{ fontSize: 11, color: TEXT_MUTED }}>—</span>
-        ) : (
-          talents.map((t) => (
-            <span key={t.key} style={{
-              display: 'inline-flex', alignItems: 'baseline', gap: 4,
-              fontFamily: "'Noto Serif JP', serif",
-              fontSize: 12, fontWeight: 600, color: textColor,
-            }}>
-              {t.jp}
-              <span style={{
-                fontFamily: NUM_FONT, fontSize: 10,
-                color, opacity: 0.7,
-              }}>{t.score}</span>
-            </span>
-          ))
-        )}
-      </div>
+                {/* 定義 */}
+                <div style={{
+                  fontFamily: "'Noto Serif JP', serif",
+                  fontSize: 12, color: TEXT_SECONDARY,
+                  marginBottom: 8, lineHeight: 1.6,
+                }}>
+                  {lbl.short}
+                  <span style={{ fontSize: 10, color: TEXT_MUTED, marginLeft: 8 }}>
+                    ／{ROLE_TAG[key]}
+                  </span>
+                </div>
+
+                {/* 進捗バー */}
+                <div style={{
+                  position: 'relative', width: '100%',
+                  background: elemColorBg, height: 5, borderRadius: 2, overflow: 'hidden',
+                  marginBottom: 12,
+                }}>
+                  <div style={{
+                    background: elemColor, height: '100%', borderRadius: 2,
+                    width: `${score}%`, transition: 'width 0.6s ease',
+                  }} />
+                </div>
+
+                {/* 段階別の処方：才覚2つ＋アクション＋短いコメントのみ */}
+                {prescription.target.length > 0 ? (
+                  <div style={{
+                    padding: '12px 14px',
+                    background: elemColorBg,
+                    borderRadius: 6,
+                  }}>
+                    <div style={{
+                      fontFamily: "'Noto Serif JP', serif",
+                      fontSize: 14, fontWeight: 700, color: elemColorText,
+                      marginBottom: 4, lineHeight: 1.6,
+                    }}>
+                      →{' '}
+                      {prescription.target.map((t, i) => (
+                        <span key={t.key}>
+                          {i > 0 && <span style={{ color: elemColor, opacity: 0.5, margin: '0 6px' }}>・</span>}
+                          {t.jp}
+                          <span style={{
+                            fontFamily: NUM_FONT, fontSize: 11,
+                            color: elemColor, opacity: 0.75,
+                            marginLeft: 4, fontWeight: 600,
+                          }}>{t.score}</span>
+                        </span>
+                      ))}
+                      <span style={{ marginLeft: 10 }}>を{prescription.action}</span>
+                    </div>
+                    <div style={{
+                      fontFamily: "'Noto Serif JP', serif",
+                      fontSize: 11, color: TEXT_SECONDARY, lineHeight: 1.6, opacity: 0.85,
+                    }}>
+                      {prescription.comment}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '10px 14px', background: elemColorBg, borderRadius: 6,
+                    fontFamily: "'Noto Serif JP', serif", fontSize: 12,
+                    color: TEXT_SECONDARY, fontStyle: 'italic',
+                  }}>
+                    {prescription.comment}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
