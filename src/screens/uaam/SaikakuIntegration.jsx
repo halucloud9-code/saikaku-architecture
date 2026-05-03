@@ -30,6 +30,132 @@ const ZONE_META = {
 
 /* ── サブコンポーネント ─────────────── */
 
+export function formatIntegrationDate(value) {
+  if (value === null || value === undefined || value === '') return '日付未設定';
+
+  let date;
+  if (typeof value?.toDate === 'function') {
+    date = value.toDate();
+  } else if (typeof value?._seconds === 'number') {
+    date = new Date(value._seconds * 1000);
+  } else if (typeof value?.seconds === 'number') {
+    date = new Date(value.seconds * 1000);
+  } else {
+    date = new Date(value);
+  }
+
+  if (Number.isNaN(date.getTime())) return '日付未設定';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
+}
+
+function hasSource(source) {
+  return !!(
+    source
+    && (source.saikakuLabel || source.uaamLabel || source.saikakuDate || source.uaamDate)
+  );
+}
+
+function SourceHeader({ source }) {
+  if (!hasSource(source)) return null;
+
+  return (
+    <div style={{
+      background: '#FFF8E6',
+      borderBottom: `1px solid ${P.border}`,
+      padding: '12px 18px',
+    }}>
+      <div style={{
+        fontSize: 10,
+        color: P.gold,
+        fontWeight: 800,
+        letterSpacing: '0.16em',
+        fontFamily: "'Outfit', sans-serif",
+        marginBottom: 4,
+      }}>
+        出典
+      </div>
+      <div style={{
+        fontSize: 12,
+        color: P.text,
+        fontWeight: 700,
+        lineHeight: 1.8,
+        fontFamily: "'Noto Serif JP', serif",
+      }}>
+        才覚領域: {source.saikakuLabel || '未設定'}（{formatIntegrationDate(source.saikakuDate)}）× UAAM: {source.uaamLabel || '未設定'}（{formatIntegrationDate(source.uaamDate)}）
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  if (status !== 'stale') return null;
+
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      border: '1px solid rgba(184,150,12,0.45)',
+      background: 'rgba(184,150,12,0.14)',
+      color: '#F5D36A',
+      borderRadius: 100,
+      padding: '4px 9px',
+      fontSize: 10,
+      fontWeight: 800,
+      letterSpacing: '0.06em',
+      whiteSpace: 'nowrap',
+    }}>
+      要再生成
+    </span>
+  );
+}
+
+function RegenerateButton({ regenerationCount, onRegenerate }) {
+  const [regenerating, setRegenerating] = useState(false);
+  const count = Number.isFinite(Number(regenerationCount)) ? Number(regenerationCount) : 0;
+  const disabled = regenerating || count >= 1;
+  const remaining = Math.max(0, 2 - count);
+
+  if (typeof onRegenerate !== 'function') return null;
+
+  const handleClick = async (event) => {
+    event.stopPropagation();
+    if (disabled) return;
+
+    setRegenerating(true);
+    try {
+      await onRegenerate();
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={disabled}
+      style={{
+        border: `1px solid ${disabled ? 'rgba(255,255,255,0.14)' : 'rgba(245,211,106,0.55)'}`,
+        background: disabled ? 'rgba(255,255,255,0.06)' : 'rgba(184,150,12,0.18)',
+        color: disabled ? 'rgba(255,255,255,0.42)' : '#F5D36A',
+        borderRadius: 999,
+        padding: '8px 12px',
+        fontSize: 11,
+        fontWeight: 800,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: "'Noto Serif JP', serif",
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {regenerating ? '再生成中...' : `再生成（残り ${remaining} 回）`}
+    </button>
+  );
+}
+
 function ScoreRing({ score }) {
   const r = 38, cx = 50, cy = 50;
   const circumference = 2 * Math.PI * r;
@@ -169,8 +295,17 @@ function toJP(text) {
 }
 
 /* ── メインコンポーネント ────────────── */
-export default function SaikakuIntegration({ integration }) {
-  const [open, setOpen] = useState(false);
+export default function SaikakuIntegration({
+  integration,
+  source,
+  regenerationCount,
+  onRegenerate,
+  onClose,
+  status,
+  defaultOpen = false,
+  readOnly = false,
+}) {
+  const [open, setOpen] = useState(defaultOpen);
 
   if (!integration) return null;
 
@@ -191,6 +326,8 @@ export default function SaikakuIntegration({ integration }) {
 
   return (
     <div style={{ marginTop: 0 }}>
+      <SourceHeader source={source} />
+
       {/* ── ヘッダータップでアコーディオン ── */}
       <div
         onClick={() => setOpen(o => !o)}
@@ -213,13 +350,43 @@ export default function SaikakuIntegration({ integration }) {
               才覚発動統合分析
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <StatusBadge status={status} />
+            {!readOnly && (
+              <RegenerateButton
+                regenerationCount={regenerationCount}
+                onRegenerate={onRegenerate}
+              />
+            )}
             <ScoreRing score={integration_score} />
             <div style={{
               fontSize: 16, color: 'rgba(255,255,255,0.5)',
               transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
               transition: 'transform 0.25s ease',
             }}>▼</div>
+            {typeof onClose === 'function' && (
+              <button
+                type="button"
+                aria-label="閉じる"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onClose();
+                }}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,0.14)',
+                  background: 'rgba(255,255,255,0.06)',
+                  color: 'rgba(255,255,255,0.72)',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            )}
           </div>
         </div>
 

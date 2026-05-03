@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { auth, signOutUser } from '../firebase';
 import { summarizeFromParent, timestampToMillis } from '../../shared/attemptLogic.js';
+import SaikakuIntegrationModal from './uaam/SaikakuIntegrationModal';
 
 const TOKENS = {
   saikaku: {
@@ -91,10 +92,82 @@ function historyErrorMessage(status) {
   return '履歴を読み込めませんでした。時間をおいて再度お試しください。';
 }
 
+function isLegacyIntegration(summary) {
+  return summary?.saikakuAttemptId === 'legacy-fallback'
+    || summary?.uaamAttemptId === 'legacy-fallback';
+}
+
+function needsRegeneration(summary) {
+  return summary?.status === 'stale' || isLegacyIntegration(summary);
+}
+
+function sortIntegrationSummaries(summaries) {
+  return [...summaries].sort((a, b) => {
+    const ta = timestampToMillis(a?.generatedAt ?? a?.updatedAt ?? a?.createdAt);
+    const tb = timestampToMillis(b?.generatedAt ?? b?.updatedAt ?? b?.createdAt);
+    if (ta === null && tb === null) return 0;
+    if (ta === null) return 1;
+    if (tb === null) return -1;
+    return tb - ta;
+  });
+}
+
+function sourceFromAttempt(summary, attempt, kind) {
+  const source = summary?.source ?? {};
+
+  return {
+    saikakuLabel:
+      source.saikakuLabel
+      ?? summary?.saikakuLabel
+      ?? summary?.saikakuAttemptLabel
+      ?? (kind === 'saikaku' ? getAttemptLabel(attempt, 'saikaku') : null)
+      ?? summary?.saikakuAttemptId
+      ?? '',
+    uaamLabel:
+      source.uaamLabel
+      ?? summary?.uaamLabel
+      ?? summary?.uaamAttemptLabel
+      ?? (kind === 'uaam' ? getAttemptLabel(attempt, 'uaam') : null)
+      ?? summary?.uaamAttemptId
+      ?? '',
+    saikakuDate:
+      source.saikakuDate
+      ?? source.saikakuCreatedAt
+      ?? summary?.saikakuDate
+      ?? summary?.saikakuCreatedAt
+      ?? (kind === 'saikaku' ? getAttemptDate(attempt) : null),
+    uaamDate:
+      source.uaamDate
+      ?? source.uaamCreatedAt
+      ?? summary?.uaamDate
+      ?? summary?.uaamCreatedAt
+      ?? (kind === 'uaam' ? getAttemptDate(attempt) : null),
+  };
+}
+
+function withAttemptSource(summary, attempt, kind) {
+  return {
+    ...summary,
+    source: sourceFromAttempt(summary, attempt, kind),
+  };
+}
+
+function getIntegrationSummaries(attempt, kind) {
+  if (kind === 'uaam') {
+    return attempt.integrationSummary?.exists
+      ? [withAttemptSource(attempt.integrationSummary, attempt, kind)]
+      : [];
+  }
+
+  return sortIntegrationSummaries(attempt.integrationSummaries ?? [])
+    .map((summary) => withAttemptSource(summary, attempt, kind));
+}
+
 export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, onLogout }) {
   const [details, setDetails] = useState(null);
   const [error, setError] = useState('');
   const [hoveredId, setHoveredId] = useState('');
+  const [integrationModal, setIntegrationModal] = useState(null);
   const tokens = TOKENS[kind] ?? TOKENS.saikaku;
   const attempts = details?.attempts ?? null;
   const summary = details?.summary ?? null;
@@ -367,12 +440,24 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, o
               const isHovered = hoveredId === attempt.id;
               const label = getAttemptLabel(attempt, kind);
               const ordinal = getAttemptOrdinal(attempt, index, attempts.length);
+              const integrationSummaries = getIntegrationSummaries(attempt, kind);
+              const hasIntegrations = integrationSummaries.length > 0;
+              const showRegenerationBadge = integrationSummaries.some(needsRegeneration);
+              const openAttempt = () => onSelectAttemptId(attempt.id, kind);
+              const handleKeyDown = (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                openAttempt();
+              };
 
               return (
-                <button
+                <div
                   data-testid="history-item"
                   key={attempt.id}
-                  onClick={() => onSelectAttemptId(attempt.id, kind)}
+                  role="button"
+                  tabIndex={0}
+                  onClick={openAttempt}
+                  onKeyDown={handleKeyDown}
                   onMouseEnter={() => setHoveredId(attempt.id)}
                   onMouseLeave={() => setHoveredId('')}
                   style={{
@@ -437,6 +522,55 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, o
                   }}>
                     {label}
                   </div>
+                  {hasIntegrations && (
+                    <button
+                      type="button"
+                      data-testid="integration-banner"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setIntegrationModal({
+                          kind,
+                          summaries: integrationSummaries,
+                        });
+                      }}
+                      style={{
+                        marginTop: 14,
+                        width: '100%',
+                        border: `1px solid ${tokens.border}`,
+                        borderRadius: 10,
+                        background: tokens.soft,
+                        color: '#F5F0E8',
+                        padding: '10px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontSize: 12,
+                        fontWeight: 800,
+                        letterSpacing: '0.03em',
+                      }}
+                    >
+                      <span>統合分析あり ({integrationSummaries.length})</span>
+                      {showRegenerationBadge && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          border: '1px solid rgba(245,211,106,0.38)',
+                          background: 'rgba(184,150,12,0.16)',
+                          color: '#F5D36A',
+                          borderRadius: 999,
+                          padding: '3px 9px',
+                          fontSize: 10,
+                          fontWeight: 800,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          要再生成
+                        </span>
+                      )}
+                    </button>
+                  )}
                   <div style={{
                     marginTop: 14,
                     color: tokens.light,
@@ -446,12 +580,19 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, o
                   }}>
                     結果を見る →
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
         )}
       </main>
+      <SaikakuIntegrationModal
+        open={!!integrationModal}
+        onClose={() => setIntegrationModal(null)}
+        kind={integrationModal?.kind ?? kind}
+        integrationSummary={integrationModal?.summaries?.[0] ?? null}
+        integrationSummaries={integrationModal?.summaries ?? []}
+      />
     </div>
   );
 }
