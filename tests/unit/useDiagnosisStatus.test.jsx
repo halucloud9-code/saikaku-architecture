@@ -56,12 +56,14 @@ describe('useDiagnosisStatus', () => {
   beforeEach(() => {
     firebaseMocks.getIdToken.mockResolvedValue('id-token');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(200)));
+    window.sessionStorage.clear();
   });
 
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    window.sessionStorage.clear();
   });
 
   it('returns status, error, and a stable refresh callback', async () => {
@@ -232,6 +234,48 @@ describe('useDiagnosisStatus', () => {
 
     await waitFor(() => expect(result.current.error).toBe(expectedError));
     expect(result.current.status).toBeNull();
+  });
+
+  it('hydrates the initial status from sessionStorage cache on mount', async () => {
+    window.sessionStorage.setItem('diag-status:u-status', JSON.stringify(loadedStatus));
+    const { result } = renderHook(() => useDiagnosisStatus(user));
+    expect(result.current.status).toEqual(loadedStatus);
+    expect(result.current.error).toBeNull();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  });
+
+  it('persists the status to sessionStorage after a successful fetch', async () => {
+    const { result } = renderHook(() => useDiagnosisStatus(user));
+    await waitFor(() => expect(result.current.status).toEqual(loadedStatus));
+    expect(window.sessionStorage.getItem('diag-status:u-status')).toEqual(
+      JSON.stringify(loadedStatus),
+    );
+  });
+
+  it('hydrates from cache when the user id changes to a previously cached user', async () => {
+    window.sessionStorage.setItem(
+      'diag-status:u-status-b',
+      JSON.stringify({
+        ...loadedStatus,
+        saikaku: { ...loadedStatus.saikaku, committedCount: 2, isStartBlocked: true },
+      }),
+    );
+    fetch.mockResolvedValue(response(200, loadedStatus));
+
+    const { result, rerender } = renderHook(
+      ({ currentUser }) => useDiagnosisStatus(currentUser),
+      { initialProps: { currentUser: { uid: 'u-status-a' } } },
+    );
+
+    await waitFor(() => expect(result.current.status).toEqual(loadedStatus));
+
+    rerender({ currentUser: { uid: 'u-status-b' } });
+
+    expect(result.current.status).toEqual({
+      ...loadedStatus,
+      saikaku: { ...loadedStatus.saikaku, committedCount: 2, isStartBlocked: true },
+    });
+    expect(result.current.error).toBeNull();
   });
 
   it('refreshes on focus and visible visibilitychange after user id changes', async () => {

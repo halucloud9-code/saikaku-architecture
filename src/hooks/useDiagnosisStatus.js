@@ -1,10 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { auth } from '../firebase';
 
+const STORAGE_PREFIX = 'diag-status:';
+
+function readCachedStatus(uid) {
+  if (!uid || typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_PREFIX + uid);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedStatus(uid, value) {
+  if (!uid || typeof window === 'undefined') return;
+  try {
+    if (value === null) {
+      window.sessionStorage.removeItem(STORAGE_PREFIX + uid);
+    } else {
+      window.sessionStorage.setItem(STORAGE_PREFIX + uid, JSON.stringify(value));
+    }
+  } catch {
+    // sessionStorage unavailable or quota exceeded — best-effort only
+  }
+}
+
 export default function useDiagnosisStatus(user) {
-  const [status, setStatus] = useState(null);
-  const [error, setError] = useState(null);
   const uid = user?.uid ?? null;
+  const [status, setStatus] = useState(() => readCachedStatus(uid));
+  const [error, setError] = useState(null);
   const requestSeq = useRef(0);
   const mountedRef = useRef(false);
   const statusUidRef = useRef(uid);
@@ -72,13 +97,14 @@ export default function useDiagnosisStatus(user) {
     }
 
     applyState(requestId, json, null);
+    writeCachedStatus(uid, json);
   }, [applyState, uid]);
 
   useEffect(() => {
     if (statusUidRef.current === uid) return;
     statusUidRef.current = uid;
     requestSeq.current += 1;
-    setStatus(null);
+    setStatus(readCachedStatus(uid));
     setError(null);
   }, [uid]);
 
