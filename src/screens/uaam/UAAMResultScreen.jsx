@@ -1870,9 +1870,12 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   const validityResult = (effectiveResult?.vAnswers && effectiveResult?.answers) ? checkValidity(vAnswers, answers) : null;
 
   // 自己評価バイアス（3段階表記・45-95%）── 新方式
-  // 保存済み bias_message があればそれを使い、無ければクライアント側でフォールバック計算
+  // 保存済み bias_message があればそれを使う（null は「健全」を意味するので尊重）。
+  // undefined（= 保存されていない超古い legacy データ）のみフォールバック計算する。
   const { totalPct: totalPctForBias, minAxisPct, axisSpread } = extractAxisStats(scores);
-  const biasData = effectiveResult?.bias_message ?? calculateBiasMessage(vAnswers || {}, totalPctForBias);
+  const biasData = effectiveResult?.bias_message !== undefined
+    ? effectiveResult.bias_message
+    : calculateBiasMessage(vAnswers || {}, totalPctForBias);
 
   // Phase 2：人格L＋リーダー段階（推定）。Firestore に保存済みならそれを使い、
   // 無ければクライアント側でフォールバック計算（既存データ下位互換）
