@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from '@playwright/test';
+import { Timestamp } from 'firebase-admin/firestore';
 import {
   clearUser,
   createAuthUser,
@@ -14,6 +15,48 @@ import {
 const PASSWORD = 'password123';
 const SCREENSHOT_DIR = path.join('screenshots', 'issue-47');
 const VIEWPORT_WIDTHS = [375, 414, 430, 520];
+const UAAM_TYPE_NAME = '実装する案内人';
+
+function uaamParent(attemptCount = 1) {
+  const now = Timestamp.now();
+
+  return {
+    attemptCount,
+    pendingAttemptId: null,
+    latestAttemptId: 'attempt-1',
+    analysis: {
+      type_name: UAAM_TYPE_NAME,
+    },
+    scores: {
+      mindset: { total: 60 },
+    },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function uaamAttempt(typeName = UAAM_TYPE_NAME) {
+  const createdAt = Timestamp.now();
+
+  return {
+    status: 'committed',
+    createdAt,
+    summary: {
+      typeName,
+      createdAt,
+    },
+    full: {
+      result: null,
+      analysis: {
+        type_name: typeName,
+      },
+      scores: {
+        mindset: { total: 60 },
+      },
+    },
+    raw: { input: { answers: {} } },
+  };
+}
 
 const states = [
   {
@@ -72,6 +115,58 @@ const states = [
       await page.getByTestId('badge-saikaku').waitFor({ state: 'visible' });
       await page.getByText('診断済み (1/2)').waitFor({ state: 'visible' });
       await page.getByTestId('history-link-saikaku').waitFor({ state: 'visible' });
+      await page.getByText('処理中…').waitFor({ state: 'visible' });
+    },
+  },
+  {
+    name: 'state-uaam-count1',
+    seed: async (uid) => {
+      await seedUser(uid, 'uaam', {
+        parent: uaamParent(1),
+        attempts: { 'attempt-1': uaamAttempt() },
+      });
+    },
+    waitForUi: async (page) => {
+      await page.getByTestId('badge-uaam').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (1/2)').waitFor({ state: 'visible' });
+      await page.getByTestId('history-link-uaam').waitFor({ state: 'visible' });
+    },
+  },
+  {
+    name: 'state-uaam-count2',
+    seed: async (uid) => {
+      await seedUser(uid, 'uaam', {
+        parent: uaamParent(2),
+        attempts: {
+          'attempt-1': uaamAttempt(),
+          'attempt-2': uaamAttempt('探究を実装する人'),
+        },
+      });
+    },
+    waitForUi: async (page) => {
+      await page.getByTestId('badge-uaam').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (2/2)').waitFor({ state: 'visible' });
+      await page.getByText('診断は最大2回まで実施済み').waitFor({ state: 'visible' });
+    },
+  },
+  {
+    name: 'state-uaam-pending',
+    seed: async (uid) => {
+      await seedUser(uid, 'uaam', {
+        parent: {
+          ...uaamParent(2),
+          pendingAttemptId: 'pending-1',
+        },
+        attempts: {
+          'attempt-1': uaamAttempt(),
+          'pending-1': pendingAttempt(-2 * 60 * 1000),
+        },
+      });
+    },
+    waitForUi: async (page) => {
+      await page.getByTestId('badge-uaam').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (1/2)').waitFor({ state: 'visible' });
+      await page.getByTestId('history-link-uaam').waitFor({ state: 'visible' });
       await page.getByText('処理中…').waitFor({ state: 'visible' });
     },
   },
