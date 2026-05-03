@@ -383,7 +383,89 @@ URL 一覧表・直接アクセス時の挙動・`RequireAdmin` ガード・空 
 
 ---
 
-## UAAM page-skip prevention (issue #55)
+## 10. Per-Pair Integration サブコレクション (issue #44/#45/#46)
+
+> 確定: 2026-05-04 (Phase 1 実装完了)
+
+### 採用案
+
+統合分析の保存先を親 doc のネストフィールドから専用サブコレクションに移設。
+
+```
+uaam_results/{uid}                           // 親 doc (既存)
+  integrations/{pairKey}                     // サブコレクション (新設)
+    pairKey = "${saikakuAttemptId}__${uaamAttemptId}"
+    saikakuAttemptId, uaamAttemptId
+    regenerationCount: 0 | 1
+    status: 'active'                         // 書込時は常に active
+    analysisResult: { ... }
+    createdAt, updatedAt
+    _locks/integration                       // 統合ロック (Admin SDK 専用)
+      pairKey, ownerId, acquiredAt
+```
+
+クライアントからは `/api/integrate` (POST) でリクエスト → `/api/me/integrations` (GET) で一覧取得。読み取り時に `status: 'stale'` をオーバーライドして返す (DB 上は `active` のまま)。
+
+### なぜ per-pair サブコレクションか
+
+1. **診断履歴の保全**: Saikaku 再受験 / UAAM 再受験のたびに「Saikaku attempt × UAAM attempt」の組み合わせが増える。単一スロットに上書きすると過去の統合結果が消滅し、履歴表示 (issue #45 HistoryScreen バナー) が成立しない
+2. **Stale 検出の自然な導出**: 読み取りパスでユーザーの最新 attemptId と統合 doc に保存された attemptId を比較するだけで `status: 'stale'` が計算できる。状態フラグを能動的に更新する必要がない
+3. **Firestore インデックス活用**: サブコレクションは doc 単位でインデックスが効く。将来的に `createdAt` 降順ページネーションや `status` フィルタも容易
+
+### 棄却案: 親 doc の `analysis.saikaku_integration` フィールド (移設前の構造)
+
+issue #44 の根本原因がこの構造にある。firebase-admin v12.7.0 は `set({'a.b': v}, {merge: true})` のドット付きキーを **フィールドパス** として解釈せず、`'a.b'` というリテラルトップレベルフィールドとして書き込む。これは `analysis.saikaku_integration` というネストフィールドを期待していた下流読み取りと衝突し、サイレントに壊れる。実証: `tests/api/firestore-merge-debug.test.js` (リグレッションテストとして保持)。
+
+### 棄却案: 親 doc に pairs 配列を埋め込む
+
+- 配列要素の atomic update が Firestore では制約あり (Section 1 と同じ理由)
+- 親 doc 全体を read しないと 1 pair を更新できない
+- per-doc インデックスが効かない
+
+### Phase 1 不変条件
+
+| 区分 | 内容 |
+|------|------|
+| **禁止** | ドットキー `set({'a.b': v}, {merge: true})`。`update({field: value})` または ネストオブジェクト `set({field: value}, {merge: true})` を使う |
+| **再生成上限** | 1 pair につき合計 2 回 (`regenerationCount` が `0` → `1` まで)。2 回目以降は HTTP 409 `cap_exceeded` |
+| **ロックフェンシング** | `acquireIntegrationLock` が `{ pairKey, ownerId, lockRef }` を返す。`commitIntegration` は同一 transaction 内で `ownerId` 検証 + stale チェックを行い、`tx.delete(lockRef)` もその transaction に含める (race window なし) |
+| **LLM タイムアウト** | `AbortSignal.timeout(LOCK_TTL_MS - 30_000)` (9.5 分) で wrap し、LLM 呼び出しがロック有効期間を超えられない |
+| **読み取り時 stale** | DB 上の `status` は常に `'active'`。読み取り API がユーザーの最新 Saikaku/UAAM attemptId と比較し、乖離があれば `'stale'` に差し替えて返す |
+| **Legacy fallback** | サブコレクションが空の場合、読み取り API が親 doc のリテラルドットキーまたはネスト `analysis.saikaku_integration` から `integrationSummary` を合成 (`saikakuAttemptId: 'legacy-fallback'` / `uaamAttemptId: 'legacy-fallback'`)。UI は「移行前データ」バナーを表示 |
+| **マイグレーション** | `scripts/migrate-integrations-to-subcollection.mjs --dry-run` (デフォルト) / `--apply`。冪等。attempt pair の解決はタイムスタンプ推論 (`shared/integrationsAttemptResolver.js`) で行い、`latestAttemptId` ショートカットは使わない |
+
+### エラーレスポンス形状 (Phase 2 hardening)
+
+`/api/integrate` および `/api/me/*` の全エラーはコードベース:
+
+| 例外クラス | HTTP | `code` |
+|---|---|---|
+| `IntegrationConflictError` | 409 | `lock_conflict` |
+| `IntegrationLimitExceededError` | 409 | `cap_exceeded` |
+| `InvalidIntegrationRequestError` | 422 | `invalid_input` (+ `field`) |
+| Timeout / AbortError | 504 | `upstream_timeout` |
+| その他 | 500 | `internal_error` (+ `requestId`) |
+
+スタック/メッセージはサーバー側ログに `requestId` 付きで記録。クライアントには `requestId` のみ返す。
+
+### 参照
+
+- スキーマ定義: `docs/spec/integrations-schema.md`
+- ドットキーバグの実証: `tests/api/firestore-merge-debug.test.js`
+- 純粋ヘルパー: `shared/integrationsKey.js` (pairKey 生成), `shared/integrationsAttemptResolver.js` (タイムスタンプ推論)
+- E2E: `tests/api/integrate-subcollection.test.js`, `tests/api/me-history-integration.test.js`
+- マイグレーション: `scripts/migrate-integrations-to-subcollection.mjs`
+
+### 既存セクションとの関係
+
+- **Section 1** — サブコレクション + 親 doc サマリの基本設計を踏襲。統合サブコレクション (`integrations/`) は attempts と同じ「サブコレクション分離で doc 上限回避」方針の延長
+- **Section 2** — ロックフェンシング (Reservation Transaction) の設計パターンを統合ロック (`acquireIntegrationLock` / `commitIntegration`) に転用。TTL・tx.create による衝突検出・冪等コミットは同一原則
+- **Section 5** — テスト戦略の emulator E2E 層 (`tests/api/`) に統合 E2E (`integrate-subcollection.test.js`, `me-history-integration.test.js`) を追加。ドットキーバグは `tests/api/firestore-merge-debug.test.js` でリグレッション防止
+- **Section 6** — BFF `/api/me/*` の読み取り統一方針に準拠。統合一覧も `/api/me/integrations` として同じ認可ゲート (`withMeHandler`) を通す
+
+---
+
+## 11. UAAM page-skip prevention (issue #55)
 
 ### 背景
 production で UAAM 回答者が 57/67 のまま結果送信できず、調査すると 5 ページ目が未回答だった。従来 UI はページドットから任意ページへジャンプできたため、途中ページを飛ばして最終ページまで進めてしまう。一方、最終ページでは未回答が残っている理由や戻るべきページが十分に見えず、ユーザーには「全部進んだのに送信できない」状態として見えていた。

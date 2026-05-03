@@ -2,8 +2,7 @@ import { db } from '../../lib/firebaseAdmin.js';
 import { backfillAttemptSummary, getKindConfig, legacyDocToAttempt } from '../../lib/legacy.js';
 import { serializeTimestamps } from '../../lib/serialize.js';
 import { authenticateMeRequest, withMeHandler } from '../_auth.js';
-
-const ATTEMPT_ID_RE = /^[A-Za-z0-9_-]+$/;
+import { isValidAttemptId } from '../../../shared/attemptLogic.js';
 
 function readSingleQueryValue(value) {
   return Array.isArray(value) ? value[0] : value;
@@ -23,7 +22,10 @@ function attemptDetail(docSnap, kind) {
 }
 
 export default withMeHandler(async function handler(req, res) {
-  if (req.method !== 'GET') return res.status(405).end();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+
+  if (req.method !== 'GET') return res.status(405).json({ code: 'method_not_allowed' });
 
   const decoded = await authenticateMeRequest(req, res);
   if (!decoded) return undefined;
@@ -31,8 +33,8 @@ export default withMeHandler(async function handler(req, res) {
   const kind = readSingleQueryValue(req.query.kind);
   const id = readSingleQueryValue(req.query.id);
   const config = getKindConfig(kind);
-  if (!config || typeof id !== 'string' || id.length > 128 || !ATTEMPT_ID_RE.test(id)) {
-    return res.status(422).json({ error: 'kind and id are required' });
+  if (!config || !isValidAttemptId(id)) {
+    return res.status(422).json({ error: 'kind and id are required', code: 'invalid_input', field: !config ? 'kind' : 'id' });
   }
 
   const parentRef = db.collection(config.collection).doc(decoded.uid);
@@ -40,14 +42,14 @@ export default withMeHandler(async function handler(req, res) {
   if (id === 'legacy-fallback') {
     const parentSnap = await parentRef.get();
     const legacy = parentSnap.exists ? legacyDocToAttempt(parentSnap.data(), kind) : null;
-    if (!legacy) return res.status(404).json({ error: 'attempt not found' });
+    if (!legacy) return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
     return res.status(200).json(serializeTimestamps(legacy));
   }
 
   const attemptSnap = await parentRef.collection('attempts').doc(id).get();
-  if (!attemptSnap.exists) return res.status(404).json({ error: 'attempt not found' });
+  if (!attemptSnap.exists) return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
   if (attemptSnap.data()?.status !== 'committed') {
-    return res.status(404).json({ error: 'attempt not found' });
+    return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
   }
 
   return res.status(200).json(serializeTimestamps(attemptDetail(attemptSnap, kind)));

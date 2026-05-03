@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { getAuth } from 'firebase-admin/auth';
 
 const TEST_UID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -7,9 +8,14 @@ export function withMeHandler(innerHandler) {
     try {
       return await innerHandler(req, res);
     } catch (e) {
-      console.error('[api/me] internal error:', e);
+      const requestId = randomUUID();
+      console.error('[api/me] internal error:', {
+        requestId,
+        message: e?.message ?? String(e),
+        stack: e?.stack,
+      });
       if (res.headersSent) return undefined;
-      return res.status(500).json({ error: 'internal_error' });
+      return res.status(500).json({ code: 'internal_error', requestId });
     }
   };
 }
@@ -26,12 +32,12 @@ export async function authenticateMeRequest(req, res) {
   if (bypass) {
     const testUid = req.headers['x-test-uid'];
     if (testUid !== undefined && (typeof testUid !== 'string' || !TEST_UID_RE.test(testUid))) {
-      res.status(401).json({ error: '認証に失敗しました' });
+      res.status(401).json({ error: '認証に失敗しました', code: 'unauthorized' });
       return null;
     }
 
     if (!testUid && !idToken) {
-      res.status(401).json({ error: '認証が必要です' });
+      res.status(401).json({ error: '認証が必要です', code: 'unauthorized' });
       return null;
     }
 
@@ -44,14 +50,14 @@ export async function authenticateMeRequest(req, res) {
   }
 
   if (!idToken) {
-    res.status(401).json({ error: '認証が必要です' });
+    res.status(401).json({ error: '認証が必要です', code: 'unauthorized' });
     return null;
   }
 
   try {
     return await getAuth().verifyIdToken(idToken);
   } catch {
-    res.status(401).json({ error: '認証に失敗しました' });
+    res.status(401).json({ error: '認証に失敗しました', code: 'unauthorized' });
     return null;
   }
 }

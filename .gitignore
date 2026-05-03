@@ -22,6 +22,9 @@ tests/.env.*
 codex/
 debate/
 
+# audit/migration logs (contain uid/email)
+logs/
+
 # Playwright generated artifacts (traces, attachments)
 test-results/
 playwright-report/
