@@ -1,8 +1,8 @@
 # 設計判断の根拠 (Design Rationale)
 
 > このドキュメントは「なぜこうしたか」を記録する。コード/SETUP は「何をしたか」「どう動かすか」だけ書く。
-> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限), #36 (履歴空表示), #40 (UAAM 履歴非表示)
-> 確定: 2026-05-02 / 追記: 2026-05-03 (Section 6 追加)
+> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限), #36 (履歴空表示), #40 (UAAM 履歴非表示), #47 (SelectScreen レイアウト刷新)
+> 確定: 2026-05-02 / 追記: 2026-05-03 (Section 6 追加, Section 7 追加 SelectScreen Block Link)
 
 ---
 
@@ -195,3 +195,51 @@ attempts/{aid}[]
 - attempts.js の `reserveAttempt` の stale pending 復旧不能バグ
 - attempts.js の `rollbackAttempt` 重複 rollback 時の負数化
 - クライアント `loading/error/data` 三状態化 (現状は permission error も「データなし」に潰れる)
+
+---
+
+## 7. SelectScreen レイアウト刷新 (issue #47): Block Link + SWR + 固定高さ
+
+### 採用案
+- **Block Link パターン**: カード全体は `<div role="button" tabIndex={0} onClick onKeyDown>`、内部に CTA `<button data-testid="cta-saikaku">` + 履歴 `<button data-testid="history-link-saikaku">` を flex 並列配置
+- **下部メタ領域は全状態で固定高さ** (28px、`visibility: hidden + aria-hidden` プレースホルダ)
+- **`useDiagnosisStatus` を stale-while-revalidate 化** (refresh 中も前回値を保持、tab 復帰時のチラつき解消)
+- **uid 切替時は同期クリア** (statusUidRef で前回 uid を記録、変化検知時に setStatus(null) + requestSeq++ で in-flight 破棄 + render-time guard)
+- **スマホでバッジ被り解消**: サブラベル wrapper に `paddingRight: 112` で badge スロット予約
+
+### 棄却した代替案
+**(A) カード全体クリック廃止 (CTA だけ button)**
+- 廃止理由: モバイル UX 退化。Fitts の法則違反 (タップ領域大幅縮小)。Round 1 debate で Codex+Gemini 両者が「明らかな改悪」と強く批判
+- 採用案では `role="button" tabIndex={0} onKeyDown` でキーボード a11y を確保することで、廃止せずに WCAG 2.1.1/4.1.2 を満たした
+
+**(B) AdminScreen パターン追従 (非クリックカード + 内部 button のみ)**
+- 棄却: 管理画面 data row 用途で、ユーザー向けプライマリ操作カードには不適。「hover リフトはあるが非クリック」は UX 上の虚偽表示
+
+**(C) カード自体を `<button>` 化 (元実装維持)**
+- 棄却: button-in-button 問題が解消されない。履歴ボタン・パスワードアイコンを内部に置けない
+
+**(D) `flex-wrap` でバッジ被り解消**
+- 棄却: 絶対配置のバッジは flex flow 外なので flex-wrap は効かない (Round 1 で Gemini が CSS 仕様無視と指摘)
+
+### Block Link パターンの実装ディテール
+- カード `<div>` に `position: relative` + onClick (Fitts: カード全体クリック維持)
+- CTA `<button data-block-link="cta">` に `::after { inset: 0; z-index: 1 }` 擬似要素 (視覚アフォーダンス)
+- CTA / 履歴ボタンに `e.stopPropagation()` (二重発火防止)
+- 履歴・lock indicator に `position: relative; zIndex: 2` (擬似要素より上)
+- `<style>` タグ注入で `data-block-link="cta"::after` ルール (LoginScreen の shimmer animation と同じパターン)
+- nested button の `onKeyDown` で `e.stopPropagation()` (Enter/Space の二重発火防止)
+
+### 固定高さメタ領域の WHY
+Round 1 debate で「`status=null` だけプレースホルダ + `count=0` で領域消滅」案は**結局ジャンプを起こす**と判明。loaded&count=0/loaded&count>=1/hasPending=true/status=null の **4状態すべて同じ高さ** を確保することで物理的にジャンプを根絶。空白の見た目は許容 (ジャンプ防止 > 余白の見た目)。
+
+### SWR + uid 切替時の同期クリア
+SWR 化 (`setStatus(null)` 削除) で focus 復帰時のチラつきは消えたが、uid 変化時に**他ユーザーの status が一瞬表示される**バグが新たに生じる (codex-code-review B1)。`statusUidRef = useRef(uid)` で前回 uid を記録し、`useEffect([uid])` で変化検知 → `setStatus(null) + requestSeq++` で in-flight invalidation。**さらに**返値で `statusUidRef.current === uid ? status : null` の render-time guard を追加し、effect 反映前の 1 frame でも漏れない二重防御。
+
+### スマホ対応 (375px-430px)
+バッジは絶対配置 (`top:18 right:18`) でフローから外れるため、サブラベル側に `paddingRight: 112` で恒久的に badge スロットを予約。`maxWidth: '100%'` でサブラベル文言が長くなっても折り返す。`@media` クエリは使わず fluid layout (プロジェクト慣習)。
+
+### 観測結果
+- vitest unit: 47/47 pass (新規 Block Link テスト 2件 + SWR テスト 4件)
+- test:rules: 21/21 pass
+- test:api: 41/41 pass
+- test:e2e (Playwright): 6/6 pass (badge-flow / history-flow / limit-flow / modern-user-no-double-count / pending-block-ui)

@@ -122,6 +122,39 @@ describe('SelectScreen badge', () => {
     expect(screen.getByText('処理中…')).toBeInTheDocument();
   });
 
+  it('starts saikaku diagnosis when clicking the card title', async () => {
+    const onSelectSaikaku = vi.fn();
+    const onSelectHistory = vi.fn();
+    useDiagnosisStatus.mockReturnValue(hookValue({
+      saikaku: statusOf(),
+      uaam: statusOf(),
+    }));
+
+    renderSelect({ onSelectSaikaku, onSelectHistory });
+
+    await userEvent.click(screen.getByText('才覚領域'));
+
+    expect(onSelectSaikaku).toHaveBeenCalledTimes(1);
+    expect(onSelectHistory).not.toHaveBeenCalled();
+  });
+
+  it('does not start saikaku diagnosis when clicking the history button', async () => {
+    const onSelectSaikaku = vi.fn();
+    const onSelectHistory = vi.fn();
+    useDiagnosisStatus.mockReturnValue(hookValue({
+      saikaku: statusOf({ committedCount: 1, hasResult: true }),
+      uaam: statusOf(),
+    }));
+
+    renderSelect({ onSelectSaikaku, onSelectHistory });
+
+    await userEvent.click(screen.getByTestId('history-link-saikaku'));
+
+    expect(onSelectHistory).toHaveBeenCalledTimes(1);
+    expect(onSelectHistory).toHaveBeenCalledWith('saikaku');
+    expect(onSelectSaikaku).not.toHaveBeenCalled();
+  });
+
   it('shows a reloadable notice when diagnosis status loading fails', async () => {
     const refresh = vi.fn();
     useDiagnosisStatus.mockReturnValue(hookValue(null, 'fetch', refresh));
