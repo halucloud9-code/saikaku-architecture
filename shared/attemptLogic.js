@@ -143,4 +143,18 @@ export function listFromAttempts(attemptDocs, parentData, kind) {
   return { committedAttempts, pendingAttempt };
 }
 
+export function selectIntegrationForAttempt(integrations, kind, attemptId) {
+  const list = Array.isArray(integrations) ? integrations : [];
+
+  if (kind === 'uaam') {
+    return list.find((integration) => integration?.uaamAttemptId === attemptId) ?? null;
+  }
+
+  if (kind === 'saikaku') {
+    return list.filter((integration) => integration?.saikakuAttemptId === attemptId);
+  }
+
+  return kind === 'saikaku' ? [] : null;
+}
+
 export { timestampToMillis };
