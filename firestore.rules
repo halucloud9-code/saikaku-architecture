@@ -50,6 +50,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /uaam_results/{uid}/integrations/{pairKey} {
+      allow read, write: if false;
+    }
+
     match /uaam_results/{uid}/_locks/{lockId} {
       allow read, write: if false;
     }
