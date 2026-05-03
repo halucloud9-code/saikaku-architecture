@@ -379,6 +379,8 @@ function AppShell() {
 
   const handleLoadingCancel = () => {
     const target = loadingKind === 'uaam' ? '/uaam' : '/input';
+    // Note: this aborts the browser fetch only. Server-side reserveAttempt may have already
+    // consumed an attempt slot. Tracking server-side cleanup is out of scope for #50.
     inFlightControllerRef.current?.abort();
     flushSync(() => {
       setIsLLMInflight(false);
