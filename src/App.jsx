@@ -171,6 +171,12 @@ function AppShell() {
   }, [isLLMInflight]);
 
   useEffect(() => {
+    if (!isLLMInflight && blocker.state === 'blocked' && typeof blocker.reset === 'function') {
+      blocker.reset();
+    }
+  }, [isLLMInflight, blocker.state]);
+
+  useEffect(() => {
     if (!shouldRedirectToUaamResult || initialLegacyRedirectHandledRef.current) return;
     initialLegacyRedirectHandledRef.current = true;
     navigate('/uaam/result', { replace: true });
