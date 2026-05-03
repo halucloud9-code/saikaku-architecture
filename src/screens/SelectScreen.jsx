@@ -133,10 +133,8 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
 
   const renderHistoryArea = (count, hasPending) => {
     const hasVisibleMeta = status !== null && (hasPending || count >= 2);
+    if (!hasVisibleMeta) return null;
     const metaText = hasPending ? '処理中…' : '診断は最大2回まで実施済み';
-
-    // Meta-info area is fixed-height in all states to prevent layout jump (issue #47, Round 1 debate)
-    // 28px fits the 11px single-line max-count and pending messages while keeping the card compact.
     return (
       <div style={{
         display: 'flex',
@@ -146,19 +144,15 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         marginTop: 8,
         pointerEvents: 'none',
       }}>
-        <span
-          aria-hidden={hasVisibleMeta ? undefined : 'true'}
-          style={{
-            visibility: hasVisibleMeta ? 'visible' : 'hidden',
-            color: '#8A8070',
-            fontSize: 11,
-            fontWeight: hasPending ? 700 : 600,
-            letterSpacing: '0.04em',
-            lineHeight: '16px',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {hasVisibleMeta ? metaText : '\u00A0'}
+        <span style={{
+          color: '#8A8070',
+          fontSize: 11,
+          fontWeight: hasPending ? 700 : 600,
+          letterSpacing: '0.04em',
+          lineHeight: '16px',
+          whiteSpace: 'nowrap',
+        }}>
+          {metaText}
         </span>
       </div>
     );
@@ -409,16 +403,17 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                   height: 36,
                   padding: '0 16px',
                   border: 'none',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: '#1A1610',
+                  letterSpacing: '0.05em',
                   lineHeight: 1,
                   transition: 'background 0.3s ease',
                   fontFamily: 'inherit',
                   pointerEvents: 'none',
                 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#1A1610', letterSpacing: '0.05em' }}>
-                  診断を開始する
-                </span>
+                診断を開始する
                 <span style={{
-                  fontSize: 12, fontWeight: 700, color: '#1A1610',
                   transform: hoverSaikaku ? 'translateX(3px)' : 'translateX(0)',
                   transition: 'transform 0.3s ease',
                   display: 'inline-block',
@@ -553,16 +548,17 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                   height: 36,
                   padding: '0 16px',
                   border: 'none',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: '#F5F0E8',
+                  letterSpacing: '0.05em',
                   lineHeight: 1,
                   transition: 'background 0.3s ease',
                   fontFamily: 'inherit',
                   pointerEvents: 'none',
                 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#F5F0E8', letterSpacing: '0.05em' }}>
-                  診断を開始する
-                </span>
+                診断を開始する
                 <span style={{
-                  fontSize: 12, fontWeight: 700, color: '#F5F0E8',
                   transform: hoverUaam ? 'translateX(3px)' : 'translateX(0)',
                   transition: 'transform 0.3s ease',
                   display: 'inline-block',
@@ -575,8 +571,8 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               }, hoverUaamHistory, setHoverUaamHistory)}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 5,
+                height: 36,
                 fontSize: 11, color: 'rgba(107,154,212,0.5)', fontWeight: 500,
-                marginLeft: 'auto',
                 position: 'relative',
                 zIndex: 2,
                 pointerEvents: 'none',
