@@ -150,6 +150,7 @@ function AppShell() {
   const [isLLMInflight, setIsLLMInflight] = useState(false);
   const [loadingKind, setLoadingKind] = useState(null);
   const inFlightControllerRef = useRef(null);
+  const userCancelledRef = useRef(false);
   const blocker = useBlocker((args) => {
     void args;
     return isLLMInflight;
@@ -225,6 +226,7 @@ function AppShell() {
   const handleSubmit = async (formData) => {
     setError('');
     setResult(null);
+    userCancelledRef.current = false;
     setLoadingKind('saikaku');
     let shouldNavigateToResult = false;
     let nextResult = null;
@@ -267,13 +269,16 @@ function AppShell() {
       }
     } catch (e) {
       if (e.name === 'AbortError') {
-        setError('解析がタイムアウトしました。時間をおいて再度お試しください。');
+        if (!userCancelledRef.current) {
+          setError('解析がタイムアウトしました。時間をおいて再度お試しください。');
+        }
       } else if (!navigator.onLine) {
         setError('通信エラーが発生しました。インターネット接続を確認してください。');
       } else {
         setError(e.message || '解析に失敗しました。もう一度お試しください。');
       }
     } finally {
+      userCancelledRef.current = false;
       setLoadingKind(null);
     }
   };
@@ -281,6 +286,7 @@ function AppShell() {
   const handleUaamSubmit = async (answers, vAnswers = {}) => {
     setUaamError('');
     setUaamResult(null);
+    userCancelledRef.current = false;
     setLoadingKind('uaam');
     let shouldNavigateToResult = false;
     let nextUaamResult = null;
@@ -322,13 +328,16 @@ function AppShell() {
       }
     } catch (e) {
       if (e.name === 'AbortError') {
-        setUaamError('診断がタイムアウトしました。時間をおいて再度お試しください。');
+        if (!userCancelledRef.current) {
+          setUaamError('診断がタイムアウトしました。時間をおいて再度お試しください。');
+        }
       } else if (!navigator.onLine) {
         setUaamError('通信エラーが発生しました。インターネット接続を確認してください。');
       } else {
         setUaamError(e.message || '診断に失敗しました。もう一度お試しください。');
       }
     } finally {
+      userCancelledRef.current = false;
       setLoadingKind(null);
     }
   };
@@ -381,6 +390,7 @@ function AppShell() {
     const target = loadingKind === 'uaam' ? '/uaam' : '/input';
     // Note: this aborts the browser fetch only. Server-side reserveAttempt may have already
     // consumed an attempt slot. Tracking server-side cleanup is out of scope for #50.
+    userCancelledRef.current = true;
     inFlightControllerRef.current?.abort();
     flushSync(() => {
       setIsLLMInflight(false);
@@ -389,6 +399,7 @@ function AppShell() {
   };
 
   const handleNavigationConfirm = () => {
+    userCancelledRef.current = true;
     inFlightControllerRef.current?.abort();
     blocker.proceed();
   };
