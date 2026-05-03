@@ -103,10 +103,17 @@ function legacyFallbackIntegration(integrations) {
   return integrations.find(isLegacyFallbackIntegration) ?? null;
 }
 
-function selectUaamIntegration(integrations, attemptId) {
+function selectUaamIntegration(integrations, attemptId, attemptIsLegacy) {
+  // 全体取得モード（attemptId なし）は subcollection が空のときに legacy
+  // fallback synthesize を返す（既存挙動）。
   if (!attemptId) return legacyFallbackIntegration(integrations);
-  return selectIntegrationForAttempt(integrations, 'uaam', attemptId)
-    ?? legacyFallbackIntegration(integrations);
+  const pairMatched = selectIntegrationForAttempt(integrations, 'uaam', attemptId);
+  if (pairMatched) return pairMatched;
+  // attempt-scoped 取得で pair match なし → attempt 自体が legacy のとき
+  // のみ legacy-fallback を継承する。real attempt には関係ない legacy
+  // integration を attach しない（PR #60 P2 対応）。
+  if (attemptIsLegacy) return legacyFallbackIntegration(integrations);
+  return null;
 }
 
 function emptyResult(includeIntegrationSummary) {
@@ -150,6 +157,7 @@ export default withMeHandler(async function handler(req, res) {
 
   let scores = data.scores ?? null;
   let analysis = data.analysis ?? null;
+  let attemptIsLegacy = false;
 
   if (requestedAttemptId) {
     // legacy-fallback も他の attemptId と同様に existence check を要求する。
@@ -160,12 +168,14 @@ export default withMeHandler(async function handler(req, res) {
       return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
     }
 
-    const full = attemptSnap.data()?.full ?? {};
+    const attemptData = attemptSnap.data();
+    attemptIsLegacy = !!attemptData?.isLegacy;
+    const full = attemptData?.full ?? {};
     scores = full.scores ?? null;
     analysis = full.analysis ?? null;
   }
 
-  const selectedIntegration = selectUaamIntegration(integrations, resolvedAttemptId);
+  const selectedIntegration = selectUaamIntegration(integrations, resolvedAttemptId, attemptIsLegacy);
   const summary = integrationSummary(selectedIntegration, latestSaikakuAttemptId);
   const includeIntegrationSummary = requestedAttemptId !== null || !!summary;
 

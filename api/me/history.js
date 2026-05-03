@@ -119,15 +119,21 @@ function legacyFallbackIntegration(integrations) {
   return integrations.find(isLegacyFallbackIntegration) ?? null;
 }
 
-function selectUaamIntegration(integrations, attemptId) {
-  return selectIntegrationForAttempt(integrations, 'uaam', attemptId)
-    ?? legacyFallbackIntegration(integrations);
+function selectUaamIntegration(integrations, attempt) {
+  const pairMatched = selectIntegrationForAttempt(integrations, 'uaam', attempt.id);
+  if (pairMatched) return pairMatched;
+  // legacy 由来の attempt のみ legacy-fallback synthesis を継承する。
+  // real attempt の場合「この attempt 単独で integration なし」を null で表現し、
+  // 関係ない legacy parent integration を attach しない（PR #60 P2 対応）。
+  if (attempt.isLegacy) return legacyFallbackIntegration(integrations);
+  return null;
 }
 
-function selectSaikakuIntegrations(integrations, attemptId) {
-  const selected = selectIntegrationForAttempt(integrations, 'saikaku', attemptId);
+function selectSaikakuIntegrations(integrations, attempt) {
+  const selected = selectIntegrationForAttempt(integrations, 'saikaku', attempt.id);
   if (selected.length > 0) return selected;
 
+  if (!attempt.isLegacy) return [];
   const legacy = legacyFallbackIntegration(integrations);
   return legacy ? [legacy] : [];
 }
@@ -143,12 +149,12 @@ function attemptListItem(attempt, kind, integrations, latestIds) {
 
   if (kind === 'uaam') {
     item.integrationSummary = integrationSummary(
-      selectUaamIntegration(integrations, attempt.id),
+      selectUaamIntegration(integrations, attempt),
       kind,
       latestIds
     );
   } else {
-    item.integrationSummaries = selectSaikakuIntegrations(integrations, attempt.id)
+    item.integrationSummaries = selectSaikakuIntegrations(integrations, attempt)
       .map((integrationDoc) => integrationSummary(integrationDoc, kind, latestIds))
       .filter(Boolean);
   }
