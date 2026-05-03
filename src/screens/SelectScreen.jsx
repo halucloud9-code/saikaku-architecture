@@ -12,7 +12,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   const [hoverUaam, setHoverUaam] = useState(false);
   const [hoverSaikakuHistory, setHoverSaikakuHistory] = useState(false);
   const [hoverUaamHistory, setHoverUaamHistory] = useState(false);
-  const { status, error, refresh } = useDiagnosisStatus(user);
+  const { status, error, loading, refresh } = useDiagnosisStatus(user);
   const saikakuStatus = status?.saikaku ?? null;
   const uaamStatus = status?.uaam ?? null;
   const saikakuAttemptCount = saikakuStatus?.committedCount ?? 0;
@@ -34,6 +34,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   };
 
   const handleSaikakuClick = () => {
+    if (loading) {
+      alert('読み込み中です。少々お待ちください');
+      return;
+    }
     if (isSaikakuLimitReached) {
       showLimitAlert(saikakuStatus);
       return;
@@ -42,6 +46,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   };
 
   const handleUaamClick = () => {
+    if (loading) {
+      alert('読み込み中です。少々お待ちください');
+      return;
+    }
     if (isUaamLimitReached) {
       showLimitAlert(uaamStatus);
       return;

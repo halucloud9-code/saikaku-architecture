@@ -3,11 +3,21 @@ import { auth } from '../firebase';
 
 const STORAGE_PREFIX = 'diag-status:';
 
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidStatusShape(value) {
+  return isObject(value) && isObject(value.saikaku) && isObject(value.uaam);
+}
+
 function readCachedStatus(uid) {
   if (!uid || typeof window === 'undefined') return null;
   try {
     const raw = window.sessionStorage.getItem(STORAGE_PREFIX + uid);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return isValidStatusShape(parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -43,9 +53,10 @@ export default function useDiagnosisStatus(user) {
   }, []);
 
   const applyState = useCallback((requestId, nextStatus, nextError) => {
-    if (!mountedRef.current || requestSeq.current !== requestId) return;
+    if (!mountedRef.current || requestSeq.current !== requestId) return false;
     setStatus(nextStatus);
     setError(nextError);
+    return true;
   }, []);
 
   const refresh = useCallback(async () => {
@@ -64,6 +75,11 @@ export default function useDiagnosisStatus(user) {
     try {
       idToken = await auth.currentUser?.getIdToken();
     } catch {
+      applyState(requestId, null, 'auth');
+      return;
+    }
+
+    if (auth.currentUser?.uid !== uid) {
       applyState(requestId, null, 'auth');
       return;
     }
@@ -96,8 +112,14 @@ export default function useDiagnosisStatus(user) {
       return;
     }
 
-    applyState(requestId, json, null);
-    writeCachedStatus(uid, json);
+    if (!isValidStatusShape(json)) {
+      applyState(requestId, null, 'fetch');
+      return;
+    }
+
+    if (applyState(requestId, json, null)) {
+      writeCachedStatus(uid, json);
+    }
   }, [applyState, uid]);
 
   useEffect(() => {
@@ -127,9 +149,13 @@ export default function useDiagnosisStatus(user) {
     };
   }, [refresh, uid]);
 
+  const visibleStatus = statusUidRef.current === uid ? status : null;
+  const visibleError = statusUidRef.current === uid ? error : null;
+
   return {
-    status: statusUidRef.current === uid ? status : null,
-    error: statusUidRef.current === uid ? error : null,
+    status: visibleStatus,
+    error: visibleError,
+    loading: visibleError === null && visibleStatus === null && uid !== null,
     refresh,
   };
 }
