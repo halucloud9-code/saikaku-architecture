@@ -295,6 +295,10 @@ export default async function handler(req, res) {
   console.log('[UAAM] FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID);
   if (req.method !== 'POST') return res.status(405).end();
 
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+    return res.status(400).json({ error: 'リクエストボディが不正です' });
+  }
+
   const { idToken, answers, vAnswers } = req.body;
 
   // 認証
@@ -331,9 +335,40 @@ export default async function handler(req, res) {
 
   // スコアの値が1〜5の範囲か確認
   for (const [key, val] of Object.entries(answers)) {
-    const n = Number(val);
-    if (!Number.isInteger(n) || n < 1 || n > 5) {
+    if (typeof val !== 'number' || !Number.isInteger(val) || val < 1 || val > 5) {
       return res.status(400).json({ error: `質問${key}の回答が不正です（1〜5の整数）` });
+    }
+  }
+
+  const expectedAnswerIds = new Set(QUESTIONS.map((q) => String(q.id)));
+  const hasAllExpectedAnswers = QUESTIONS.every((q) =>
+    Object.prototype.hasOwnProperty.call(answers, String(q.id))
+  );
+  if (!hasAllExpectedAnswers) {
+    return res.status(400).json({ error: '回答データが不完全です（未回答の質問があります）' });
+  }
+
+  const unknownAnswerIds = Object.keys(answers).filter((id) => !expectedAnswerIds.has(id));
+  if (unknownAnswerIds.length > 0) {
+    console.warn(`[UAAM] unknown answer ids ignored: ${unknownAnswerIds.join(',')}`);
+  }
+
+  const expectedVAnswerIds = ['V1', 'V2', 'V3'];
+  if (!vAnswers || typeof vAnswers !== 'object' || Array.isArray(vAnswers)) {
+    return res.status(400).json({ error: '妥当性チェックの回答が不完全です' });
+  }
+
+  const vAnswerKeys = Object.keys(vAnswers);
+  const hasExactVAnswers = expectedVAnswerIds.every((id) =>
+    Object.prototype.hasOwnProperty.call(vAnswers, id)
+  ) && vAnswerKeys.every((id) => expectedVAnswerIds.includes(id));
+  if (!hasExactVAnswers) {
+    return res.status(400).json({ error: '妥当性チェックの回答が不完全です' });
+  }
+
+  for (const [key, val] of Object.entries(vAnswers)) {
+    if (typeof val !== 'number' || !Number.isInteger(val) || val < 1 || val > 5) {
+      return res.status(400).json({ error: `妥当性チェック${key}の回答が不正です（1〜5の整数）` });
     }
   }
 
