@@ -2,7 +2,7 @@
  * integrate.js — 才覚×UAAM 統合発動分析 バックフィルAPI
  *
  * 既存のUAAM診断結果 + 才覚領域データを使って
- * 統合発動分析（saikaku_integration）を単体で生成・保存する。
+ * 統合発動分析を単体で生成・保存する。
  * 67問のやり直し不要。
  *
  * POST /api/integrate
@@ -10,11 +10,91 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { getAuth } from 'firebase-admin/auth';
-import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './lib/firebaseAdmin.js';
+import {
+  IntegrationConflictError,
+  IntegrationLimitExceededError,
+  acquireIntegrationLock,
+  commitIntegration,
+  deriveIntegrationPairKey,
+  releaseIntegrationLock,
+} from './lib/integrations.js';
 import { validateAndFix } from './lib/validateIntegration.js';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const INTEGRATION_MODEL = 'claude-sonnet-4-20250514';
+
+let client = null;
+function getAnthropicClient() {
+  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return client;
+}
+
+const MOCK_INTEGRATION = {
+  integration_score: 88,
+  activation_core: '問いを実装へ',
+  ignition_zones: [
+    {
+      label: '問いの実装ゾーン',
+      axis_uaam: 'competency',
+      axis_saikaku: 'HOW',
+      insight: '観察と構造化を使い、相手の願いを次の行動へ落とし込めています。',
+    },
+  ],
+  latent_zones: [
+    {
+      label: '使命の拡張ゾーン',
+      axis_uaam: 'impact',
+      axis_saikaku: 'WHY',
+      potential: '誠実さと貢献意識が外へ開くほど、周囲の意思決定を支える力になります。',
+      action: '小さな実験の結果を言葉にして共有する',
+    },
+  ],
+  idle_zones: [
+    {
+      label: '知識の遊休ゾーン',
+      axis_uaam: 'literacy',
+      warning: '学びを整理するだけで止まると、才覚の熱量が行動へ移りません。',
+      reframe: '学んだことを一人の具体的な支援へ接続する',
+    },
+  ],
+  activation_equation: '観察と言語化で問いを実装へ変える',
+  leverage_point: '一人の課題を構造化する',
+  mission_direction: '本音を言葉にできず立ち止まっている人が、自分の願いを見つけて動き出せる場をつくる方向です。',
+  flow_route: '対話で観察し、構造化して、小さく試す順番で進むと最高発動状態に入りやすくなります。',
+  hidden_potential: 'まだ本人が価値として見切れていないのは、問いを実装可能な粒度に翻訳する力です。',
+  roadmap: {
+    now: '一人の相談を受け、問いと次の行動を一枚に整理する。',
+    year1: '対話と構造化の型が定まり、継続的に人の意思決定を支えています。',
+    year3: '小さな学びの場が育ち、周囲が自分の言葉で進み始めています。',
+    year10: '本音から動く人を増やす文化を、場と仕組みとして残しています。',
+  },
+  coaching_questions: [
+    'いま一番言葉にしたい未整理の願いは何ですか？',
+    'その願いを一人の行動に変えるなら、最初の実験は何ですか？',
+    '10年後に周囲へ残したい変化はどんなものですか？',
+  ],
+};
+
+async function createIntegrationMessage(params) {
+  if (process.env.MOCK_ANTHROPIC === '1') {
+    if (process.env.MOCK_ANTHROPIC_FAIL === '1') {
+      throw new Error('mock LLM failure');
+    }
+    const delay = Number(process.env.MOCK_ANTHROPIC_DELAY_MS || 0);
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+    return { content: [{ type: 'text', text: JSON.stringify(MOCK_INTEGRATION) }] };
+  }
+
+  return getAnthropicClient().messages.create(params);
+}
+
+class InvalidIntegrationRequestError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'InvalidBodyError';
+    this.status = 422;
+  }
+}
 
 function parseJsonFromText(text) {
   const match =
@@ -106,10 +186,156 @@ WHAT（情熱） × 志（MindSet）  → 情熱の内的充足度
   ]
 }`;
 
+function optionalAttemptId(value, name) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new InvalidIntegrationRequestError(`${name} must be a non-empty string when provided`);
+  }
+  return value;
+}
+
+function requiredAttemptId(value, name) {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new InvalidIntegrationRequestError(`${name} is required`);
+  }
+  return value;
+}
+
+async function resolveCommittedAttempt({ collection, uid, kind, requestedAttemptId }) {
+  const parentRef = db.collection(collection).doc(uid);
+  const parentSnap = await parentRef.get();
+
+  if (!parentSnap.exists) {
+    throw new InvalidIntegrationRequestError(
+      kind === 'saikaku'
+        ? '才覚領域データがありません。先に才覚領域診断を完了してください。'
+        : 'UAAM診断データがありません。先にUAAM診断を完了してください。'
+    );
+  }
+
+  const parentData = parentSnap.data() || {};
+  const attemptId = requiredAttemptId(
+    requestedAttemptId ?? parentData.latestAttemptId,
+    `${kind}AttemptId`
+  );
+  const attemptSnap = await parentRef.collection('attempts').doc(attemptId).get();
+
+  if (!attemptSnap.exists || attemptSnap.data()?.status !== 'committed') {
+    throw new InvalidIntegrationRequestError(`${kind}AttemptId does not reference a committed attempt`);
+  }
+
+  return {
+    attemptId,
+    attemptData: attemptSnap.data() || {},
+    parentData,
+  };
+}
+
+function textOrEmpty(value) {
+  return typeof value === 'string' ? value : '';
+}
+
+function resolveSaikakuData({ attemptData, parentData }) {
+  const full = attemptData.full || {};
+  const result = full.result || parentData.result || {};
+  const rawInput = attemptData.raw?.input || {};
+  const kakuchiiki = full.selectedKakuchiiki
+    || result.kakuchiiki
+    || parentData.selectedKakuchiiki
+    || parentData.result?.kakuchiiki;
+
+  if (!kakuchiiki) {
+    throw new InvalidIntegrationRequestError('才覚領域データがありません。先に才覚領域診断を完了してください。');
+  }
+
+  return {
+    kakuchiiki,
+    core_words: result.core_words || parentData.result?.core_words || {},
+    insight: textOrEmpty(result.insight || parentData.result?.insight),
+    talent_top5: textOrEmpty(rawInput.talentTop5 || parentData.inputTalentTop5 || rawInput.talent || parentData.inputTalent),
+    value_top5: textOrEmpty(rawInput.valueTop5 || parentData.inputValueTop5 || rawInput.value || parentData.inputValue),
+    passion_top5: textOrEmpty(rawInput.passionTop5 || parentData.inputPassionTop5 || rawInput.passion || parentData.inputPassion),
+  };
+}
+
+function resolveUaamData({ attemptData, parentData }) {
+  const full = attemptData.full || {};
+  const scores = full.scores || parentData.scores;
+  const analysis = full.analysis || parentData.analysis || {};
+
+  if (!scores) {
+    throw new InvalidIntegrationRequestError('UAAM診断データがありません。先にUAAM診断を完了してください。');
+  }
+
+  return { scores, analysis };
+}
+
+function resolveSource({ saikaku, uaam }) {
+  const saikakuFull = saikaku.attemptData.full || {};
+  const uaamFull = uaam.attemptData.full || {};
+
+  return {
+    saikakuLabel: textOrEmpty(
+      saikaku.attemptData.summary?.kakuchiiki
+      || saikakuFull.selectedKakuchiiki
+      || saikakuFull.result?.kakuchiiki
+      || saikaku.parentData.selectedKakuchiiki
+      || saikaku.parentData.result?.kakuchiiki
+    ),
+    uaamLabel: textOrEmpty(
+      uaam.attemptData.summary?.typeName
+      || uaamFull.analysis?.type_name
+      || uaam.parentData.analysis?.type_name
+    ),
+  };
+}
+
+async function generateIntegration({ uid, integrationMsg }) {
+  let integration = null;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const message = await createIntegrationMessage({
+        model: INTEGRATION_MODEL,
+        max_tokens: 4096,
+        system: INTEGRATION_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: integrationMsg }],
+      });
+      const parsed = parseJsonFromText(message.content[0].text);
+      if (!parsed.activation_core || !parsed.activation_equation) {
+        throw new Error('統合分析レスポンスが不完全です');
+      }
+      // ── Contract層: 保存前に検証・自動修正 ──
+      const { fixed, errors } = validateAndFix(parsed);
+      if (errors.length > 0) {
+        console.warn(`[integrate][contract] ${uid} 自動修正:`, errors);
+      }
+      integration = fixed;
+      break;
+    } catch (e) {
+      console.error(`[integrate] attempt ${attempt + 1} failed:`, e.message);
+      if (attempt === 2) throw e;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+
+  return integration;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { idToken } = req.body;
+  const body = req.body || {};
+  const { idToken } = body;
+  let requestedSaikakuAttemptId;
+  let requestedUaamAttemptId;
+
+  try {
+    requestedSaikakuAttemptId = optionalAttemptId(body.saikakuAttemptId, 'saikakuAttemptId');
+    requestedUaamAttemptId = optionalAttemptId(body.uaamAttemptId, 'uaamAttemptId');
+  } catch (e) {
+    return res.status(422).json({ error: e.message, code: e.name });
+  }
 
   // 認証
   let decoded;
@@ -121,41 +347,48 @@ export default async function handler(req, res) {
 
   const uid = decoded.uid;
 
-  // 才覚領域データ取得
-  const saikakuDoc = await db.collection('results').doc(uid).get();
-  if (!saikakuDoc.exists || !saikakuDoc.data()?.result?.kakuchiiki) {
-    return res.status(404).json({ error: '才覚領域データがありません。先に才覚領域診断を完了してください。' });
-  }
+  let saikaku;
+  let uaam;
+  let pairKey;
+  let lock = null;
 
-  // UAAMデータ取得
-  const uaamDoc = await db.collection('uaam_results').doc(uid).get();
-  if (!uaamDoc.exists || !uaamDoc.data()?.scores) {
-    return res.status(404).json({ error: 'UAAM診断データがありません。先にUAAM診断を完了してください。' });
-  }
+  try {
+    [saikaku, uaam] = await Promise.all([
+      resolveCommittedAttempt({
+        collection: 'results',
+        uid,
+        kind: 'saikaku',
+        requestedAttemptId: requestedSaikakuAttemptId,
+      }),
+      resolveCommittedAttempt({
+        collection: 'uaam_results',
+        uid,
+        kind: 'uaam',
+        requestedAttemptId: requestedUaamAttemptId,
+      }),
+    ]);
 
-  const sd = saikakuDoc.data();
-  const ud = uaamDoc.data();
-  const scores = ud.scores;
+    try {
+      pairKey = deriveIntegrationPairKey(saikaku.attemptId, uaam.attemptId);
+    } catch (e) {
+      throw new InvalidIntegrationRequestError(e.message);
+    }
+    lock = await acquireIntegrationLock({ uid, pairKey });
 
-  const saikakuData = {
-    kakuchiiki: sd.selectedKakuchiiki || sd.result.kakuchiiki,
-    core_words: sd.result.core_words || {},
-    insight: sd.result.insight || '',
-    talent_top5: sd.inputTalentTop5 || sd.inputTalent || '',
-    value_top5:  sd.inputValueTop5  || sd.inputValue  || '',
-    passion_top5: sd.inputPassionTop5 || sd.inputPassion || '',
-  };
+    const saikakuData = resolveSaikakuData(saikaku);
+    const { scores, analysis } = resolveUaamData(uaam);
+    const source = resolveSource({ saikaku, uaam });
 
-  // 16才覚の日本語名マッピング（AIが英語名を使わないよう日本語で渡す）
-  const SUB_JP = {
-    meaning:'基軸力', mindfulness:'認知力', mindshift:'転換力', mastery:'熟達力',
-    learning:'謙学力', logical:'論理力',    life:'活用力',     leadership:'統率力',
-    critical:'本質力', creativity:'創造力', communication:'伝達力', collaboration:'協働力',
-    idea:'構想力',    innovation:'変革力',  implementation:'実装力', influence:'影響力',
-  };
-  const subStr = (subs) => Object.entries(subs||{}).map(([k,v])=>`${SUB_JP[k]||k}:${v}`).join(', ');
+    // 16才覚の日本語名マッピング（AIが英語名を使わないよう日本語で渡す）
+    const SUB_JP = {
+      meaning:'基軸力', mindfulness:'認知力', mindshift:'転換力', mastery:'熟達力',
+      learning:'謙学力', logical:'論理力',    life:'活用力',     leadership:'統率力',
+      critical:'本質力', creativity:'創造力', communication:'伝達力', collaboration:'協働力',
+      idea:'構想力',    innovation:'変革力',  implementation:'実装力', influence:'影響力',
+    };
+    const subStr = (subs) => Object.entries(subs||{}).map(([k,v])=>`${SUB_JP[k]||k}:${v}`).join(', ');
 
-  const integrationMsg = `以下の2つのデータを統合して分析してください。
+    const integrationMsg = `以下の2つのデータを統合して分析してください。
 ※ 16才覚の能力名は必ず日本語（基軸力・認知力・転換力・熟達力・謙学力・論理力・活用力・統率力・本質力・創造力・伝達力・協働力・構想力・変革力・実装力・影響力）で記述すること。英語名（Meaning, Critical等）は絶対に使わないこと。
 
 ━━━ 才覚領域データ（アイデンティティ）━━━
@@ -174,45 +407,46 @@ export default async function handler(req, res) {
 技(Competency): ${scores.competency?.percentage}%[${subStr(scores.competency?.subs)}]
 衝(Impact):     ${scores.impact?.percentage}%   [${subStr(scores.impact?.subs)}]
 
-才覚発動タイプ: ${ud.analysis?.type_name || ''}
-ナラティブ: ${ud.analysis?.narrative || ''}`;
+才覚発動タイプ: ${analysis?.type_name || ''}
+ナラティブ: ${analysis?.narrative || ''}`;
 
-  let integration = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const message = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: INTEGRATION_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: integrationMsg }],
-      });
-      const parsed = parseJsonFromText(message.content[0].text);
-      if (!parsed.activation_core || !parsed.activation_equation) throw new Error('統合分析レスポンスが不完全です');
-      // ── Contract層: 保存前に検証・自動修正 ──
-      const { fixed, errors } = validateAndFix(parsed);
-      if (errors.length > 0) {
-        console.warn(`[integrate][contract] ${uid} 自動修正:`, errors);
+    const integration = await generateIntegration({ uid, integrationMsg });
+    const commit = await commitIntegration({
+      uid,
+      pairKey,
+      saikakuAttemptId: saikaku.attemptId,
+      uaamAttemptId: uaam.attemptId,
+      integration,
+      model: INTEGRATION_MODEL,
+      source,
+    });
+
+    console.log(`[integrate] ${uid} ${pairKey} score: ${integration.integration_score}`);
+    await releaseIntegrationLock({ uid, pairKey: lock.pairKey, ownerId: lock.ownerId });
+    lock = null;
+    return res.status(200).json({
+      integration,
+      pairKey,
+      regenerationCount: commit.regenerationCount,
+      saikakuAttemptId: saikaku.attemptId,
+      uaamAttemptId: uaam.attemptId,
+    });
+  } catch (e) {
+    if (e instanceof InvalidIntegrationRequestError) {
+      return res.status(422).json({ error: e.message, code: e.name });
+    }
+    if (e instanceof IntegrationConflictError || e instanceof IntegrationLimitExceededError) {
+      return res.status(409).json({ error: e.message, code: e.name });
+    }
+    console.error('[integrate] unexpected failure:', e);
+    return res.status(500).json({ error: `統合分析に失敗しました: ${e.message || e}` });
+  } finally {
+    if (lock) {
+      try {
+        await releaseIntegrationLock({ uid, pairKey: lock.pairKey, ownerId: lock.ownerId });
+      } catch (releaseError) {
+        console.error('[integrate] lock release failed:', releaseError.message || releaseError);
       }
-      integration = fixed;
-      break;
-    } catch (e) {
-      console.error(`[integrate] attempt ${attempt + 1} failed:`, e.message);
-      if (attempt === 2) return res.status(500).json({ error: `統合分析に失敗しました: ${e.message}` });
-      await new Promise(r => setTimeout(r, 1000));
     }
   }
-
-  // Firestore保存
-  const docRef = db.collection('uaam_results').doc(uid);
-  await docRef.set(
-    {
-      'analysis.saikaku_integration': integration,
-      hasSaikakuIntegration: true,
-      integrationUpdatedAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  console.log(`[integrate] ${uid} score: ${integration.integration_score}`);
-  return res.status(200).json({ integration });
 }
