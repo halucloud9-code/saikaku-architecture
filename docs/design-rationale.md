@@ -233,3 +233,72 @@ UI (`UAAMResultScreen.jsx:1534`) は `leadershipStage?.stage` を期待するが
 ### スコープ外
 - ブラウザ戻るボタン対応 (issue #50)
 - UAAM 結果画面の巨大化 (2129 行) を分割するリファクタ（codex-code-review 指摘）
+
+---
+
+## 8. Routing & Browser History (Issue #50)
+
+### 背景
+本機能以前は `src/App.jsx` で `useState('screen')` を使った単一 state ベースの画面遷移を採用しており、ブラウザ戻る/進む・直接URL アクセス・スワイプバック・リロードのいずれも壊れていた。`window.history.pushState` 利用箇所はゼロ件、URL は `?dev` `?page` パラメータが部分的に参照されるだけだった。これを修正するため Issue #50 を起票。
+
+### 採用案
+`react-router-dom` v6.4+ (`createBrowserRouter` + `RouterProvider`) を導入し、画面遷移を URL に同期させる。
+`src/App.jsx` を `useState('screen')` ベースの単一分岐から `<Routes>` 構造に置換し、`AppShell` (Outlet レイアウト) の中で auth bootstrap・グローバル state・`useBlocker`・`beforeunload` を集中管理する。子コンポーネントの prop 名 (`onBack`/`onReset`/`onSelectXxx` 等) は不変で、`*Route` ラッパー (`SelectRoute`/`InputRoute`/...) が `useNavigate()` を呼ぶ変換層になる。
+ソース: `plans/issue-50-history-api.md` (本 worktree のみ — main にはまだ存在しない)。
+
+### なぜ `react-router-dom` (案B) を採用したか — 自前 navigation store (案A) の致命穴
+当初、依存を増やさない自前 navigation store (案A) を提案したが、debate (Gemini + Codex + Claude 独立レビュー) で以下5点の致命穴が露呈し、棄却された。
+
+1. **`history.pushState` は popstate を発火しない** — 案A の "navigate=URL+state 同期更新" 実装は popstate ハンドラ単体では動かず、結局 `pushState` 直後の手動 state 同期が必要になる。最終的に react-router 相当の複雑度になり、自前実装の優位性が消える
+2. **`replaceState('/loading')` は遷移元 URL を破壊する** — `/input` から `/loading` に replace すると戻るで `/input` に帰れない。「loading=URL 昇格」前提自体が成り立たないことが debate で発覚
+3. **popstate 内 `pushState` で「留まる」は不可能** — 戻る確認モーダルの Cancel で URL を維持する API が標準にない。`history.go(1)` で復帰させる workaround は二重 popstate を引き起こすため、cancel 経路が実装不能
+4. **`history.state` の cancelGuard は永続化される** — リロード後も guard 状態が残り、解除タイミングを自前で管理する必要が生じる。状態管理が指数関数的に複雑化
+5. **iOS Safari は PWA / swipe-back で `window.confirm()` をブロックする** — 自前案で前提していた confirm-on-popstate 経路が iOS で機能しない (実機で確認済み)
+
+これらは 11 画面 + 動的 param + 認証ガード + LLM-inflight guard のスケールでは個別に対処不可能。`useBlocker` + `data router` + `<Navigate>` を備えた枯れた実装に乗ったほうが最終コードが小さく、エッジケースのバグも踏みにくい。bundle 増加 (`vendor-react` で +約 30KB gzip) は許容範囲と判断。
+
+### なぜ loading を URL に昇格しないか (オーバーレイ採用)
+当初の自前案では LLM 解析中の画面を `/loading` という URL にする設計だったが、debate で以下3点の問題が露呈した。
+
+1. **ErrorBoundary reload との相性が悪い** — `window.location.reload()` で `/loading` に戻ってきても解析 state は消えており、空画面になる
+2. **戻るボタンで `/loading` を traverse できる** — 二重発火・state 不整合・abort 経路の二重起動が起きる
+3. **`replaceState` で遷移元を上書きするしかない** — 前述 (2) の理由で破綻する
+
+代替として `loadingKind` state ('saikaku' | 'uaam' | null) を `AppShell` に持ち、`isLLMInflight===true` の間 `<LoadingOverlay>` を fixed position (`z-index: 10000`) で被せる。URL は遷移元 (`/input` または `/uaam`) のまま — 戻るは「解析をキャンセルして元の入力画面に戻る」という直感的挙動になる。`LoadingOverlay` 内の「キャンセル」ボタンも同じ動線で abort + navigate を実行し、3つのキャンセル経路 (戻る・タブクローズ・明示ボタン) を1箇所のハンドラに集約できる。
+
+### なぜ `useBlocker` + React モーダル (`window.confirm` ではなく)
+LLM-inflight ガードの確認 UI を `window.confirm()` で実装する案もあったが、以下3点で棄却した。
+
+1. **iOS Safari PWA / swipe-back で `confirm()` がブロックされる** — 実機テストで確認済み。confirm-on-popstate 経路が動かないため、iOS ユーザーが解析中に誤って戻るとガードなしで結果が消える
+2. **スタイル不可能** — アプリのデザインシステム (`#F5F0E8` 背景 + `#A84432` アクセント) と整合しない
+3. **同期 API なので abort + navigate の連鎖が組みづらい** — `confirm()` の戻り値で分岐すると Promise との合流が不自然
+
+採用した実装は `useBlocker((args) => isLLMInflight)` でブロッキング状態を取得し、`blocker.state === 'blocked'` のときだけ `<NavigationGuardDialog>` を render する。「中断する」で `inFlightControllerRef.current.abort()` + `blocker.proceed()`、「続ける」で `blocker.reset()`、ESC で `onCancel()` (= reset) という対称構造。focus capture/restore + Tab/Shift+Tab トラップ + `role="dialog"` `aria-modal="true"` の a11y 対応を内蔵 (codex-code-review の指摘で追加)。
+タブクローズ・リロードは `beforeunload` ハンドラで `event.preventDefault() + event.returnValue = ''` を返し、ブラウザ標準の確認ダイアログに委譲する (これはどのブラウザでも抑制できないため、自前モーダル不要)。
+
+### スコープと不変条件
+- **子コンポーネントの prop 名は不変** — `onBack`/`onReset`/`onSelectXxx`/`onAdmin`/`onLogout`/`onSelectAttemptId`/`onSubmit` 等。`AppShell` 配下の `*Route` ラッパーで `useNavigate()` を呼び出す変換層を挟むだけで、子コンポーネントは routing 非依存のまま保つ
+- **ErrorBoundary は `RouterProvider` の外側に配置** — `src/main.jsx` の `StrictMode` 直下。reload 時に URL は保持され、loading が URL でないため自然に解消される
+- **`?dev=uaam` / `?page=uaam-result` の後方互換** — `AppShell` の起動時 `useEffect` で `navigate('/uaam/result', { replace: true })` に変換 (`initialLegacyRedirectHandledRef` で多重発火防止)
+- **履歴詳細 (`/history/:kind/:attemptId`)** — `useEffect` ベースの fetch で `/api/me/history/<id>?kind=<kind>` を取得し、403/404 は `/history/<kind>` へ redirect + alert。data router の `loader` は今回未採用 (Suspense との相性検証コストを避けた)
+- **直接 URL アクセス時の空 state 対応** — `/result`, `/uaam/result` は state 必須なので、空のときは `<Navigate to="/input" replace>` または `<Navigate to="/uaam" replace>` で入力画面に戻す
+
+### debate を経て確定した「隠れた前提」
+debate ラウンドで以下の前提が当初は不明確だったが、明文化することで実装方針が一意に定まった。
+
+- `pushState` は popstate を発火しない (案A 致命傷の根拠)
+- `replaceState('/loading')` は遷移元を上書きする (loading=URL 昇格を撤回した根拠)
+- popstate 内 `pushState` で「留まる」ことは標準 API で不可能 (cancel 経路が組めない根拠)
+- `history.state` への書き込みは reload で永続化される (state ベース guard を撤回した根拠)
+- iOS Safari は PWA / swipe-back コンテキストで `window.confirm()` をサイレントに無視する (React モーダル採用の根拠)
+- `onAuthStateChanged` 確定前に Routes を render すると `useNavigate` 競合が起きる (`authLoading` 中はスピナーで break する根拠)
+
+### スコープ外
+- 入力途中値の sessionStorage 永続化 (別 issue)
+- 重い子コンポーネントの遅延ロード
+- SSR / SEO 対応 (現状 SPA で要件なし)
+- サーバー側 `reserveAttempt` のキャンセル時 cleanup (クライアント abort のみで attempt slot は消費される。`src/App.jsx:382` のコメント参照)
+- HistoryScreen の scroll position 復元 (戻り時の UX 改善は次フェーズ)
+
+### URL マップ・実装詳細・移行ガイドの一次ソース
+URL 一覧表・直接アクセス時の挙動・`RequireAdmin` ガード・空 state redirect・LLM-inflight ガードの実装詳細は `docs/routing.md` を参照。本ドキュメントは「なぜ案B にしたか」の判断記録のみを保持する。
