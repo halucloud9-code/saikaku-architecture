@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
   createBrowserRouter,
   Navigate,
   Outlet,
   RouterProvider,
+  useBlocker,
   useLocation,
   useNavigate,
   useOutletContext,
@@ -20,6 +22,7 @@ import HistoryScreen from './screens/HistoryScreen';
 import UAAMScreen from './screens/uaam/UAAMScreen';
 import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
 import LoadingOverlay from './components/LoadingOverlay';
+import NavigationGuardDialog from './components/NavigationGuardDialog';
 import RequireAdmin from './components/RequireAdmin';
 import { calculateScores } from './data/uaam_questions';
 import { normalizeScores } from './utils/normalize';
@@ -147,6 +150,24 @@ function AppShell() {
   const [isLLMInflight, setIsLLMInflight] = useState(false);
   const [loadingKind, setLoadingKind] = useState(null);
   const inFlightControllerRef = useRef(null);
+  const blocker = useBlocker((args) => {
+    void args;
+    return isLLMInflight;
+  });
+
+  useEffect(() => {
+    if (!isLLMInflight) return undefined;
+
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isLLMInflight]);
 
   useEffect(() => {
     if (!shouldRedirectToUaamResult || initialLegacyRedirectHandledRef.current) return;
@@ -205,6 +226,8 @@ function AppShell() {
     setError('');
     setResult(null);
     setLoadingKind('saikaku');
+    let shouldNavigateToResult = false;
+    let nextResult = null;
     try {
       if (!auth.currentUser) {
         throw new Error('ログインセッションが切れました。再度ログインしてください。');
@@ -225,14 +248,22 @@ function AppShell() {
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '解析に失敗しました');
-        setResult(data);
-        navigate('/result');
+        nextResult = data;
+        shouldNavigateToResult = true;
       } finally {
         clearTimeout(timeoutId);
         if (inFlightControllerRef.current === controller) {
           inFlightControllerRef.current = null;
         }
-        setIsLLMInflight(false);
+        flushSync(() => {
+          if (nextResult !== null) {
+            setResult(nextResult);
+          }
+          setIsLLMInflight(false);
+        });
+      }
+      if (shouldNavigateToResult) {
+        navigate('/result');
       }
     } catch (e) {
       if (e.name === 'AbortError') {
@@ -251,6 +282,8 @@ function AppShell() {
     setUaamError('');
     setUaamResult(null);
     setLoadingKind('uaam');
+    let shouldNavigateToResult = false;
+    let nextUaamResult = null;
     try {
       if (!auth.currentUser) {
         throw new Error('ログインセッションが切れました。再度ログインしてください。');
@@ -270,14 +303,22 @@ function AppShell() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '診断に失敗しました');
         // vAnswers と answers を結果に含める（結果画面でV問表示に使う）
-        setUaamResult({ ...data, vAnswers, answers });
-        navigate('/uaam/result');
+        nextUaamResult = { ...data, vAnswers, answers };
+        shouldNavigateToResult = true;
       } finally {
         clearTimeout(timeoutId);
         if (inFlightControllerRef.current === controller) {
           inFlightControllerRef.current = null;
         }
-        setIsLLMInflight(false);
+        flushSync(() => {
+          if (nextUaamResult !== null) {
+            setUaamResult(nextUaamResult);
+          }
+          setIsLLMInflight(false);
+        });
+      }
+      if (shouldNavigateToResult) {
+        navigate('/uaam/result');
       }
     } catch (e) {
       if (e.name === 'AbortError') {
@@ -336,6 +377,24 @@ function AppShell() {
     setUaamResult((prev) => ({ ...prev, scores: normalized }));
   };
 
+  const handleLoadingCancel = () => {
+    const target = loadingKind === 'uaam' ? '/uaam' : '/input';
+    inFlightControllerRef.current?.abort();
+    flushSync(() => {
+      setIsLLMInflight(false);
+    });
+    navigate(target, { replace: true });
+  };
+
+  const handleNavigationConfirm = () => {
+    inFlightControllerRef.current?.abort();
+    blocker.proceed();
+  };
+
+  const handleNavigationCancel = () => {
+    blocker.reset();
+  };
+
   const isAdmin = user && ADMIN_EMAILS.includes(user.email);
   const context = {
     user,
@@ -369,7 +428,17 @@ function AppShell() {
   return (
     <>
       <Outlet context={context} />
-      {isLLMInflight && <LoadingOverlay kind={loadingKind} />}
+      {isLLMInflight && (
+        <LoadingOverlay
+          kind={loadingKind}
+          onCancel={handleLoadingCancel}
+        />
+      )}
+      <NavigationGuardDialog
+        open={blocker.state === 'blocked'}
+        onConfirm={handleNavigationConfirm}
+        onCancel={handleNavigationCancel}
+      />
     </>
   );
 }
