@@ -5,6 +5,7 @@
  * クロス分析をMcKinsey級レイアウトで表示する
  */
 import { useState, useEffect, useMemo } from 'react';
+import { normalizeQuestionText } from '../../utils/normalizeQuestionText';
 
 /* ── パレット ─────────────────────── */
 const P = {
@@ -201,12 +202,14 @@ export default function SaikakuIntegration({
   useEffect(() => {
     setDraftAnswers((prev) => coachingQuestions.map((questionText, i) => {
       if (dirtyIndexes.has(i)) return prev[i] || '';
-      if (typeof questionText !== 'string') return '';
-      const trimmedQuestion = questionText.trim();
-      const saved = answerEntries.find((entry) => (
-        typeof entry?.questionText === 'string'
-        && entry.questionText.trim() === trimmedQuestion
-      ));
+      // normalize同士で照合 — server側 sha1(normalize(text)) と等価のqid マッチ。
+      // 末尾`？`違い・全角半角空白・NFKC 互換差を吸収する（issue #62 設計の本質）。
+      const normalizedCurrent = normalizeQuestionText(questionText);
+      if (!normalizedCurrent) return '';
+      const saved = answerEntries.find((entry) => {
+        const normalizedSaved = normalizeQuestionText(entry?.questionText);
+        return normalizedSaved !== null && normalizedSaved === normalizedCurrent;
+      });
       return typeof saved?.answer === 'string' ? saved.answer : '';
     }));
   }, [answerEntries, coachingQuestions, dirtyIndexes]);
