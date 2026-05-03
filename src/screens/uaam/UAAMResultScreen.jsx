@@ -1954,17 +1954,28 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '統合分析に失敗しました');
       setAnalysis(prev => ({ ...prev, saikaku_integration: data.integration }));
-      setIntegrationSummary(prev => ({
-        exists: true,
-        generatedAt: data.generatedAt ?? new Date().toISOString(),
-        integrationScore: data.integration?.integration_score ?? prev?.integrationScore ?? null,
-        activationCore: data.integration?.activation_core ?? prev?.activationCore ?? null,
-        saikakuAttemptId: data.saikakuAttemptId ?? saikakuAttemptId ?? prev?.saikakuAttemptId ?? null,
-        uaamAttemptId: data.uaamAttemptId ?? uaamAttemptId ?? prev?.uaamAttemptId ?? null,
-        status: 'active',
-        regenerationCount: data.regenerationCount ?? prev?.regenerationCount ?? 0,
-        source: data.source ?? prev?.source,
-      }));
+      setIntegrationSummary(prev => {
+        const newSaikakuId = data.saikakuAttemptId ?? saikakuAttemptId ?? prev?.saikakuAttemptId ?? null;
+        const newUaamId = data.uaamAttemptId ?? uaamAttemptId ?? prev?.uaamAttemptId ?? null;
+        // 同じ pair で再生成した場合、最新 attemptId との乖離は解消されない。
+        // status の最終判定は read API (`/api/me/*` の stale 計算) に委ね、
+        // クライアント側は pair が変わらない限り直前の status を維持する。
+        const samePair = prev
+          && prev.saikakuAttemptId === newSaikakuId
+          && prev.uaamAttemptId === newUaamId;
+        const nextStatus = samePair && prev?.status === 'stale' ? 'stale' : 'active';
+        return {
+          exists: true,
+          generatedAt: data.generatedAt ?? new Date().toISOString(),
+          integrationScore: data.integration?.integration_score ?? prev?.integrationScore ?? null,
+          activationCore: data.integration?.activation_core ?? prev?.activationCore ?? null,
+          saikakuAttemptId: newSaikakuId,
+          uaamAttemptId: newUaamId,
+          status: nextStatus,
+          regenerationCount: data.regenerationCount ?? prev?.regenerationCount ?? 0,
+          source: data.source ?? prev?.source,
+        };
+      });
     } catch (e) {
       setIntegrateError(e.message);
     } finally {
