@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { signOutUser } from '../../firebase';
 import {
   UAAM_AXES,
@@ -22,6 +22,7 @@ import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
 import SaikakuIntegration from './SaikakuIntegration';
 import { normalizeScores } from '../../utils/normalize';
+import { attemptToResultProps } from '../../utils/attemptAdapter';
 
 /* ============================================================
  * 定数
@@ -1782,15 +1783,67 @@ function ThreeElementCard({ threeElements, leadershipStage, scores }) {
 /* ============================================================
  * メインコンポーネント
  * ============================================================ */
-export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
-  const { vAnswers, answers } = result;
+export default function UAAMResultScreen({ user, result, attemptData, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
+  const attemptProps = useMemo(
+    () => (attemptData ? attemptToResultProps(attemptData, 'uaam') : null),
+    [attemptData],
+  );
+  const effectiveResult = attemptProps?.result ?? result;
+  const isHistoryView = !!attemptData;
+  const normalizedResultScores = useMemo(
+    () => normalizeScores(effectiveResult?.scores) ?? effectiveResult?.scores ?? null,
+    [effectiveResult?.scores],
+  );
+  const vAnswers = effectiveResult?.vAnswers ?? {};
+  const answers = effectiveResult?.answers ?? {};
+  const resultName = effectiveResult?.name ?? user.displayName;
+
   // scores はローカル state で管理（復元時に即時反映）
   // normalizeScores が domainSubs/domainTotal を補完する唯一の場所
-  const [scores, setScores] = useState(() => normalizeScores(result.scores) ?? result.scores);
+  const [scores, setScores] = useState(() => normalizedResultScores);
   // 統合分析は state で管理（バックフィル後に更新できるように）
-  const [analysis, setAnalysis] = useState(result.analysis || null);
+  const [analysis, setAnalysis] = useState(() => effectiveResult?.analysis ?? null);
   const [integrating, setIntegrating] = useState(false);
   const [integrateError, setIntegrateError] = useState('');
+
+  useEffect(() => {
+    setScores(normalizedResultScores);
+  }, [normalizedResultScores]);
+
+  useEffect(() => {
+    setAnalysis(effectiveResult?.analysis ?? null);
+    setIntegrateError('');
+  }, [effectiveResult?.analysis]);
+
+  if (!effectiveResult) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: WHITE,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: TEXT_PRIMARY, fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>
+            結果データを表示できませんでした
+          </p>
+          <button onClick={onReset} style={{
+            border: `1px solid ${BORDER}`,
+            background: LIGHT_BG,
+            color: TEXT_SECONDARY,
+            borderRadius: 10,
+            padding: '10px 18px',
+            cursor: 'pointer',
+            fontWeight: 700,
+          }}>
+            戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const runIntegration = async () => {
     setIntegrating(true);
@@ -1821,35 +1874,36 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
   DISPLAY_CROSS = MAX_CROSS / 2;
 
   // 妥当性チェック（V問フラグ判定）── @deprecated 残置
-  const validityResult = (vAnswers && answers) ? checkValidity(vAnswers, answers) : null;
+  const validityResult = (effectiveResult?.vAnswers && effectiveResult?.answers) ? checkValidity(vAnswers, answers) : null;
 
   // 自己評価バイアス（3段階表記・45-95%）── 新方式
-  // result.bias_message があればそれを使い、無ければクライアント側でフォールバック計算
+  // 保存済み bias_message があればそれを使う（null は「健全」を意味するので尊重）。
+  // undefined（= 保存されていない超古い legacy データ）のみフォールバック計算する。
   const { totalPct: totalPctForBias, minAxisPct, axisSpread } = extractAxisStats(scores);
-  const biasData = result.bias_message !== undefined
-    ? result.bias_message
+  const biasData = effectiveResult?.bias_message !== undefined
+    ? effectiveResult.bias_message
     : calculateBiasMessage(vAnswers || {}, totalPctForBias);
 
   // Phase 2：人格L＋リーダー段階（推定）。Firestore に保存済みならそれを使い、
   // 無ければクライアント側でフォールバック計算（既存データ下位互換）
-  const personalityLevel = result.personality_level
-    || assessConfidence(determinePersonalityLevel(totalPctForBias, minAxisPct), biasData, axisSpread);
-  const leadershipStage = result.leadership_stage
-    || determineLeadershipStage(totalPctForBias, minAxisPct);
+  const personalityLevel = effectiveResult?.personality_level
+    ?? assessConfidence(determinePersonalityLevel(totalPctForBias, minAxisPct), biasData, axisSpread);
+  const leadershipStage = effectiveResult?.leadership_stage
+    ?? determineLeadershipStage(totalPctForBias, minAxisPct);
   const coachConfirmed = {
-    personality_level: result.coach_confirmed_personality_level,
-    leadership_stage: result.coach_confirmed_leadership_stage,
-    observation_note: result.coach_observation_note,
+    personality_level: effectiveResult?.coach_confirmed_personality_level ?? null,
+    leadership_stage: effectiveResult?.coach_confirmed_leadership_stage ?? null,
+    observation_note: effectiveResult?.coach_observation_note ?? null,
   };
 
   // Phase 3：3要素診断（既存データ下位互換）
   // 國創学方針：3要素は比較しない。スコア + フェーズのみ持つ。
   // 旧フィールド（primary/secondary/weakest/prescription_mode）は保持されてても無視される。
   const threeElements = (() => {
-    if (result.three_elements && result.three_elements.development_phase) {
-      return result.three_elements;
+    if (effectiveResult?.three_elements && effectiveResult.three_elements.development_phase) {
+      return effectiveResult.three_elements;
     }
-    // フォールバック：scores から動的計算
+    // フォールバック：scores から動的計算（旧フィールド primary/secondary/weakest/prescription_mode しか持たない legacy データもこちら）
     const subs = Object.values(scores || {}).reduce((acc, domain) => {
       if (domain?.subs) Object.assign(acc, domain.subs);
       return acc;
@@ -1861,9 +1915,9 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
     };
   })();
 
-  const topType = determineType(scores, analysis);
+  const topType = determineType(scores ?? {}, analysis);
   const subRadars = UAAM_AXES.map(axis => {
-    const subs = scores[axis.key]?.subs || {};
+    const subs = scores?.[axis.key]?.subs || {};
     const order = SUB_ORDER[axis.key];
     return { axis, data: order.map(k => subs[k] || 0), labels: order.map(k => SUB_LABELS[k]), order };
   });
@@ -1936,6 +1990,26 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
       </div>
 
       <div className="pdf-content-wrapper" style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}>
+        {isHistoryView && (
+          <button
+            onClick={onReset}
+            style={{
+              margin: '0 0 16px',
+              padding: 0,
+              border: 'none',
+              background: 'transparent',
+              color: '#4A6FA5',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              textUnderlineOffset: 4,
+            }}
+          >
+            ←　履歴に戻る
+          </button>
+        )}
 
         {/* ===== 統合プロフィールカード（名前/V問/バイアス/Activation Type/Development Stage） ===== */}
         <ActivationPanel
@@ -1946,7 +2020,7 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             }, {})
           }
           threshold={13}
-          userName={user.displayName}
+          userName={resultName}
           mode="top"
           vAnswers={vAnswers}
           biasData={biasData}
@@ -2032,14 +2106,35 @@ export default function UAAMResultScreen({ user, result, isAdmin, onReset, onAdm
             旧 V問SVGフラグ・Lv.1-6 バッジ・大型 BiasCard はすべて廃止。 */}
 
         {/* ===== ボタン ===== */}
-        <div className="no-print" style={{ display: 'flex', gap: 12, marginTop: 8, marginBottom: 40 }}>
+        <div className="no-print" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          marginTop: 8,
+          marginBottom: 40,
+        }}>
           <button onClick={() => window.print()} style={{
-            flex: 1, height: 48, borderRadius: 10, border: 'none',
+            width: '100%', height: 48, borderRadius: 10, border: 'none',
             background: TEXT_PRIMARY, color: WHITE,
             fontSize: 15, fontWeight: 600, cursor: 'pointer',
           }}>
             印刷 / PDF保存
           </button>
+          {isHistoryView && (
+            <button onClick={onReset} style={{
+              width: '100%',
+              height: 48,
+              borderRadius: 10,
+              border: `1px solid ${BORDER}`,
+              background: 'transparent',
+              color: TEXT_SECONDARY,
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}>
+              ←　履歴に戻る
+            </button>
+          )}
         </div>
       </div>
     </div>

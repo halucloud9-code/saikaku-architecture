@@ -195,3 +195,41 @@ attempts/{aid}[]
 - attempts.js の `reserveAttempt` の stale pending 復旧不能バグ
 - attempts.js の `rollbackAttempt` 重複 rollback 時の負数化
 - クライアント `loading/error/data` 三状態化 (現状は permission error も「データなし」に潰れる)
+
+---
+
+## 7. 履歴戻り導線の統一 — issue #48, #49
+
+### 採用案
+履歴一覧から結果画面に遷移した後、UAAM・才覚の両画面で「← 履歴に戻る」UIを2箇所（タイトル下リンク + フッターボタン）に表示し、戻り先を「最新結果」ではなく「履歴一覧 (`history-saikaku` / `history-uaam`)」に統一。`onReset` prop は通常モードと履歴モードを `selectedAttemptKind` で分岐する既存パターンを保持。
+
+### なぜこうしたか
+1. **遷移の予測可能性**: 履歴一覧→詳細→「戻る」で履歴一覧に戻る、という標準的なナビゲーションを提供。`最新の結果に戻る` だと現在地と異なる文脈に放り出される。
+2. **才覚側既存パターンの再利用**: `ResultScreen.jsx:285-295` の `attemptToResultProps + effectiveResult + isHistoryView` は既に確立済み。UAAM側 (`UAAMResultScreen.jsx`) にも同一構造を導入することで認知負荷を最小化。
+3. **prop 名は変えない (YAGNI)**: 「履歴から戻る用の `onBackToHistory` を別 prop として作る」案は棄却。`onReset` の意味を「閲覧モードを抜ける」に再定義し、App.jsx 側で `selectedAttemptKind` 分岐で吸収する方が現状の単一 prop 構造を維持できる。将来複雑化したら分離リファクタすれば良い。
+
+### UAAM 履歴閲覧モードのクラッシュ防止
+`UAAMResultScreen` は `const { vAnswers, answers } = result` のように `result` を即時分解していたため、`uaamResult=null` 状態で `attemptData` のみを渡される履歴閲覧経路で即時クラッシュしていた。才覚側と同じ `effectiveResult = attemptProps?.result ?? result` パターンを導入し、`!effectiveResult` 時のフォールバックUIも追加。
+
+### attempt.full への UAAM フィールド追加（書き込み + 読み取り両方）
+`bias_message`、`personality_level`、`leadership_stage`、`three_elements`、`name` は従来 `parentMerge` 経由で**親doc のみ** に書かれており、`attempt.full` には入っていなかった。このため履歴詳細表示時にこれらが欠落し、`UAAMResultScreen` が**フォールバック計算**（`assessConfidence`、`determineLeadershipStage` 等）で再構築していた。結果として保存値と表示値がずれる可能性があった。
+
+修正:
+- `api/uaam.js` の `commitAttempt` 呼び出しの `full` に上記5フィールドを追加（新attempts用）
+- `shared/attemptLogic.js` の `legacyDocToAttempt` UAAM 分岐に上記5フィールド + `coach_*` 3フィールドを追加（legacy fallback 用）
+- `src/utils/attemptAdapter.js` の UAAM 分岐で `attempt.full?.<field>` から拾う
+
+`coach_*` フィールド (`coach_confirmed_personality_level` 等) は admin が `AdminScreen` で編集する parent-level の値で attempt 時には存在しない。新attempts時の `commitAttempt` の `full` には入れず、`legacyDocToAttempt` と `attemptAdapter` の読み取り経路でのみ拾う非対称運用。
+
+### `leadership_stage` の正規化（防御的）
+UI (`UAAMResultScreen.jsx:1534`) は `leadershipStage?.stage` を期待するが、過去の保存データに文字列形式 (`'第3段階'` 等) が混入する可能性があるため `attemptAdapter.js` の `normalizeLeadershipStage` で `{ stage: number, name: string }` 形式に統一。
+
+### onReset 分岐の対称化 (App.jsx:401-409, 429-437)
+- 履歴閲覧時 (`selectedAttemptKind === 'uaam'/'saikaku'`): `clearSelectedAttempt()` + `setScreen('history-uaam'|'history-saikaku')`
+- 通常モード (`selectedAttemptKind` null): 従来通り `setUaamResult(null)` + `setScreen('uaam')` / `setResult(null)` + `setScreen('select')`
+
+`uaamResult` / `result` state は履歴閲覧時には消さない（最新結果を戻った後に再表示できるように）。
+
+### スコープ外
+- ブラウザ戻るボタン対応 (issue #50)
+- UAAM 結果画面の巨大化 (2129 行) を分割するリファクタ（codex-code-review 指摘）
