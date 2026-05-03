@@ -1,12 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { auth } from '../firebase';
 
+const STORAGE_PREFIX = 'diag-status:';
+
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidStatusShape(value) {
+  return isObject(value) && isObject(value.saikaku) && isObject(value.uaam);
+}
+
+function readCachedStatus(uid) {
+  if (!uid || typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_PREFIX + uid);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return isValidStatusShape(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedStatus(uid, value) {
+  if (!uid || typeof window === 'undefined') return;
+  try {
+    if (value === null) {
+      window.sessionStorage.removeItem(STORAGE_PREFIX + uid);
+    } else {
+      window.sessionStorage.setItem(STORAGE_PREFIX + uid, JSON.stringify(value));
+    }
+  } catch {
+    // sessionStorage unavailable or quota exceeded — best-effort only
+  }
+}
+
 export default function useDiagnosisStatus(user) {
-  const [status, setStatus] = useState(null);
+  const uid = user?.uid ?? null;
+  const [status, setStatus] = useState(() => readCachedStatus(uid));
   const [error, setError] = useState(null);
   const requestSeq = useRef(0);
   const mountedRef = useRef(false);
-  const uid = user?.uid ?? null;
+  const statusUidRef = useRef(uid);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -17,9 +53,10 @@ export default function useDiagnosisStatus(user) {
   }, []);
 
   const applyState = useCallback((requestId, nextStatus, nextError) => {
-    if (!mountedRef.current || requestSeq.current !== requestId) return;
+    if (!mountedRef.current || requestSeq.current !== requestId) return false;
     setStatus(nextStatus);
     setError(nextError);
+    return true;
   }, []);
 
   const refresh = useCallback(async () => {
@@ -32,13 +69,17 @@ export default function useDiagnosisStatus(user) {
       return;
     }
 
-    setStatus(null);
     setError(null);
 
     let idToken;
     try {
       idToken = await auth.currentUser?.getIdToken();
     } catch {
+      applyState(requestId, null, 'auth');
+      return;
+    }
+
+    if (auth.currentUser?.uid !== uid) {
       applyState(requestId, null, 'auth');
       return;
     }
@@ -71,8 +112,23 @@ export default function useDiagnosisStatus(user) {
       return;
     }
 
-    applyState(requestId, json, null);
+    if (!isValidStatusShape(json)) {
+      applyState(requestId, null, 'fetch');
+      return;
+    }
+
+    if (applyState(requestId, json, null)) {
+      writeCachedStatus(uid, json);
+    }
   }, [applyState, uid]);
+
+  useEffect(() => {
+    if (statusUidRef.current === uid) return;
+    statusUidRef.current = uid;
+    requestSeq.current += 1;
+    setStatus(readCachedStatus(uid));
+    setError(null);
+  }, [uid]);
 
   useEffect(() => {
     refresh();
@@ -93,5 +149,13 @@ export default function useDiagnosisStatus(user) {
     };
   }, [refresh, uid]);
 
-  return { status, error, refresh };
+  const visibleStatus = statusUidRef.current === uid ? status : null;
+  const visibleError = statusUidRef.current === uid ? error : null;
+
+  return {
+    status: visibleStatus,
+    error: visibleError,
+    loading: visibleError === null && visibleStatus === null && uid !== null,
+    refresh,
+  };
 }

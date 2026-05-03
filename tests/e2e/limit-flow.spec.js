@@ -25,7 +25,7 @@ test('attemptCount=2 blocks starting another saikaku diagnosis', async ({ page }
     window.alert = (msg) => window.__captureAlert(String(msg));
   });
 
-  await page.getByTestId('card-saikaku').click();
+  await page.getByTestId('card-saikaku-overlay').click();
   await expect.poll(() => alertMessages.length, { timeout: 5000 }).toBeGreaterThan(0);
   expect(alertMessages[0]).toContain('診断は最大2回まで実施済みです');
 

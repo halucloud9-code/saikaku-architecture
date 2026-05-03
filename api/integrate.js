@@ -22,7 +22,7 @@ import {
   releaseIntegrationLock,
 } from './lib/integrations.js';
 import { validateAndFix } from './lib/validateIntegration.js';
-import { isValidAttemptId } from '../shared/attemptLogic.js';
+import { isValidAttemptId, legacyDocToAttempt } from '../shared/attemptLogic.js';
 
 const INTEGRATION_MODEL = 'claude-sonnet-4-20250514';
 const UPSTREAM_TIMEOUT_MS = LOCK_TTL_MS - 30_000;
@@ -258,21 +258,34 @@ async function resolveCommittedAttempt({ collection, uid, kind, requestedAttempt
   }
 
   const parentData = parentSnap.data() || {};
-  const attemptId = requiredAttemptId(
-    requestedAttemptId ?? parentData.latestAttemptId,
-    `${kind}AttemptId`
-  );
-  const attemptSnap = await parentRef.collection('attempts').doc(attemptId).get();
+  const candidate = requestedAttemptId ?? parentData.latestAttemptId ?? null;
 
-  if (!attemptSnap.exists || attemptSnap.data()?.status !== 'committed') {
-    throw new InvalidIntegrationRequestError(`${kind}AttemptId does not reference a committed attempt`);
+  if (candidate && candidate !== 'legacy-fallback') {
+    const attemptId = requiredAttemptId(candidate, `${kind}AttemptId`);
+    const attemptSnap = await parentRef.collection('attempts').doc(attemptId).get();
+
+    if (attemptSnap.exists && attemptSnap.data()?.status === 'committed') {
+      return { attemptId, attemptData: attemptSnap.data() || {}, parentData };
+    }
+
+    if (requestedAttemptId) {
+      throw new InvalidIntegrationRequestError(`${kind}AttemptId does not reference a committed attempt`);
+    }
+    // Fall through: latestAttemptId points at a missing/uncommitted attempt.
+    // Try parent-doc legacy data so users with valid diagnostic results but
+    // no attempts subcollection (legacy cohort) can still regenerate.
   }
 
-  return {
-    attemptId,
-    attemptData: attemptSnap.data() || {},
-    parentData,
-  };
+  const synth = legacyDocToAttempt(parentData, kind);
+  if (!synth) {
+    throw new InvalidIntegrationRequestError(
+      kind === 'saikaku'
+        ? '才覚領域データがありません。先に才覚領域診断を完了してください。'
+        : 'UAAM診断データがありません。先にUAAM診断を完了してください。'
+    );
+  }
+
+  return { attemptId: synth.id, attemptData: synth, parentData };
 }
 
 function textOrEmpty(value) {

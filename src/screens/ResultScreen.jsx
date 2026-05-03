@@ -471,7 +471,7 @@ export default function ResultScreen({ user, result, attemptData, isAdmin, onRes
                   textUnderlineOffset: 4,
                 }}
               >
-                最新の結果に戻る
+                ←　履歴に戻る
               </button>
             )}
 
@@ -891,7 +891,7 @@ export default function ResultScreen({ user, result, attemptData, isAdmin, onRes
             transition: 'all 0.3s ease',
           }}
         >
-          {isHistoryView ? '最新の結果に戻る' : 'もう一度解析する'}
+          {isHistoryView ? '←　履歴に戻る' : 'もう一度解析する'}
         </button>
       </div>
 

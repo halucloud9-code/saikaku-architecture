@@ -8,6 +8,7 @@ import {
   reserveAttempt,
   rollbackAttempt,
 } from './lib/attempts.js';
+import { QUESTIONS, calculateScores } from '../shared/uaamQuestions.js';
 
 /**
  * 自己評価バイアスメッセージ生成（旗カウント・45-95%版）
@@ -222,49 +223,6 @@ function determinePrescriptionMode(threeScores, leadershipStage) {
   return 'focus';
 }
 
-/**
- * スコア計算（サーバーサイド）
- * クライアントと同じスケール: 1〜5点、逆転項目は 6 - raw
- * サブカテゴリ最大15、軸最大60
- */
-function calculateScores(answers, questions) {
-  const axes = {
-    mindset:    { subs: ['meaning', 'mindfulness', 'mindshift', 'mastery'] },
-    literacy:   { subs: ['learning', 'logical', 'life', 'leadership'] },
-    competency: { subs: ['critical', 'creativity', 'communication', 'collaboration'] },
-    impact:     { subs: ['idea', 'innovation', 'implementation', 'influence'] },
-  };
-
-  const result = {};
-
-  for (const [axisKey, axisDef] of Object.entries(axes)) {
-    const axisQuestions = questions.filter((q) => q.axis === axisKey);
-    const subs = {};
-
-    for (const sub of axisDef.subs) {
-      const subQuestions = axisQuestions.filter((q) => q.sub === sub);
-      let subTotal = 0;
-      for (const q of subQuestions) {
-        const raw = answers[String(q.id)] || 3;
-        // 通常: そのまま1〜5、逆転: 6 - raw（5→1, 4→2, 3→3, 2→4, 1→5）
-        subTotal += q.reverse ? 6 - raw : raw;
-      }
-      subs[sub] = subTotal; // 最大20（4問 × 5点）
-    }
-
-    const total = Object.values(subs).reduce((a, b) => a + b, 0);
-    const maxScore = 80; // 4サブ × 4問 × 5点
-    result[axisKey] = {
-      total,
-      max: maxScore,
-      percentage: Math.round((total / maxScore) * 100),
-      subs,
-    };
-  }
-
-  return result;
-}
-
 const UAAM_SYSTEM_PROMPT = `あなたはUAAM（Universal Ability Assessment Model）の分析AIです。
 4軸（志・知・技・衝）の診断スコアから、その人の能力特性を多面的に分析します。
 
@@ -330,78 +288,6 @@ const UAAM_SYSTEM_PROMPT = `あなたはUAAM（Universal Ability Assessment Mode
     "flow_route": "最短フロールート（2〜3行）"
   }
 }`;
-
-// 64問の質問定義（サーバーサイド用）— 各サブカテゴリ4問（Q1通常, Q2逆転, Q3通常, Q4通常）
-const QUESTIONS = [
-  // 志 -MindSet- (4M)
-  { id: 1,  axis: 'mindset', sub: 'meaning',     reverse: false },
-  { id: 2,  axis: 'mindset', sub: 'meaning',     reverse: true },
-  { id: 3,  axis: 'mindset', sub: 'meaning',     reverse: false },
-  { id: 4,  axis: 'mindset', sub: 'meaning',     reverse: false },
-  { id: 5,  axis: 'mindset', sub: 'mindfulness',  reverse: false },
-  { id: 6,  axis: 'mindset', sub: 'mindfulness',  reverse: true },
-  { id: 7,  axis: 'mindset', sub: 'mindfulness',  reverse: false },
-  { id: 8,  axis: 'mindset', sub: 'mindfulness',  reverse: false },
-  { id: 9,  axis: 'mindset', sub: 'mindshift',    reverse: false },
-  { id: 10, axis: 'mindset', sub: 'mindshift',    reverse: true },
-  { id: 11, axis: 'mindset', sub: 'mindshift',    reverse: false },
-  { id: 12, axis: 'mindset', sub: 'mindshift',    reverse: false },
-  { id: 13, axis: 'mindset', sub: 'mastery',      reverse: false },
-  { id: 14, axis: 'mindset', sub: 'mastery',      reverse: true },
-  { id: 15, axis: 'mindset', sub: 'mastery',      reverse: false },
-  { id: 16, axis: 'mindset', sub: 'mastery',      reverse: false },
-  // 知 -Literacy- (4L)
-  { id: 17, axis: 'literacy', sub: 'learning',    reverse: false },
-  { id: 18, axis: 'literacy', sub: 'learning',    reverse: true },
-  { id: 19, axis: 'literacy', sub: 'learning',    reverse: false },
-  { id: 20, axis: 'literacy', sub: 'learning',    reverse: false },
-  { id: 21, axis: 'literacy', sub: 'logical',     reverse: false },
-  { id: 22, axis: 'literacy', sub: 'logical',     reverse: true },
-  { id: 23, axis: 'literacy', sub: 'logical',     reverse: false },
-  { id: 24, axis: 'literacy', sub: 'logical',     reverse: false },
-  { id: 25, axis: 'literacy', sub: 'life',        reverse: false },
-  { id: 26, axis: 'literacy', sub: 'life',        reverse: true },
-  { id: 27, axis: 'literacy', sub: 'life',        reverse: false },
-  { id: 28, axis: 'literacy', sub: 'life',        reverse: false },
-  { id: 29, axis: 'literacy', sub: 'leadership',  reverse: false },
-  { id: 30, axis: 'literacy', sub: 'leadership',  reverse: true },
-  { id: 31, axis: 'literacy', sub: 'leadership',  reverse: false },
-  { id: 32, axis: 'literacy', sub: 'leadership',  reverse: false },
-  // 技 -Competency- (4C)
-  { id: 33, axis: 'competency', sub: 'critical',      reverse: false },
-  { id: 34, axis: 'competency', sub: 'critical',      reverse: true },
-  { id: 35, axis: 'competency', sub: 'critical',      reverse: false },
-  { id: 36, axis: 'competency', sub: 'critical',      reverse: false },
-  { id: 37, axis: 'competency', sub: 'creativity',    reverse: false },
-  { id: 38, axis: 'competency', sub: 'creativity',    reverse: true },
-  { id: 39, axis: 'competency', sub: 'creativity',    reverse: false },
-  { id: 40, axis: 'competency', sub: 'creativity',    reverse: false },
-  { id: 41, axis: 'competency', sub: 'communication', reverse: false },
-  { id: 42, axis: 'competency', sub: 'communication', reverse: false },
-  { id: 43, axis: 'competency', sub: 'communication', reverse: false },
-  { id: 44, axis: 'competency', sub: 'communication', reverse: false },
-  { id: 45, axis: 'competency', sub: 'collaboration', reverse: false },
-  { id: 46, axis: 'competency', sub: 'collaboration', reverse: true },
-  { id: 47, axis: 'competency', sub: 'collaboration', reverse: false },
-  { id: 48, axis: 'competency', sub: 'collaboration', reverse: false },
-  // 衝 -Impact- (4I)
-  { id: 49, axis: 'impact', sub: 'idea',           reverse: false },
-  { id: 50, axis: 'impact', sub: 'idea',           reverse: true },
-  { id: 51, axis: 'impact', sub: 'idea',           reverse: false },
-  { id: 52, axis: 'impact', sub: 'idea',           reverse: false },
-  { id: 53, axis: 'impact', sub: 'innovation',     reverse: false },
-  { id: 54, axis: 'impact', sub: 'innovation',     reverse: true },
-  { id: 55, axis: 'impact', sub: 'innovation',     reverse: false },
-  { id: 56, axis: 'impact', sub: 'innovation',     reverse: false },
-  { id: 57, axis: 'impact', sub: 'implementation', reverse: false },
-  { id: 58, axis: 'impact', sub: 'implementation', reverse: true },
-  { id: 59, axis: 'impact', sub: 'implementation', reverse: false },
-  { id: 60, axis: 'impact', sub: 'implementation', reverse: false },
-  { id: 61, axis: 'impact', sub: 'influence',      reverse: false },
-  { id: 62, axis: 'impact', sub: 'influence',      reverse: true },
-  { id: 63, axis: 'impact', sub: 'influence',      reverse: false },
-  { id: 64, axis: 'impact', sub: 'influence',      reverse: false },
-];
 
 export default async function handler(req, res) {
   console.log('[UAAM] handler called, method:', req.method);
@@ -600,7 +486,16 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
       uid: decoded.uid,
       attemptId,
       summary: { typeName: analysis.type_name, createdAt: null },
-      full: { result: null, analysis, scores },
+      full: {
+        result: null,
+        analysis,
+        scores,
+        bias_message: biasMessage,
+        personality_level: personalityLevel,
+        leadership_stage: leadershipStage,
+        three_elements: threeElements,
+        name: decoded.name || '',
+      },
       raw: { input: { answers, vAnswers: vAnswers || {} } },
       parentMerge: {
         uid: decoded.uid,

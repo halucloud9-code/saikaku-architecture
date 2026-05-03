@@ -19,8 +19,9 @@ test('history list to detail and back', async ({ page }) => {
   await page.getByTestId('history-item').first().click();
 
   await expect(page.getByText('問いに火を灯す人').first()).toBeVisible();
-  await page.getByRole('button', { name: '最新の結果に戻る' }).first().click();
-  await expect(page.getByText('才覚解読プログラム')).toBeVisible();
+  await page.getByRole('button', { name: /履歴に戻る/ }).first().click();
+  await expect(page.getByTestId('history-item')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: '才覚領域' })).toBeVisible();
 });
 
 test('pending residue shows notice without increasing history count', async ({ page }) => {

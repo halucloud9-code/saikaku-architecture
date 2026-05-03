@@ -339,4 +339,40 @@ describe('API /api/integrate per-pair subcollection writes', () => {
     });
     expect(JSON.stringify(response.body)).not.toContain('mock LLM failure');
   });
+
+  it('falls back to legacy parent-doc data when attempts subcollection is empty', async () => {
+    const { uid, idToken } = await createAuthSession();
+    const createdAt = Timestamp.fromDate(new Date('2026-04-01T00:00:00.000Z'));
+
+    await Promise.all([
+      db.collection('results').doc(uid).set({
+        selectedKakuchiiki: SAIKAKU_LABEL,
+        result: saikakuResult(),
+        inputTalentTop5: '観察\n対話\n構造化\n伴走\n説明',
+        inputValueTop5: '誠実\n成長\n貢献\n自由\n探究',
+        inputPassionTop5: '教育\n対話\n旅\n創作\n起業',
+        createdAt,
+        updatedAt: createdAt,
+      }),
+      db.collection('uaam_results').doc(uid).set({
+        scores: uaamScores(),
+        analysis: uaamAnalysis(),
+        createdAt,
+        updatedAt: createdAt,
+      }),
+    ]);
+
+    const response = await postIntegrate(idToken);
+
+    expect(response.status).toBe(200);
+    expect(response.body.saikakuAttemptId).toBe('legacy-fallback');
+    expect(response.body.uaamAttemptId).toBe('legacy-fallback');
+    expect(response.body.pairKey).toBe(buildPairKey('legacy-fallback', 'legacy-fallback'));
+    expect(response.body.regenerationCount).toBe(0);
+
+    const stored = await integrationRef(uid, response.body.pairKey).get();
+    expect(stored.exists).toBe(true);
+    expect(stored.data().saikakuAttemptId).toBe('legacy-fallback');
+    expect(stored.data().uaamAttemptId).toBe('legacy-fallback');
+  });
 });

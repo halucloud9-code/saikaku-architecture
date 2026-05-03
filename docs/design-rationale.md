@@ -1,8 +1,8 @@
 # 設計判断の根拠 (Design Rationale)
 
 > このドキュメントは「なぜこうしたか」を記録する。コード/SETUP は「何をしたか」「どう動かすか」だけ書く。
-> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限), #36 (履歴空表示), #40 (UAAM 履歴非表示)
-> 確定: 2026-05-02 / 追記: 2026-05-03 (Section 6 追加)
+> 元 Issue: #1 (診断済みバッジ), #2 (履歴 + 2回上限), #36 (履歴空表示), #40 (UAAM 履歴非表示), #48 #49 (履歴戻り導線), #47 (SelectScreen レイアウト刷新)
+> 確定: 2026-05-02 / 追記: 2026-05-03 (Section 6 追加, Section 7 追加 履歴戻り導線, Section 8 追加 SelectScreen Block Link/透過オーバーレイ)
 
 ---
 
@@ -198,7 +198,192 @@ attempts/{aid}[]
 
 ---
 
-## 7. Per-Pair Integration サブコレクション (issue #44/#45/#46)
+## 7. 履歴戻り導線の統一 — issue #48, #49
+
+### 採用案
+履歴一覧から結果画面に遷移した後、UAAM・才覚の両画面で「← 履歴に戻る」UIを2箇所（タイトル下リンク + フッターボタン）に表示し、戻り先を「最新結果」ではなく「履歴一覧 (`history-saikaku` / `history-uaam`)」に統一。`onReset` prop は通常モードと履歴モードを `selectedAttemptKind` で分岐する既存パターンを保持。
+
+### なぜこうしたか
+1. **遷移の予測可能性**: 履歴一覧→詳細→「戻る」で履歴一覧に戻る、という標準的なナビゲーションを提供。`最新の結果に戻る` だと現在地と異なる文脈に放り出される。
+2. **才覚側既存パターンの再利用**: `ResultScreen.jsx:285-295` の `attemptToResultProps + effectiveResult + isHistoryView` は既に確立済み。UAAM側 (`UAAMResultScreen.jsx`) にも同一構造を導入することで認知負荷を最小化。
+3. **prop 名は変えない (YAGNI)**: 「履歴から戻る用の `onBackToHistory` を別 prop として作る」案は棄却。`onReset` の意味を「閲覧モードを抜ける」に再定義し、App.jsx 側で `selectedAttemptKind` 分岐で吸収する方が現状の単一 prop 構造を維持できる。将来複雑化したら分離リファクタすれば良い。
+
+### UAAM 履歴閲覧モードのクラッシュ防止
+`UAAMResultScreen` は `const { vAnswers, answers } = result` のように `result` を即時分解していたため、`uaamResult=null` 状態で `attemptData` のみを渡される履歴閲覧経路で即時クラッシュしていた。才覚側と同じ `effectiveResult = attemptProps?.result ?? result` パターンを導入し、`!effectiveResult` 時のフォールバックUIも追加。
+
+### attempt.full への UAAM フィールド追加（書き込み + 読み取り両方）
+`bias_message`、`personality_level`、`leadership_stage`、`three_elements`、`name` は従来 `parentMerge` 経由で**親doc のみ** に書かれており、`attempt.full` には入っていなかった。このため履歴詳細表示時にこれらが欠落し、`UAAMResultScreen` が**フォールバック計算**（`assessConfidence`、`determineLeadershipStage` 等）で再構築していた。結果として保存値と表示値がずれる可能性があった。
+
+修正:
+- `api/uaam.js` の `commitAttempt` 呼び出しの `full` に上記5フィールドを追加（新attempts用）
+- `shared/attemptLogic.js` の `legacyDocToAttempt` UAAM 分岐に上記5フィールド + `coach_*` 3フィールドを追加（legacy fallback 用）
+- `src/utils/attemptAdapter.js` の UAAM 分岐で `attempt.full?.<field>` から拾う
+
+`coach_*` フィールド (`coach_confirmed_personality_level` 等) は admin が `AdminScreen` で編集する parent-level の値で attempt 時には存在しない。新attempts時の `commitAttempt` の `full` には入れず、`legacyDocToAttempt` と `attemptAdapter` の読み取り経路でのみ拾う非対称運用。
+
+### `leadership_stage` の正規化（防御的）
+UI (`UAAMResultScreen.jsx:1534`) は `leadershipStage?.stage` を期待するが、過去の保存データに文字列形式 (`'第3段階'` 等) が混入する可能性があるため `attemptAdapter.js` の `normalizeLeadershipStage` で `{ stage: number, name: string }` 形式に統一。
+
+### onReset 分岐の対称化 (App.jsx:401-409, 429-437)
+- 履歴閲覧時 (`selectedAttemptKind === 'uaam'/'saikaku'`): `clearSelectedAttempt()` + `setScreen('history-uaam'|'history-saikaku')`
+- 通常モード (`selectedAttemptKind` null): 従来通り `setUaamResult(null)` + `setScreen('uaam')` / `setResult(null)` + `setScreen('select')`
+
+`uaamResult` / `result` state は履歴閲覧時には消さない（最新結果を戻った後に再表示できるように）。
+
+### スコープ外
+- ブラウザ戻るボタン対応 (issue #50)
+- UAAM 結果画面の巨大化 (2129 行) を分割するリファクタ（codex-code-review 指摘）
+
+---
+
+## 8. SelectScreen レイアウト刷新 (issue #47): 透過オーバーレイ Block Link + SWR + 固定高さ
+
+### 採用案 (最終形)
+- **透過オーバーレイ button パターン** (Gemini 独立レビュー提案):
+  - カード `<div data-testid="card-saikaku/uaam">` は完全に**非インタラクティブ** (`role`/`tabIndex`/`onKeyDown`/`onClick` 一切なし、`position: relative` のみ)
+  - 子要素として **透過 `<button data-testid="card-saikaku-overlay" / "card-uaam-overlay">`** を配置（`position: absolute; inset: 0; zIndex: 1; transparent`、`aria-label` 付き）。これがカード全体クリックを担当
+  - 既存 CTA pill は `<div aria-hidden="true">` + `pointerEvents: 'none'` の視覚装飾に降格（クリックは overlay に貫通）
+  - 履歴 `<button>`・badge・パスワードアイコンは `position: relative; zIndex: 2` で overlay より前面（DOM 上は **兄弟要素 (Sibling)**、ARIA 違反なし）
+- **下部メタ領域は全状態で固定高さ** (28px、`visibility: hidden + aria-hidden` プレースホルダでレイアウトジャンプ根絶)
+- **`useDiagnosisStatus` を stale-while-revalidate 化** (refresh 中も前回値を保持、tab 復帰時のチラつき解消)
+- **uid 切替時は同期クリア** (statusUidRef で前回 uid を記録、変化検知時に `setStatus(null)` + `requestSeq++` で in-flight 破棄 + render-time guard)
+- **スマホでバッジ被り解消**: サブラベル wrapper に `paddingRight: 112` で badge スロット予約
+
+### 棄却した代替案
+**(A) カード `<button>` 直接化 (初期実装)**
+- 棄却: button-in-button 問題（履歴ボタン・lock アイコンを内包できない）
+
+**(B) `<div role="button" tabIndex={0} onKeyDown>` (P1#1 で却下)**
+- 棄却: ARIA widget role に focusable button 子要素は仕様違反 (Codex review bot P1#1)。SR がフォーカス位置を判別不能になる
+
+**(C) `<div onClick>` のみ (P1#2-3 で却下)**
+- 棄却: カード body のキーボード操作不可。CTA button だけが keyboard activatable で「視覚的にクリック可能に見えるのにキーボードで届かない」 false promise (Codex review bot P1#2-3)
+
+**(D) カード全体クリック廃止 (CTA full-width 化)**
+- 棄却: モバイル UX 退化（Fitts 法則違反、タップ領域大幅縮小）。Round 1 debate で Codex+Gemini 両者が「明らかな改悪」と批判。Codex review bot 対応で一時実装したが、Gemini 独立レビューで「A11y vs UX は二項対立ではなく、適切な DOM 構造で両立可能」と再棄却
+
+**(E) AdminScreen パターン追従 (非クリックカード + 内部 button のみ)**
+- 棄却: 管理画面 data row 用途で、ユーザー向けプライマリ操作カードには不適。「hover リフトはあるが非クリック」は UX 上の虚偽表示
+
+**(F) `flex-wrap` でバッジ被り解消**
+- 棄却: 絶対配置のバッジは flex flow 外なので flex-wrap は効かない (Round 1 で Gemini が CSS 仕様無視と指摘)
+
+### 透過オーバーレイパターンの実装ディテール
+- カード `<div>` に `position: relative` (子の absolute origin)
+- 透過 overlay button の z-index 設計:
+  - overlay = z-index 1（背面）
+  - 履歴 button / badge / lock indicator = z-index 2（前面、DOM 兄弟）
+- overlay button の hover/focus 時に既存 `hoverSaikaku/Uaam` state を駆動 → カード div の視覚 lift・gradient はそのまま機能
+- 履歴 button / lock indicator は `pointerEvents: 'none'` を持つ要素（badge 等）を経由して overlay クリック貫通を妨げない
+- overlay の `aria-label` で SR ユーザーに「才覚領域の診断を開始する」と明示（カード内テキストの組み合わせよりも明確）
+
+### A11y vs UX のジレンマ解消
+Codex review bot から3回連続で受けた P1 指摘:
+1. nested-interactive (`role="button"` + 内部 button)
+2. キーボード操作不可 (`<div onClick>`)
+3. 同上
+
+二項対立に見えたが Gemini 独立レビューで第3の道が判明:
+> 「A11y か UX か」ではなく、「両者を成立させる適切な DOM 構造（透過オーバーレイ）」を提示できなかったことに起因する誤ったトレードオフ
+
+兄弟要素として配置することで親子ネストを回避しつつ、overlay は real `<button>` で WCAG 2.1.1/4.1.2 を満たす。
+
+### 固定高さメタ領域の WHY
+Round 1 debate で「`status=null` だけプレースホルダ + `count=0` で領域消滅」案は**結局ジャンプを起こす**と判明。loaded&count=0/loaded&count>=1/hasPending=true/status=null の **4状態すべて同じ高さ** を確保することで物理的にジャンプを根絶。空白の見た目は許容 (ジャンプ防止 > 余白の見た目)。
+
+### SWR + uid 切替時の同期クリア
+SWR 化 (`setStatus(null)` 削除) で focus 復帰時のチラつきは消えたが、uid 変化時に**他ユーザーの status が一瞬表示される**バグが新たに生じる (codex-code-review B1)。`statusUidRef = useRef(uid)` で前回 uid を記録し、`useEffect([uid])` で変化検知 → `setStatus(null) + requestSeq++` で in-flight invalidation。**さらに**返値で `statusUidRef.current === uid ? status : null` の render-time guard を追加し、effect 反映前の 1 frame でも漏れない二重防御。
+
+### スマホ対応 (375px-430px)
+バッジは絶対配置 (`top:18 right:18`) でフローから外れるため、サブラベル側に `paddingRight: 112` で恒久的に badge スロットを予約。`maxWidth: '100%'` でサブラベル文言が長くなっても折り返す。`@media` クエリは使わず fluid layout (プロジェクト慣習)。
+
+### マルチ AI レビューが効いた事例
+- Round 1 debate (Codex + Gemini + Claude): 「カード全体クリック維持」を方針決定
+- Codex review bot: 3回連続で a11y P1 指摘、ジレンマを顕在化
+- Codex 実装案 (canonical full-width CTA): a11y は解決するが Round 1 方針を覆す
+- **Gemini 独立レビュー**: 第3の道（透過オーバーレイ）で a11y と UX を両立
+
+「Codex 実装 → Codex review → Gemini レビュー」のクロスチェックで、単一 LLM の盲点（二項対立の罠）を回避できた。
+
+### 観測結果
+- vitest unit: 47/47 pass (新規 Block Link テスト 2件 + SWR テスト 4件)
+- test:rules: 21/21 pass
+- test:api: 41/41 pass
+- test:e2e (Playwright): 13/13 pass (badge-flow / history-flow×2 / limit-flow / modern-user-no-double-count / pending-block-ui / issue-47-snapshots×7)
+- スクリーンショット 28枚 (4 状態 × 4 幅 × saikaku/uaam) を `screenshots/issue-47/` に保存
+
+---
+
+## 9. Routing & Browser History (Issue #50)
+
+### 背景
+本機能以前は `src/App.jsx` で `useState('screen')` を使った単一 state ベースの画面遷移を採用しており、ブラウザ戻る/進む・直接URL アクセス・スワイプバック・リロードのいずれも壊れていた。`window.history.pushState` 利用箇所はゼロ件、URL は `?dev` `?page` パラメータが部分的に参照されるだけだった。これを修正するため Issue #50 を起票。
+
+### 採用案
+`react-router-dom` v6.4+ (`createBrowserRouter` + `RouterProvider`) を導入し、画面遷移を URL に同期させる。
+`src/App.jsx` を `useState('screen')` ベースの単一分岐から `<Routes>` 構造に置換し、`AppShell` (Outlet レイアウト) の中で auth bootstrap・グローバル state・`useBlocker`・`beforeunload` を集中管理する。子コンポーネントの prop 名 (`onBack`/`onReset`/`onSelectXxx` 等) は不変で、`*Route` ラッパー (`SelectRoute`/`InputRoute`/...) が `useNavigate()` を呼ぶ変換層になる。
+ソース: `plans/issue-50-history-api.md` (本 worktree のみ — main にはまだ存在しない)。
+
+### なぜ `react-router-dom` (案B) を採用したか — 自前 navigation store (案A) の致命穴
+当初、依存を増やさない自前 navigation store (案A) を提案したが、debate (Gemini + Codex + Claude 独立レビュー) で以下5点の致命穴が露呈し、棄却された。
+
+1. **`history.pushState` は popstate を発火しない** — 案A の "navigate=URL+state 同期更新" 実装は popstate ハンドラ単体では動かず、結局 `pushState` 直後の手動 state 同期が必要になる。最終的に react-router 相当の複雑度になり、自前実装の優位性が消える
+2. **`replaceState('/loading')` は遷移元 URL を破壊する** — `/input` から `/loading` に replace すると戻るで `/input` に帰れない。「loading=URL 昇格」前提自体が成り立たないことが debate で発覚
+3. **popstate 内 `pushState` で「留まる」は不可能** — 戻る確認モーダルの Cancel で URL を維持する API が標準にない。`history.go(1)` で復帰させる workaround は二重 popstate を引き起こすため、cancel 経路が実装不能
+4. **`history.state` の cancelGuard は永続化される** — リロード後も guard 状態が残り、解除タイミングを自前で管理する必要が生じる。状態管理が指数関数的に複雑化
+5. **iOS Safari は PWA / swipe-back で `window.confirm()` をブロックする** — 自前案で前提していた confirm-on-popstate 経路が iOS で機能しない (実機で確認済み)
+
+これらは 11 画面 + 動的 param + 認証ガード + LLM-inflight guard のスケールでは個別に対処不可能。`useBlocker` + `data router` + `<Navigate>` を備えた枯れた実装に乗ったほうが最終コードが小さく、エッジケースのバグも踏みにくい。bundle 増加 (`vendor-react` で +約 30KB gzip) は許容範囲と判断。
+
+### なぜ loading を URL に昇格しないか (オーバーレイ採用)
+当初の自前案では LLM 解析中の画面を `/loading` という URL にする設計だったが、debate で以下3点の問題が露呈した。
+
+1. **ErrorBoundary reload との相性が悪い** — `window.location.reload()` で `/loading` に戻ってきても解析 state は消えており、空画面になる
+2. **戻るボタンで `/loading` を traverse できる** — 二重発火・state 不整合・abort 経路の二重起動が起きる
+3. **`replaceState` で遷移元を上書きするしかない** — 前述 (2) の理由で破綻する
+
+代替として `loadingKind` state ('saikaku' | 'uaam' | null) を `AppShell` に持ち、`isLLMInflight===true` の間 `<LoadingOverlay>` を fixed position (`z-index: 10000`) で被せる。URL は遷移元 (`/input` または `/uaam`) のまま — 戻るは「解析をキャンセルして元の入力画面に戻る」という直感的挙動になる。`LoadingOverlay` 内の「キャンセル」ボタンも同じ動線で abort + navigate を実行し、3つのキャンセル経路 (戻る・タブクローズ・明示ボタン) を1箇所のハンドラに集約できる。
+
+### なぜ `useBlocker` + React モーダル (`window.confirm` ではなく)
+LLM-inflight ガードの確認 UI を `window.confirm()` で実装する案もあったが、以下3点で棄却した。
+
+1. **iOS Safari PWA / swipe-back で `confirm()` がブロックされる** — 実機テストで確認済み。confirm-on-popstate 経路が動かないため、iOS ユーザーが解析中に誤って戻るとガードなしで結果が消える
+2. **スタイル不可能** — アプリのデザインシステム (`#F5F0E8` 背景 + `#A84432` アクセント) と整合しない
+3. **同期 API なので abort + navigate の連鎖が組みづらい** — `confirm()` の戻り値で分岐すると Promise との合流が不自然
+
+採用した実装は `useBlocker((args) => isLLMInflight)` でブロッキング状態を取得し、`blocker.state === 'blocked'` のときだけ `<NavigationGuardDialog>` を render する。「中断する」で `inFlightControllerRef.current.abort()` + `blocker.proceed()`、「続ける」で `blocker.reset()`、ESC で `onCancel()` (= reset) という対称構造。focus capture/restore + Tab/Shift+Tab トラップ + `role="dialog"` `aria-modal="true"` の a11y 対応を内蔵 (codex-code-review の指摘で追加)。
+タブクローズ・リロードは `beforeunload` ハンドラで `event.preventDefault() + event.returnValue = ''` を返し、ブラウザ標準の確認ダイアログに委譲する (これはどのブラウザでも抑制できないため、自前モーダル不要)。
+
+### スコープと不変条件
+- **子コンポーネントの prop 名は不変** — `onBack`/`onReset`/`onSelectXxx`/`onAdmin`/`onLogout`/`onSelectAttemptId`/`onSubmit` 等。`AppShell` 配下の `*Route` ラッパーで `useNavigate()` を呼び出す変換層を挟むだけで、子コンポーネントは routing 非依存のまま保つ
+- **ErrorBoundary は `RouterProvider` の外側に配置** — `src/main.jsx` の `StrictMode` 直下。reload 時に URL は保持され、loading が URL でないため自然に解消される
+- **`?dev=uaam` / `?page=uaam-result` の後方互換** — `AppShell` の起動時 `useEffect` で `navigate('/uaam/result', { replace: true })` に変換 (`initialLegacyRedirectHandledRef` で多重発火防止)
+- **履歴詳細 (`/history/:kind/:attemptId`)** — `useEffect` ベースの fetch で `/api/me/history/<id>?kind=<kind>` を取得し、403/404 は `/history/<kind>` へ redirect + alert。data router の `loader` は今回未採用 (Suspense との相性検証コストを避けた)
+- **直接 URL アクセス時の空 state 対応** — `/result`, `/uaam/result` は state 必須なので、空のときは `<Navigate to="/input" replace>` または `<Navigate to="/uaam" replace>` で入力画面に戻す
+
+### debate を経て確定した「隠れた前提」
+debate ラウンドで以下の前提が当初は不明確だったが、明文化することで実装方針が一意に定まった。
+
+- `pushState` は popstate を発火しない (案A 致命傷の根拠)
+- `replaceState('/loading')` は遷移元を上書きする (loading=URL 昇格を撤回した根拠)
+- popstate 内 `pushState` で「留まる」ことは標準 API で不可能 (cancel 経路が組めない根拠)
+- `history.state` への書き込みは reload で永続化される (state ベース guard を撤回した根拠)
+- iOS Safari は PWA / swipe-back コンテキストで `window.confirm()` をサイレントに無視する (React モーダル採用の根拠)
+- `onAuthStateChanged` 確定前に Routes を render すると `useNavigate` 競合が起きる (`authLoading` 中はスピナーで break する根拠)
+
+### スコープ外
+- 入力途中値の sessionStorage 永続化 (別 issue)
+- 重い子コンポーネントの遅延ロード
+- SSR / SEO 対応 (現状 SPA で要件なし)
+- サーバー側 `reserveAttempt` のキャンセル時 cleanup (クライアント abort のみで attempt slot は消費される。`src/App.jsx:382` のコメント参照)
+- HistoryScreen の scroll position 復元 (戻り時の UX 改善は次フェーズ)
+
+### URL マップ・実装詳細・移行ガイドの一次ソース
+URL 一覧表・直接アクセス時の挙動・`RequireAdmin` ガード・空 state redirect・LLM-inflight ガードの実装詳細は `docs/routing.md` を参照。本ドキュメントは「なぜ案B にしたか」の判断記録のみを保持する。
+
+---
+
+## 10. Per-Pair Integration サブコレクション (issue #44/#45/#46)
 
 > 確定: 2026-05-04 (Phase 1 実装完了)
 
