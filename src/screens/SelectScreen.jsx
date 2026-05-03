@@ -98,7 +98,6 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
           e.stopPropagation();
           onSelectHistory(kind);
         }}
-        onKeyDown={(e) => e.stopPropagation()}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
@@ -301,16 +300,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         <div style={{ width: '100%', position: 'relative' }}>
           <div
             data-testid="card-saikaku"
-            role="button"
-            tabIndex={0}
-            aria-labelledby="card-saikaku-title"
             onClick={handleSaikakuClick}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleSaikakuClick(e);
-              }
-            }}
             onMouseEnter={() => setHoverSaikaku(true)}
             onMouseLeave={() => setHoverSaikaku(false)}
             style={{
@@ -401,7 +391,6 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 data-block-link="cta"
                 type="button"
                 onClick={handleSaikakuClick}
-                onKeyDown={(e) => e.stopPropagation()}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: hoverSaikaku ? '#E8C47A' : '#C4922A',
@@ -436,16 +425,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         <div style={{ width: '100%', position: 'relative' }}>
           <div
             data-testid="card-uaam"
-            role="button"
-            tabIndex={0}
-            aria-labelledby="card-uaam-title"
             onClick={handleUaamClick}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleUaamClick(e);
-              }
-            }}
             onMouseEnter={() => setHoverUaam(true)}
             onMouseLeave={() => setHoverUaam(false)}
             style={{
@@ -538,7 +518,6 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 data-block-link="cta"
                 type="button"
                 onClick={handleUaamClick}
-                onKeyDown={(e) => e.stopPropagation()}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: hoverUaam ? '#6B9AD4' : '#4A6FA5',
