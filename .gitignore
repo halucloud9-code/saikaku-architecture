@@ -21,3 +21,6 @@ tests/.env.*
 # Local-only AI working dirs (codex reviews, llm debates)
 codex/
 debate/
+
+# audit/migration logs (contain uid/email)
+logs/
