@@ -21,3 +21,7 @@ tests/.env.*
 # Local-only AI working dirs (codex reviews, llm debates)
 codex/
 debate/
+
+# Playwright generated artifacts (traces, attachments)
+test-results/
+playwright-report/

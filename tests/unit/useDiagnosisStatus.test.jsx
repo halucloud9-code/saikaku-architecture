@@ -44,6 +44,14 @@ function response(status, body = loadedStatus) {
   };
 }
 
+function deferred() {
+  let resolve;
+  const promise = new Promise((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 describe('useDiagnosisStatus', () => {
   beforeEach(() => {
     firebaseMocks.getIdToken.mockResolvedValue('id-token');
@@ -85,6 +93,125 @@ describe('useDiagnosisStatus', () => {
 
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(result.current.status).toEqual(loadedStatus);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('keeps the previous status visible while refresh is revalidating', async () => {
+    const refreshedStatus = {
+      ...loadedStatus,
+      saikaku: {
+        ...loadedStatus.saikaku,
+        committedCount: 2,
+      },
+    };
+    const secondFetch = deferred();
+    const { result } = renderHook(() => useDiagnosisStatus(user));
+
+    await waitFor(() => expect(result.current.status).toEqual(loadedStatus));
+
+    fetch.mockImplementationOnce(() => secondFetch.promise);
+
+    let refreshPromise;
+    act(() => {
+      refreshPromise = result.current.refresh();
+    });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(result.current.status).toEqual(loadedStatus);
+    expect(result.current.error).toBeNull();
+
+    await act(async () => {
+      secondFetch.resolve(response(200, refreshedStatus));
+      await refreshPromise;
+    });
+
+    expect(result.current.status).toEqual(refreshedStatus);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('clears status synchronously when the user id changes', async () => {
+    const nextStatus = {
+      ...loadedStatus,
+      saikaku: {
+        ...loadedStatus.saikaku,
+        committedCount: 2,
+        attemptCount: 2,
+        isStartBlocked: true,
+      },
+      uaam: {
+        ...loadedStatus.uaam,
+        committedCount: 1,
+        attemptCount: 1,
+        hasResult: true,
+      },
+    };
+    const nextFetch = deferred();
+    fetch
+      .mockResolvedValueOnce(response(200, loadedStatus))
+      .mockImplementationOnce(() => nextFetch.promise);
+
+    const { result, rerender } = renderHook(
+      ({ currentUser }) => useDiagnosisStatus(currentUser),
+      { initialProps: { currentUser: { uid: 'u-status-a' } } },
+    );
+
+    await waitFor(() => expect(result.current.status).toEqual(loadedStatus));
+
+    rerender({ currentUser: { uid: 'u-status-b' } });
+
+    expect(result.current.status).toBeNull();
+    expect(result.current.error).toBeNull();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(result.current.status).toBeNull();
+
+    await act(async () => {
+      nextFetch.resolve(response(200, nextStatus));
+    });
+
+    await waitFor(() => expect(result.current.status).toEqual(nextStatus));
+    expect(result.current.error).toBeNull();
+  });
+
+  it('clears a previous error before the retry fetch resolves', async () => {
+    const secondFetch = deferred();
+    fetch
+      .mockResolvedValueOnce(response(500))
+      .mockImplementationOnce(() => secondFetch.promise);
+
+    const { result } = renderHook(() => useDiagnosisStatus(user));
+
+    await waitFor(() => expect(result.current.error).toBe('fetch'));
+    expect(result.current.status).toBeNull();
+
+    let refreshPromise;
+    act(() => {
+      refreshPromise = result.current.refresh();
+    });
+
+    await waitFor(() => expect(result.current.error).toBeNull());
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(result.current.status).toBeNull();
+
+    await act(async () => {
+      secondFetch.resolve(response(200));
+      await refreshPromise;
+    });
+
+    expect(result.current.status).toEqual(loadedStatus);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('clears status when the user id becomes null', async () => {
+    const { result, rerender } = renderHook(
+      ({ currentUser }) => useDiagnosisStatus(currentUser),
+      { initialProps: { currentUser: user } },
+    );
+
+    await waitFor(() => expect(result.current.status).toEqual(loadedStatus));
+
+    rerender({ currentUser: null });
+
+    await waitFor(() => expect(result.current.status).toBeNull());
     expect(result.current.error).toBeNull();
   });
 

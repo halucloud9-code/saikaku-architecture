@@ -4,9 +4,10 @@ import { auth } from '../firebase';
 export default function useDiagnosisStatus(user) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
+  const uid = user?.uid ?? null;
   const requestSeq = useRef(0);
   const mountedRef = useRef(false);
-  const uid = user?.uid ?? null;
+  const statusUidRef = useRef(uid);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -32,7 +33,6 @@ export default function useDiagnosisStatus(user) {
       return;
     }
 
-    setStatus(null);
     setError(null);
 
     let idToken;
@@ -75,6 +75,14 @@ export default function useDiagnosisStatus(user) {
   }, [applyState, uid]);
 
   useEffect(() => {
+    if (statusUidRef.current === uid) return;
+    statusUidRef.current = uid;
+    requestSeq.current += 1;
+    setStatus(null);
+    setError(null);
+  }, [uid]);
+
+  useEffect(() => {
     refresh();
   }, [refresh]);
 
@@ -93,5 +101,9 @@ export default function useDiagnosisStatus(user) {
     };
   }, [refresh, uid]);
 
-  return { status, error, refresh };
+  return {
+    status: statusUidRef.current === uid ? status : null,
+    error: statusUidRef.current === uid ? error : null,
+    refresh,
+  };
 }

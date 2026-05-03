@@ -60,11 +60,6 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
     }
   };
 
-  const getCardPadding = (count, hasPending) => {
-    if (status === null || (count <= 0 && !hasPending)) return '32px 28px';
-    return count >= 2 || hasPending ? '32px 28px 78px' : '32px 28px 58px';
-  };
-
   const renderBadge = (count, palette, testId) => {
     if (status === null || count <= 0) return null;
     return (
@@ -81,73 +76,80 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         padding: '4px 10px',
         borderRadius: 100,
         zIndex: 2,
+        pointerEvents: 'none',
       }}>
         診断済み ({count}/2)
       </div>
     );
   };
 
-  const renderHistoryArea = (kind, count, hasPending, color, hover, setHover) => {
+  const renderHistoryButton = (kind, count, hasPending, palette, hover, setHover) => {
     if (status === null || (count <= 0 && !hasPending)) return null;
     return (
+      <button
+        data-testid={`history-link-${kind}`}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectHistory(kind);
+        }}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: `1px solid ${palette.border}`,
+          background: hover ? palette.hoverBackground : 'transparent',
+          borderRadius: 8,
+          padding: '8px 16px',
+          color: palette.color,
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          cursor: 'pointer',
+          textDecoration: hover ? 'underline' : 'none',
+          textUnderlineOffset: 3,
+          transition: 'all 0.3s ease',
+          fontFamily: 'inherit',
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
+        履歴を見る ({count})
+      </button>
+    );
+  };
+
+  const renderHistoryArea = (count, hasPending) => {
+    const hasVisibleMeta = status !== null && (hasPending || count >= 2);
+    const metaText = hasPending ? '処理中…' : '診断は最大2回まで実施済み';
+
+    // Meta-info area is fixed-height in all states to prevent layout jump (issue #47, Round 1 debate)
+    // 28px fits the 11px single-line max-count and pending messages while keeping the card compact.
+    return (
       <div style={{
-        position: 'absolute',
-        left: 28,
-        bottom: 24,
-        zIndex: 3,
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 8,
+        alignItems: 'center',
+        minHeight: 28,
+        height: 28,
+        marginTop: 8,
         pointerEvents: 'none',
       }}>
-        {count >= 2 && (
-          <span style={{
+        <span
+          aria-hidden={hasVisibleMeta ? undefined : 'true'}
+          style={{
+            visibility: hasVisibleMeta ? 'visible' : 'hidden',
             color: '#8A8070',
             fontSize: 11,
-            fontWeight: 600,
+            fontWeight: hasPending ? 700 : 600,
             letterSpacing: '0.04em',
-          }}>
-            診断は最大2回まで実施済み
-          </span>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            data-testid={`history-link-${kind}`}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelectHistory(kind);
-            }}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              padding: 0,
-              color,
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
-              textDecoration: hover ? 'underline' : 'none',
-              textUnderlineOffset: 3,
-              pointerEvents: 'auto',
-            }}
-          >
-            履歴を見る ({count})
-          </button>
-          {hasPending && (
-            <span style={{
-              color: '#8A8070',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-            }}>
-              処理中…
-            </span>
-          )}
-        </div>
+            lineHeight: '16px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {hasVisibleMeta ? metaText : '\u00A0'}
+        </span>
       </div>
     );
   };
@@ -283,18 +285,15 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
 
         {/* ─── 才覚領域カード ─── */}
         <div style={{ width: '100%', position: 'relative' }}>
-          <button
+          <div
             data-testid="card-saikaku"
-            onClick={handleSaikakuClick}
-            onMouseEnter={() => setHoverSaikaku(true)}
-            onMouseLeave={() => setHoverSaikaku(false)}
             style={{
               width: '100%',
               background: hoverSaikaku
                 ? 'linear-gradient(145deg, rgba(196,146,42,0.12) 0%, rgba(26,22,16,0.95) 100%)'
                 : 'linear-gradient(145deg, rgba(196,146,42,0.06) 0%, rgba(26,22,16,0.9) 100%)',
               border: `1px solid ${hoverSaikaku ? 'rgba(196,146,42,0.4)' : 'rgba(196,146,42,0.15)'}`,
-              borderRadius: 20, padding: 0, cursor: 'pointer',
+              borderRadius: 20, padding: 0,
               textAlign: 'left',
               transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               transform: hoverSaikaku ? 'translateY(-4px)' : 'translateY(0)',
@@ -305,6 +304,25 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               position: 'relative',
             }}
           >
+            <button
+              data-testid="card-saikaku-overlay"
+              type="button"
+              onClick={handleSaikakuClick}
+              onMouseEnter={() => setHoverSaikaku(true)}
+              onMouseLeave={() => setHoverSaikaku(false)}
+              onFocus={() => setHoverSaikaku(true)}
+              onBlur={() => setHoverSaikaku(false)}
+              aria-label="才覚領域の診断を開始する"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+              }}
+            />
             {/* ゴールドのアクセントライン */}
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0, height: 2,
@@ -318,23 +336,26 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               color: '#E8C47A',
             }, 'badge-saikaku')}
 
-            <div style={{ padding: getCardPadding(saikakuAttemptCount, !!saikakuStatus?.hasPending) }}>
+            <div style={{ padding: '32px 28px' }}>
             {/* サブラベル */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center',
-              background: 'rgba(196,146,42,0.1)',
-              border: '1px solid rgba(196,146,42,0.2)',
-              borderRadius: 100, padding: '4px 14px', marginBottom: 16,
-            }}>
-              <span style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', color: '#C4922A',
-                textTransform: 'uppercase',
-              }}>Unique Ability</span>
+            <div style={{ paddingRight: 112, marginBottom: 16, boxSizing: 'border-box' }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center',
+                background: 'rgba(196,146,42,0.1)',
+                border: '1px solid rgba(196,146,42,0.2)',
+                borderRadius: 100, padding: '4px 14px',
+                maxWidth: '100%', boxSizing: 'border-box',
+              }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', color: '#C4922A',
+                  textTransform: 'uppercase',
+                }}>Unique Ability</span>
+              </div>
             </div>
 
             {/* タイトル */}
             <div style={{ marginBottom: 6 }}>
-              <span style={{
+              <span id="card-saikaku-title" style={{
                 fontSize: 26, fontWeight: 900, color: '#FFFFFF',
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 letterSpacing: '0.06em',
@@ -366,43 +387,52 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             {/* CTA */}
             <div style={{
               marginTop: 24, display: 'flex', alignItems: 'center', gap: 8,
+              flexWrap: 'wrap',
             }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: hoverSaikaku ? 'rgba(196,146,42,0.2)' : 'rgba(196,146,42,0.08)',
-                borderRadius: 8, padding: '8px 16px',
-                transition: 'background 0.3s ease',
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#C4922A', letterSpacing: '0.05em' }}>
+              <div
+                data-testid="cta-saikaku"
+                aria-hidden="true"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: hoverSaikaku ? '#E8C47A' : '#C4922A',
+                  borderRadius: 8, padding: '8px 16px',
+                  border: 'none',
+                  transition: 'background 0.3s ease',
+                  fontFamily: 'inherit',
+                  pointerEvents: 'none',
+                }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#1A1610', letterSpacing: '0.05em' }}>
                   診断を開始する
                 </span>
                 <span style={{
-                  fontSize: 14, color: '#C4922A',
+                  fontSize: 14, color: '#1A1610',
                   transform: hoverSaikaku ? 'translateX(3px)' : 'translateX(0)',
                   transition: 'transform 0.3s ease',
                   display: 'inline-block',
                 }}>→</span>
               </div>
+              {renderHistoryButton('saikaku', saikakuAttemptCount, !!saikakuStatus?.hasPending, {
+                color: '#E8C47A',
+                border: 'rgba(196,146,42,0.55)',
+                hoverBackground: 'rgba(196,146,42,0.12)',
+              }, hoverSaikakuHistory, setHoverSaikakuHistory)}
             </div>
+            {renderHistoryArea(saikakuAttemptCount, !!saikakuStatus?.hasPending)}
             </div>
-          </button>
-          {renderHistoryArea('saikaku', saikakuAttemptCount, !!saikakuStatus?.hasPending, '#E8C47A', hoverSaikakuHistory, setHoverSaikakuHistory)}
+          </div>
         </div>
 
         {/* ─── 才覚発動領域カード ─── */}
         <div style={{ width: '100%', position: 'relative' }}>
-          <button
+          <div
             data-testid="card-uaam"
-            onClick={handleUaamClick}
-            onMouseEnter={() => setHoverUaam(true)}
-            onMouseLeave={() => setHoverUaam(false)}
             style={{
               width: '100%',
               background: hoverUaam
                 ? 'linear-gradient(145deg, rgba(74,111,165,0.12) 0%, rgba(26,22,16,0.95) 100%)'
                 : 'linear-gradient(145deg, rgba(74,111,165,0.06) 0%, rgba(26,22,16,0.9) 100%)',
               border: `1px solid ${hoverUaam ? 'rgba(74,111,165,0.4)' : 'rgba(74,111,165,0.15)'}`,
-              borderRadius: 20, padding: 0, cursor: 'pointer',
+              borderRadius: 20, padding: 0,
               textAlign: 'left',
               transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               transform: hoverUaam ? 'translateY(-4px)' : 'translateY(0)',
@@ -413,6 +443,25 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               position: 'relative',
             }}
           >
+            <button
+              data-testid="card-uaam-overlay"
+              type="button"
+              onClick={handleUaamClick}
+              onMouseEnter={() => setHoverUaam(true)}
+              onMouseLeave={() => setHoverUaam(false)}
+              onFocus={() => setHoverUaam(true)}
+              onBlur={() => setHoverUaam(false)}
+              aria-label="才覚発動領域の診断を開始する"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+              }}
+            />
             {/* ブルーのアクセントライン */}
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0, height: 2,
@@ -426,23 +475,26 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               color: '#8FB4E0',
             }, 'badge-uaam')}
 
-            <div style={{ padding: getCardPadding(uaamAttemptCount, !!uaamStatus?.hasPending) }}>
+            <div style={{ padding: '32px 28px' }}>
             {/* サブラベル */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center',
-              background: 'rgba(74,111,165,0.1)',
-              border: '1px solid rgba(74,111,165,0.2)',
-              borderRadius: 100, padding: '4px 14px', marginBottom: 16,
-            }}>
-              <span style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: '#6B9AD4',
-                textTransform: 'uppercase',
-              }}>Unique Ability Activation Matrix</span>
+            <div style={{ paddingRight: 112, marginBottom: 16, boxSizing: 'border-box' }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center',
+                background: 'rgba(74,111,165,0.1)',
+                border: '1px solid rgba(74,111,165,0.2)',
+                borderRadius: 100, padding: '4px 14px',
+                maxWidth: '100%', boxSizing: 'border-box',
+              }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: '#6B9AD4',
+                  textTransform: 'uppercase',
+                }}>Unique Ability Activation Matrix</span>
+              </div>
             </div>
 
             {/* タイトル */}
             <div style={{ marginBottom: 6 }}>
-              <span style={{
+              <span id="card-uaam-title" style={{
                 fontSize: 26, fontWeight: 900, color: '#FFFFFF',
                 fontFamily: "'Noto Serif JP', Georgia, serif",
                 letterSpacing: '0.06em',
@@ -476,27 +528,42 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
             {/* CTA + ロック */}
             <div style={{
               marginTop: 24, display: 'flex', alignItems: 'center',
-              justifyContent: 'space-between',
+              gap: 8, flexWrap: 'wrap',
             }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: hoverUaam ? 'rgba(74,111,165,0.2)' : 'rgba(74,111,165,0.08)',
-                borderRadius: 8, padding: '8px 16px',
-                transition: 'background 0.3s ease',
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#6B9AD4', letterSpacing: '0.05em' }}>
+              <div
+                data-testid="cta-uaam"
+                aria-hidden="true"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: hoverUaam ? '#6B9AD4' : '#4A6FA5',
+                  borderRadius: 8, padding: '8px 16px',
+                  border: 'none',
+                  transition: 'background 0.3s ease',
+                  fontFamily: 'inherit',
+                  pointerEvents: 'none',
+                }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#F5F0E8', letterSpacing: '0.05em' }}>
                   診断を開始する
                 </span>
                 <span style={{
-                  fontSize: 14, color: '#6B9AD4',
+                  fontSize: 14, color: '#F5F0E8',
                   transform: hoverUaam ? 'translateX(3px)' : 'translateX(0)',
                   transition: 'transform 0.3s ease',
                   display: 'inline-block',
                 }}>→</span>
               </div>
+              {renderHistoryButton('uaam', uaamAttemptCount, !!uaamStatus?.hasPending, {
+                color: '#8FB4E0',
+                border: 'rgba(143,180,224,0.55)',
+                hoverBackground: 'rgba(74,111,165,0.14)',
+              }, hoverUaamHistory, setHoverUaamHistory)}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 5,
                 fontSize: 11, color: 'rgba(107,154,212,0.5)', fontWeight: 500,
+                marginLeft: 'auto',
+                position: 'relative',
+                zIndex: 2,
+                pointerEvents: 'none',
               }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -505,6 +572,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 <span>パスワード</span>
               </div>
             </div>
+            {renderHistoryArea(uaamAttemptCount, !!uaamStatus?.hasPending)}
 
             {/* Coming Soon — 枠なし、一番下 */}
             <div style={{
@@ -526,8 +594,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               }}>才覚発動　領域展開</div>
             </div>
             </div>
-          </button>
-          {renderHistoryArea('uaam', uaamAttemptCount, !!uaamStatus?.hasPending, '#8FB4E0', hoverUaamHistory, setHoverUaamHistory)}
+          </div>
         </div>
 
         {/* フッター */}

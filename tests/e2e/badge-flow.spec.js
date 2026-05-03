@@ -10,7 +10,7 @@ test('badge display after a saikaku diagnosis', async ({ page }) => {
   await loginAs(page, email, password);
   await expect(page.getByTestId('badge-saikaku')).toHaveCount(0);
 
-  await page.getByTestId('card-saikaku').click();
+  await page.getByTestId('card-saikaku-overlay').click();
   await expect(page.getByRole('heading', { name: '才覚領域を発見する' })).toBeVisible({ timeout: 15000 });
   await fillSaikakuForm(page);
 
