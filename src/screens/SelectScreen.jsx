@@ -12,7 +12,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   const [hoverUaam, setHoverUaam] = useState(false);
   const [hoverSaikakuHistory, setHoverSaikakuHistory] = useState(false);
   const [hoverUaamHistory, setHoverUaamHistory] = useState(false);
-  const { status, error, refresh } = useDiagnosisStatus(user);
+  const { status, error, loading, refresh } = useDiagnosisStatus(user);
   const saikakuStatus = status?.saikaku ?? null;
   const uaamStatus = status?.uaam ?? null;
   const saikakuAttemptCount = saikakuStatus?.committedCount ?? 0;
@@ -34,6 +34,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   };
 
   const handleSaikakuClick = () => {
+    if (loading) {
+      alert('読み込み中です。少々お待ちください');
+      return;
+    }
     if (isSaikakuLimitReached) {
       showLimitAlert(saikakuStatus);
       return;
@@ -42,6 +46,10 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   };
 
   const handleUaamClick = () => {
+    if (loading) {
+      alert('読み込み中です。少々お待ちください');
+      return;
+    }
     if (isUaamLimitReached) {
       showLimitAlert(uaamStatus);
       return;
@@ -102,11 +110,13 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
           border: `1px solid ${palette.border}`,
           background: hover ? palette.hoverBackground : 'transparent',
           borderRadius: 8,
-          padding: '8px 16px',
+          height: 36,
+          padding: '0 16px',
           color: palette.color,
           fontSize: 12,
           fontWeight: 700,
           letterSpacing: '0.04em',
+          lineHeight: 1,
           cursor: 'pointer',
           textDecoration: hover ? 'underline' : 'none',
           textUnderlineOffset: 3,
@@ -395,8 +405,11 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: hoverSaikaku ? '#E8C47A' : '#C4922A',
-                  borderRadius: 8, padding: '8px 16px',
+                  borderRadius: 8,
+                  height: 36,
+                  padding: '0 16px',
                   border: 'none',
+                  lineHeight: 1,
                   transition: 'background 0.3s ease',
                   fontFamily: 'inherit',
                   pointerEvents: 'none',
@@ -405,7 +418,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                   診断を開始する
                 </span>
                 <span style={{
-                  fontSize: 14, color: '#1A1610',
+                  fontSize: 12, fontWeight: 700, color: '#1A1610',
                   transform: hoverSaikaku ? 'translateX(3px)' : 'translateX(0)',
                   transition: 'transform 0.3s ease',
                   display: 'inline-block',
@@ -536,8 +549,11 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: hoverUaam ? '#6B9AD4' : '#4A6FA5',
-                  borderRadius: 8, padding: '8px 16px',
+                  borderRadius: 8,
+                  height: 36,
+                  padding: '0 16px',
                   border: 'none',
+                  lineHeight: 1,
                   transition: 'background 0.3s ease',
                   fontFamily: 'inherit',
                   pointerEvents: 'none',
@@ -546,7 +562,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                   診断を開始する
                 </span>
                 <span style={{
-                  fontSize: 14, color: '#F5F0E8',
+                  fontSize: 12, fontWeight: 700, color: '#F5F0E8',
                   transform: hoverUaam ? 'translateX(3px)' : 'translateX(0)',
                   transition: 'transform 0.3s ease',
                   display: 'inline-block',
