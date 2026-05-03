@@ -151,7 +151,10 @@ export default withMeHandler(async function handler(req, res) {
   let scores = data.scores ?? null;
   let analysis = data.analysis ?? null;
 
-  if (requestedAttemptId && requestedAttemptId !== 'legacy-fallback') {
+  if (requestedAttemptId) {
+    // legacy-fallback も他の attemptId と同様に existence check を要求する。
+    // この仮想 ID は read 内の integration synthesis 用であり、実 attempt として
+    // クライアント送信されるべきではない（migration 後は legacy-v1 が実 ID）。
     const attemptSnap = await parentRef.collection('attempts').doc(requestedAttemptId).get();
     if (!attemptSnap.exists || attemptSnap.data()?.status !== 'committed') {
       return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
