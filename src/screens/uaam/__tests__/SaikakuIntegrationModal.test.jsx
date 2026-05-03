@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SaikakuIntegrationModal from '../SaikakuIntegrationModal';
+import SaikakuIntegration from '../SaikakuIntegration';
 
 function integration(core) {
   return {
@@ -144,5 +145,29 @@ describe('SaikakuIntegrationModal', () => {
     );
 
     expect(screen.getByText('この統合分析は移行前のデータです。最新の組み合わせで再生成してください')).toBeInTheDocument();
+  });
+
+  it('shows one remaining regeneration before same-pair regeneration', () => {
+    render(
+      <SaikakuIntegration
+        integration={integration('First Core')}
+        regenerationCount={0}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '再生成（残り 1 回）' })).toBeEnabled();
+  });
+
+  it('shows zero remaining regenerations when the same-pair cap has been reached', () => {
+    render(
+      <SaikakuIntegration
+        integration={integration('First Core')}
+        regenerationCount={1}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '再生成（残り 0 回）' })).toBeDisabled();
   });
 });

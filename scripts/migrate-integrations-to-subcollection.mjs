@@ -16,6 +16,29 @@ const LEGACY_FALLBACK = 'legacy-fallback';
 const LEGACY_ATTEMPT_ID = 'legacy-v1';
 const PATCH_ATTEMPTS_PAIR_KEY = buildPairKey(LEGACY_ATTEMPT_ID, LEGACY_ATTEMPT_ID);
 const MODES = new Set(['integrations-only', 'patch-attempts']);
+const PATCH_ATTEMPTS_SKIPPED_REASONS = [
+  'already_patched',
+  'pending_attempt',
+  'no_legacy',
+  'has_attempts',
+  'pending_attempt_appeared',
+  'attempts_appeared',
+  'legacy_integration_missing',
+  'concurrent_modification',
+];
+
+class PatchAttemptsTransactionError extends Error {
+  constructor(reason, message, details = {}) {
+    super(message);
+    this.name = 'PatchAttemptsTransactionError';
+    this.reason = reason;
+    this.details = details;
+  }
+}
+
+function isPatchAttemptsTransactionError(error) {
+  return error?.name === 'PatchAttemptsTransactionError' && typeof error.reason === 'string';
+}
 
 function parseArgs(argv) {
   const options = {
@@ -288,10 +311,7 @@ function initialSummary({ dryRun, mode }) {
       processed: 0,
       patched: 0,
       skipped: {
-        already_patched: 0,
-        pending_attempt: 0,
-        no_legacy: 0,
-        has_attempts: 0,
+        ...Object.fromEntries(PATCH_ATTEMPTS_SKIPPED_REASONS.map((reason) => [reason, 0])),
       },
       error: 0,
       dry_run_planned: 0,
@@ -436,6 +456,10 @@ function legacyIntegrationPayload({ integration, uaamParentData, saikakuParentDa
     createdAt: timestampForWrite(uaamParentData?.integrationUpdatedAt ?? uaamParentData?.createdAt),
     updatedAt: FieldValue.serverTimestamp(),
   });
+}
+
+function throwPatchAttemptsTransactionError(reason, message, details = {}) {
+  throw new PatchAttemptsTransactionError(reason, message, details);
 }
 
 function serializeFirestoreValue(value) {
@@ -770,19 +794,123 @@ async function processPatchAttemptsDoc({ db, docSnap, dryRun }) {
     };
   }
 
-  const batch = db.batch();
-  batch.create(saikakuLegacyAttemptRef, removeUndefined(saikakuAttempt));
-  batch.create(uaamLegacyAttemptRef, removeUndefined(uaamAttempt));
-  batch.set(saikakuParentRef, removeUndefined(saikakuParentPatch), { merge: true });
-  batch.set(uaamParentRef, removeUndefined(uaamParentPatch), { merge: true });
-  batch.create(integrationRef, removeUndefined(integration));
-  await batch.commit();
+  let transactionLegacySource = legacy.legacySource;
+  try {
+    await db.runTransaction(async (tx) => {
+      const [
+        txSaikakuParentSnap,
+        txUaamParentSnap,
+        txSaikakuAttemptsProbeSnap,
+        txUaamAttemptsProbeSnap,
+        txSaikakuLegacyAttemptSnap,
+        txUaamLegacyAttemptSnap,
+        txIntegrationSnap,
+      ] = await Promise.all([
+        tx.get(saikakuParentRef),
+        tx.get(uaamParentRef),
+        tx.get(saikakuParentRef.collection('attempts').limit(1)),
+        tx.get(uaamParentRef.collection('attempts').limit(1)),
+        tx.get(saikakuLegacyAttemptRef),
+        tx.get(uaamLegacyAttemptRef),
+        tx.get(integrationRef),
+      ]);
+
+      const txSaikakuParentData = txSaikakuParentSnap.exists ? txSaikakuParentSnap.data() || {} : {};
+      const txUaamParentData = txUaamParentSnap.exists ? txUaamParentSnap.data() || {} : {};
+
+      // Firestore Admin SDK retries transactions for SDK-detected contention and
+      // transient failures. These user-thrown errors are intentional fail-fast
+      // eligibility failures, so they are not retried; a later migration run can
+      // re-evaluate the user from fresh state.
+      if (!txSaikakuParentSnap.exists || !txUaamParentSnap.exists) {
+        throwPatchAttemptsTransactionError(
+          'concurrent_modification',
+          'parent doc disappeared before patch-attempts transaction could write',
+          {
+            resultsExists: txSaikakuParentSnap.exists,
+            uaamResultsExists: txUaamParentSnap.exists,
+          }
+        );
+      }
+
+      const txLegacy = readLegacyIntegration(txUaamParentData);
+      if (!txLegacy) {
+        throwPatchAttemptsTransactionError(
+          'legacy_integration_missing',
+          'legacy integration body disappeared before patch-attempts transaction could write'
+        );
+      }
+      transactionLegacySource = txLegacy.legacySource;
+
+      if (hasPendingAttempt(txSaikakuParentData) || hasPendingAttempt(txUaamParentData)) {
+        throwPatchAttemptsTransactionError(
+          'pending_attempt_appeared',
+          'parent pendingAttemptId appeared before patch-attempts transaction could write',
+          {
+            results: txSaikakuParentData.pendingAttemptId ?? null,
+            uaam_results: txUaamParentData.pendingAttemptId ?? null,
+          }
+        );
+      }
+
+      if (!txSaikakuAttemptsProbeSnap.empty || !txUaamAttemptsProbeSnap.empty) {
+        throwPatchAttemptsTransactionError(
+          'attempts_appeared',
+          'attempts subcollection became non-empty before patch-attempts transaction could write',
+          {
+            resultsEmpty: txSaikakuAttemptsProbeSnap.empty,
+            uaamResultsEmpty: txUaamAttemptsProbeSnap.empty,
+          }
+        );
+      }
+
+      if (txSaikakuLegacyAttemptSnap.exists || txUaamLegacyAttemptSnap.exists || txIntegrationSnap.exists) {
+        throwPatchAttemptsTransactionError(
+          'concurrent_modification',
+          'legacy-v1 attempt or legacy-v1__legacy-v1 integration appeared before patch-attempts transaction could write',
+          {
+            resultsAttemptLegacyV1: txSaikakuLegacyAttemptSnap.exists,
+            uaamAttemptLegacyV1: txUaamLegacyAttemptSnap.exists,
+            integrationLegacyPair: txIntegrationSnap.exists,
+          }
+        );
+      }
+
+      const txSaikakuAttempt = legacyAttemptPayload(txSaikakuParentData, 'saikaku');
+      const txUaamAttempt = legacyAttemptPayload(txUaamParentData, 'uaam');
+      const txIntegration = legacyIntegrationPayload({
+        integration: txLegacy.integration,
+        uaamParentData: txUaamParentData,
+        saikakuParentData: txSaikakuParentData,
+      });
+
+      tx.create(saikakuLegacyAttemptRef, removeUndefined(txSaikakuAttempt));
+      tx.create(uaamLegacyAttemptRef, removeUndefined(txUaamAttempt));
+      tx.set(saikakuParentRef, removeUndefined(saikakuParentPatch), { merge: true });
+      tx.set(uaamParentRef, removeUndefined(uaamParentPatch), { merge: true });
+      tx.create(integrationRef, removeUndefined(txIntegration));
+    });
+  } catch (error) {
+    if (!isPatchAttemptsTransactionError(error)) {
+      throw error;
+    }
+
+    return {
+      ...baseRecord,
+      status: error.reason,
+      decision: 'skipped',
+      reason: error.message,
+      error: errorSummary(error),
+      errorDetails: error.details,
+      legacySource: transactionLegacySource,
+    };
+  }
 
   return {
     ...baseRecord,
     status: 'patched',
     decision: 'patched',
-    legacySource: legacy.legacySource,
+    legacySource: transactionLegacySource,
     actualWriteCount: plannedWrites.length,
   };
 }
@@ -804,18 +932,12 @@ function applyRecordToSummary(summary, record) {
   if (summary.mode === 'patch-attempts') {
     if (record.status === 'patched') {
       summary.patched += 1;
-    } else if (record.status === 'already_patched') {
-      summary.skipped.already_patched += 1;
-    } else if (record.status === 'pending_attempt') {
-      summary.skipped.pending_attempt += 1;
-    } else if (record.status === 'no_legacy') {
-      summary.skipped.no_legacy += 1;
-    } else if (record.status === 'has_attempts') {
-      summary.skipped.has_attempts += 1;
     } else if (record.status === 'error') {
       summary.error += 1;
     } else if (record.status === 'dry_run_planned') {
       summary.dry_run_planned += 1;
+    } else {
+      summary.skipped[record.status] = (summary.skipped[record.status] ?? 0) + 1;
     }
     return;
   }
@@ -853,10 +975,7 @@ function renderTextLog(payload) {
       'Summary:',
       `  processed: ${payload.summary.processed}`,
       `  patched: ${payload.summary.patched}`,
-      `  skipped(already_patched): ${payload.summary.skipped.already_patched}`,
-      `  skipped(pending_attempt): ${payload.summary.skipped.pending_attempt}`,
-      `  skipped(no_legacy): ${payload.summary.skipped.no_legacy}`,
-      `  skipped(has_attempts): ${payload.summary.skipped.has_attempts}`,
+      ...renderPatchAttemptsSkippedLines(payload.summary),
       `  error: ${payload.summary.error}`,
       `  dry_run_planned: ${payload.summary.dry_run_planned}`,
       '',
@@ -938,6 +1057,17 @@ async function writeSnapshot({ snapshotPath, records }) {
   return snapshotPath;
 }
 
+function renderPatchAttemptsSkippedLines(summary) {
+  const skipped = summary.skipped || {};
+  const orderedReasons = [
+    ...PATCH_ATTEMPTS_SKIPPED_REASONS,
+    ...Object.keys(skipped)
+      .filter((reason) => !PATCH_ATTEMPTS_SKIPPED_REASONS.includes(reason))
+      .sort(),
+  ];
+  return orderedReasons.map((reason) => `  skipped(${reason}): ${skipped[reason] ?? 0}`);
+}
+
 async function writeLogs({ options, summary, records }) {
   await fs.mkdir(MIGRATION_DIR, { recursive: true });
   const generatedAt = new Date().toISOString();
@@ -970,10 +1100,9 @@ function printSummary({ options, summary, logPaths }) {
     }
     console.log(`processed: ${summary.processed}`);
     console.log(`patched: ${summary.patched}`);
-    console.log(`skipped(already_patched): ${summary.skipped.already_patched}`);
-    console.log(`skipped(pending_attempt): ${summary.skipped.pending_attempt}`);
-    console.log(`skipped(no_legacy): ${summary.skipped.no_legacy}`);
-    console.log(`skipped(has_attempts): ${summary.skipped.has_attempts}`);
+    for (const line of renderPatchAttemptsSkippedLines(summary)) {
+      console.log(line.trimStart());
+    }
     console.log(`error: ${summary.error}`);
     console.log(`dry_run_planned: ${summary.dry_run_planned}`);
     return;

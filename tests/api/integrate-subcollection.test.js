@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../api/lib/firebaseAdmin.js';
 import {
   IntegrationConflictError,
@@ -508,6 +508,52 @@ describe('API /api/integrate per-pair subcollection writes', () => {
     });
     expect((await db.collection('results').doc(uid).collection('attempts').doc('legacy-v1').get()).exists).toBe(false);
     expect((await db.collection('uaam_results').doc(uid).collection('integrations').doc(buildPairKey('legacy-v1', 'legacy-v1')).get()).exists).toBe(false);
+  });
+
+  it('does not clear pendingAttemptId that appears between patch-attempts pre-read and transaction re-check', async () => {
+    const uid = `patch-race-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await seedLegacyUser(uid);
+
+    const originalRunTransaction = db.runTransaction.bind(db);
+    const runTransactionSpy = vi.spyOn(db, 'runTransaction').mockImplementationOnce(async (updateFunction, transactionOptions) => {
+      await Promise.all([
+        db.collection('results').doc(uid).set({ pendingAttemptId: 'concurrent-saikaku' }, { merge: true }),
+        db.collection('uaam_results').doc(uid).set({ pendingAttemptId: 'concurrent-uaam' }, { merge: true }),
+      ]);
+      return originalRunTransaction(updateFunction, transactionOptions);
+    });
+
+    let result;
+    try {
+      result = await runPatchAttempts({ uid, dryRun: false });
+    } finally {
+      runTransactionSpy.mockRestore();
+    }
+
+    expect(result.summary).toMatchObject({
+      processed: 1,
+      patched: 0,
+      skipped: { pending_attempt_appeared: 1 },
+    });
+    expect(result.records[0]).toMatchObject({
+      status: 'pending_attempt_appeared',
+      decision: 'skipped',
+    });
+    expect(result.records[0].error).toContain('pendingAttemptId appeared');
+
+    const [saikakuParent, uaamParent, saikakuLegacyAttempt, uaamLegacyAttempt, patchedIntegration] = await Promise.all([
+      db.collection('results').doc(uid).get(),
+      db.collection('uaam_results').doc(uid).get(),
+      db.collection('results').doc(uid).collection('attempts').doc('legacy-v1').get(),
+      db.collection('uaam_results').doc(uid).collection('attempts').doc('legacy-v1').get(),
+      db.collection('uaam_results').doc(uid).collection('integrations').doc(buildPairKey('legacy-v1', 'legacy-v1')).get(),
+    ]);
+
+    expect(saikakuParent.data().pendingAttemptId).toBe('concurrent-saikaku');
+    expect(uaamParent.data().pendingAttemptId).toBe('concurrent-uaam');
+    expect(saikakuLegacyAttempt.exists).toBe(false);
+    expect(uaamLegacyAttempt.exists).toBe(false);
+    expect(patchedIntegration.exists).toBe(false);
   });
 
   it('omits undefined legacy UAAM fields instead of crashing batch writes', async () => {

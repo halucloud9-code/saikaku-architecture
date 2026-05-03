@@ -117,7 +117,7 @@ function RegenerateButton({ regenerationCount, onRegenerate }) {
   const [regenerating, setRegenerating] = useState(false);
   const count = Number.isFinite(Number(regenerationCount)) ? Number(regenerationCount) : 0;
   const disabled = regenerating || count >= 1;
-  const remaining = Math.max(0, 2 - count);
+  const remaining = Math.max(0, 1 - count);
 
   if (typeof onRegenerate !== 'function') return null;
 
