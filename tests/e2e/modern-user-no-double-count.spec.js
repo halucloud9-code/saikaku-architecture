@@ -17,7 +17,7 @@ test('modern one-attempt user is not double counted and can start a second diagn
   await expect(page.getByTestId('badge-saikaku')).toContainText('診断済み (1/2)', { timeout: 15000 });
   await expect(page.getByTestId('history-link-saikaku')).toContainText('履歴を見る (1)');
 
-  await page.getByTestId('card-saikaku').click();
+  await page.getByTestId('card-saikaku-overlay').click();
   await expect(page.getByRole('heading', { name: '才覚領域を発見する' })).toBeVisible({ timeout: 15000 });
 
   await page.getByRole('button', { name: '← 診断選択に戻る' }).click();

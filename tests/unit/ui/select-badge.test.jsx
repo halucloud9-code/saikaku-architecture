@@ -122,7 +122,7 @@ describe('SelectScreen badge', () => {
     expect(screen.getByText('処理中…')).toBeInTheDocument();
   });
 
-  it('starts saikaku diagnosis when clicking the card title', async () => {
+  it('starts saikaku diagnosis when clicking the card overlay', async () => {
     const onSelectSaikaku = vi.fn();
     const onSelectHistory = vi.fn();
     useDiagnosisStatus.mockReturnValue(hookValue({
@@ -132,7 +132,7 @@ describe('SelectScreen badge', () => {
 
     renderSelect({ onSelectSaikaku, onSelectHistory });
 
-    await userEvent.click(screen.getByText('才覚領域'));
+    await userEvent.click(screen.getByTestId('card-saikaku-overlay'));
 
     expect(onSelectSaikaku).toHaveBeenCalledTimes(1);
     expect(onSelectHistory).not.toHaveBeenCalled();
@@ -174,8 +174,8 @@ describe('SelectScreen badge', () => {
 
     renderSelect({ onSelectSaikaku, onSelectUaam });
 
-    await userEvent.click(screen.getByTestId('card-saikaku'));
-    await userEvent.click(screen.getByTestId('card-uaam'));
+    await userEvent.click(screen.getByTestId('card-saikaku-overlay'));
+    await userEvent.click(screen.getByTestId('card-uaam-overlay'));
 
     expect(onSelectSaikaku).not.toHaveBeenCalled();
     expect(onSelectUaam).not.toHaveBeenCalled();

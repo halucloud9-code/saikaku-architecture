@@ -33,10 +33,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
     alert('診断は最大2回まで実施済みです。履歴を確認する場合は「履歴を見る」からどうぞ。');
   };
 
-  const handleSaikakuClick = (e) => {
-    if (e?.currentTarget?.dataset?.blockLink === 'cta') {
-      e.stopPropagation();
-    }
+  const handleSaikakuClick = () => {
     if (isSaikakuLimitReached) {
       showLimitAlert(saikakuStatus);
       return;
@@ -44,10 +41,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
     onSelectSaikaku();
   };
 
-  const handleUaamClick = (e) => {
-    if (e?.currentTarget?.dataset?.blockLink === 'cta') {
-      e.stopPropagation();
-    }
+  const handleUaamClick = () => {
     if (isUaamLimitReached) {
       showLimitAlert(uaamStatus);
       return;
@@ -82,6 +76,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         padding: '4px 10px',
         borderRadius: 100,
         zIndex: 2,
+        pointerEvents: 'none',
       }}>
         診断済み ({count}/2)
       </div>
@@ -166,14 +161,6 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
       position: 'relative',
       overflow: 'hidden',
     }}>
-      <style>{`
-        button[data-block-link="cta"]::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          z-index: 1;
-        }
-      `}</style>
       {/* 背景装飾 */}
       <div style={{
         position: 'absolute', top: -120, right: -120,
@@ -300,16 +287,13 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         <div style={{ width: '100%', position: 'relative' }}>
           <div
             data-testid="card-saikaku"
-            onClick={handleSaikakuClick}
-            onMouseEnter={() => setHoverSaikaku(true)}
-            onMouseLeave={() => setHoverSaikaku(false)}
             style={{
               width: '100%',
               background: hoverSaikaku
                 ? 'linear-gradient(145deg, rgba(196,146,42,0.12) 0%, rgba(26,22,16,0.95) 100%)'
                 : 'linear-gradient(145deg, rgba(196,146,42,0.06) 0%, rgba(26,22,16,0.9) 100%)',
               border: `1px solid ${hoverSaikaku ? 'rgba(196,146,42,0.4)' : 'rgba(196,146,42,0.15)'}`,
-              borderRadius: 20, padding: 0, cursor: 'pointer',
+              borderRadius: 20, padding: 0,
               textAlign: 'left',
               transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               transform: hoverSaikaku ? 'translateY(-4px)' : 'translateY(0)',
@@ -320,6 +304,25 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               position: 'relative',
             }}
           >
+            <button
+              data-testid="card-saikaku-overlay"
+              type="button"
+              onClick={handleSaikakuClick}
+              onMouseEnter={() => setHoverSaikaku(true)}
+              onMouseLeave={() => setHoverSaikaku(false)}
+              onFocus={() => setHoverSaikaku(true)}
+              onBlur={() => setHoverSaikaku(false)}
+              aria-label="才覚領域の診断を開始する"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+              }}
+            />
             {/* ゴールドのアクセントライン */}
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0, height: 2,
@@ -386,19 +389,17 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               marginTop: 24, display: 'flex', alignItems: 'center', gap: 8,
               flexWrap: 'wrap',
             }}>
-              <button
+              <div
                 data-testid="cta-saikaku"
-                data-block-link="cta"
-                type="button"
-                onClick={handleSaikakuClick}
+                aria-hidden="true"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: hoverSaikaku ? '#E8C47A' : '#C4922A',
                   borderRadius: 8, padding: '8px 16px',
                   border: 'none',
                   transition: 'background 0.3s ease',
-                  cursor: 'pointer',
                   fontFamily: 'inherit',
+                  pointerEvents: 'none',
                 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#1A1610', letterSpacing: '0.05em' }}>
                   診断を開始する
@@ -409,7 +410,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                   transition: 'transform 0.3s ease',
                   display: 'inline-block',
                 }}>→</span>
-              </button>
+              </div>
               {renderHistoryButton('saikaku', saikakuAttemptCount, !!saikakuStatus?.hasPending, {
                 color: '#E8C47A',
                 border: 'rgba(196,146,42,0.55)',
@@ -425,16 +426,13 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         <div style={{ width: '100%', position: 'relative' }}>
           <div
             data-testid="card-uaam"
-            onClick={handleUaamClick}
-            onMouseEnter={() => setHoverUaam(true)}
-            onMouseLeave={() => setHoverUaam(false)}
             style={{
               width: '100%',
               background: hoverUaam
                 ? 'linear-gradient(145deg, rgba(74,111,165,0.12) 0%, rgba(26,22,16,0.95) 100%)'
                 : 'linear-gradient(145deg, rgba(74,111,165,0.06) 0%, rgba(26,22,16,0.9) 100%)',
               border: `1px solid ${hoverUaam ? 'rgba(74,111,165,0.4)' : 'rgba(74,111,165,0.15)'}`,
-              borderRadius: 20, padding: 0, cursor: 'pointer',
+              borderRadius: 20, padding: 0,
               textAlign: 'left',
               transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               transform: hoverUaam ? 'translateY(-4px)' : 'translateY(0)',
@@ -445,6 +443,25 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               position: 'relative',
             }}
           >
+            <button
+              data-testid="card-uaam-overlay"
+              type="button"
+              onClick={handleUaamClick}
+              onMouseEnter={() => setHoverUaam(true)}
+              onMouseLeave={() => setHoverUaam(false)}
+              onFocus={() => setHoverUaam(true)}
+              onBlur={() => setHoverUaam(false)}
+              aria-label="才覚発動領域の診断を開始する"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+              }}
+            />
             {/* ブルーのアクセントライン */}
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0, height: 2,
@@ -513,19 +530,17 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
               marginTop: 24, display: 'flex', alignItems: 'center',
               gap: 8, flexWrap: 'wrap',
             }}>
-              <button
+              <div
                 data-testid="cta-uaam"
-                data-block-link="cta"
-                type="button"
-                onClick={handleUaamClick}
+                aria-hidden="true"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: hoverUaam ? '#6B9AD4' : '#4A6FA5',
                   borderRadius: 8, padding: '8px 16px',
                   border: 'none',
                   transition: 'background 0.3s ease',
-                  cursor: 'pointer',
                   fontFamily: 'inherit',
+                  pointerEvents: 'none',
                 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#F5F0E8', letterSpacing: '0.05em' }}>
                   診断を開始する
@@ -536,7 +551,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                   transition: 'transform 0.3s ease',
                   display: 'inline-block',
                 }}>→</span>
-              </button>
+              </div>
               {renderHistoryButton('uaam', uaamAttemptCount, !!uaamStatus?.hasPending, {
                 color: '#8FB4E0',
                 border: 'rgba(143,180,224,0.55)',
@@ -548,6 +563,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 marginLeft: 'auto',
                 position: 'relative',
                 zIndex: 2,
+                pointerEvents: 'none',
               }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
