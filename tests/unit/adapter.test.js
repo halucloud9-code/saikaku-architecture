@@ -31,6 +31,14 @@ describe('attemptAdapter', () => {
       full: {
         scores: { mindset: { total: 60 } },
         analysis: { type_name: '実装する案内人' },
+        name: '山田太郎',
+        bias_message: { level: 'moderate' },
+        personality_level: { level: 4 },
+        leadership_stage: { stage: 3 },
+        three_elements: { development_phase: 'strength_focus' },
+        coach_confirmed_personality_level: { level: 5 },
+        coach_confirmed_leadership_stage: { stage: 4 },
+        coach_observation_note: '観察メモ',
       },
       raw: {
         input: {
@@ -46,6 +54,14 @@ describe('attemptAdapter', () => {
         analysis: { type_name: '実装する案内人' },
         answers: { 1: 3 },
         vAnswers: { V1: 4 },
+        name: '山田太郎',
+        bias_message: { level: 'moderate' },
+        personality_level: { level: 4 },
+        leadership_stage: { stage: 3 },
+        three_elements: { development_phase: 'strength_focus' },
+        coach_confirmed_personality_level: { level: 5 },
+        coach_confirmed_leadership_stage: { stage: 4 },
+        coach_observation_note: '観察メモ',
       },
     });
   });

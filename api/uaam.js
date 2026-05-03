@@ -600,7 +600,16 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
       uid: decoded.uid,
       attemptId,
       summary: { typeName: analysis.type_name, createdAt: null },
-      full: { result: null, analysis, scores },
+      full: {
+        result: null,
+        analysis,
+        scores,
+        bias_message: biasMessage,
+        personality_level: personalityLevel,
+        leadership_stage: leadershipStage,
+        three_elements: threeElements,
+        name: decoded.name || '',
+      },
       raw: { input: { answers, vAnswers: vAnswers || {} } },
       parentMerge: {
         uid: decoded.uid,

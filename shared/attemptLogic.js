@@ -65,6 +65,14 @@ export function legacyDocToAttempt(parentData, kind) {
       result: null,
       analysis: parentData.analysis ?? null,
       scores: parentData.scores ?? null,
+      bias_message: parentData.bias_message ?? null,
+      personality_level: parentData.personality_level ?? null,
+      leadership_stage: parentData.leadership_stage ?? null,
+      three_elements: parentData.three_elements ?? null,
+      name: parentData.name ?? null,
+      coach_confirmed_personality_level: parentData.coach_confirmed_personality_level ?? null,
+      coach_confirmed_leadership_stage: parentData.coach_confirmed_leadership_stage ?? null,
+      coach_observation_note: parentData.coach_observation_note ?? null,
     },
     raw: {
       input: {

@@ -130,6 +130,91 @@ export function saikakuAttempt() {
   };
 }
 
+export function uaamParent(attemptCount = 1) {
+  const result = uaamResult();
+  return {
+    attemptCount,
+    pendingAttemptId: null,
+    latestAttemptId: 'attempt-1',
+    scores: result.scores,
+    analysis: result.analysis,
+    bias_message: result.bias_message,
+    personality_level: result.personality_level,
+    leadership_stage: result.leadership_stage,
+    three_elements: result.three_elements,
+    name: result.name,
+    email: '',
+    photoURL: '',
+    answers: uaamAnswers(),
+    vAnswers: uaamVAnswers(),
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  };
+}
+
+export function uaamAttempt(overrides = {}) {
+  const result = uaamResult();
+  return {
+    status: 'committed',
+    createdAt: Timestamp.now(),
+    summary: {
+      typeName: 'E2Eタイプ',
+      createdAt: Timestamp.now(),
+    },
+    full: {
+      result: null,
+      analysis: result.analysis,
+      scores: result.scores,
+      bias_message: result.bias_message,
+      personality_level: result.personality_level,
+      leadership_stage: result.leadership_stage,
+      three_elements: result.three_elements,
+      name: result.name,
+    },
+    raw: {
+      input: {
+        answers: uaamAnswers(),
+        vAnswers: uaamVAnswers(),
+      },
+    },
+    ...overrides,
+  };
+}
+
+export function uaamResult() {
+  return {
+    scores: {
+      mindset: uaamAxisScore(['meaning', 'mindfulness', 'mindshift', 'mastery']),
+      literacy: uaamAxisScore(['learning', 'logical', 'life', 'leadership']),
+      competency: uaamAxisScore(['critical', 'creativity', 'communication', 'collaboration']),
+      impact: uaamAxisScore(['idea', 'innovation', 'implementation', 'influence']),
+    },
+    analysis: {
+      type_name: 'E2Eタイプ',
+      narrative: 'E2Eテスト用ナラティブ',
+      axis_analysis: {
+        mindset: 'a',
+        literacy: 'a',
+        competency: 'a',
+        impact: 'a',
+      },
+      strengths: ['s'],
+      growth_areas: ['g'],
+      action_suggestions: ['x'],
+    },
+    bias_message: null,
+    personality_level: { level: 'L4', name: '自律型', confidence: 'medium', signals: [] },
+    leadership_stage: { stage: 3, name: '自律' },
+    three_elements: {
+      leadership: 60,
+      teamBuilding: 55,
+      management: 50,
+      development_phase: 'phase-2',
+    },
+    name: 'E2E User',
+  };
+}
+
 export function pendingAttempt(createdAtOffsetMs = 0) {
   const createdAt = Timestamp.fromMillis(Date.now() + createdAtOffsetMs);
   return {
@@ -139,6 +224,30 @@ export function pendingAttempt(createdAtOffsetMs = 0) {
     summary: { createdAt },
     full: null,
     raw: { input: {} },
+  };
+}
+
+function uaamAxisScore(subKeys) {
+  const subs = Object.fromEntries(subKeys.map((key) => [key, 15]));
+  return {
+    total: 60,
+    max: 80,
+    percentage: 75,
+    subs,
+    domainSubs: { ...subs },
+    domainTotal: 60,
+  };
+}
+
+function uaamAnswers() {
+  return Object.fromEntries(Array.from({ length: 64 }, (_, i) => [String(i + 1), 4]));
+}
+
+function uaamVAnswers() {
+  return {
+    V1: 3,
+    V2: 3,
+    V3: 3,
   };
 }
 

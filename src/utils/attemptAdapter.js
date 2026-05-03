@@ -1,5 +1,13 @@
 export { legacyDocToAttempt } from '../../shared/attemptLogic.js';
 
+function normalizeLeadershipStage(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  const match = String(value).match(/\d+/);
+  const stage = match ? Number(match[0]) : 1;
+  return { stage, name: String(value) };
+}
+
 export function attemptToResultProps(attempt, kind) {
   if (!attempt) return null;
 
@@ -21,6 +29,14 @@ export function attemptToResultProps(attempt, kind) {
       analysis: attempt.full?.analysis ?? null,
       answers: attempt.raw?.input?.answers ?? {},
       vAnswers: attempt.raw?.input?.vAnswers ?? {},
+      name: attempt.full?.name ?? null,
+      bias_message: attempt.full?.bias_message ?? null,
+      personality_level: attempt.full?.personality_level ?? null,
+      leadership_stage: normalizeLeadershipStage(attempt.full?.leadership_stage),
+      three_elements: attempt.full?.three_elements ?? null,
+      coach_confirmed_personality_level: attempt.full?.coach_confirmed_personality_level ?? null,
+      coach_confirmed_leadership_stage: normalizeLeadershipStage(attempt.full?.coach_confirmed_leadership_stage),
+      coach_observation_note: attempt.full?.coach_observation_note ?? null,
     },
   };
 }
