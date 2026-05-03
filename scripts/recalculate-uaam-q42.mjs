@@ -6,7 +6,9 @@ import { QUESTIONS, calculateScores } from '../shared/uaamQuestions.js';
 
 const COLLECTION = 'uaam_results';
 const RECOMPUTE_REASON = 'issue-9-q42-v1';
-const UID_BATCH_SIZE = 100;
+// Firestore batch limit is 500 writes. We chunk by accumulated op count rather
+// than uid count so a uid with many attempts cannot push the chunk past the limit.
+const BATCH_OP_THRESHOLD = 450;
 
 let cachedDb = null;
 
@@ -348,29 +350,59 @@ async function commitPlans(plans) {
   const activeDb = await getDb();
   const totals = { committed: 0, failed: 0, parentUpdated: 0 };
 
-  for (let i = 0; i < writablePlans.length; i += UID_BATCH_SIZE) {
-    const chunk = writablePlans.slice(i, i + UID_BATCH_SIZE);
+  // Chunk by accumulated write operations (not uid count) so we never exceed
+  // Firestore's 500-op batch limit when a uid contributes many attempts.
+  let chunkPlans = [];
+  let chunkOps = 0;
+  let chunkAttemptWrites = 0;
+  let chunkParentWrites = 0;
+
+  async function flushChunk() {
+    if (chunkPlans.length === 0) return;
     const batch = activeDb.batch();
-    let chunkAttemptWrites = 0;
-    let chunkParentWrites = 0;
-
-    for (const plan of chunk) {
-      const counts = queuePlan(batch, activeDb, plan.uid, plan);
-      chunkAttemptWrites += counts.attemptWrites;
-      chunkParentWrites += counts.parentWrites;
+    for (const plan of chunkPlans) {
+      queuePlan(batch, activeDb, plan.uid, plan);
     }
-
     try {
       await batch.commit();
       totals.committed += chunkAttemptWrites;
       totals.parentUpdated += chunkParentWrites;
     } catch (error) {
-      const firstUid = chunk[0]?.uid ?? '-';
-      const lastUid = chunk[chunk.length - 1]?.uid ?? '-';
+      const firstUid = chunkPlans[0]?.uid ?? '-';
+      const lastUid = chunkPlans[chunkPlans.length - 1]?.uid ?? '-';
       console.error(`[commit failed] uid range ${firstUid}..${lastUid}: ${error.message || error}`);
       totals.failed += chunkAttemptWrites;
     }
+    chunkPlans = [];
+    chunkOps = 0;
+    chunkAttemptWrites = 0;
+    chunkParentWrites = 0;
   }
+
+  for (const plan of writablePlans) {
+    const planCounts = countWritable(plan);
+    const planOps = planCounts.attemptWrites + planCounts.parentWrites;
+
+    // Defensive: a single uid that already exceeds the batch limit cannot fit
+    // anywhere; flush whatever we have and surface the failure for that uid.
+    if (planOps > BATCH_OP_THRESHOLD) {
+      await flushChunk();
+      console.error(`[commit failed] uid ${plan.uid}: ${planOps} ops exceeds batch threshold ${BATCH_OP_THRESHOLD}`);
+      totals.failed += planCounts.attemptWrites;
+      continue;
+    }
+
+    if (chunkOps + planOps > BATCH_OP_THRESHOLD) {
+      await flushChunk();
+    }
+
+    chunkPlans.push(plan);
+    chunkOps += planOps;
+    chunkAttemptWrites += planCounts.attemptWrites;
+    chunkParentWrites += planCounts.parentWrites;
+  }
+
+  await flushChunk();
 
   return totals;
 }
