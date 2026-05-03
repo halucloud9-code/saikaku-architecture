@@ -276,3 +276,41 @@ function saikakuResult() {
     reward: { economic: '講座化', social: '決断に立ち会う', intrinsic: '問いを見つける', model: '問いで支える' },
   };
 }
+
+// UAAM E2E helpers
+const QUESTIONS_PER_PAGE = 10;
+const UAAM_TOTAL_QUESTIONS = 67;
+export const UAAM_TOTAL_PAGES = Math.ceil(UAAM_TOTAL_QUESTIONS / QUESTIONS_PER_PAGE);
+
+export async function gotoUaamScreen(page) {
+  await page.goto('/uaam');
+  await expect(page.getByTestId('uaam-current-page')).toBeAttached({ timeout: 15000 });
+}
+
+export async function getCurrentUaamPage(page) {
+  const handle = page.getByTestId('uaam-current-page');
+  const value = await handle.getAttribute('data-current-page');
+  return Number(value);
+}
+
+export async function fillUaamLikertOnPage(page, pageIndex, value = 4) {
+  const start = pageIndex * QUESTIONS_PER_PAGE + 1;
+  const end = Math.min((pageIndex + 1) * QUESTIONS_PER_PAGE, UAAM_TOTAL_QUESTIONS);
+  for (let n = start; n <= end; n += 1) {
+    await page.getByTestId(`uaam-likert-${n}-${value}`).click();
+  }
+}
+
+// aria-disabled 要素は Playwright デフォルトで click が抑止されるため force:true 必須。
+// 仕様上 onClick は常に発火する（impl-1 のガードが redirect 役を担う）。
+export async function clickUaamPageDot(page, i) {
+  await page.getByTestId(`uaam-page-dot-${i}`).click({ force: true });
+}
+
+export async function clickUaamNext(page) {
+  await page.getByTestId('uaam-next-btn').click({ force: true });
+}
+
+export async function clickUaamJumpIncomplete(page) {
+  await page.getByTestId('uaam-jump-incomplete-btn').click();
+}

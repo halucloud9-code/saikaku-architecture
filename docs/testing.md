@@ -26,7 +26,7 @@
 npm run emu
 
 # rules テスト
-FIRESTORE_EMULATOR_HOST=localhost:8080 \
+FIRESTORE_EMULATOR_HOST=localhost:8090 \
 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 \
 FIREBASE_PROJECT_ID=demo-saikaku \
 GCLOUD_PROJECT=demo-saikaku \
@@ -34,7 +34,7 @@ NODE_ENV=test \
 npx vitest run tests/rules
 
 # API テスト
-FIRESTORE_EMULATOR_HOST=localhost:8080 \
+FIRESTORE_EMULATOR_HOST=localhost:8090 \
 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 \
 FIREBASE_PROJECT_ID=demo-saikaku \
 GCLOUD_PROJECT=demo-saikaku \
@@ -61,9 +61,9 @@ Reservation Tx 間で発生する race を再現するため、最初の reserve
 ## E2E orchestrator (`scripts/test-e2e-orchestrator.mjs`)
 
 `npm run test:e2e` が起動するスクリプト。順序:
-1. ポート 3001 / 5173 / 8080 / 9099 が空いているか確認 (使用中なら abort)
+1. ポート 3001 / 5173 / 8090 / 9099 が空いているか確認 (使用中なら abort)
 2. `firebase emulators:start --only auth,firestore --project demo-saikaku` を bg 起動
-3. `wait-on tcp:9099 tcp:8080` で ready 待ち
+3. `wait-on tcp:9099 tcp:8090` で ready 待ち
 4. `MOCK_ANTHROPIC=1 NODE_ENV=test TEST_BYPASS_AUTH=1 node server.js` を bg 起動
 5. `wait-on http://localhost:3001/api/health` で API ready 待ち
 6. `npm run dev -- --port 5173 --strictPort` (Vite) を bg 起動
@@ -92,7 +92,7 @@ if (
 ## トラブルシュート
 
 ### `port X is already in use`
-ローカルで他のプロセスが emulator/API/Vite ポートを使用中。`lsof -i :8080` で特定して停止するか、各テストスクリプトを emulator 起動済みの環境で個別に走らせる (上記の「手動実行」)。
+ローカルで他のプロセスが emulator/API/Vite ポートを使用中。`lsof -i :8090` で特定して停止するか、各テストスクリプトを emulator 起動済みの環境で個別に走らせる (上記の「手動実行」)。
 
 ### `Could not start Firestore Emulator, port taken`
 `npm run test:rules` / `test:api` 内の `firebase emulators:exec` が新規 emulator を起動しようとして失敗。既に emulator が起動済みなら、上記の手動実行コマンドで対応。

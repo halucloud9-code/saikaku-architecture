@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import net from 'node:net';
 import waitOn from 'wait-on';
 
-const ports = [3001, 5173, 8080, 9099];
+const ports = [3001, 5173, 8090, 9099];
 const children = [];
 let shuttingDown = false;
 
@@ -15,7 +15,7 @@ const sharedEnv = {
   VITE_FIREBASE_STORAGE_BUCKET: 'demo-saikaku.appspot.com',
   VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000',
   VITE_FIREBASE_APP_ID: '1:000000000000:web:test',
-  FIRESTORE_EMULATOR_HOST: 'localhost:8080',
+  FIRESTORE_EMULATOR_HOST: 'localhost:8090',
   FIREBASE_AUTH_EMULATOR_HOST: 'localhost:9099',
   FIREBASE_PROJECT_ID: 'demo-saikaku',
   GCLOUD_PROJECT: 'demo-saikaku',
@@ -106,7 +106,7 @@ async function main() {
 
   log('starting Firebase emulators');
   run('emulator', 'firebase', ['emulators:start', '--only', 'auth,firestore', '--project', 'demo-saikaku'], sharedEnv);
-  await wait(['tcp:9099', 'tcp:8080'], 60_000);
+  await wait(['tcp:9099', 'tcp:8090'], 60_000);
 
   log('starting API server');
   run('api', 'node', ['server.js'], sharedEnv);
