@@ -7,6 +7,8 @@ dist/
 tests/.env.test
 tests/.env.*
 *.log
+logs/audits/
+logs/migrations/
 .DS_Store
 
 # Firebase local
