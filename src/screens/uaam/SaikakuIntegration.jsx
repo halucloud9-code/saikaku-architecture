@@ -323,7 +323,7 @@ export default function SaikakuIntegration({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [draftAnswers, setDraftAnswers] = useState([]);
-  const [dirtyIndexes, setDirtyIndexes] = useState(() => new Set());
+  const [dirtyByQuestion, setDirtyByQuestion] = useState(() => new Set());
   const [saveError, setSaveError] = useState('');
   const coachingQuestions = useMemo(
     () => (Array.isArray(integration?.coaching_questions) ? integration.coaching_questions : []),
@@ -337,25 +337,28 @@ export default function SaikakuIntegration({
 
   useEffect(() => {
     setDraftAnswers((prev) => coachingQuestions.map((questionText, i) => {
-      if (dirtyIndexes.has(i)) return prev[i] || '';
       // normalize同士で照合 — server側 sha1(normalize(text)) と等価のqid マッチ。
       // 末尾`？`違い・全角半角空白・NFKC 互換差を吸収する（issue #62 設計の本質）。
       const normalizedCurrent = normalizeQuestionText(questionText);
       if (!normalizedCurrent) return '';
+      if (dirtyByQuestion.has(normalizedCurrent)) return prev[i] || '';
       const saved = answerEntries.find((entry) => {
         const normalizedSaved = normalizeQuestionText(entry?.questionText);
         return normalizedSaved !== null && normalizedSaved === normalizedCurrent;
       });
       return typeof saved?.answer === 'string' ? saved.answer : '';
     }));
-  }, [answerEntries, coachingQuestions, dirtyIndexes]);
+  }, [answerEntries, coachingQuestions, dirtyByQuestion]);
 
   const updateDraftAnswer = (index, value) => {
-    setDirtyIndexes((prev) => {
-      const next = new Set(prev);
-      next.add(index);
-      return next;
-    });
+    const normalizedKey = normalizeQuestionText(coachingQuestions[index]);
+    if (normalizedKey) {
+      setDirtyByQuestion((prev) => {
+        const next = new Set(prev);
+        next.add(normalizedKey);
+        return next;
+      });
+    }
     setDraftAnswers((prev) => {
       const next = [...prev];
       next[index] = value;
@@ -403,95 +406,120 @@ export default function SaikakuIntegration({
       <SourceHeader source={source} />
 
       {/* ── ヘッダータップでアコーディオン ── */}
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-        aria-controls="saikaku-integration-body"
+      <div
+        role="region"
+        aria-label="才覚発動統合分析ヘッダー"
         style={{
-          width: '100%',
-          textAlign: 'left',
           background: `linear-gradient(135deg, #0D2137 0%, #1A3A52 100%)`,
           padding: '18px 20px 16px',
-          border: 'none',
-          cursor: 'pointer', userSelect: 'none',
           borderTop: `3px solid ${P.gold}`,
-          font: 'inherit',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
         }}
       >
-        {/* タイトル行 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 9, letterSpacing: '0.2em', color: P.gold, fontWeight: 700,
-              fontFamily: "'Outfit', sans-serif", marginBottom: 4 }}>
-              才覚 × UAAM INTEGRATION
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          aria-controls="saikaku-integration-body"
+          style={{
+            flex: '1 1 280px',
+            minWidth: 0,
+            width: '100%',
+            textAlign: 'left',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            userSelect: 'none',
+            padding: 0,
+            font: 'inherit',
+            color: 'inherit',
+          }}
+        >
+          {/* タイトル行 */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.2em', color: P.gold, fontWeight: 700,
+                fontFamily: "'Outfit', sans-serif", marginBottom: 4 }}>
+                才覚 × UAAM INTEGRATION
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF',
+                fontFamily: "'Noto Serif JP', serif" }}>
+                才覚発動統合分析
+              </div>
             </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF',
-              fontFamily: "'Noto Serif JP', serif" }}>
-              才覚発動統合分析
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <StatusBadge status={status} />
-            {!readOnly && (
-              <RegenerateButton
-                regenerationCount={regenerationCount}
-                onRegenerate={onRegenerate}
-              />
-            )}
-            <ScoreRing score={integration_score} />
             <div style={{
+              flex: '0 0 auto',
+              marginTop: 4,
               fontSize: 16, color: 'rgba(255,255,255,0.5)',
               transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
               transition: 'transform 0.25s ease',
             }}>▼</div>
-            {typeof onClose === 'function' && (
-              <button
-                type="button"
-                aria-label="閉じる"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onClose();
-                }}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 999,
-                  border: '1px solid rgba(255,255,255,0.14)',
-                  background: 'rgba(255,255,255,0.06)',
-                  color: 'rgba(255,255,255,0.72)',
-                  cursor: 'pointer',
-                  fontSize: 16,
-                  lineHeight: 1,
-                }}
-              >
-                ×
-              </button>
-            )}
           </div>
-        </div>
 
-        {/* 才覚発動コア */}
+          {/* 才覚発動コア */}
+          <div style={{
+            marginTop: 12, padding: '10px 14px',
+            background: 'rgba(255,255,255,0.07)', borderRadius: 8,
+            borderLeft: `3px solid ${P.gold}`,
+          }}>
+            <div style={{ fontSize: 9, color: P.goldDim, fontWeight: 700, letterSpacing: '0.15em',
+              fontFamily: "'Outfit', sans-serif", marginBottom: 3 }}>ACTIVATION CORE</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.04em',
+              fontFamily: "'Noto Serif JP', serif" }}>{toJP(activation_core)}</div>
+          </div>
+
+          {/* 発動方程式 */}
+          {activation_equation && (
+            <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.7)',
+              lineHeight: 1.65, fontFamily: "'Noto Serif JP', serif",
+              fontStyle: 'italic' }}>
+              「{toJP(activation_equation)}」
+            </div>
+          )}
+        </button>
+
         <div style={{
-          marginTop: 12, padding: '10px 14px',
-          background: 'rgba(255,255,255,0.07)', borderRadius: 8,
-          borderLeft: `3px solid ${P.gold}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flex: '0 1 auto',
+          flexWrap: 'wrap',
+          justifyContent: 'flex-end',
         }}>
-          <div style={{ fontSize: 9, color: P.goldDim, fontWeight: 700, letterSpacing: '0.15em',
-            fontFamily: "'Outfit', sans-serif", marginBottom: 3 }}>ACTIVATION CORE</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.04em',
-            fontFamily: "'Noto Serif JP', serif" }}>{toJP(activation_core)}</div>
+          <StatusBadge status={status} />
+          {!readOnly && (
+            <RegenerateButton
+              regenerationCount={regenerationCount}
+              onRegenerate={onRegenerate}
+            />
+          )}
+          <ScoreRing score={integration_score} />
+          {typeof onClose === 'function' && (
+            <button
+              type="button"
+              aria-label="閉じる"
+              onClick={onClose}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 999,
+                border: '1px solid rgba(255,255,255,0.14)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'rgba(255,255,255,0.72)',
+                cursor: 'pointer',
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
-
-        {/* 発動方程式 */}
-        {activation_equation && (
-          <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.7)',
-            lineHeight: 1.65, fontFamily: "'Noto Serif JP', serif",
-            fontStyle: 'italic' }}>
-            「{toJP(activation_equation)}」
-          </div>
-        )}
-      </button>
+      </div>
 
       {/* ── アコーディオン本体 ── */}
       {open && (
