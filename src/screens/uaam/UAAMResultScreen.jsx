@@ -103,6 +103,88 @@ let DISPLAY_CROSS = MAX_CROSS / 2;
 const displayDomain = (raw) => Math.round(raw / 2);
 const AXIS_COLORS = { mindset: '#2C5F8A', literacy: '#1E7A4A', competency: '#A07A18', impact: '#8B3A28' };
 
+function isLegacyIntegrationSummary(summary) {
+  return summary?.saikakuAttemptId === 'legacy-fallback'
+    || summary?.uaamAttemptId === 'legacy-fallback';
+}
+
+function integrationSourceFromSummary(summary, analysis) {
+  if (!summary) return null;
+
+  const source = summary.source ?? {};
+  return {
+    saikakuLabel:
+      source.saikakuLabel
+      ?? summary.saikakuLabel
+      ?? summary.saikakuAttemptLabel
+      ?? summary.saikakuAttemptId
+      ?? '',
+    uaamLabel:
+      source.uaamLabel
+      ?? summary.uaamLabel
+      ?? summary.uaamAttemptLabel
+      ?? analysis?.type_name
+      ?? summary.uaamAttemptId
+      ?? '',
+    saikakuDate:
+      source.saikakuDate
+      ?? source.saikakuCreatedAt
+      ?? summary.saikakuDate
+      ?? summary.saikakuCreatedAt
+      ?? null,
+    uaamDate:
+      source.uaamDate
+      ?? source.uaamCreatedAt
+      ?? summary.uaamDate
+      ?? summary.uaamCreatedAt
+      ?? summary.generatedAt
+      ?? null,
+  };
+}
+
+function IntegrationNotice({ tone = 'stale', children, onRegenerate, disabled, loading }) {
+  const isLegacy = tone === 'legacy';
+  const buttonDisabled = disabled || loading;
+  return (
+    <div style={{
+      marginBottom: 12,
+      background: isLegacy ? '#FFF7E8' : '#FFF8E1',
+      border: `1px solid ${isLegacy ? 'rgba(181,98,46,0.28)' : 'rgba(184,150,12,0.30)'}`,
+      borderLeft: `4px solid ${isLegacy ? '#B5622E' : '#B8960C'}`,
+      borderRadius: 12,
+      padding: '13px 15px',
+      color: isLegacy ? '#6F3D13' : '#6D5600',
+      fontSize: 13,
+      fontWeight: 700,
+      lineHeight: 1.8,
+      fontFamily: "'Noto Serif JP', serif",
+    }}>
+      <div>{children}</div>
+      {typeof onRegenerate === 'function' && (
+        <button
+          type="button"
+          onClick={onRegenerate}
+          disabled={buttonDisabled}
+          style={{
+            marginTop: 8,
+            border: 'none',
+            background: 'transparent',
+            color: isLegacy ? '#B5622E' : '#8A6C00',
+            padding: 0,
+            fontSize: 12,
+            fontWeight: 800,
+            textDecoration: 'underline',
+            cursor: buttonDisabled ? 'not-allowed' : 'pointer',
+            opacity: buttonDisabled ? 0.55 : 1,
+          }}
+        >
+          {loading ? '再生成中...' : '最新の組み合わせで再生成する'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ============================================================
  * タイプ判定
  * ============================================================ */
@@ -1804,6 +1886,7 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   const [scores, setScores] = useState(() => normalizedResultScores);
   // 統合分析は state で管理（バックフィル後に更新できるように）
   const [analysis, setAnalysis] = useState(() => effectiveResult?.analysis ?? null);
+  const [integrationSummary, setIntegrationSummary] = useState(() => effectiveResult?.integrationSummary ?? null);
   const [integrating, setIntegrating] = useState(false);
   const [integrateError, setIntegrateError] = useState('');
   const [coachingAnswersMap, setCoachingAnswersMap] = useState({});
@@ -1818,6 +1901,10 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
     setAnalysis(effectiveResult?.analysis ?? null);
     setIntegrateError('');
   }, [effectiveResult?.analysis]);
+
+  useEffect(() => {
+    setIntegrationSummary(effectiveResult?.integrationSummary ?? null);
+  }, [effectiveResult?.integrationSummary]);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -1858,21 +1945,50 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
     );
   }
 
-  const runIntegration = async () => {
+  const runIntegration = async ({ saikakuAttemptId, uaamAttemptId } = {}) => {
     setIntegrating(true);
     setIntegrateError('');
     try {
       const { getAuth } = await import('firebase/auth');
       const idToken = await getAuth().currentUser?.getIdToken();
       if (!idToken) throw new Error('ログインが必要です');
+      const requestBody = { idToken };
+      if (saikakuAttemptId && saikakuAttemptId !== 'legacy-fallback') {
+        requestBody.saikakuAttemptId = saikakuAttemptId;
+      }
+      if (uaamAttemptId && uaamAttemptId !== 'legacy-fallback') {
+        requestBody.uaamAttemptId = uaamAttemptId;
+      }
       const res = await fetch('/api/integrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify(requestBody),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '統合分析に失敗しました');
       setAnalysis(prev => ({ ...prev, saikaku_integration: data.integration }));
+      setIntegrationSummary(prev => {
+        const newSaikakuId = data.saikakuAttemptId ?? saikakuAttemptId ?? prev?.saikakuAttemptId ?? null;
+        const newUaamId = data.uaamAttemptId ?? uaamAttemptId ?? prev?.uaamAttemptId ?? null;
+        // 同じ pair で再生成した場合、最新 attemptId との乖離は解消されない。
+        // status の最終判定は read API (`/api/me/*` の stale 計算) に委ね、
+        // クライアント側は pair が変わらない限り直前の status を維持する。
+        const samePair = prev
+          && prev.saikakuAttemptId === newSaikakuId
+          && prev.uaamAttemptId === newUaamId;
+        const nextStatus = samePair && prev?.status === 'stale' ? 'stale' : 'active';
+        return {
+          exists: true,
+          generatedAt: data.generatedAt ?? new Date().toISOString(),
+          integrationScore: data.integration?.integration_score ?? prev?.integrationScore ?? null,
+          activationCore: data.integration?.activation_core ?? prev?.activationCore ?? null,
+          saikakuAttemptId: newSaikakuId,
+          uaamAttemptId: newUaamId,
+          status: nextStatus,
+          regenerationCount: data.regenerationCount ?? prev?.regenerationCount ?? 0,
+          source: data.source ?? prev?.source,
+        };
+      });
     } catch (e) {
       setIntegrateError(e.message);
     } finally {
@@ -1947,6 +2063,23 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
     const subs = scores?.[axis.key]?.subs || {};
     const order = SUB_ORDER[axis.key];
     return { axis, data: order.map(k => subs[k] || 0), labels: order.map(k => SUB_LABELS[k]), order };
+  });
+  const integrationSource = integrationSourceFromSummary(integrationSummary, analysis);
+  const integrationIsStale = integrationSummary?.status === 'stale';
+  const integrationIsLegacy = isLegacyIntegrationSummary(integrationSummary);
+  const canRegenerateSamePair = !!(
+    integrationSummary?.saikakuAttemptId
+    && integrationSummary?.uaamAttemptId
+    && !integrationIsLegacy
+  );
+  const runSamePairRegeneration = canRegenerateSamePair
+    ? () => runIntegration({
+        saikakuAttemptId: integrationSummary.saikakuAttemptId,
+        uaamAttemptId: integrationSummary.uaamAttemptId,
+      })
+    : undefined;
+  const runLatestPairRegeneration = () => runIntegration({
+    uaamAttemptId: integrationIsLegacy ? undefined : integrationSummary?.uaamAttemptId,
   });
 
   return (
@@ -2091,16 +2224,46 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
             {/* 才覚×UAAM 統合発動分析 */}
             {/* integration_score があれば新形式（McKinsey級）、なければ旧形式 or 未生成 */}
             {analysis.saikaku_integration?.integration_score !== undefined ? (
-              <div style={{ marginBottom: 20, borderRadius: 16, overflow: 'hidden',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.10)', border: `1px solid #E8E0D4` }}>
-                <SaikakuIntegration
-                  integration={analysis.saikaku_integration}
-                  answersMap={coachingAnswersMap}
-                  onSave={handleCoachingSave}
-                  saving={coachingSaving}
-                  lastSavedAt={coachingLastSavedAt}
-                />
-              </div>
+              <>
+                {integrationIsStale && (
+                  <IntegrationNotice
+                    onRegenerate={runLatestPairRegeneration}
+                    disabled={integrating}
+                    loading={integrating}
+                  >
+                    このUAAM結果は最新の才覚領域診断と異なる組み合わせで生成されました。最新の才覚で再生成してください
+                  </IntegrationNotice>
+                )}
+                {integrationIsLegacy && (
+                  <IntegrationNotice
+                    tone="legacy"
+                    onRegenerate={runLatestPairRegeneration}
+                    disabled={integrating}
+                    loading={integrating}
+                  >
+                    この統合分析は移行前のデータです。最新の組み合わせで再生成してください
+                  </IntegrationNotice>
+                )}
+                <div style={{ marginBottom: 20, borderRadius: 16, overflow: 'hidden',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.10)', border: `1px solid #E8E0D4` }}>
+                  <SaikakuIntegration
+                    integration={analysis.saikaku_integration}
+                    source={integrationSource}
+                    regenerationCount={integrationSummary?.regenerationCount ?? 0}
+                    onRegenerate={runSamePairRegeneration}
+                    status={integrationSummary?.status}
+                    answersMap={coachingAnswersMap}
+                    onSave={handleCoachingSave}
+                    saving={coachingSaving}
+                    lastSavedAt={coachingLastSavedAt}
+                  />
+                </div>
+                {integrateError && (
+                  <p style={{ fontSize: 12, color: '#922B21', margin: '-10px 0 18px', textAlign: 'center' }}>
+                    {integrateError}
+                  </p>
+                )}
+              </>
             ) : (
               <Section>
                 <SectionHeader title="才覚発動統合分析" subtitle="才覚領域 × UAAM Integration" />
@@ -2108,7 +2271,7 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
                   才覚領域データとUAAMスコアを統合した「才覚発動統合分析」を生成できます。
                 </p>
                 <button
-                  onClick={runIntegration}
+                  onClick={() => runIntegration()}
                   disabled={integrating}
                   style={{
                     width: '100%', padding: '14px 0',

@@ -1,14 +1,7 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { getAuth } from 'firebase-admin/auth';
+import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './lib/firebaseAdmin.js';
-import { createMessage } from './lib/anthropicClient.js';
-import {
-  ConflictError,
-  LimitExceededError,
-  commitAttempt,
-  reserveAttempt,
-  rollbackAttempt,
-} from './lib/attempts.js';
-import { QUESTIONS, calculateScores } from '../shared/uaamQuestions.js';
 
 /**
  * 自己評価バイアスメッセージ生成（旗カウント・45-95%版）
@@ -117,10 +110,11 @@ function calculateBiasMessage(vAnswers, totalPct) {
  * src/data/uaam_questions.js の同関数群と同一ロジック（API自己完結のためインライン）
  * ============================================================ */
 
+// 段階5以上は『16以上が基本』（minAxis 80%付近 = 16/20以上）に厳格化（2026-05）
 function determinePersonalityLevel(totalPct, minAxisPct) {
-  if (totalPct >= 95 && minAxisPct >= 75) return { level: 'L7', name: '天地型', confidence: 'high' };
-  if (totalPct >= 88 && minAxisPct >= 70) return { level: 'L6', name: '共鳴型', confidence: 'medium' };
-  if (totalPct >= 78) return { level: 'L5', name: '統合型', confidence: 'medium' };
+  if (totalPct >= 95 && minAxisPct >= 85) return { level: 'L7', name: '天地型', confidence: 'high' };
+  if (totalPct >= 90 && minAxisPct >= 80) return { level: 'L6', name: '共鳴型', confidence: 'medium' };
+  if (totalPct >= 80 && minAxisPct >= 78) return { level: 'L5', name: '統合型', confidence: 'medium' };
   if (totalPct >= 65) return { level: 'L4', name: '自律型', confidence: 'medium' };
   if (totalPct >= 55) return { level: 'L3', name: '適応型', confidence: 'medium' };
   if (totalPct >= 40) return { level: 'L2', name: '取引型', confidence: 'medium' };
@@ -128,9 +122,9 @@ function determinePersonalityLevel(totalPct, minAxisPct) {
 }
 
 function determineLeadershipStage(totalPct, minAxisPct) {
-  if (totalPct >= 95 && minAxisPct >= 75) return { stage: 7, name: '天導' };
-  if (totalPct >= 88 && minAxisPct >= 70) return { stage: 6, name: '総導' };
-  if (totalPct >= 78) return { stage: 5, name: '他導' };
+  if (totalPct >= 95 && minAxisPct >= 85) return { stage: 7, name: '天導' };
+  if (totalPct >= 90 && minAxisPct >= 80) return { stage: 6, name: '総導' };
+  if (totalPct >= 80 && minAxisPct >= 78) return { stage: 5, name: '他導' };
   if (totalPct >= 68) return { stage: 4, name: '自導' };
   if (totalPct >= 58) return { stage: 3, name: '自律' };
   if (totalPct >= 48) return { stage: 2, name: '自立' };
@@ -223,6 +217,51 @@ function determinePrescriptionMode(threeScores, leadershipStage) {
   return 'focus';
 }
 
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+/**
+ * スコア計算（サーバーサイド）
+ * クライアントと同じスケール: 1〜5点、逆転項目は 6 - raw
+ * サブカテゴリ最大15、軸最大60
+ */
+function calculateScores(answers, questions) {
+  const axes = {
+    mindset:    { subs: ['meaning', 'mindfulness', 'mindshift', 'mastery'] },
+    literacy:   { subs: ['learning', 'logical', 'life', 'leadership'] },
+    competency: { subs: ['critical', 'creativity', 'communication', 'collaboration'] },
+    impact:     { subs: ['idea', 'innovation', 'implementation', 'influence'] },
+  };
+
+  const result = {};
+
+  for (const [axisKey, axisDef] of Object.entries(axes)) {
+    const axisQuestions = questions.filter((q) => q.axis === axisKey);
+    const subs = {};
+
+    for (const sub of axisDef.subs) {
+      const subQuestions = axisQuestions.filter((q) => q.sub === sub);
+      let subTotal = 0;
+      for (const q of subQuestions) {
+        const raw = answers[String(q.id)] || 3;
+        // 通常: そのまま1〜5、逆転: 6 - raw（5→1, 4→2, 3→3, 2→4, 1→5）
+        subTotal += q.reverse ? 6 - raw : raw;
+      }
+      subs[sub] = subTotal; // 最大20（4問 × 5点）
+    }
+
+    const total = Object.values(subs).reduce((a, b) => a + b, 0);
+    const maxScore = 80; // 4サブ × 4問 × 5点
+    result[axisKey] = {
+      total,
+      max: maxScore,
+      percentage: Math.round((total / maxScore) * 100),
+      subs,
+    };
+  }
+
+  return result;
+}
+
 const UAAM_SYSTEM_PROMPT = `あなたはUAAM（Universal Ability Assessment Model）の分析AIです。
 4軸（志・知・技・衝）の診断スコアから、その人の能力特性を多面的に分析します。
 
@@ -289,35 +328,90 @@ const UAAM_SYSTEM_PROMPT = `あなたはUAAM（Universal Ability Assessment Mode
   }
 }`;
 
+// 64問の質問定義（サーバーサイド用）— 各サブカテゴリ4問（Q1通常, Q2逆転, Q3通常, Q4通常）
+const QUESTIONS = [
+  // 志 -MindSet- (4M)
+  { id: 1,  axis: 'mindset', sub: 'meaning',     reverse: false },
+  { id: 2,  axis: 'mindset', sub: 'meaning',     reverse: true },
+  { id: 3,  axis: 'mindset', sub: 'meaning',     reverse: false },
+  { id: 4,  axis: 'mindset', sub: 'meaning',     reverse: false },
+  { id: 5,  axis: 'mindset', sub: 'mindfulness',  reverse: false },
+  { id: 6,  axis: 'mindset', sub: 'mindfulness',  reverse: true },
+  { id: 7,  axis: 'mindset', sub: 'mindfulness',  reverse: false },
+  { id: 8,  axis: 'mindset', sub: 'mindfulness',  reverse: false },
+  { id: 9,  axis: 'mindset', sub: 'mindshift',    reverse: false },
+  { id: 10, axis: 'mindset', sub: 'mindshift',    reverse: true },
+  { id: 11, axis: 'mindset', sub: 'mindshift',    reverse: false },
+  { id: 12, axis: 'mindset', sub: 'mindshift',    reverse: false },
+  { id: 13, axis: 'mindset', sub: 'mastery',      reverse: false },
+  { id: 14, axis: 'mindset', sub: 'mastery',      reverse: true },
+  { id: 15, axis: 'mindset', sub: 'mastery',      reverse: false },
+  { id: 16, axis: 'mindset', sub: 'mastery',      reverse: false },
+  // 知 -Literacy- (4L)
+  { id: 17, axis: 'literacy', sub: 'learning',    reverse: false },
+  { id: 18, axis: 'literacy', sub: 'learning',    reverse: true },
+  { id: 19, axis: 'literacy', sub: 'learning',    reverse: false },
+  { id: 20, axis: 'literacy', sub: 'learning',    reverse: false },
+  { id: 21, axis: 'literacy', sub: 'logical',     reverse: false },
+  { id: 22, axis: 'literacy', sub: 'logical',     reverse: true },
+  { id: 23, axis: 'literacy', sub: 'logical',     reverse: false },
+  { id: 24, axis: 'literacy', sub: 'logical',     reverse: false },
+  { id: 25, axis: 'literacy', sub: 'life',        reverse: false },
+  { id: 26, axis: 'literacy', sub: 'life',        reverse: true },
+  { id: 27, axis: 'literacy', sub: 'life',        reverse: false },
+  { id: 28, axis: 'literacy', sub: 'life',        reverse: false },
+  { id: 29, axis: 'literacy', sub: 'leadership',  reverse: false },
+  { id: 30, axis: 'literacy', sub: 'leadership',  reverse: true },
+  { id: 31, axis: 'literacy', sub: 'leadership',  reverse: false },
+  { id: 32, axis: 'literacy', sub: 'leadership',  reverse: false },
+  // 技 -Competency- (4C)
+  { id: 33, axis: 'competency', sub: 'critical',      reverse: false },
+  { id: 34, axis: 'competency', sub: 'critical',      reverse: true },
+  { id: 35, axis: 'competency', sub: 'critical',      reverse: false },
+  { id: 36, axis: 'competency', sub: 'critical',      reverse: false },
+  { id: 37, axis: 'competency', sub: 'creativity',    reverse: false },
+  { id: 38, axis: 'competency', sub: 'creativity',    reverse: true },
+  { id: 39, axis: 'competency', sub: 'creativity',    reverse: false },
+  { id: 40, axis: 'competency', sub: 'creativity',    reverse: false },
+  { id: 41, axis: 'competency', sub: 'communication', reverse: false },
+  { id: 42, axis: 'competency', sub: 'communication', reverse: false },
+  { id: 43, axis: 'competency', sub: 'communication', reverse: false },
+  { id: 44, axis: 'competency', sub: 'communication', reverse: false },
+  { id: 45, axis: 'competency', sub: 'collaboration', reverse: false },
+  { id: 46, axis: 'competency', sub: 'collaboration', reverse: true },
+  { id: 47, axis: 'competency', sub: 'collaboration', reverse: false },
+  { id: 48, axis: 'competency', sub: 'collaboration', reverse: false },
+  // 衝 -Impact- (4I)
+  { id: 49, axis: 'impact', sub: 'idea',           reverse: false },
+  { id: 50, axis: 'impact', sub: 'idea',           reverse: true },
+  { id: 51, axis: 'impact', sub: 'idea',           reverse: false },
+  { id: 52, axis: 'impact', sub: 'idea',           reverse: false },
+  { id: 53, axis: 'impact', sub: 'innovation',     reverse: false },
+  { id: 54, axis: 'impact', sub: 'innovation',     reverse: true },
+  { id: 55, axis: 'impact', sub: 'innovation',     reverse: false },
+  { id: 56, axis: 'impact', sub: 'innovation',     reverse: false },
+  { id: 57, axis: 'impact', sub: 'implementation', reverse: false },
+  { id: 58, axis: 'impact', sub: 'implementation', reverse: true },
+  { id: 59, axis: 'impact', sub: 'implementation', reverse: false },
+  { id: 60, axis: 'impact', sub: 'implementation', reverse: false },
+  { id: 61, axis: 'impact', sub: 'influence',      reverse: false },
+  { id: 62, axis: 'impact', sub: 'influence',      reverse: true },
+  { id: 63, axis: 'impact', sub: 'influence',      reverse: false },
+  { id: 64, axis: 'impact', sub: 'influence',      reverse: false },
+];
+
 export default async function handler(req, res) {
   console.log('[UAAM] handler called, method:', req.method);
   console.log('[UAAM] ANTHROPIC_API_KEY set:', !!process.env.ANTHROPIC_API_KEY);
   console.log('[UAAM] FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID);
   if (req.method !== 'POST') return res.status(405).end();
 
-  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
-    return res.status(400).json({ error: 'リクエストボディが不正です' });
-  }
-
   const { idToken, answers, vAnswers } = req.body;
 
   // 認証
   let decoded;
   try {
-    if (
-      process.env.TEST_BYPASS_AUTH === '1'
-      && process.env.NODE_ENV === 'test'
-      && !!process.env.FIRESTORE_EMULATOR_HOST
-    ) {
-      decoded = {
-        uid: req.headers['x-test-uid'] || 'test-user',
-        email: 'test@example.com',
-        name: 'Test',
-        picture: '',
-      };
-    } else {
-      decoded = await getAuth().verifyIdToken(idToken);
-    }
+    decoded = await getAuth().verifyIdToken(idToken);
   } catch {
     return res.status(401).json({ error: '認証に失敗しました。再度ログインしてください。' });
   }
@@ -335,40 +429,9 @@ export default async function handler(req, res) {
 
   // スコアの値が1〜5の範囲か確認
   for (const [key, val] of Object.entries(answers)) {
-    if (typeof val !== 'number' || !Number.isInteger(val) || val < 1 || val > 5) {
+    const n = Number(val);
+    if (!Number.isInteger(n) || n < 1 || n > 5) {
       return res.status(400).json({ error: `質問${key}の回答が不正です（1〜5の整数）` });
-    }
-  }
-
-  const expectedAnswerIds = new Set(QUESTIONS.map((q) => String(q.id)));
-  const hasAllExpectedAnswers = QUESTIONS.every((q) =>
-    Object.prototype.hasOwnProperty.call(answers, String(q.id))
-  );
-  if (!hasAllExpectedAnswers) {
-    return res.status(400).json({ error: '回答データが不完全です（未回答の質問があります）' });
-  }
-
-  const unknownAnswerIds = Object.keys(answers).filter((id) => !expectedAnswerIds.has(id));
-  if (unknownAnswerIds.length > 0) {
-    console.warn(`[UAAM] unknown answer ids ignored: ${unknownAnswerIds.join(',')}`);
-  }
-
-  const expectedVAnswerIds = ['V1', 'V2', 'V3'];
-  if (!vAnswers || typeof vAnswers !== 'object' || Array.isArray(vAnswers)) {
-    return res.status(400).json({ error: '妥当性チェックの回答が不完全です' });
-  }
-
-  const vAnswerKeys = Object.keys(vAnswers);
-  const hasExactVAnswers = expectedVAnswerIds.every((id) =>
-    Object.prototype.hasOwnProperty.call(vAnswers, id)
-  ) && vAnswerKeys.every((id) => expectedVAnswerIds.includes(id));
-  if (!hasExactVAnswers) {
-    return res.status(400).json({ error: '妥当性チェックの回答が不完全です' });
-  }
-
-  for (const [key, val] of Object.entries(vAnswers)) {
-    if (typeof val !== 'number' || !Number.isInteger(val) || val < 1 || val > 5) {
-      return res.status(400).json({ error: `妥当性チェック${key}の回答が不正です（1〜5の整数）` });
     }
   }
 
@@ -457,109 +520,64 @@ ${Object.entries(scores.competency.subs).map(([k, v]) => `  ${k}: ${v}/20`).join
 サブ項目:
 ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n')}`;
 
-  let attemptId;
-  try {
-    ({ attemptId } = await reserveAttempt({
-      collection: 'uaam_results',
-      uid: decoded.uid,
-      kind: 'uaam',
-    }));
-  } catch (e) {
-    if (e instanceof LimitExceededError) {
-      return res.status(429).json({ error: e.message, code: 'LIMIT_EXCEEDED' });
-    }
-    if (e instanceof ConflictError) {
-      return res.status(409).json({ error: e.message, code: 'PENDING_CONFLICT' });
-    }
-    throw e;
-  }
-
   let analysis = null;
-  try {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const message = await createMessage({
-          fixtureKey: 'uaam',
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 4096,
-          system: UAAM_SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: userMsg }],
-        });
-        const text = message.content[0].text;
-        const match =
-          text.match(/```json\n?([\s\S]*?)\n?```/) ||
-          text.match(/```\n?([\s\S]*?)\n?```/) ||
-          text.match(/(\{[\s\S]*\})/);
-        const jsonStr = match ? match[1] || match[0] : text;
-        const parsed = JSON.parse(jsonStr.trim());
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const message = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: UAAM_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: userMsg }],
+      });
+      const text = message.content[0].text;
+      const match =
+        text.match(/```json\n?([\s\S]*?)\n?```/) ||
+        text.match(/```\n?([\s\S]*?)\n?```/) ||
+        text.match(/(\{[\s\S]*\})/);
+      const jsonStr = match ? match[1] || match[0] : text;
+      const parsed = JSON.parse(jsonStr.trim());
 
-        if (!parsed.type_name || !parsed.narrative) {
-          throw new Error('APIレスポンスが不完全です');
-        }
-
-        analysis = parsed;
-        break;
-      } catch (e) {
-        console.error(`[UAAM] attempt ${attempt + 1} failed:`, e.message || e);
-        if (e.status) console.error(`[UAAM] API status: ${e.status}`);
-        if (attempt === 2) throw e;
-        await new Promise((r) => setTimeout(r, 1000));
+      if (!parsed.type_name || !parsed.narrative) {
+        throw new Error('APIレスポンスが不完全です');
       }
+
+      analysis = parsed;
+      break;
+    } catch (e) {
+      console.error(`[UAAM] attempt ${attempt + 1} failed:`, e.message || e);
+      if (e.status) console.error(`[UAAM] API status: ${e.status}`);
+      if (attempt === 2)
+        return res.status(500).json({ error: `分析に失敗しました: ${e.message}` });
+      await new Promise((r) => setTimeout(r, 1000));
     }
-  } catch (e) {
-    try {
-      await rollbackAttempt({ collection: 'uaam_results', uid: decoded.uid, attemptId });
-    } catch (rollbackError) {
-      console.error('[UAAM] rollback failed:', rollbackError.message || rollbackError);
-    }
-    return res.status(500).json({ error: `分析に失敗しました: ${e.message}` });
   }
 
-  try {
-    await commitAttempt({
-      collection: 'uaam_results',
+  // Firestore保存
+  const docRef = db.collection('uaam_results').doc(decoded.uid);
+  const existingDoc = await docRef.get();
+  const existing = existingDoc.data() || {};
+
+  await docRef.set(
+    {
       uid: decoded.uid,
-      attemptId,
-      summary: { typeName: analysis.type_name, createdAt: null },
-      full: {
-        result: null,
-        analysis,
-        scores,
-        bias_message: biasMessage,
-        personality_level: personalityLevel,
-        leadership_stage: leadershipStage,
-        three_elements: threeElements,
-        name: decoded.name || '',
-      },
-      raw: { input: { answers, vAnswers: vAnswers || {} } },
-      parentMerge: {
-        uid: decoded.uid,
-        name: decoded.name || '',
-        email: decoded.email || '',
-        photoURL: decoded.picture || '',
-        answers,
-        vAnswers: vAnswers || {},
-        scores,
-        analysis,
-        bias_message: biasMessage,           // 新：3段階バイアス表記（null=健全）
-        personality_level: personalityLevel, // Phase 2：自動推定L1〜L7（confidence/signals 付き）
-        leadership_stage: leadershipStage,   // Phase 2：自動推定 第1〜第7
-        three_elements: threeElements,       // Phase 3：3要素診断＋処方モード
-        // coach_confirmed_personality_level / coach_confirmed_leadership_stage / coach_observation_note は
-        // AdminScreen でハル本人が編集する領域（自動上書き禁止）
-      },
-    });
-  } catch (e) {
-    try {
-      await rollbackAttempt({ collection: 'uaam_results', uid: decoded.uid, attemptId });
-    } catch (rollbackError) {
-      console.error('[UAAM] rollback failed:', rollbackError.message || rollbackError);
-    }
-    if (e instanceof ConflictError) {
-      return res.status(409).json({ error: e.message, code: 'PENDING_CONFLICT' });
-    }
-    throw e;
-  }
+      name: decoded.name || '',
+      email: decoded.email || '',
+      photoURL: decoded.picture || '',
+      answers,
+      vAnswers: vAnswers || {},
+      scores,
+      analysis,
+      bias_message: biasMessage,           // 新：3段階バイアス表記（null=健全）
+      personality_level: personalityLevel, // Phase 2：自動推定L1〜L7（confidence/signals 付き）
+      leadership_stage: leadershipStage,   // Phase 2：自動推定 第1〜第7
+      three_elements: threeElements,       // Phase 3：3要素診断＋処方モード
+      // coach_confirmed_personality_level / coach_confirmed_leadership_stage / coach_observation_note は
+      // AdminScreen でハル本人が編集する領域（自動上書き禁止）
+      updatedAt: FieldValue.serverTimestamp(),
+      ...(!existing.createdAt ? { createdAt: FieldValue.serverTimestamp() } : {}),
+    },
+    { merge: true }
+  );
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   return res.status(200).json({

@@ -19,7 +19,9 @@
         ▼
   Firestore: uaam_results/{uid}
    ├─ scores:   { mindset, literacy, competency, impact }
-   └─ analysis: { type_name, narrative, saikaku_integration, ... }
+   ├─ analysis: { type_name, narrative, saikaku_integration, ... }
+   ├─ integrations/{pairKey}  — Saikaku × UAAM のペア単位の統合分析。pairKey = `${saikakuAttemptId}__${uaamAttemptId}`。dotted-key set+merge 禁止
+   └─ _locks/integration-{pairKey}  — 統合分析の生成中ロック。TTL 10min、ownerId fencing で stale takeover に耐性
         │
         ▼
   App.jsx  ←  loadSavedUaamResult() で読み込み
@@ -55,8 +57,11 @@
 | ファイル | エンドポイント | 責務 |
 |---|---|---|
 | `api/uaam.js` | POST /api/uaam | 67問診断→スコア計算→AI分析→Firestore保存 |
-| `api/integrate.js` | POST /api/integrate | 才覚×UAAM統合分析生成→Firestore保存 |
+| `api/integrate.js` | POST /api/integrate | Saikaku × UAAM 統合分析を生成。ロック取得 → LLM 呼び出し（9.5min timeout）→ commitIntegration（ownerId 検証付き transaction） |
 | `api/analyze.js` | POST /api/analyze | 才覚領域診断→AI分析→Firestore保存 |
+| `api/me/history.js` | GET /api/me/history?kind=saikaku | 各 Saikaku attempt に `integrationSummaries: []` を含む |
+| `api/me/history.js` | GET /api/me/history?kind=uaam | 各 UAAM attempt に `integrationSummary: null \| object` を含む |
+| `api/me/uaam-result.js` | GET /api/me/uaam-result?attemptId=X | 対応する単一 integrationSummary を返す |
 | `api/admin/restore-scores.js` | POST /api/admin/restore-scores | 管理者用スコア復元 |
 
 ---
@@ -144,7 +149,30 @@ const scores = normalizeScores(rawScores);
 | スコアが復元後に反映されない | domainSubs/domainTotal 欠落 | `src/utils/normalize.js` の normalizeScores |
 | レーダーチャートが表示されない | scores 形式の不一致 | `src/utils/normalize.js` で確認・修正 |
 | 関係ないコンポーネントを直してしまう | データフローを追っていない | このファイルを先に読む |
+| 統合分析がサブコレクションに保存されない | dotted-key set+merge を使った | `api/lib/integrations.js` の commitIntegration を確認（後述アンチパターン参照） |
 
 ---
 
-*最終更新: 2026-04-09*
+## アンチパターン
+
+- **dotted-key set+merge は使うな** — firebase-admin v12.7.0 はキー文字列を literal top-level field として保存する。`update({field: value})` か nested-object `set({field: value}, {merge:true})` を使う。`tests/api/firestore-merge-debug.test.js` に再現を保存
+
+---
+
+### 統合分析の関連ファイル
+
+- 仕様: `docs/spec/integrations-schema.md`
+- 設計判断: `docs/design-rationale.md` の per-pair セクション
+- スキーマ: `firestore.rules`（admin-only ルール）
+- Pure helpers: `shared/integrationsKey.js`, `shared/integrationsAttemptResolver.js`, `shared/attemptLogic.js`（`selectIntegrationForAttempt`, `isValidAttemptId`）
+- 書き込み: `api/integrate.js`, `api/lib/integrations.js`
+- 読み込み: `api/me/history.js`, `api/me/uaam-result.js`
+- UI: `src/screens/uaam/UAAMResultScreen.jsx`, `src/screens/uaam/SaikakuIntegration.jsx`, `src/screens/uaam/SaikakuIntegrationModal.jsx`, `src/screens/HistoryScreen.jsx`
+- 移行: `scripts/migrate-integrations-to-subcollection.mjs --dry-run`（デフォルト dry-run、`--apply` で実書き込み）
+- 監査: `scripts/audit-saikaku-integration.mjs`
+- E2E: `tests/api/integrate-subcollection.test.js`, `tests/api/me-history-integration.test.js`
+- 経験則: dotted-key `set({'a.b': v}, {merge:true})` は **禁止**。`tests/api/firestore-merge-debug.test.js` に再現を保存
+
+---
+
+*最終更新: 2026-05-04*

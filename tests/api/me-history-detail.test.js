@@ -69,14 +69,14 @@ describe('API /api/me/history/:id', () => {
     const response = await api.get('/api/me/history/pending-1?kind=saikaku').set('x-test-uid', uid);
 
     expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'attempt not found' });
+    expect(response.body).toEqual({ error: 'attempt not found', code: 'not_found' });
   });
 
   it('returns 422 when id format is malformed', async () => {
     const response = await api.get('/api/me/history/bad$id?kind=saikaku').set('x-test-uid', 'u-me-history-detail-bad-id');
 
     expect(response.status).toBe(422);
-    expect(response.body).toEqual({ error: 'kind and id are required' });
+    expect(response.body).toEqual({ error: 'kind and id are required', code: 'invalid_input', field: 'id' });
   });
 
   it('synthesizes a legacy attempt when id is legacy-fallback and parent has data', async () => {
@@ -119,6 +119,9 @@ describe('API /api/me/history/:id', () => {
 
     expect(response.status).toBe(500);
     expect(response.type).toMatch(/json/);
-    expect(response.body).toEqual({ error: 'internal_error' });
+    expect(response.body).toEqual({
+      code: 'internal_error',
+      requestId: expect.any(String),
+    });
   });
 });
