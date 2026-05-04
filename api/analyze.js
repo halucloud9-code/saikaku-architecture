@@ -8,6 +8,8 @@ import {
 } from './lib/attempts.js';
 import { createMessage } from './lib/anthropicClient.js';
 
+const TEST_UID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
+
 const SYSTEM_PROMPT = `あなたは才覚領域アーキテクチャの専門分析AIです。
 ユーザーの才能・価値観・情熱から、その人だけの才覚領域を導き出します。
 
@@ -238,23 +240,30 @@ export default async function handler(req, res) {
 
   // 認証
   let decoded;
-  try {
-    if (
-      process.env.TEST_BYPASS_AUTH === '1'
-      && process.env.NODE_ENV === 'test'
-      && !!process.env.FIRESTORE_EMULATOR_HOST
-    ) {
-      decoded = {
-        uid: req.headers['x-test-uid'] || 'test-user',
-        email: 'test@example.com',
-        name: 'Test',
-        picture: '',
-      };
-    } else {
-      decoded = await getAuth().verifyIdToken(idToken);
+  const isProductionEnv = process.env.VERCEL || process.env.NODE_ENV === 'production';
+  const bypass =
+    !isProductionEnv
+    && process.env.TEST_BYPASS_AUTH === '1'
+    && process.env.NODE_ENV === 'test'
+    && !!process.env.FIRESTORE_EMULATOR_HOST;
+
+  if (bypass) {
+    const testUid = req.headers['x-test-uid'];
+    if (testUid !== undefined && (typeof testUid !== 'string' || !TEST_UID_RE.test(testUid))) {
+      return res.status(401).json({ error: '認証に失敗しました' });
     }
-  } catch {
-    return res.status(401).json({ error: '認証に失敗しました。再度ログインしてください。' });
+    decoded = {
+      uid: testUid || 'test-user',
+      email: 'test@example.com',
+      name: 'Test',
+      picture: '',
+    };
+  } else {
+    try {
+      decoded = await getAuth().verifyIdToken(idToken);
+    } catch {
+      return res.status(401).json({ error: '認証に失敗しました。再度ログインしてください。' });
+    }
   }
 
   // 入力バリデーション（新フォーマット優先、旧フォーマットで後方互換）

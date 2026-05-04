@@ -4,7 +4,8 @@
  * 才覚領域（WHY/HOW/WHAT）× UAAM4軸（志/知/技/衝）の
  * クロス分析をMcKinsey級レイアウトで表示する
  */
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { normalizeQuestionText } from '../../utils/normalizeQuestionText';
 
 /* ── パレット ─────────────────────── */
 const P = {
@@ -294,9 +295,24 @@ function toJP(text) {
   );
 }
 
+function formatSavedTime(date) {
+  if (!date) return '';
+  const savedAt = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(savedAt.getTime())) return '';
+  const hh = String(savedAt.getHours()).padStart(2, '0');
+  const mm = String(savedAt.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 /* ── メインコンポーネント ────────────── */
 export default function SaikakuIntegration({
   integration,
+  // issue-62: コーチング回答の保存
+  answersMap = {},
+  onSave,
+  saving = false,
+  lastSavedAt = null,
+  // issue-44/46: per-pair integration / regenerate / readOnly
   source,
   regenerationCount,
   onRegenerate,
@@ -306,6 +322,68 @@ export default function SaikakuIntegration({
   readOnly = false,
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [draftAnswers, setDraftAnswers] = useState([]);
+  const [dirtyByQuestion, setDirtyByQuestion] = useState(() => new Set());
+  const [saveError, setSaveError] = useState('');
+  const coachingQuestions = useMemo(
+    () => (Array.isArray(integration?.coaching_questions) ? integration.coaching_questions : []),
+    [integration?.coaching_questions]
+  );
+  const answerEntries = useMemo(() => Object.values(answersMap || {}), [answersMap]);
+  const savedTime = useMemo(() => formatSavedTime(lastSavedAt), [lastSavedAt]);
+  const hasDraftAnswer = coachingQuestions.some((_, i) => (draftAnswers[i] || '').trim().length > 0);
+  // readOnly 時は保存させない（履歴 attempt 表示など）
+  const canSave = !readOnly && !!onSave && !saving && hasDraftAnswer;
+
+  useEffect(() => {
+    setDraftAnswers((prev) => coachingQuestions.map((questionText, i) => {
+      // normalize同士で照合 — server側 sha1(normalize(text)) と等価のqid マッチ。
+      // 末尾`？`違い・全角半角空白・NFKC 互換差を吸収する（issue #62 設計の本質）。
+      const normalizedCurrent = normalizeQuestionText(questionText);
+      if (!normalizedCurrent) return '';
+      if (dirtyByQuestion.has(normalizedCurrent)) return prev[i] || '';
+      const saved = answerEntries.find((entry) => {
+        const normalizedSaved = normalizeQuestionText(entry?.questionText);
+        return normalizedSaved !== null && normalizedSaved === normalizedCurrent;
+      });
+      return typeof saved?.answer === 'string' ? saved.answer : '';
+    }));
+  }, [answerEntries, coachingQuestions, dirtyByQuestion]);
+
+  const updateDraftAnswer = (index, value) => {
+    const normalizedKey = normalizeQuestionText(coachingQuestions[index]);
+    if (normalizedKey) {
+      setDirtyByQuestion((prev) => {
+        const next = new Set(prev);
+        next.add(normalizedKey);
+        return next;
+      });
+    }
+    setDraftAnswers((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const handleSaveDrafts = async () => {
+    if (!canSave) return;
+    setSaveError('');
+    const items = coachingQuestions
+      .map((questionText, i) => ({ questionText, answer: draftAnswers[i] || '' }))
+      .filter(({ questionText, answer }) => (
+        typeof questionText === 'string'
+        && questionText.trim().length > 0
+        && answer.trim().length > 0
+      ));
+    if (items.length === 0) return;
+
+    try {
+      await onSave(items);
+    } catch (e) {
+      setSaveError(e?.message || '回答を保存できませんでした。再度お試しください。');
+    }
+  };
 
   if (!integration) return null;
 
@@ -321,7 +399,6 @@ export default function SaikakuIntegration({
     flow_route = '',
     hidden_potential = '',
     roadmap = {},
-    coaching_questions = [],
   } = integration;
 
   return (
@@ -330,91 +407,123 @@ export default function SaikakuIntegration({
 
       {/* ── ヘッダータップでアコーディオン ── */}
       <div
-        onClick={() => setOpen(o => !o)}
+        role="region"
+        aria-label="才覚発動統合分析ヘッダー"
         style={{
           background: `linear-gradient(135deg, #0D2137 0%, #1A3A52 100%)`,
           padding: '18px 20px 16px',
-          cursor: 'pointer', userSelect: 'none',
           borderTop: `3px solid ${P.gold}`,
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
         }}
       >
-        {/* タイトル行 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 9, letterSpacing: '0.2em', color: P.gold, fontWeight: 700,
-              fontFamily: "'Outfit', sans-serif", marginBottom: 4 }}>
-              才覚 × UAAM INTEGRATION
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          aria-controls="saikaku-integration-body"
+          style={{
+            flex: '1 1 280px',
+            minWidth: 0,
+            width: '100%',
+            textAlign: 'left',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            userSelect: 'none',
+            padding: 0,
+            font: 'inherit',
+            color: 'inherit',
+          }}
+        >
+          {/* タイトル行 */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.2em', color: P.gold, fontWeight: 700,
+                fontFamily: "'Outfit', sans-serif", marginBottom: 4 }}>
+                才覚 × UAAM INTEGRATION
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF',
+                fontFamily: "'Noto Serif JP', serif" }}>
+                才覚発動統合分析
+              </div>
             </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF',
-              fontFamily: "'Noto Serif JP', serif" }}>
-              才覚発動統合分析
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <StatusBadge status={status} />
-            {!readOnly && (
-              <RegenerateButton
-                regenerationCount={regenerationCount}
-                onRegenerate={onRegenerate}
-              />
-            )}
-            <ScoreRing score={integration_score} />
             <div style={{
+              flex: '0 0 auto',
+              marginTop: 4,
               fontSize: 16, color: 'rgba(255,255,255,0.5)',
               transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
               transition: 'transform 0.25s ease',
             }}>▼</div>
-            {typeof onClose === 'function' && (
-              <button
-                type="button"
-                aria-label="閉じる"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onClose();
-                }}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 999,
-                  border: '1px solid rgba(255,255,255,0.14)',
-                  background: 'rgba(255,255,255,0.06)',
-                  color: 'rgba(255,255,255,0.72)',
-                  cursor: 'pointer',
-                  fontSize: 16,
-                  lineHeight: 1,
-                }}
-              >
-                ×
-              </button>
-            )}
           </div>
-        </div>
 
-        {/* 才覚発動コア */}
+          {/* 才覚発動コア */}
+          <div style={{
+            marginTop: 12, padding: '10px 14px',
+            background: 'rgba(255,255,255,0.07)', borderRadius: 8,
+            borderLeft: `3px solid ${P.gold}`,
+          }}>
+            <div style={{ fontSize: 9, color: P.goldDim, fontWeight: 700, letterSpacing: '0.15em',
+              fontFamily: "'Outfit', sans-serif", marginBottom: 3 }}>ACTIVATION CORE</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.04em',
+              fontFamily: "'Noto Serif JP', serif" }}>{toJP(activation_core)}</div>
+          </div>
+
+          {/* 発動方程式 */}
+          {activation_equation && (
+            <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.7)',
+              lineHeight: 1.65, fontFamily: "'Noto Serif JP', serif",
+              fontStyle: 'italic' }}>
+              「{toJP(activation_equation)}」
+            </div>
+          )}
+        </button>
+
         <div style={{
-          marginTop: 12, padding: '10px 14px',
-          background: 'rgba(255,255,255,0.07)', borderRadius: 8,
-          borderLeft: `3px solid ${P.gold}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flex: '0 1 auto',
+          flexWrap: 'wrap',
+          justifyContent: 'flex-end',
         }}>
-          <div style={{ fontSize: 9, color: P.goldDim, fontWeight: 700, letterSpacing: '0.15em',
-            fontFamily: "'Outfit', sans-serif", marginBottom: 3 }}>ACTIVATION CORE</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.04em',
-            fontFamily: "'Noto Serif JP', serif" }}>{toJP(activation_core)}</div>
+          <StatusBadge status={status} />
+          {!readOnly && (
+            <RegenerateButton
+              regenerationCount={regenerationCount}
+              onRegenerate={onRegenerate}
+            />
+          )}
+          <ScoreRing score={integration_score} />
+          {typeof onClose === 'function' && (
+            <button
+              type="button"
+              aria-label="閉じる"
+              onClick={onClose}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 999,
+                border: '1px solid rgba(255,255,255,0.14)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'rgba(255,255,255,0.72)',
+                cursor: 'pointer',
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
-
-        {/* 発動方程式 */}
-        {activation_equation && (
-          <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.7)',
-            lineHeight: 1.65, fontFamily: "'Noto Serif JP', serif",
-            fontStyle: 'italic' }}>
-            「{toJP(activation_equation)}」
-          </div>
-        )}
       </div>
 
       {/* ── アコーディオン本体 ── */}
       {open && (
-        <div style={{ background: P.surface, animation: 'amFadeIn 0.25s ease' }}>
+        <div id="saikaku-integration-body" style={{ background: P.surface, animation: 'amFadeIn 0.25s ease' }}>
 
           {/* 最高レバレッジポイント */}
           {leverage_point && (
@@ -496,23 +605,95 @@ export default function SaikakuIntegration({
           )}
 
           {/* ── コーチングキー質問 ── */}
-          {coaching_questions.length > 0 && (
+          {coachingQuestions.length > 0 && (
             <div style={{ padding: '0 20px 24px', borderTop: `1px solid ${P.border}`, paddingTop: 20 }}>
               <SectionHeader title="コーチングキー質問" sub="COACHING KEY QUESTIONS" />
-              {coaching_questions.map((q, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-start',
-                }}>
+              {coachingQuestions.map((q, i) => (
+                <div key={i} style={{ marginBottom: 16 }}>
                   <div style={{
-                    minWidth: 22, height: 22, background: `${P.gold}22`,
-                    borderRadius: '50%', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: 11, fontWeight: 700, color: P.gold,
-                    flexShrink: 0, fontFamily: "'Outfit', sans-serif",
-                  }}>{i + 1}</div>
-                  <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
-                    fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
+                    display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start',
+                  }}>
+                    <div style={{
+                      minWidth: 22, height: 22, background: `${P.gold}22`,
+                      borderRadius: '50%', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontSize: 11, fontWeight: 700, color: P.gold,
+                      flexShrink: 0, fontFamily: "'Outfit', sans-serif",
+                    }}>{i + 1}</div>
+                    <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
+                      fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
+                  </div>
+                  <textarea
+                    value={draftAnswers[i] || ''}
+                    onChange={(e) => updateDraftAnswer(i, e.target.value)}
+                    disabled={saving}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="あなたの考えを書いてみてください"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      minHeight: 88,
+                      padding: '10px 12px',
+                      border: `1px solid ${P.border}`,
+                      borderRadius: 8,
+                      background: saving ? '#F7F3EC' : P.surface,
+                      color: P.text,
+                      fontSize: 13,
+                      lineHeight: 1.7,
+                      fontFamily: "'Noto Serif JP', serif",
+                      resize: 'vertical',
+                      outlineOffset: 2,
+                      opacity: saving ? 0.72 : 1,
+                    }}
+                  />
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={handleSaveDrafts}
+                disabled={!canSave}
+                style={{
+                  width: '100%',
+                  marginTop: 2,
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: 8,
+                  background: canSave
+                    ? `linear-gradient(135deg, ${P.gold} 0%, ${P.goldDim} 100%)`
+                    : P.border,
+                  color: canSave ? '#fff' : P.muted,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: canSave ? 'pointer' : 'not-allowed',
+                  fontFamily: "'Noto Serif JP', serif",
+                  transition: 'opacity 0.2s ease',
+                  outlineOffset: 2,
+                }}
+              >
+                {saving ? '保存中…' : '💾 回答を保存'}
+              </button>
+              {saveError && (
+                <div role="alert" style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: P.score_lo,
+                  textAlign: 'center',
+                  fontFamily: "'Noto Serif JP', serif",
+                }}>
+                  {saveError}
+                </div>
+              )}
+              {savedTime && (
+                <div style={{
+                  marginTop: 8,
+                  fontSize: 11,
+                  color: P.muted,
+                  textAlign: 'center',
+                  fontFamily: "'Outfit', sans-serif",
+                }}>
+                  最終保存: {savedTime}
+                </div>
+              )}
             </div>
           )}
         </div>

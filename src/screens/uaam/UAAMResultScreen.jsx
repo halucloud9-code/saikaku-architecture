@@ -21,6 +21,7 @@ import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
 import SaikakuIntegration from './SaikakuIntegration';
+import { loadCoachingAnswers, saveCoachingAnswers } from '../../api/coachingAnswers';
 import { normalizeScores } from '../../utils/normalize';
 import { attemptToResultProps } from '../../utils/attemptAdapter';
 
@@ -1888,6 +1889,9 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   const [integrationSummary, setIntegrationSummary] = useState(() => effectiveResult?.integrationSummary ?? null);
   const [integrating, setIntegrating] = useState(false);
   const [integrateError, setIntegrateError] = useState('');
+  const [coachingAnswersMap, setCoachingAnswersMap] = useState({});
+  const [coachingSaving, setCoachingSaving] = useState(false);
+  const [coachingLastSavedAt, setCoachingLastSavedAt] = useState(null);
 
   useEffect(() => {
     setScores(normalizedResultScores);
@@ -1901,6 +1905,15 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   useEffect(() => {
     setIntegrationSummary(effectiveResult?.integrationSummary ?? null);
   }, [effectiveResult?.integrationSummary]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+    loadCoachingAnswers().then((map) => {
+      if (!cancelled) setCoachingAnswersMap(map || {});
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.uid]);
 
   if (!effectiveResult) {
     return (
@@ -1980,6 +1993,20 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
       setIntegrateError(e.message);
     } finally {
       setIntegrating(false);
+    }
+  };
+
+  const handleCoachingSave = async (items) => {
+    setCoachingSaving(true);
+    try {
+      const updated = await saveCoachingAnswers(items);
+      setCoachingAnswersMap(updated);
+      setCoachingLastSavedAt(new Date());
+    } catch (e) {
+      console.warn('[coaching] save failed:', e);
+      throw e;
+    } finally {
+      setCoachingSaving(false);
     }
   };
 
@@ -2225,6 +2252,10 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
                     regenerationCount={integrationSummary?.regenerationCount ?? 0}
                     onRegenerate={runSamePairRegeneration}
                     status={integrationSummary?.status}
+                    answersMap={coachingAnswersMap}
+                    onSave={handleCoachingSave}
+                    saving={coachingSaving}
+                    lastSavedAt={coachingLastSavedAt}
                   />
                 </div>
                 {integrateError && (
