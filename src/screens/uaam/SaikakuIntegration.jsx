@@ -364,9 +364,19 @@ export default function SaikakuIntegration({
   const updateDraftAnswer = (index, value) => {
     const normalizedKey = normalizeQuestionText(coachingQuestions[index]);
     if (normalizedKey) {
+      const savedEntry = answerEntries.find((entry) => {
+        const normalizedSaved = normalizeQuestionText(entry?.questionText);
+        return normalizedSaved !== null && normalizedSaved === normalizedKey;
+      });
+      const savedAnswer = typeof savedEntry?.answer === 'string' ? savedEntry.answer : '';
+
       setDirtyByQuestion((prev) => {
         const next = new Map(prev);
-        next.set(normalizedKey, value);
+        if (value === savedAnswer) {
+          next.delete(normalizedKey);
+        } else {
+          next.set(normalizedKey, value);
+        }
         return next;
       });
     }
