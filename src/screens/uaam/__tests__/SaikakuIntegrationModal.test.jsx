@@ -1,9 +1,19 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SaikakuIntegrationModal from '../SaikakuIntegrationModal';
 import SaikakuIntegration from '../SaikakuIntegration';
+
+const coachingMocks = vi.hoisted(() => ({
+  loadCoachingAnswers: vi.fn(),
+  saveCoachingAnswers: vi.fn(),
+}));
+
+vi.mock('../../../api/coachingAnswers', () => ({
+  loadCoachingAnswers: coachingMocks.loadCoachingAnswers,
+  saveCoachingAnswers: coachingMocks.saveCoachingAnswers,
+}));
 
 function integration(core) {
   return {
@@ -36,7 +46,13 @@ function summary(overrides = {}) {
 describe('SaikakuIntegrationModal', () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
+  });
+
+  beforeEach(() => {
+    coachingMocks.loadCoachingAnswers.mockResolvedValue({});
+    coachingMocks.saveCoachingAnswers.mockResolvedValue({});
   });
 
   it('renders source header when given source prop', () => {
@@ -73,6 +89,42 @@ describe('SaikakuIntegrationModal', () => {
 
     await user.click(screen.getByTestId('saikaku-integration-modal-backdrop'));
 
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms before closing when coaching answers are unsaved', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(
+      <SaikakuIntegrationModal
+        open
+        onClose={onClose}
+        kind="uaam"
+        integrationSummary={summary({
+          integration: {
+            ...integration('First Core'),
+            coaching_questions: ['この問いへの回答を書いてください'],
+          },
+        })}
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText('あなたの考えを書いてみてください'), '未保存の回答');
+    await user.click(screen.getByTestId('saikaku-integration-modal-backdrop'));
+
+    expect(confirmSpy).toHaveBeenCalledWith('保存していない回答があります。閉じますか？');
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.keyboard('{Escape}');
+
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
+    expect(onClose).not.toHaveBeenCalled();
+
+    confirmSpy.mockReturnValue(true);
+    await user.click(screen.getByRole('button', { name: '閉じる' }));
+
+    expect(confirmSpy).toHaveBeenCalledTimes(3);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

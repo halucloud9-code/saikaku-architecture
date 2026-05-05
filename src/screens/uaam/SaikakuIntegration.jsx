@@ -320,10 +320,11 @@ export default function SaikakuIntegration({
   status,
   defaultOpen = false,
   readOnly = false,
+  onDirtyChange,
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [draftAnswers, setDraftAnswers] = useState([]);
-  const [dirtyByQuestion, setDirtyByQuestion] = useState(() => new Set());
+  const [dirtyByQuestion, setDirtyByQuestion] = useState(() => new Map());
   const [saveError, setSaveError] = useState('');
   const coachingQuestions = useMemo(
     () => (Array.isArray(integration?.coaching_questions) ? integration.coaching_questions : []),
@@ -332,30 +333,50 @@ export default function SaikakuIntegration({
   const answerEntries = useMemo(() => Object.values(answersMap || {}), [answersMap]);
   const savedTime = useMemo(() => formatSavedTime(lastSavedAt), [lastSavedAt]);
   const hasDraftAnswer = coachingQuestions.some((_, i) => (draftAnswers[i] || '').trim().length > 0);
-  // readOnly 時は保存させない（履歴 attempt 表示など）
-  const canSave = !readOnly && !!onSave && !saving && hasDraftAnswer;
+  const canSave = !!onSave && !saving && hasDraftAnswer;
 
   useEffect(() => {
-    setDraftAnswers((prev) => coachingQuestions.map((questionText, i) => {
-      // normalize同士で照合 — server側 sha1(normalize(text)) と等価のqid マッチ。
-      // 末尾`？`違い・全角半角空白・NFKC 互換差を吸収する（issue #62 設計の本質）。
-      const normalizedCurrent = normalizeQuestionText(questionText);
-      if (!normalizedCurrent) return '';
-      if (dirtyByQuestion.has(normalizedCurrent)) return prev[i] || '';
-      const saved = answerEntries.find((entry) => {
-        const normalizedSaved = normalizeQuestionText(entry?.questionText);
-        return normalizedSaved !== null && normalizedSaved === normalizedCurrent;
+    onDirtyChange?.(dirtyByQuestion.size > 0);
+  }, [dirtyByQuestion, onDirtyChange]);
+
+  useEffect(() => {
+    setDraftAnswers((prev) => {
+      const next = coachingQuestions.map((questionText, i) => {
+        // normalize同士で照合 — server側 sha1(normalize(text)) と等価のqid マッチ。
+        // 末尾`？`違い・全角半角空白・NFKC 互換差を吸収する（issue #62 設計の本質）。
+        const normalizedCurrent = normalizeQuestionText(questionText);
+        if (!normalizedCurrent) return '';
+        if (dirtyByQuestion.has(normalizedCurrent)) {
+          return dirtyByQuestion.get(normalizedCurrent) ?? '';
+        }
+        const saved = answerEntries.find((entry) => {
+          const normalizedSaved = normalizeQuestionText(entry?.questionText);
+          return normalizedSaved !== null && normalizedSaved === normalizedCurrent;
+        });
+        return typeof saved?.answer === 'string' ? saved.answer : '';
       });
-      return typeof saved?.answer === 'string' ? saved.answer : '';
-    }));
+      const unchanged = next.length === prev.length
+        && next.every((value, index) => value === prev[index]);
+      return unchanged ? prev : next;
+    });
   }, [answerEntries, coachingQuestions, dirtyByQuestion]);
 
   const updateDraftAnswer = (index, value) => {
     const normalizedKey = normalizeQuestionText(coachingQuestions[index]);
     if (normalizedKey) {
+      const savedEntry = answerEntries.find((entry) => {
+        const normalizedSaved = normalizeQuestionText(entry?.questionText);
+        return normalizedSaved !== null && normalizedSaved === normalizedKey;
+      });
+      const savedAnswer = typeof savedEntry?.answer === 'string' ? savedEntry.answer : '';
+
       setDirtyByQuestion((prev) => {
-        const next = new Set(prev);
-        next.add(normalizedKey);
+        const next = new Map(prev);
+        if (value === savedAnswer) {
+          next.delete(normalizedKey);
+        } else {
+          next.set(normalizedKey, value);
+        }
         return next;
       });
     }
@@ -380,6 +401,14 @@ export default function SaikakuIntegration({
 
     try {
       await onSave(items);
+      const savedKeys = items
+        .map((item) => normalizeQuestionText(item.questionText))
+        .filter(Boolean);
+      setDirtyByQuestion((prev) => {
+        const next = new Map(prev);
+        for (const key of savedKeys) next.delete(key);
+        return next;
+      });
     } catch (e) {
       setSaveError(e?.message || '回答を保存できませんでした。再度お試しください。');
     }
@@ -624,104 +653,78 @@ export default function SaikakuIntegration({
                       <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
                         fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
                     </div>
-                    {!readOnly ? (
-                      <textarea
-                        value={draft}
-                        onChange={(e) => updateDraftAnswer(i, e.target.value)}
-                        disabled={saving}
-                        rows={3}
-                        maxLength={2000}
-                        placeholder="あなたの考えを書いてみてください"
-                        style={{
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          minHeight: 88,
-                          padding: '10px 12px',
-                          border: `1px solid ${P.border}`,
-                          borderRadius: 8,
-                          background: saving ? '#F7F3EC' : P.surface,
-                          color: P.text,
-                          fontSize: 13,
-                          lineHeight: 1.7,
-                          fontFamily: "'Noto Serif JP', serif",
-                          resize: 'vertical',
-                          outlineOffset: 2,
-                          opacity: saving ? 0.72 : 1,
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          minHeight: 56,
-                          padding: '10px 12px',
-                          border: `1px dashed ${P.border}`,
-                          borderRadius: 8,
-                          background: P.bg,
-                          color: draft ? P.text : P.muted,
-                          fontSize: 13,
-                          lineHeight: 1.7,
-                          fontFamily: "'Noto Serif JP', serif",
-                          whiteSpace: 'pre-wrap',
-                          fontStyle: draft ? 'normal' : 'italic',
-                        }}
-                      >
-                        {draft || '（未回答）'}
-                      </div>
-                    )}
+                    <textarea
+                      value={draft}
+                      onChange={(e) => updateDraftAnswer(i, e.target.value)}
+                      disabled={saving}
+                      rows={3}
+                      maxLength={2000}
+                      placeholder="あなたの考えを書いてみてください"
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        minHeight: 88,
+                        padding: '10px 12px',
+                        border: `1px solid ${P.border}`,
+                        borderRadius: 8,
+                        background: saving ? '#F7F3EC' : P.surface,
+                        color: P.text,
+                        fontSize: 13,
+                        lineHeight: 1.7,
+                        fontFamily: "'Noto Serif JP', serif",
+                        resize: 'vertical',
+                        outlineOffset: 2,
+                        opacity: saving ? 0.72 : 1,
+                      }}
+                    />
                   </div>
                 );
               })}
-              {!readOnly && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleSaveDrafts}
-                    disabled={!canSave}
-                    style={{
-                      width: '100%',
-                      marginTop: 2,
-                      padding: '12px 16px',
-                      border: 'none',
-                      borderRadius: 8,
-                      background: canSave
-                        ? `linear-gradient(135deg, ${P.gold} 0%, ${P.goldDim} 100%)`
-                        : P.border,
-                      color: canSave ? '#fff' : P.muted,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: canSave ? 'pointer' : 'not-allowed',
-                      fontFamily: "'Noto Serif JP', serif",
-                      transition: 'opacity 0.2s ease',
-                      outlineOffset: 2,
-                    }}
-                  >
-                    {saving ? '保存中…' : '💾 回答を保存'}
-                  </button>
-                  {saveError && (
-                    <div role="alert" style={{
-                      marginTop: 8,
-                      fontSize: 12,
-                      color: P.score_lo,
-                      textAlign: 'center',
-                      fontFamily: "'Noto Serif JP', serif",
-                    }}>
-                      {saveError}
-                    </div>
-                  )}
-                  {savedTime && (
-                    <div style={{
-                      marginTop: 8,
-                      fontSize: 11,
-                      color: P.muted,
-                      textAlign: 'center',
-                      fontFamily: "'Outfit', sans-serif",
-                    }}>
-                      最終保存: {savedTime}
-                    </div>
-                  )}
-                </>
+              <button
+                type="button"
+                onClick={handleSaveDrafts}
+                disabled={!canSave}
+                style={{
+                  width: '100%',
+                  marginTop: 2,
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: 8,
+                  background: canSave
+                    ? `linear-gradient(135deg, ${P.gold} 0%, ${P.goldDim} 100%)`
+                    : P.border,
+                  color: canSave ? '#fff' : P.muted,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: canSave ? 'pointer' : 'not-allowed',
+                  fontFamily: "'Noto Serif JP', serif",
+                  transition: 'opacity 0.2s ease',
+                  outlineOffset: 2,
+                }}
+              >
+                {saving ? '保存中…' : '💾 回答を保存'}
+              </button>
+              {saveError && (
+                <div role="alert" style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: P.score_lo,
+                  textAlign: 'center',
+                  fontFamily: "'Noto Serif JP', serif",
+                }}>
+                  {saveError}
+                </div>
+              )}
+              {savedTime && (
+                <div style={{
+                  marginTop: 8,
+                  fontSize: 11,
+                  color: P.muted,
+                  textAlign: 'center',
+                  fontFamily: "'Outfit', sans-serif",
+                }}>
+                  最終保存: {savedTime}
+                </div>
               )}
             </div>
           )}

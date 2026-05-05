@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import SaikakuIntegration, { formatIntegrationDate } from './SaikakuIntegration';
-import { loadCoachingAnswers } from '../../api/coachingAnswers';
+import { loadCoachingAnswers, saveCoachingAnswers } from '../../api/coachingAnswers';
 
 const LEGACY_MESSAGE = 'この統合分析は移行前のデータです。最新の組み合わせで再生成してください';
 
@@ -96,10 +96,17 @@ export default function SaikakuIntegrationModal({
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [answersMap, setAnswersMap] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [hasUnsavedAnswers, setHasUnsavedAnswers] = useState(false);
 
   useEffect(() => {
     if (open) setSelectedIndex(0);
   }, [open, integrationSummary, integrationSummaries]);
+
+  useEffect(() => {
+    if (open) setHasUnsavedAnswers(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -112,18 +119,39 @@ export default function SaikakuIntegrationModal({
     return () => { cancelled = true; };
   }, [open]);
 
+  const requestClose = useCallback(() => {
+    if (hasUnsavedAnswers && !window.confirm('保存していない回答があります。閉じますか？')) {
+      return;
+    }
+    onClose?.();
+  }, [hasUnsavedAnswers, onClose]);
+
   useEffect(() => {
     if (!open) return undefined;
 
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose?.();
+      if (event.key === 'Escape') requestClose();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   if (!open) return null;
+
+  const handleCoachingSave = async (items) => {
+    setSaving(true);
+    try {
+      const updated = await saveCoachingAnswers(items);
+      setAnswersMap(updated);
+      setLastSavedAt(new Date());
+    } catch (e) {
+      console.warn('[coaching] save failed:', e);
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const selectedSummary = summaries[selectedIndex] ?? summaries[0] ?? integrationSummary ?? null;
   const selectedSource = sourceFromSummary(selectedSummary, source);
@@ -134,7 +162,7 @@ export default function SaikakuIntegrationModal({
   return (
     <div
       data-testid="saikaku-integration-modal-backdrop"
-      onClick={onClose}
+      onClick={requestClose}
       style={{
         position: 'fixed',
         inset: 0,
@@ -214,7 +242,7 @@ export default function SaikakuIntegrationModal({
           <button
             type="button"
             aria-label="閉じる"
-            onClick={onClose}
+            onClick={requestClose}
             style={{
               width: 32,
               height: 32,
@@ -301,6 +329,10 @@ export default function SaikakuIntegrationModal({
                 source={selectedSource}
                 status={selectedSummary?.status}
                 answersMap={answersMap}
+                onSave={handleCoachingSave}
+                saving={saving}
+                lastSavedAt={lastSavedAt}
+                onDirtyChange={setHasUnsavedAnswers}
                 defaultOpen
                 readOnly
               />
