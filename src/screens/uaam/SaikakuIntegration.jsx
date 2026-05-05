@@ -324,7 +324,7 @@ export default function SaikakuIntegration({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [draftAnswers, setDraftAnswers] = useState([]);
-  const [dirtyByQuestion, setDirtyByQuestion] = useState(() => new Set());
+  const [dirtyByQuestion, setDirtyByQuestion] = useState(() => new Map());
   const [saveError, setSaveError] = useState('');
   const coachingQuestions = useMemo(
     () => (Array.isArray(integration?.coaching_questions) ? integration.coaching_questions : []),
@@ -346,7 +346,9 @@ export default function SaikakuIntegration({
         // 末尾`？`違い・全角半角空白・NFKC 互換差を吸収する（issue #62 設計の本質）。
         const normalizedCurrent = normalizeQuestionText(questionText);
         if (!normalizedCurrent) return '';
-        if (dirtyByQuestion.has(normalizedCurrent)) return prev[i] || '';
+        if (dirtyByQuestion.has(normalizedCurrent)) {
+          return dirtyByQuestion.get(normalizedCurrent) ?? '';
+        }
         const saved = answerEntries.find((entry) => {
           const normalizedSaved = normalizeQuestionText(entry?.questionText);
           return normalizedSaved !== null && normalizedSaved === normalizedCurrent;
@@ -363,8 +365,8 @@ export default function SaikakuIntegration({
     const normalizedKey = normalizeQuestionText(coachingQuestions[index]);
     if (normalizedKey) {
       setDirtyByQuestion((prev) => {
-        const next = new Set(prev);
-        next.add(normalizedKey);
+        const next = new Map(prev);
+        next.set(normalizedKey, value);
         return next;
       });
     }
@@ -389,7 +391,7 @@ export default function SaikakuIntegration({
 
     try {
       await onSave(items);
-      setDirtyByQuestion(new Set());
+      setDirtyByQuestion(new Map());
       onDirtyChange?.(false);
     } catch (e) {
       setSaveError(e?.message || '回答を保存できませんでした。再度お試しください。');
