@@ -608,91 +608,120 @@ export default function SaikakuIntegration({
           {coachingQuestions.length > 0 && (
             <div style={{ padding: '0 20px 24px', borderTop: `1px solid ${P.border}`, paddingTop: 20 }}>
               <SectionHeader title="コーチングキー質問" sub="COACHING KEY QUESTIONS" />
-              {coachingQuestions.map((q, i) => (
-                <div key={i} style={{ marginBottom: 16 }}>
-                  <div style={{
-                    display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start',
-                  }}>
+              {coachingQuestions.map((q, i) => {
+                const draft = draftAnswers[i] || '';
+                return (
+                  <div key={i} style={{ marginBottom: 16 }}>
                     <div style={{
-                      minWidth: 22, height: 22, background: `${P.gold}22`,
-                      borderRadius: '50%', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: 11, fontWeight: 700, color: P.gold,
-                      flexShrink: 0, fontFamily: "'Outfit', sans-serif",
-                    }}>{i + 1}</div>
-                    <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
-                      fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
+                      display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start',
+                    }}>
+                      <div style={{
+                        minWidth: 22, height: 22, background: `${P.gold}22`,
+                        borderRadius: '50%', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 11, fontWeight: 700, color: P.gold,
+                        flexShrink: 0, fontFamily: "'Outfit', sans-serif",
+                      }}>{i + 1}</div>
+                      <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
+                        fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
+                    </div>
+                    {!readOnly ? (
+                      <textarea
+                        value={draft}
+                        onChange={(e) => updateDraftAnswer(i, e.target.value)}
+                        disabled={saving}
+                        rows={3}
+                        maxLength={2000}
+                        placeholder="あなたの考えを書いてみてください"
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          minHeight: 88,
+                          padding: '10px 12px',
+                          border: `1px solid ${P.border}`,
+                          borderRadius: 8,
+                          background: saving ? '#F7F3EC' : P.surface,
+                          color: P.text,
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                          fontFamily: "'Noto Serif JP', serif",
+                          resize: 'vertical',
+                          outlineOffset: 2,
+                          opacity: saving ? 0.72 : 1,
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          minHeight: 56,
+                          padding: '10px 12px',
+                          border: `1px dashed ${P.border}`,
+                          borderRadius: 8,
+                          background: P.bg,
+                          color: draft ? P.text : P.muted,
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                          fontFamily: "'Noto Serif JP', serif",
+                          whiteSpace: 'pre-wrap',
+                          fontStyle: draft ? 'normal' : 'italic',
+                        }}
+                      >
+                        {draft || '（未回答）'}
+                      </div>
+                    )}
                   </div>
-                  <textarea
-                    value={draftAnswers[i] || ''}
-                    onChange={(e) => updateDraftAnswer(i, e.target.value)}
-                    disabled={saving}
-                    rows={3}
-                    maxLength={2000}
-                    placeholder="あなたの考えを書いてみてください"
+                );
+              })}
+              {!readOnly && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSaveDrafts}
+                    disabled={!canSave}
                     style={{
                       width: '100%',
-                      boxSizing: 'border-box',
-                      minHeight: 88,
-                      padding: '10px 12px',
-                      border: `1px solid ${P.border}`,
+                      marginTop: 2,
+                      padding: '12px 16px',
+                      border: 'none',
                       borderRadius: 8,
-                      background: saving ? '#F7F3EC' : P.surface,
-                      color: P.text,
+                      background: canSave
+                        ? `linear-gradient(135deg, ${P.gold} 0%, ${P.goldDim} 100%)`
+                        : P.border,
+                      color: canSave ? '#fff' : P.muted,
                       fontSize: 13,
-                      lineHeight: 1.7,
+                      fontWeight: 700,
+                      cursor: canSave ? 'pointer' : 'not-allowed',
                       fontFamily: "'Noto Serif JP', serif",
-                      resize: 'vertical',
+                      transition: 'opacity 0.2s ease',
                       outlineOffset: 2,
-                      opacity: saving ? 0.72 : 1,
                     }}
-                  />
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={handleSaveDrafts}
-                disabled={!canSave}
-                style={{
-                  width: '100%',
-                  marginTop: 2,
-                  padding: '12px 16px',
-                  border: 'none',
-                  borderRadius: 8,
-                  background: canSave
-                    ? `linear-gradient(135deg, ${P.gold} 0%, ${P.goldDim} 100%)`
-                    : P.border,
-                  color: canSave ? '#fff' : P.muted,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: canSave ? 'pointer' : 'not-allowed',
-                  fontFamily: "'Noto Serif JP', serif",
-                  transition: 'opacity 0.2s ease',
-                  outlineOffset: 2,
-                }}
-              >
-                {saving ? '保存中…' : '💾 回答を保存'}
-              </button>
-              {saveError && (
-                <div role="alert" style={{
-                  marginTop: 8,
-                  fontSize: 12,
-                  color: P.score_lo,
-                  textAlign: 'center',
-                  fontFamily: "'Noto Serif JP', serif",
-                }}>
-                  {saveError}
-                </div>
-              )}
-              {savedTime && (
-                <div style={{
-                  marginTop: 8,
-                  fontSize: 11,
-                  color: P.muted,
-                  textAlign: 'center',
-                  fontFamily: "'Outfit', sans-serif",
-                }}>
-                  最終保存: {savedTime}
-                </div>
+                  >
+                    {saving ? '保存中…' : '💾 回答を保存'}
+                  </button>
+                  {saveError && (
+                    <div role="alert" style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: P.score_lo,
+                      textAlign: 'center',
+                      fontFamily: "'Noto Serif JP', serif",
+                    }}>
+                      {saveError}
+                    </div>
+                  )}
+                  {savedTime && (
+                    <div style={{
+                      marginTop: 8,
+                      fontSize: 11,
+                      color: P.muted,
+                      textAlign: 'center',
+                      fontFamily: "'Outfit', sans-serif",
+                    }}>
+                      最終保存: {savedTime}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
