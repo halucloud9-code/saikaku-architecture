@@ -24,7 +24,6 @@ import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
 import LoadingOverlay from './components/LoadingOverlay';
 import NavigationGuardDialog from './components/NavigationGuardDialog';
 import RequireAdmin from './components/RequireAdmin';
-import { calculateScores } from './data/uaam_questions';
 import { normalizeScores } from './utils/normalize';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
@@ -348,32 +347,6 @@ function AppShell() {
     }
   };
 
-  // 開発テスト用：ダミーデータで結果画面に直接遷移
-  const handleUaamTestResult = () => {
-    const dummyAnswers = {};
-    for (let i = 1; i <= 48; i++) {
-      dummyAnswers[i] = Math.floor(Math.random() * 5) + 1;
-    }
-    const dummyVAnswers = {
-      V1: Math.floor(Math.random() * 5) + 1,
-      V2: Math.floor(Math.random() * 5) + 1,
-      V3: Math.floor(Math.random() * 5) + 1,
-    };
-    const scores = calculateScores(dummyAnswers);
-    const analysis = {
-      type_name: 'テストタイプ',
-      type_description: '開発テスト用ダミーデータ',
-      axis_analysis: { mindset: 'テスト', literacy: 'テスト', competency: 'テスト', impact: 'テスト' },
-      quadrant_analysis: { vision_quadrant: 'テスト', execution_quadrant: 'テスト' },
-      strengths: ['強み1', '強み2', '強み3'],
-      growth_areas: ['成長1', '成長2', '成長3'],
-      narrative: 'これはテスト用のダミーデータです。実際のAI分析は行われていません。ランダムに生成されたスコアで結果画面のレイアウトを確認するためのモードです。',
-      action_suggestions: ['アクション1', 'アクション2', 'アクション3'],
-    };
-    setUaamResult({ scores, analysis, vAnswers: dummyVAnswers, answers: dummyAnswers });
-    navigate('/uaam/result');
-  };
-
   const handleLogout = () => {
     setUser(null);
     setResult(null);
@@ -430,7 +403,6 @@ function AppShell() {
     handleLogin,
     handleSubmit,
     handleUaamSubmit,
-    handleUaamTestResult,
     handleLogout,
     handleSelectHistory,
     handleScoresRestored,
@@ -528,7 +500,7 @@ function ResultRoute() {
 }
 
 function UaamRoute() {
-  const { user, isAdmin, uaamError, handleUaamSubmit, handleUaamTestResult, handleLogout } = useAppContext();
+  const { user, isAdmin, uaamError, handleUaamSubmit, handleLogout } = useAppContext();
   const navigate = useNavigate();
 
   return (
@@ -537,7 +509,6 @@ function UaamRoute() {
       isAdmin={isAdmin}
       error={uaamError}
       onSubmit={handleUaamSubmit}
-      onTestResult={handleUaamTestResult}
       onBack={() => navigate('/')}
       onAdmin={() => navigate('/admin')}
       onLogout={handleLogout}

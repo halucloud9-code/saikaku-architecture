@@ -5,7 +5,7 @@ import { signOutUser } from '../../firebase';
 const QUESTIONS_PER_PAGE = 10;
 const ACCENT = '#B8960C';
 
-export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBack, onAdmin, onLogout, error }) {
+export default function UAAMScreen({ user, isAdmin, onSubmit, onBack, onAdmin, onLogout, error }) {
   const [answers, setAnswers] = useState({});       // 本問 { id(number): score }
   const [vAnswers, setVAnswers] = useState({});      // V問 { 'V1'|'V2'|'V3': score }
   const [currentPage, setCurrentPage] = useState(0);
@@ -221,23 +221,6 @@ export default function UAAMScreen({ user, isAdmin, onSubmit, onTestResult, onBa
           />
         </div>
       </div>
-
-      {/* 開発テスト用ボタン */}
-      {onTestResult && (
-        <div style={{ padding: '12px 24px 0', maxWidth: 800, margin: '0 auto' }}>
-          <button
-            onClick={onTestResult}
-            style={{
-              width: '100%', padding: '12px 20px', borderRadius: 10,
-              border: '2px dashed #A84432', background: '#A8443215',
-              color: '#A84432', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              letterSpacing: '0.05em',
-            }}
-          >
-            テスト結果を見る（ダミーデータ）
-          </button>
-        </div>
-      )}
 
       {/* ページインジケーター */}
       <div style={{ padding: '16px 24px 0', maxWidth: 800, margin: '0 auto' }}>
