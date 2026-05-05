@@ -2,12 +2,7 @@ import { useState } from 'react';
 import { signOutUser } from '../firebase';
 import useDiagnosisStatus from '../hooks/useDiagnosisStatus';
 
-const UAAM_PASS = 'kokusogaku';
-
 export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectUaam, onSelectHistory, onAdmin, onLogout }) {
-  const [showPassModal, setShowPassModal] = useState(false);
-  const [pass, setPass] = useState('');
-  const [passError, setPassError] = useState('');
   const [hoverSaikaku, setHoverSaikaku] = useState(false);
   const [hoverUaam, setHoverUaam] = useState(false);
   const [hoverSaikakuHistory, setHoverSaikakuHistory] = useState(false);
@@ -54,18 +49,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
       showLimitAlert(uaamStatus);
       return;
     }
-    setPass('');
-    setPassError('');
-    setShowPassModal(true);
-  };
-
-  const handlePassSubmit = () => {
-    if (pass === UAAM_PASS) {
-      setShowPassModal(false);
-      onSelectUaam();
-    } else {
-      setPassError('パスワードが正しくありません');
-    }
+    onSelectUaam();
   };
 
   const renderBadge = (count, palette, testId) => {
@@ -569,20 +553,6 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 border: 'rgba(143,180,224,0.55)',
                 hoverBackground: 'rgba(74,111,165,0.14)',
               }, hoverUaamHistory, setHoverUaamHistory)}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                height: 36,
-                fontSize: 11, color: 'rgba(107,154,212,0.5)', fontWeight: 500,
-                position: 'relative',
-                zIndex: 2,
-                pointerEvents: 'none',
-              }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <span>パスワード</span>
-              </div>
             </div>
             {renderHistoryArea(uaamAttemptCount, !!uaamStatus?.hasPending)}
 
@@ -617,83 +587,6 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
           Powered by GRIFFON × Firebase
         </p>
       </div>
-
-      {/* ─── パスワードモーダル ─── */}
-      {showPassModal && (
-        <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, padding: 20,
-          animation: 'fadeIn 0.2s ease',
-        }} onClick={() => setShowPassModal(false)}>
-          <div style={{
-            background: 'linear-gradient(160deg, #1E1A14 0%, #141210 100%)',
-            border: '1px solid rgba(74,111,165,0.2)',
-            borderRadius: 20, padding: '36px 32px',
-            width: '100%', maxWidth: 380,
-            boxShadow: '0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(74,111,165,0.05) inset',
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center',
-              background: 'rgba(74,111,165,0.1)',
-              border: '1px solid rgba(74,111,165,0.2)',
-              borderRadius: 100, padding: '4px 14px', marginBottom: 16,
-            }}>
-              <span style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', color: '#6B9AD4',
-                textTransform: 'uppercase',
-              }}>Activation Matrix</span>
-            </div>
-            <h2 style={{
-              fontSize: 22, fontWeight: 800, color: '#F5F0E8', margin: '0 0 8px',
-              fontFamily: "'Noto Serif JP', Georgia, serif",
-              letterSpacing: '0.06em',
-            }}>才覚発動領域</h2>
-            <p style={{ fontSize: 13, color: '#8A8070', margin: '0 0 24px' }}>
-              パスワードを入力してください
-            </p>
-            <input
-              type="password"
-              value={pass}
-              onChange={e => { setPass(e.target.value); setPassError(''); }}
-              onKeyDown={e => e.key === 'Enter' && handlePassSubmit()}
-              placeholder="パスワード"
-              autoFocus
-              style={{
-                width: '100%', padding: '14px 16px', fontSize: 15,
-                border: `1px solid ${passError ? 'rgba(220,68,68,0.5)' : 'rgba(74,111,165,0.25)'}`,
-                borderRadius: 12, outline: 'none', boxSizing: 'border-box',
-                background: 'rgba(255,255,255,0.04)',
-                color: '#F5F0E8',
-                transition: 'border-color 0.2s ease',
-              }}
-            />
-            {passError && (
-              <p style={{ fontSize: 12, color: '#DC4444', margin: '10px 0 0', fontWeight: 500 }}>{passError}</p>
-            )}
-            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-              <button onClick={() => setShowPassModal(false)} style={{
-                flex: 1, padding: '13px', borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.08)',
-                background: 'transparent', color: '#8A8070', fontSize: 14,
-                fontWeight: 600, cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}>キャンセル</button>
-              <button onClick={handlePassSubmit} style={{
-                flex: 1, padding: '13px', borderRadius: 12, border: 'none',
-                background: 'linear-gradient(135deg, #4A6FA5, #3A5A8A)',
-                color: '#F5F0E8', fontSize: 14,
-                fontWeight: 700, cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(74,111,165,0.3)',
-                transition: 'all 0.2s ease',
-              }}>確認</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
