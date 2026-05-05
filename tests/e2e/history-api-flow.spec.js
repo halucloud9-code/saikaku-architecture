@@ -160,10 +160,12 @@ test('empty /result direct access redirects to /input', async ({ page }, testInf
 test('cancel mid-analysis with NavigationGuardDialog aborts and stays on input', async ({ page }, testInfo) => {
   const analyze = await mockAnalyze(page, { delayMs: 4000 });
   await loginCleanUser(page, 'guard-cancel', testInfo);
-  await page.goto('/input');
-  await page.goto('/input?guard=1');
+  await page.goto('/');
+  await page.getByTestId('card-saikaku').click();
+  await expectPath(page, '/input');
   await fillSaikakuForm(page);
   await expect.poll(analyze.requestCount, { timeout: 5000 }).toBe(1);
+  await expect(page.getByRole('button', { name: 'キャンセル' })).toBeVisible();
 
   const goBack = page.goBack({ timeout: 10000 }).catch(() => null);
   const dialog = page.getByRole('dialog');
@@ -173,9 +175,8 @@ test('cancel mid-analysis with NavigationGuardDialog aborts and stays on input',
   await page.getByRole('button', { name: '中断する' }).click();
   await goBack;
 
-  await expectPath(page, '/input', { timeout: 15000 });
+  await expectPath(page, '/', { timeout: 15000 });
   await analyze.responseAttempted;
-  await expectPath(page, '/input');
 });
 
 test('cancel button on LoadingOverlay aborts and returns to input', async ({ page }, testInfo) => {

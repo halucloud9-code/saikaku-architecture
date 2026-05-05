@@ -119,7 +119,8 @@ async function main() {
   await wait(['http://localhost:5173'], 60_000);
 
   log('running Playwright');
-  const playwright = spawn('npx', ['playwright', 'test'], {
+  const playwrightArgs = ['playwright', 'test', ...process.argv.slice(2)];
+  const playwright = spawn('npx', playwrightArgs, {
     cwd: process.cwd(),
     env: sharedEnv,
     stdio: 'inherit',
