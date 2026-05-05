@@ -391,8 +391,14 @@ export default function SaikakuIntegration({
 
     try {
       await onSave(items);
-      setDirtyByQuestion(new Map());
-      onDirtyChange?.(false);
+      const savedKeys = items
+        .map((item) => normalizeQuestionText(item.questionText))
+        .filter(Boolean);
+      setDirtyByQuestion((prev) => {
+        const next = new Map(prev);
+        for (const key of savedKeys) next.delete(key);
+        return next;
+      });
     } catch (e) {
       setSaveError(e?.message || '回答を保存できませんでした。再度お試しください。');
     }
