@@ -1,12 +1,28 @@
 import { useState } from 'react';
 import { signOutUser } from '../firebase';
 import useDiagnosisStatus from '../hooks/useDiagnosisStatus';
+import {
+  formatAttemptDate,
+  getAttemptDate,
+  getAttemptLabel,
+  getAttemptOrdinal,
+} from '../utils/attemptDisplay';
 
-export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectUaam, onSelectHistory, onAdmin, onLogout }) {
+export default function SelectScreen({
+  user,
+  isAdmin,
+  onSelectSaikaku,
+  onSelectUaam,
+  onSelectHistory,
+  onSelectAttempt,
+  onAdmin,
+  onLogout,
+}) {
   const [hoverSaikaku, setHoverSaikaku] = useState(false);
   const [hoverUaam, setHoverUaam] = useState(false);
   const [hoverSaikakuHistory, setHoverSaikakuHistory] = useState(false);
   const [hoverUaamHistory, setHoverUaamHistory] = useState(false);
+  const [hoverRecentAttempt, setHoverRecentAttempt] = useState('');
   const { status, error, loading, refresh } = useDiagnosisStatus(user);
   const saikakuStatus = status?.saikaku ?? null;
   const uaamStatus = status?.uaam ?? null;
@@ -138,6 +154,107 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         }}>
           {metaText}
         </span>
+      </div>
+    );
+  };
+
+  const renderRecentAttempts = (kind, palette) => {
+    const attempts = status?.[kind]?.recentAttempts ?? [];
+    if (attempts.length === 0) return null;
+
+    return (
+      <div style={{
+        marginTop: 14,
+        borderTop: `1px solid ${palette.divider}`,
+        position: 'relative',
+        zIndex: 2,
+      }}>
+        {attempts.map((attempt, index) => {
+          const hoverKey = `${kind}-${attempt.id ?? index}`;
+          const isHovered = hoverRecentAttempt === hoverKey;
+          const ordinal = getAttemptOrdinal(attempt, index, attempts.length);
+          const date = formatAttemptDate(getAttemptDate(attempt));
+          const label = getAttemptLabel(attempt, kind);
+          const openAttempt = () => onSelectAttempt?.(attempt.id, kind);
+          const handleKeyDown = (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            event.stopPropagation();
+            openAttempt();
+          };
+
+          return (
+            <div
+              key={attempt.id ?? `${kind}-${index}`}
+              data-testid={`recent-attempt-${kind}-${index}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${ordinal} ${date} ${label} を開く`}
+              onClick={(event) => {
+                event.stopPropagation();
+                openAttempt();
+              }}
+              onKeyDown={handleKeyDown}
+              onMouseEnter={() => setHoverRecentAttempt(hoverKey)}
+              onMouseLeave={() => setHoverRecentAttempt('')}
+              onFocus={() => setHoverRecentAttempt(hoverKey)}
+              onBlur={() => setHoverRecentAttempt('')}
+              style={{
+                padding: '13px 0 12px',
+                borderBottom: index === attempts.length - 1 ? 'none' : `1px solid ${palette.divider}`,
+                cursor: 'pointer',
+                outline: 'none',
+                background: isHovered ? palette.hoverBackground : 'transparent',
+                boxShadow: isHovered ? `0 0 0 999px ${palette.hoverBackground}` : 'none',
+                clipPath: 'inset(0 -28px)',
+                transition: 'background 0.22s ease, box-shadow 0.22s ease',
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                color: palette.light,
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                lineHeight: 1.4,
+              }}>
+                <span aria-hidden="true" style={{ color: palette.accent, fontSize: 13 }}>📋</span>
+                <span>{ordinal}</span>
+                <span aria-hidden="true" style={{ color: palette.muted }}>·</span>
+                <span style={{ color: palette.muted, fontWeight: 700 }}>{date}</span>
+              </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                marginTop: 5,
+                paddingLeft: 22,
+              }}>
+                <span style={{
+                  color: '#FFFFFF',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  lineHeight: 1.6,
+                  letterSpacing: '0.03em',
+                  wordBreak: 'break-word',
+                }}>
+                  {label}
+                </span>
+                <span aria-hidden="true" style={{
+                  flex: '0 0 auto',
+                  color: isHovered ? palette.light : palette.accent,
+                  fontSize: 15,
+                  fontWeight: 800,
+                  transform: isHovered ? 'translateX(3px)' : 'translateX(0)',
+                  transition: 'transform 0.22s ease, color 0.22s ease',
+                }}>→</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -409,6 +526,13 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 hoverBackground: 'rgba(196,146,42,0.12)',
               }, hoverSaikakuHistory, setHoverSaikakuHistory)}
             </div>
+            {renderRecentAttempts('saikaku', {
+              accent: '#C4922A',
+              light: '#E8C47A',
+              muted: '#B9A98E',
+              divider: 'rgba(196,146,42,0.18)',
+              hoverBackground: 'rgba(196,146,42,0.08)',
+            })}
             {renderHistoryArea(saikakuAttemptCount, !!saikakuStatus?.hasPending)}
             </div>
           </div>
@@ -554,6 +678,13 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
                 hoverBackground: 'rgba(74,111,165,0.14)',
               }, hoverUaamHistory, setHoverUaamHistory)}
             </div>
+            {renderRecentAttempts('uaam', {
+              accent: '#4A6FA5',
+              light: '#8FB4E0',
+              muted: '#A7B8CC',
+              divider: 'rgba(74,111,165,0.20)',
+              hoverBackground: 'rgba(74,111,165,0.09)',
+            })}
             {renderHistoryArea(uaamAttemptCount, !!uaamStatus?.hasPending)}
 
             {/* Coming Soon — 枠なし、一番下 */}
