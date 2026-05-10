@@ -595,3 +595,64 @@ const [cgSnap, uaamParentsSnap, resultsParentsSnap] = await Promise.all([
 - 認証パターン: `api/admin/users.js`（既存統一パターン踏襲）
 - テスト: `tests/api/admin-integrations.test.js`, `tests/e2e/admin-integrations.spec.js`, `src/screens/__tests__/AdminScreen.integrations-tab.test.jsx`
 - screenshot: `screenshots/issue-73/integrations-tab-list.png`, `integrations-tab-modal.png`
+
+---
+
+## 13. 才覚レーダー四隅バッジのパーセント主役化 (issue #77)
+
+> 確定: 2026-05-10 (plan-with-debate Round 1 後実装)
+
+### 背景
+`ActivationMatrix.jsx` の四隅バッジ（衝/志/技/知）は `XX/80` 表記のみで、「100点満点中XX点」と誤読される視覚バイアスがあった。中央 `TOTAL %` および activePoint ツールチップは既にパーセント主役だが、四隅だけ raw 値主役で表示階層が非一貫だった。
+
+### 採用案
+`CornerBadge`（L47-115）のスコア表示部のみ、2行レイアウトに変更:
+- **上行**: `XX%` — `clamp(15px, 3.6vw, 22px)` weight 700 α=0.9（主役）。`%` は `0.55em` weight 400 α=0.55（従属）
+- **下行**: `XX/80` — `clamp(10px, 2vw, 12px)` weight 400 α=0.45（補足注記）
+
+色は既存の軸 RGB tuple を維持し、α 値だけで階層化。kanji・EN ラベル・ミニバー・canvas 描画・hover ツールチップ・groupTotals.map カードはすべて非変更。
+
+### なぜこうしたか
+1. **既存3パターンとの整合性**: 中央 canvas の `pct + TOTAL %` 注記、activePoint ツールチップの `pct% + 灰色 %`、groupTotals.map カードの `total/max + pct%` 別行 — いずれも「pct 主役・raw 従属」階層。CornerBadge だけが逆転していたのを揃えた
+2. **色階調を維持**: `c = g.color` の RGB tuple を流用して α 値で hierarchy 表現。新規色定数を導入しないことで既存の軸別カラー体系（mindset 青 / literacy 緑 / competency 黄 / impact 赤）を保つ
+3. **`g.pct` を再計算しない**: `groupTotals` で既に `Math.round(total / (maxSub*4) * 100)` が算出されている。再計算は浮動小数誤差の温床
+4. **prop interface 不変**: `CornerBadge` は `UAAMResultScreen` (L2195) と `AdminScreen` (L920) で共用。表示分岐を component 内に持ち込まず、両 consumer で同一 render を保証
+
+### なぜ別案を採らなかったか
+
+**代替案1（棄却）**: `XX/80` を完全置き換えて `XX%` のみ
+- issue 完了条件で「`XX/80` も従来通り残る」と明示。要件違反
+
+**代替案2（Round 1 debate で棄却）**: `XX% (XX/80)` の1行併記
+- 漢字 `clamp(22px, 5vw, 32px)` + ミニバー `clamp(28px, 6vw, 40px)` で形成される縦長シルエットに横幅 60-80px のテキストを1行で詰めると、視覚バランス崩壊と隣接要素（segLabel 外周ラベル）への突出が発生
+- Gemini Round 1 で「空間設計破綻・視覚階層ノイズ」と独立指摘
+- 4ブレークポイント（375/414/430/520）で破綻が確定
+
+### plan-with-debate Round 1 で確定した制約
+- DOM 距離閾値で衝突判定: `getBoundingClientRect()` で segLabel・対角バッジ・自バッジ内部要素との矩形交差を排除
+- pct 行 fontSize ≥ raw 行 fontSize の **1.4倍以上**（hierarchy が壊れない最小比）
+- AdminScreen と印刷プレビュー（A4縦 210mm）も明示的に検証対象に追加
+
+### codex-code-review (REQUEST_CHANGES) のスコープ判定
+codex-code-review は High 6件を指摘したが、以下はすべて既存コードの問題で issue #77 のスコープ外と判定し、フォローアップ issue 候補として記録:
+- canvas RAF 無限ループ・`canvas.width/height` 毎フレーム再設定（perf）
+- canvas / クリック可能 div の ARIA・キーボード対応（a11y, WCAG 1.1.1 / 2.1.1 / 4.1.2）
+- 1106 行の単一ファイル分割（maintainability）
+- `setTimeout` cleanup（maintainability）
+- `prefers-reduced-motion` 未対応（a11y, WCAG 2.2.2 / 2.3.3）
+- `scores`/`maxSub` の数値バリデーション（error-handling）
+
+スコープ内で唯一の指摘 — raw α=0.45 の WCAG 1.4.3 コントラスト不足 — はプラン Constraints で確定済みの仕様（既存 groupTotals.map カードと整合）。プランごと再評価しない判断は、つかさ確認 (2026-05-10) で承認。
+
+### 観測結果
+- vitest unit: 新規 `ActivationMatrix.test.jsx` 1 件 pass（4軸バッジ全てに `XX%` と `XX/80` が DOM 上に存在することと、font-size 比率・α 値・weight を検証）
+- e2e (Playwright): `uaam-history-flow.spec.js` `uaam-page-skip.spec.js` 6 件全 pass（regression check）
+- e2e snapshot: `issue-77-snapshots.spec.js` 7 件 pass（4ブレークポイント + 印刷プレビュー + 管理画面 2幅）
+- スクリーンショット: `screenshots/issue-77/state-clean-{375,414,430,520}.png` + `print.png` + `admin-{375,520}.png`
+
+### 参照
+- 実装: `src/screens/uaam/ActivationMatrix.jsx:83-105` (CornerBadge スコア部のみ)
+- ユニットテスト: `src/screens/uaam/__tests__/ActivationMatrix.test.jsx`
+- snapshot e2e: `tests/e2e/issue-77-snapshots.spec.js`
+- debate fact-check: `debate/plan-debate-20260510-issue-77/round-1/fact-check.md`
+- codex review (スコープ外として保留): `codex/codex-review-20260510/`
