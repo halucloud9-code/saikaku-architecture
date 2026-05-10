@@ -92,6 +92,41 @@ describe('SaikakuIntegrationModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('skips coaching answer fetch and save UI in admin mode', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    render(
+      <SaikakuIntegrationModal
+        open
+        mode="admin"
+        onClose={onClose}
+        kind="uaam"
+        userInfo={{ userName: 'Admin Target', userEmail: 'target@example.com' }}
+        integrationSummary={summary({
+          status: 'stale',
+          integration: {
+            ...integration('Admin Core'),
+            coaching_questions: ['管理者はこの問いに回答しない'],
+          },
+        })}
+      />,
+    );
+
+    expect(coachingMocks.loadCoachingAnswers).not.toHaveBeenCalled();
+    expect(screen.getByText('Admin Target')).toBeInTheDocument();
+    expect(screen.getByText('target@example.com')).toBeInTheDocument();
+    expect(screen.queryByText('管理者はこの問いに回答しない')).toBeNull();
+    expect(screen.queryByPlaceholderText('あなたの考えを書いてみてください')).toBeNull();
+    expect(screen.queryByRole('button', { name: /回答を保存/ })).toBeNull();
+    expect(screen.queryByText('要再生成')).toBeNull();
+
+    await user.click(screen.getByTestId('saikaku-integration-modal-backdrop'));
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('confirms before closing when coaching answers are unsaved', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

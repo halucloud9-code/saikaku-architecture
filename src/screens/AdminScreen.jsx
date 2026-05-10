@@ -3,6 +3,7 @@ import { auth, signOutUser } from '../firebase';
 import { Chart, computePcts, CHART_COLORS } from '../utils/chartUtils';
 import ActivationPanel from '../ActivationPanel';
 import ActivationMatrix from './uaam/ActivationMatrix';
+import SaikakuIntegrationModal from './uaam/SaikakuIntegrationModal';
 import {
   getVFlags,
   calculateBiasMessage,
@@ -55,14 +56,26 @@ function formatAdminDate(value) {
   return date.toLocaleString('ja-JP');
 }
 
-function IntegrationBadge({ children, tone = 'neutral' }) {
-  const styles = {
-    neutral: { bg: '#F5F0E8', color: '#7A7060', border: '#D4C9B0' },
-    active: { bg: '#ECFDF5', color: '#047857', border: '#A7F3D0' },
-    info: { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' },
-    warning: { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A' },
-    danger: { bg: '#FEE2E2', color: '#991B1B', border: '#FECACA' },
-  }[tone] || { bg: '#F5F0E8', color: '#7A7060', border: '#D4C9B0' };
+function buildAdminIntegrationSummary(item) {
+  if (!item) return null;
+  return {
+    saikakuAttemptId: item.saikakuAttemptId,
+    uaamAttemptId: item.uaamAttemptId,
+    integration: item.integration,
+    status: item.status,
+    regenerationCount: item.regenerationCount,
+    model: item.model,
+    source: item.source,
+    generatedAt: item.updatedAt ?? item.createdAt,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    pairKey: item.pairKey,
+    isLegacyFallback: item.isLegacyFallback,
+  };
+}
+
+function IntegrationBadge({ children }) {
+  const styles = { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' };
 
   return (
     <span style={{
@@ -99,181 +112,6 @@ function IntegrationLabelCell({ item, field }) {
       {item?.isLegacyFallback && (
         <span style={{ fontSize: 11, fontWeight: 700, color: '#7A7060' }}>(legacy)</span>
       )}
-    </div>
-  );
-}
-
-function IntegrationStatusBadges({ item }) {
-  const status = item?.status || 'active';
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minWidth: 120 }}>
-      {status === 'stale' ? (
-        <IntegrationBadge tone="warning">stale</IntegrationBadge>
-      ) : (
-        <IntegrationBadge tone="active">{status}</IntegrationBadge>
-      )}
-      {item?.staleSaikaku && <IntegrationBadge tone="danger">才覚側 stale</IntegrationBadge>}
-      {item?.staleUaam && <IntegrationBadge tone="danger">UAAM側 stale</IntegrationBadge>}
-      {item?.isLegacyFallback && <IntegrationBadge>移行前</IntegrationBadge>}
-    </div>
-  );
-}
-
-function IntegrationDetailModal({ item, onClose }) {
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  if (!item) return null;
-
-  const sectionTitleStyle = {
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#7A7060',
-    letterSpacing: '0.12em',
-    marginBottom: 10,
-  };
-  const metaGridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: 10,
-    marginBottom: 22,
-  };
-  const metaBoxStyle = {
-    background: '#F5F0E8',
-    border: '1px solid #E8E0D4',
-    borderRadius: 8,
-    padding: '10px 12px',
-    minWidth: 0,
-  };
-  const metaLabelStyle = {
-    fontSize: 10,
-    fontWeight: 700,
-    color: '#7A7060',
-    letterSpacing: '0.08em',
-    marginBottom: 4,
-  };
-  const metaValueStyle = {
-    fontSize: 13,
-    color: '#2A2520',
-    lineHeight: 1.5,
-    wordBreak: 'break-word',
-  };
-
-  const renderMeta = (label, value) => (
-    <div style={metaBoxStyle}>
-      <div style={metaLabelStyle}>{label}</div>
-      <div style={metaValueStyle}>{displayValue(value)}</div>
-    </div>
-  );
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(42,37,32,0.65)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: 24,
-      }}
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="統合分析詳細"
-        style={{
-          background: '#FDFCFA',
-          borderRadius: 16,
-          border: '1px solid #D4C9B0',
-          padding: '28px 32px 32px',
-          maxWidth: 840,
-          width: '100%',
-          maxHeight: '88vh',
-          overflowY: 'auto',
-          boxShadow: '0 20px 60px rgba(42,37,32,0.22)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 24 }}>
-          <div>
-            <div style={{ fontSize: 12, color: '#7A7060', marginBottom: 6 }}>
-              {displayValue(item.userName)} / {displayValue(item.userEmail)}
-            </div>
-            <h2 style={{
-              fontFamily: 'Shippori Mincho, serif',
-              fontSize: 22,
-              fontWeight: 700,
-              color: '#2A2520',
-              margin: 0,
-            }}>
-              統合分析詳細
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: '1px solid #D4C9B0',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontSize: 13,
-              color: '#7A7060',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            閉じる
-          </button>
-        </div>
-
-        <div style={sectionTitleStyle}>SOURCE LABELS</div>
-        <div style={metaGridStyle}>
-          {renderMeta('才覚 label', item.source?.saikakuLabel ?? '—')}
-          {renderMeta('UAAM label', item.source?.uaamLabel ?? '—')}
-        </div>
-
-        <div style={sectionTitleStyle}>IDENTIFIERS</div>
-        <div style={metaGridStyle}>
-          {renderMeta('saikakuAttemptId', item.saikakuAttemptId)}
-          {renderMeta('uaamAttemptId', item.uaamAttemptId)}
-          {renderMeta('pairKey', item.pairKey)}
-        </div>
-
-        <div style={sectionTitleStyle}>META</div>
-        <div style={metaGridStyle}>
-          {renderMeta('createdAt', formatAdminDate(item.createdAt))}
-          {renderMeta('updatedAt', formatAdminDate(item.updatedAt))}
-          {renderMeta('model', item.model ?? '—')}
-          <div style={metaBoxStyle}>
-            <div style={metaLabelStyle}>status</div>
-            <IntegrationStatusBadges item={item} />
-          </div>
-        </div>
-
-        <div style={sectionTitleStyle}>INTEGRATION JSON</div>
-        <pre style={{
-          margin: 0,
-          background: '#2A2520',
-          color: '#FDFCFA',
-          borderRadius: 10,
-          padding: '16px 18px',
-          fontSize: 12,
-          lineHeight: 1.7,
-          overflowX: 'auto',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}>
-          {JSON.stringify(item.integration ?? {}, null, 2)}
-        </pre>
-      </div>
     </div>
   );
 }
@@ -2218,20 +2056,16 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table aria-label="統合分析一覧" style={{ width: '100%', minWidth: 1180, borderCollapse: 'collapse' }}>
+              <table aria-label="統合分析一覧" style={{ width: '100%', minWidth: 920, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
                     {[
-                      'ユーザー名',
-                      'メール',
+                      'ユーザー',
                       '才覚 label',
                       'UAAM label',
                       '再生成回数',
                       'integration_score',
-                      'model',
-                      'status',
-                      'createdAt',
-                      'updatedAt',
+                      '更新日時',
                     ].map((h) => (
                       <th
                         key={h}
@@ -2272,15 +2106,17 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                       onMouseEnter={(e) => (e.currentTarget.style.background = '#FBF4E8')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4')}
                     >
-                      <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: displayValue(item.userName) === '—' ? '#B0A898' : '#2A2520' }}>
-                          {displayValue(item.userName)}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: 12, color: displayValue(item.userEmail) === '—' ? '#B0A898' : '#7A7060' }}>
-                          {displayValue(item.userEmail)}
-                        </span>
+                      <td style={{ padding: '12px', minWidth: 190 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: displayValue(item.userName) === '—' ? '#B0A898' : '#2A2520' }}>
+                            {displayValue(item.userName)}
+                          </span>
+                          {item.userEmail && (
+                            <span style={{ fontSize: 11, color: '#B0A898' }}>
+                              {item.userEmail}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '12px' }}>
                         <IntegrationLabelCell item={item} field="saikakuLabel" />
@@ -2293,25 +2129,12 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                           <span style={{ fontSize: 13, fontWeight: 700, color: '#2A2520' }}>
                             {item.regenerationCount ?? 0}
                           </span>
-                          {(item.regenerationCount ?? 0) > 0 && <IntegrationBadge tone="info">再生成</IntegrationBadge>}
+                          {(item.regenerationCount ?? 0) === 1 && <IntegrationBadge>再生成</IntegrationBadge>}
                         </div>
                       </td>
                       <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: item.integration?.integration_score === null || item.integration?.integration_score === undefined ? '#B0A898' : '#C4922A' }}>
                           {item.integration?.integration_score ?? '—'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', maxWidth: 160 }}>
-                        <span style={{ fontSize: 12, color: item.model ? '#2A2520' : '#B0A898', wordBreak: 'break-word' }}>
-                          {item.model ?? '—'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <IntegrationStatusBadges item={item} />
-                      </td>
-                      <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: 12, color: item.createdAt ? '#7A7060' : '#B0A898' }}>
-                          {formatAdminDate(item.createdAt)}
                         </span>
                       </td>
                       <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
@@ -2355,8 +2178,15 @@ export default function AdminScreen({ user, onBack, onLogout }) {
 
       {/* 統合分析 詳細モーダル */}
       {selectedIntegration && (
-        <IntegrationDetailModal
-          item={selectedIntegration}
+        <SaikakuIntegrationModal
+          open={!!selectedIntegration}
+          mode="admin"
+          kind="uaam"
+          integrationSummary={buildAdminIntegrationSummary(selectedIntegration)}
+          userInfo={{
+            userName: selectedIntegration.userName,
+            userEmail: selectedIntegration.userEmail,
+          }}
           onClose={() => setSelectedIntegration(null)}
         />
       )}

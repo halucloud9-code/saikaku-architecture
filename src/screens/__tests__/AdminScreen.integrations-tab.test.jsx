@@ -52,6 +52,7 @@ function integrationFixture() {
         integration_score: 92,
         activation_core: 'Active Integration Core',
         activation_equation: 'Active Integration Core equation',
+        coaching_questions: ['Admin should not edit this coaching question'],
       },
       createdAt: '2026-05-04T00:00:00.000Z',
       updatedAt: '2026-05-04T00:00:00.000Z',
@@ -181,8 +182,8 @@ describe('AdminScreen integrations tab', () => {
     expect(screen.getByRole('button', { name: '統合分析（4）' })).toBeInTheDocument();
   });
 
-  it('fetches admin integrations and renders the integrations tab with all table columns', async () => {
-    await renderAdminAndOpenIntegrations();
+  it('fetches admin integrations and renders the integrations tab with six table columns', async () => {
+    const table = await renderAdminAndOpenIntegrations();
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith('/api/admin/integrations', {
@@ -191,18 +192,18 @@ describe('AdminScreen integrations tab', () => {
     });
 
     [
-      'ユーザー名',
-      'メール',
+      'ユーザー',
       '才覚 label',
       'UAAM label',
       '再生成回数',
       'integration_score',
-      'model',
-      'status',
-      'createdAt',
-      'updatedAt',
+      '更新日時',
     ].forEach((header) => {
       expect(screen.getByRole('columnheader', { name: header })).toBeInTheDocument();
+    });
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(6);
+    ['メール', 'model', 'status', 'createdAt'].forEach((header) => {
+      expect(screen.queryByRole('columnheader', { name: header })).toBeNull();
     });
 
     const activeRow = screen.getByText('Active User').closest('tr');
@@ -212,23 +213,25 @@ describe('AdminScreen integrations tab', () => {
     expect(within(activeRow).getByText('1')).toBeInTheDocument();
     expect(within(activeRow).getByText('再生成')).toBeInTheDocument();
     expect(within(activeRow).getByText('92')).toBeInTheDocument();
-    expect(within(activeRow).getByText('claude-sonnet-4-20250514')).toBeInTheDocument();
-    expect(within(activeRow).getAllByText(new Date('2026-05-04T00:00:00.000Z').toLocaleString('ja-JP'))).toHaveLength(2);
+    expect(within(activeRow).queryByText('claude-sonnet-4-20250514')).toBeNull();
+    expect(within(activeRow).getAllByText(new Date('2026-05-04T00:00:00.000Z').toLocaleString('ja-JP'))).toHaveLength(1);
 
     const staleSaikakuRow = screen.getByText('Stale Saikaku User').closest('tr');
-    expect(within(staleSaikakuRow).getByText('stale')).toBeInTheDocument();
-    expect(within(staleSaikakuRow).getByText('才覚側 stale')).toBeInTheDocument();
-    expect(within(staleSaikakuRow).getByText('—')).toBeInTheDocument();
+    expect(within(staleSaikakuRow).queryByText('stale')).toBeNull();
+    expect(within(staleSaikakuRow).queryByText('才覚側 stale')).toBeNull();
+    expect(within(staleSaikakuRow).getByText('63')).toBeInTheDocument();
 
-    const staleUaamRow = screen.getByText('model-b').closest('tr');
-    expect(within(staleUaamRow).getByText('UAAM側 stale')).toBeInTheDocument();
-    expect(within(staleUaamRow).getAllByText('—').length).toBeGreaterThanOrEqual(5);
+    const rows = within(table).getAllByRole('row');
+    const staleUaamRow = rows[3];
+    expect(within(staleUaamRow).queryByText('UAAM側 stale')).toBeNull();
+    expect(within(staleUaamRow).queryByText('model-b')).toBeNull();
+    expect(within(staleUaamRow).getAllByText('—').length).toBeGreaterThanOrEqual(4);
 
     const legacyRow = screen.getByText('Legacy User').closest('tr');
     expect(within(legacyRow).getByText('Legacy Saikaku Label')).toBeInTheDocument();
     expect(within(legacyRow).getByText('Legacy UAAM Label')).toBeInTheDocument();
     expect(within(legacyRow).getAllByText('(legacy)')).toHaveLength(2);
-    expect(within(legacyRow).getByText('移行前')).toBeInTheDocument();
+    expect(within(legacyRow).queryByText('移行前')).toBeNull();
   });
 
   it('refreshes integrations when the update button is clicked', async () => {
@@ -245,24 +248,26 @@ describe('AdminScreen integrations tab', () => {
     });
   });
 
-  it('opens a read-only inline detail modal and closes it with Escape', async () => {
+  it('opens the shared read-only integration modal in admin mode and closes it with Escape', async () => {
     await renderAdminAndOpenIntegrations();
 
     await userEvent.click(screen.getByText('Active User').closest('tr'));
 
-    const dialog = await screen.findByRole('dialog', { name: '統合分析詳細' });
+    const dialog = await screen.findByRole('dialog', { name: '才覚発動統合分析' });
     expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByText(/Active Integration Core/)).toBeInTheDocument();
-    expect(within(dialog).getByText('saikaku-active')).toBeInTheDocument();
-    expect(within(dialog).getByText('uaam-active')).toBeInTheDocument();
-    expect(within(dialog).getByText('saikaku-active__uaam-active')).toBeInTheDocument();
-    expect(within(dialog).getByText('Saikaku Active Label')).toBeInTheDocument();
-    expect(within(dialog).getByText('UAAM Active Label')).toBeInTheDocument();
+    expect(within(dialog).getByText('Active User')).toBeInTheDocument();
+    expect(within(dialog).getByText('active@example.com')).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/Active Integration Core/).length).toBeGreaterThan(0);
+    expect(within(dialog).getByText(/Saikaku Active Label/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/UAAM Active Label/)).toBeInTheDocument();
+    expect(within(dialog).queryByText('Admin should not edit this coaching question')).toBeNull();
+    expect(within(dialog).queryByPlaceholderText('あなたの考えを書いてみてください')).toBeNull();
     expect(within(dialog).queryByRole('button', { name: /保存|削除|再生成/ })).toBeNull();
+    expect(fetch.mock.calls.map(([url]) => url)).not.toContain('/api/me/coaching-answers');
 
     await userEvent.keyboard('{Escape}');
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: '統合分析詳細' })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: '才覚発動統合分析' })).toBeNull();
     });
   });
 });
