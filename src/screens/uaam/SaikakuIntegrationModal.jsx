@@ -166,6 +166,7 @@ export default function SaikakuIntegrationModal({
   const integration = integrationBodyFromSummary(selectedSummary);
   const legacy = isLegacyFallback(selectedSummary);
   const stale = !isAdminMode && selectedSummary?.status === 'stale';
+  const visibleAnswersMap = isAdminMode ? (userInfo?.coachingAnswers ?? {}) : answersMap;
 
   return (
     <div
@@ -368,14 +369,14 @@ export default function SaikakuIntegrationModal({
                 integration={integration}
                 source={selectedSource}
                 status={isAdminMode ? undefined : selectedSummary?.status}
-                answersMap={isAdminMode ? {} : answersMap}
+                answersMap={visibleAnswersMap}
                 onSave={isAdminMode ? undefined : handleCoachingSave}
                 saving={isAdminMode ? false : saving}
                 lastSavedAt={isAdminMode ? null : lastSavedAt}
                 onDirtyChange={isAdminMode ? undefined : setHasUnsavedAnswers}
                 defaultOpen
                 readOnly
-                hideCoachingAnswers={isAdminMode}
+                disableCoachingInput={isAdminMode}
               />
             </div>
           ) : (

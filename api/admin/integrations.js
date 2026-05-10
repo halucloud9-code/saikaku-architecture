@@ -31,6 +31,11 @@ function snapshotDataByUid(snapshot) {
   return new Map(snapshot.docs.map((docSnap) => [docSnap.id, docSnap.data() || {}]));
 }
 
+function readCoachingAnswers(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value;
+}
+
 function integrationUid(docSnap) {
   return docSnap.ref.parent.parent?.id ?? null;
 }
@@ -64,6 +69,7 @@ function responseItem(uid, integrationDoc, uaamParentData, saikakuParentData) {
     status: status.status,
     staleSaikaku: status.staleSaikaku,
     staleUaam: status.staleUaam,
+    coachingAnswers: readCoachingAnswers(uaamParentData?.coaching_answers),
     integration: integrationDoc.integration ?? {},
     createdAt: tsToIso(integrationDoc.createdAt),
     updatedAt: tsToIso(integrationDoc.updatedAt),

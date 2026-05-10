@@ -320,7 +320,7 @@ export default function SaikakuIntegration({
   status,
   defaultOpen = false,
   readOnly = false,
-  hideCoachingAnswers = false,
+  disableCoachingInput = false,
   onDirtyChange,
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -334,7 +334,7 @@ export default function SaikakuIntegration({
   const answerEntries = useMemo(() => Object.values(answersMap || {}), [answersMap]);
   const savedTime = useMemo(() => formatSavedTime(lastSavedAt), [lastSavedAt]);
   const hasDraftAnswer = coachingQuestions.some((_, i) => (draftAnswers[i] || '').trim().length > 0);
-  const canSave = !!onSave && !saving && hasDraftAnswer;
+  const canSave = !!onSave && !saving && !disableCoachingInput && hasDraftAnswer;
 
   useEffect(() => {
     onDirtyChange?.(dirtyByQuestion.size > 0);
@@ -654,36 +654,34 @@ export default function SaikakuIntegration({
                       <div style={{ fontSize: 13, color: P.text, lineHeight: 1.7, paddingTop: 1,
                         fontFamily: "'Noto Serif JP', serif" }}>{toJP(q)}</div>
                     </div>
-                    {!hideCoachingAnswers && (
-                      <textarea
-                        value={draft}
-                        onChange={(e) => updateDraftAnswer(i, e.target.value)}
-                        disabled={saving}
-                        rows={3}
-                        maxLength={2000}
-                        placeholder="あなたの考えを書いてみてください"
-                        style={{
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          minHeight: 88,
-                          padding: '10px 12px',
-                          border: `1px solid ${P.border}`,
-                          borderRadius: 8,
-                          background: saving ? '#F7F3EC' : P.surface,
-                          color: P.text,
-                          fontSize: 13,
-                          lineHeight: 1.7,
-                          fontFamily: "'Noto Serif JP', serif",
-                          resize: 'vertical',
-                          outlineOffset: 2,
-                          opacity: saving ? 0.72 : 1,
-                        }}
-                      />
-                    )}
+                    <textarea
+                      value={draft}
+                      onChange={(e) => updateDraftAnswer(i, e.target.value)}
+                      disabled={saving || disableCoachingInput}
+                      rows={3}
+                      maxLength={2000}
+                      placeholder="あなたの考えを書いてみてください"
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        minHeight: 88,
+                        padding: '10px 12px',
+                        border: `1px solid ${P.border}`,
+                        borderRadius: 8,
+                        background: saving || disableCoachingInput ? '#F7F3EC' : P.surface,
+                        color: P.text,
+                        fontSize: 13,
+                        lineHeight: 1.7,
+                        fontFamily: "'Noto Serif JP', serif",
+                        resize: 'vertical',
+                        outlineOffset: 2,
+                        opacity: saving || disableCoachingInput ? 0.72 : 1,
+                      }}
+                    />
                   </div>
                 );
               })}
-              {!hideCoachingAnswers && (
+              {!disableCoachingInput && (
                 <>
                   <button
                     type="button"

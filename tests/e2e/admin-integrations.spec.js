@@ -15,6 +15,8 @@ import { buildPairKey } from '../../shared/integrationsKey.js';
 
 const password = 'password123';
 const screenshotDir = 'screenshots/issue-73';
+const ADMIN_COACHING_QUESTION = 'E2E admin-only coaching question';
+const ADMIN_COACHING_ANSWER = 'E2E admin saved coaching answer';
 const adminEmail = (process.env.ADMIN_EMAILS || process.env.VITE_ADMIN_EMAILS || 'admin-e2e@example.com')
   .split(',')
   .map((email) => email.trim())
@@ -50,7 +52,7 @@ function integrationBody(score, activationCore) {
     integration_score: score,
     activation_core: activationCore,
     activation_equation: `${activationCore} equation`,
-    coaching_questions: ['E2E admin-only coaching question'],
+    coaching_questions: [ADMIN_COACHING_QUESTION],
   };
 }
 
@@ -100,6 +102,17 @@ async function seedIntegration(uid, saikakuAttemptId, uaamAttemptId, overrides =
 }
 
 async function seedParentPair(uid, overrides = {}) {
+  const uaamParentData = {
+    ...uaamParent(1),
+    uid,
+    name: overrides.uaamName ?? overrides.name ?? 'E2E Integration User',
+    email: overrides.uaamEmail ?? overrides.email ?? 'integration-user@example.com',
+    latestAttemptId: overrides.latestUaamAttemptId ?? 'uaam-current',
+  };
+  if (overrides.coachingAnswers) {
+    uaamParentData.coaching_answers = overrides.coachingAnswers;
+  }
+
   await Promise.all([
     seedUser(uid, 'saikaku', {
       parent: {
@@ -111,13 +124,7 @@ async function seedParentPair(uid, overrides = {}) {
       },
     }),
     seedUser(uid, 'uaam', {
-      parent: {
-        ...uaamParent(1),
-        uid,
-        name: overrides.uaamName ?? overrides.name ?? 'E2E Integration User',
-        email: overrides.uaamEmail ?? overrides.email ?? 'integration-user@example.com',
-        latestAttemptId: overrides.latestUaamAttemptId ?? 'uaam-current',
-      },
+      parent: uaamParentData,
     }),
   ]);
 }
@@ -128,6 +135,14 @@ async function seedAdminIntegrationsDataset() {
     email: 'e2e-active@example.com',
     latestSaikakuAttemptId: 'saikaku-active',
     latestUaamAttemptId: 'uaam-active',
+    coachingAnswers: {
+      'e2e-admin-coaching-qid': {
+        questionText: ADMIN_COACHING_QUESTION,
+        answer: ADMIN_COACHING_ANSWER,
+        answeredAt: at(1),
+        updatedAt: at(4),
+      },
+    },
   });
   await seedIntegration(UIDS.active, 'saikaku-active', 'uaam-active', {
     regenerationCount: 1,
@@ -250,13 +265,17 @@ test('admin can inspect integrations list and shared read-only detail modal', as
   await expect(dialog.getByText('E2E Saikaku Active Label')).toBeVisible();
   await expect(dialog.getByText('E2E UAAM Active Label')).toBeVisible();
   await expect(dialog.getByText('コーチングキー質問')).toBeVisible();
-  const coachingQuestion = dialog.getByText('E2E admin-only coaching question');
+  const coachingQuestion = dialog.getByText(ADMIN_COACHING_QUESTION);
   await expect(coachingQuestion).toBeVisible();
   await expect(coachingQuestion.locator('xpath=preceding-sibling::*[1]')).toHaveText('1');
-  await expect(dialog.getByPlaceholder('あなたの考えを書いてみてください')).toHaveCount(0);
+  const coachingAnswer = dialog.getByPlaceholder('あなたの考えを書いてみてください');
+  await expect(coachingAnswer).toHaveCount(1);
+  await expect(coachingAnswer).toHaveValue(ADMIN_COACHING_ANSWER);
+  await expect(coachingAnswer).toBeDisabled();
   await expect(dialog.getByRole('button', { name: /回答を保存/ })).toHaveCount(0);
   await expect(dialog.getByText(/保存中|最終保存/)).toHaveCount(0);
   expect(coachingRequests).toHaveLength(0);
+  await coachingAnswer.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${screenshotDir}/integrations-tab-modal.png`, fullPage: true });
 
   await page.keyboard.press('Escape');
