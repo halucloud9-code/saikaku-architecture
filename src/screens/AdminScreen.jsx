@@ -2186,6 +2186,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           userInfo={{
             userName: selectedIntegration.userName,
             userEmail: selectedIntegration.userEmail,
+            coachingAnswers: selectedIntegration.coachingAnswers ?? {},
           }}
           onClose={() => setSelectedIntegration(null)}
         />

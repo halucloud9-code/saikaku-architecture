@@ -320,6 +320,7 @@ export default function SaikakuIntegration({
   status,
   defaultOpen = false,
   readOnly = false,
+  disableCoachingInput = false,
   onDirtyChange,
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -333,7 +334,7 @@ export default function SaikakuIntegration({
   const answerEntries = useMemo(() => Object.values(answersMap || {}), [answersMap]);
   const savedTime = useMemo(() => formatSavedTime(lastSavedAt), [lastSavedAt]);
   const hasDraftAnswer = coachingQuestions.some((_, i) => (draftAnswers[i] || '').trim().length > 0);
-  const canSave = !!onSave && !saving && hasDraftAnswer;
+  const canSave = !!onSave && !saving && !disableCoachingInput && hasDraftAnswer;
 
   useEffect(() => {
     onDirtyChange?.(dirtyByQuestion.size > 0);
@@ -656,7 +657,7 @@ export default function SaikakuIntegration({
                     <textarea
                       value={draft}
                       onChange={(e) => updateDraftAnswer(i, e.target.value)}
-                      disabled={saving}
+                      disabled={saving || disableCoachingInput}
                       rows={3}
                       maxLength={2000}
                       placeholder="あなたの考えを書いてみてください"
@@ -667,64 +668,68 @@ export default function SaikakuIntegration({
                         padding: '10px 12px',
                         border: `1px solid ${P.border}`,
                         borderRadius: 8,
-                        background: saving ? '#F7F3EC' : P.surface,
+                        background: saving || disableCoachingInput ? '#F7F3EC' : P.surface,
                         color: P.text,
                         fontSize: 13,
                         lineHeight: 1.7,
                         fontFamily: "'Noto Serif JP', serif",
                         resize: 'vertical',
                         outlineOffset: 2,
-                        opacity: saving ? 0.72 : 1,
+                        opacity: saving || disableCoachingInput ? 0.72 : 1,
                       }}
                     />
                   </div>
                 );
               })}
-              <button
-                type="button"
-                onClick={handleSaveDrafts}
-                disabled={!canSave}
-                style={{
-                  width: '100%',
-                  marginTop: 2,
-                  padding: '12px 16px',
-                  border: 'none',
-                  borderRadius: 8,
-                  background: canSave
-                    ? `linear-gradient(135deg, ${P.gold} 0%, ${P.goldDim} 100%)`
-                    : P.border,
-                  color: canSave ? '#fff' : P.muted,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: canSave ? 'pointer' : 'not-allowed',
-                  fontFamily: "'Noto Serif JP', serif",
-                  transition: 'opacity 0.2s ease',
-                  outlineOffset: 2,
-                }}
-              >
-                {saving ? '保存中…' : '💾 回答を保存'}
-              </button>
-              {saveError && (
-                <div role="alert" style={{
-                  marginTop: 8,
-                  fontSize: 12,
-                  color: P.score_lo,
-                  textAlign: 'center',
-                  fontFamily: "'Noto Serif JP', serif",
-                }}>
-                  {saveError}
-                </div>
-              )}
-              {savedTime && (
-                <div style={{
-                  marginTop: 8,
-                  fontSize: 11,
-                  color: P.muted,
-                  textAlign: 'center',
-                  fontFamily: "'Outfit', sans-serif",
-                }}>
-                  最終保存: {savedTime}
-                </div>
+              {!disableCoachingInput && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSaveDrafts}
+                    disabled={!canSave}
+                    style={{
+                      width: '100%',
+                      marginTop: 2,
+                      padding: '12px 16px',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: canSave
+                        ? `linear-gradient(135deg, ${P.gold} 0%, ${P.goldDim} 100%)`
+                        : P.border,
+                      color: canSave ? '#fff' : P.muted,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: canSave ? 'pointer' : 'not-allowed',
+                      fontFamily: "'Noto Serif JP', serif",
+                      transition: 'opacity 0.2s ease',
+                      outlineOffset: 2,
+                    }}
+                  >
+                    {saving ? '保存中…' : '💾 回答を保存'}
+                  </button>
+                  {saveError && (
+                    <div role="alert" style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: P.score_lo,
+                      textAlign: 'center',
+                      fontFamily: "'Noto Serif JP', serif",
+                    }}>
+                      {saveError}
+                    </div>
+                  )}
+                  {savedTime && (
+                    <div style={{
+                      marginTop: 8,
+                      fontSize: 11,
+                      color: P.muted,
+                      textAlign: 'center',
+                      fontFamily: "'Outfit', sans-serif",
+                    }}>
+                      最終保存: {savedTime}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

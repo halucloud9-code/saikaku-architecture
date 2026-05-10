@@ -42,6 +42,7 @@ const SAIKAKU_B = 'saikaku-b';
 const UAAM_A = 'uaam-a';
 const UAAM_B = 'uaam-b';
 const MODEL = 'claude-sonnet-4-20250514';
+const COACHING_QID = 'admin-coaching-qid';
 
 function at(day) {
   return Timestamp.fromDate(new Date(`2026-05-0${day}T00:00:00.000Z`));
@@ -120,6 +121,14 @@ async function seedAdminDataset() {
       name: 'UAAM Active Name',
       email: 'uaam-active@example.com',
       latestAttemptId: UAAM_B,
+      coaching_answers: {
+        [COACHING_QID]: {
+          questionText: 'Admin API coaching question',
+          answer: 'Admin API coaching answer',
+          answeredAt: at(1),
+          updatedAt: at(4),
+        },
+      },
     }),
     seedParent('results', STALE_SAIKAKU_UID, {
       uid: STALE_SAIKAKU_UID,
@@ -234,6 +243,7 @@ describe('API /api/admin/integrations', () => {
       status: 'active',
       staleSaikaku: false,
       staleUaam: false,
+      coachingAnswers: {},
       integration: integrationBody(77, 'Legacy Core'),
       createdAt: iso(5),
       updatedAt: iso(5),
@@ -252,6 +262,14 @@ describe('API /api/admin/integrations', () => {
       status: 'active',
       staleSaikaku: false,
       staleUaam: false,
+      coachingAnswers: {
+        [COACHING_QID]: {
+          questionText: 'Admin API coaching question',
+          answer: 'Admin API coaching answer',
+          answeredAt: { _seconds: 1777593600, _nanoseconds: 0 },
+          updatedAt: { _seconds: 1777852800, _nanoseconds: 0 },
+        },
+      },
       integration: integrationBody(92, 'Latest Pair'),
       createdAt: iso(4),
       updatedAt: iso(4),
@@ -264,6 +282,7 @@ describe('API /api/admin/integrations', () => {
       status: 'stale',
       staleSaikaku: true,
       staleUaam: false,
+      coachingAnswers: {},
       createdAt: iso(3),
     });
 
@@ -274,6 +293,12 @@ describe('API /api/admin/integrations', () => {
       staleSaikaku: false,
       staleUaam: true,
       regenerationCount: 0,
+      coachingAnswers: {
+        [COACHING_QID]: {
+          questionText: 'Admin API coaching question',
+          answer: 'Admin API coaching answer',
+        },
+      },
       createdAt: iso(2),
     });
 
