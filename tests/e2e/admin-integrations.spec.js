@@ -249,9 +249,13 @@ test('admin can inspect integrations list and shared read-only detail modal', as
   await expect(dialog.getByText('E2E Active Integration Core', { exact: true })).toBeVisible();
   await expect(dialog.getByText('E2E Saikaku Active Label')).toBeVisible();
   await expect(dialog.getByText('E2E UAAM Active Label')).toBeVisible();
-  await expect(dialog.getByText('E2E admin-only coaching question')).toHaveCount(0);
+  await expect(dialog.getByText('コーチングキー質問')).toBeVisible();
+  const coachingQuestion = dialog.getByText('E2E admin-only coaching question');
+  await expect(coachingQuestion).toBeVisible();
+  await expect(coachingQuestion.locator('xpath=preceding-sibling::*[1]')).toHaveText('1');
   await expect(dialog.getByPlaceholder('あなたの考えを書いてみてください')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: /回答を保存/ })).toHaveCount(0);
+  await expect(dialog.getByText(/保存中|最終保存/)).toHaveCount(0);
   expect(coachingRequests).toHaveLength(0);
   await page.screenshot({ path: `${screenshotDir}/integrations-tab-modal.png`, fullPage: true });
 

@@ -116,9 +116,13 @@ describe('SaikakuIntegrationModal', () => {
     expect(coachingMocks.loadCoachingAnswers).not.toHaveBeenCalled();
     expect(screen.getByText('Admin Target')).toBeInTheDocument();
     expect(screen.getByText('target@example.com')).toBeInTheDocument();
-    expect(screen.queryByText('管理者はこの問いに回答しない')).toBeNull();
+    expect(screen.getByText('コーチングキー質問')).toBeInTheDocument();
+    const coachingQuestion = screen.getByText('管理者はこの問いに回答しない');
+    expect(coachingQuestion).toBeInTheDocument();
+    expect(coachingQuestion.previousElementSibling).toHaveTextContent('1');
     expect(screen.queryByPlaceholderText('あなたの考えを書いてみてください')).toBeNull();
     expect(screen.queryByRole('button', { name: /回答を保存/ })).toBeNull();
+    expect(screen.queryByText(/保存中|最終保存/)).toBeNull();
     expect(screen.queryByText('要再生成')).toBeNull();
 
     await user.click(screen.getByTestId('saikaku-integration-modal-backdrop'));
@@ -256,5 +260,29 @@ describe('SaikakuIntegrationModal', () => {
     );
 
     expect(screen.getByRole('button', { name: '再生成（残り 0 回）' })).toBeDisabled();
+  });
+
+  it('shows coaching questions but hides answer controls when hideCoachingAnswers is true', () => {
+    render(
+      <SaikakuIntegration
+        integration={{
+          ...integration('Admin Core'),
+          coaching_questions: ['質問本文だけ表示する'],
+        }}
+        defaultOpen
+        hideCoachingAnswers
+        onSave={vi.fn()}
+        saving
+        lastSavedAt={new Date('2026-05-10T10:00:00.000Z')}
+      />,
+    );
+
+    expect(screen.getByText('コーチングキー質問')).toBeInTheDocument();
+    const coachingQuestion = screen.getByText('質問本文だけ表示する');
+    expect(coachingQuestion).toBeInTheDocument();
+    expect(coachingQuestion.previousElementSibling).toHaveTextContent('1');
+    expect(screen.queryByPlaceholderText('あなたの考えを書いてみてください')).toBeNull();
+    expect(screen.queryByRole('button', { name: /回答を保存/ })).toBeNull();
+    expect(screen.queryByText(/保存中|最終保存/)).toBeNull();
   });
 });

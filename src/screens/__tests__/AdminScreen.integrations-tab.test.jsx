@@ -260,9 +260,13 @@ describe('AdminScreen integrations tab', () => {
     expect(within(dialog).getAllByText(/Active Integration Core/).length).toBeGreaterThan(0);
     expect(within(dialog).getByText(/Saikaku Active Label/)).toBeInTheDocument();
     expect(within(dialog).getByText(/UAAM Active Label/)).toBeInTheDocument();
-    expect(within(dialog).queryByText('Admin should not edit this coaching question')).toBeNull();
+    expect(within(dialog).getByText('コーチングキー質問')).toBeInTheDocument();
+    const coachingQuestion = within(dialog).getByText('Admin should not edit this coaching question');
+    expect(coachingQuestion).toBeInTheDocument();
+    expect(coachingQuestion.previousElementSibling).toHaveTextContent('1');
     expect(within(dialog).queryByPlaceholderText('あなたの考えを書いてみてください')).toBeNull();
     expect(within(dialog).queryByRole('button', { name: /保存|削除|再生成/ })).toBeNull();
+    expect(within(dialog).queryByText(/保存中|最終保存/)).toBeNull();
     expect(fetch.mock.calls.map(([url]) => url)).not.toContain('/api/me/coaching-answers');
 
     await userEvent.keyboard('{Escape}');
