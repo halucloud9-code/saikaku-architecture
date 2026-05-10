@@ -1,4 +1,6 @@
 import { db } from '../lib/firebaseAdmin.js';
+import { isLegacyFallback, listIntegrationDocs } from '../lib/legacyIntegration.js';
+import { responseStatusForIntegration } from '../lib/integrationStatus.js';
 import { backfillAttemptSummary, getKindConfig } from '../lib/legacy.js';
 import { serializeTimestamps } from '../lib/serialize.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
@@ -21,73 +23,6 @@ function attemptFromDoc(docSnap, kind) {
     summary: backfillAttemptSummary(data, kind),
     isLegacy: !!data.isLegacy,
   };
-}
-
-function integrationFromDoc(docSnap) {
-  return {
-    id: docSnap.id,
-    ...docSnap.data(),
-  };
-}
-
-function legacyIntegrationFromParent(parentData) {
-  if (!parentData) return null;
-
-  const integration =
-    parentData['analysis.saikaku_integration']
-    ?? parentData.analysis?.saikaku_integration
-    ?? null;
-
-  if (!integration) return null;
-
-  const generatedAt = parentData.integrationUpdatedAt ?? null;
-  const legacySource = {
-    saikakuLabel: parentData.analysis?.saikaku_attempt_label ?? null,
-    uaamLabel: parentData.analysis?.uaam_attempt_label ?? null,
-  };
-
-  return {
-    id: 'legacy-fallback__legacy-fallback',
-    saikakuAttemptId: 'legacy-fallback',
-    uaamAttemptId: 'legacy-fallback',
-    integration,
-    regenerationCount: 0,
-    model: 'unknown-legacy',
-    source: legacySource,
-    createdAt: generatedAt,
-    updatedAt: generatedAt,
-    status: 'active',
-    isLegacyFallback: true,
-  };
-}
-
-function listIntegrationDocs(integrationsSnap, uaamParentData) {
-  if (!integrationsSnap.empty) return integrationsSnap.docs.map(integrationFromDoc);
-  const legacy = legacyIntegrationFromParent(uaamParentData);
-  return legacy ? [legacy] : [];
-}
-
-function isLegacyFallbackIntegration(integrationDoc) {
-  return integrationDoc?.saikakuAttemptId === 'legacy-fallback'
-    && integrationDoc?.uaamAttemptId === 'legacy-fallback';
-}
-
-function responseStatusForIntegration(integrationDoc, kind, latestIds) {
-  if (isLegacyFallbackIntegration(integrationDoc)) return 'active';
-
-  if (kind === 'uaam') {
-    const latestSaikakuAttemptId = latestIds.saikakuAttemptId;
-    return typeof latestSaikakuAttemptId === 'string'
-      && latestSaikakuAttemptId !== integrationDoc.saikakuAttemptId
-      ? 'stale'
-      : 'active';
-  }
-
-  const latestUaamAttemptId = latestIds.uaamAttemptId;
-  return typeof latestUaamAttemptId === 'string'
-    && latestUaamAttemptId !== integrationDoc.uaamAttemptId
-    ? 'stale'
-    : 'active';
 }
 
 function integrationSummary(integrationDoc, kind, latestIds) {
@@ -116,7 +51,7 @@ function integrationSummary(integrationDoc, kind, latestIds) {
 }
 
 function legacyFallbackIntegration(integrations) {
-  return integrations.find(isLegacyFallbackIntegration) ?? null;
+  return integrations.find(isLegacyFallback) ?? null;
 }
 
 function selectUaamIntegration(integrations, attempt) {
