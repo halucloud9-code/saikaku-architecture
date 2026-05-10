@@ -5,7 +5,8 @@ import { loadCoachingAnswers, saveCoachingAnswers } from '../../api/coachingAnsw
 const LEGACY_MESSAGE = 'この統合分析は移行前のデータです。最新の組み合わせで再生成してください';
 
 function isLegacyFallback(summary) {
-  return summary?.saikakuAttemptId === 'legacy-fallback'
+  return summary?.isLegacyFallback === true
+    || summary?.saikakuAttemptId === 'legacy-fallback'
     || summary?.uaamAttemptId === 'legacy-fallback';
 }
 
@@ -89,7 +90,10 @@ export default function SaikakuIntegrationModal({
   integrationSummaries,
   kind,
   source,
+  mode = 'self',
+  userInfo,
 }) {
+  const isAdminMode = mode === 'admin';
   const summaries = useMemo(
     () => summaryList(integrationSummary, integrationSummaries),
     [integrationSummary, integrationSummaries],
@@ -110,6 +114,10 @@ export default function SaikakuIntegrationModal({
 
   useEffect(() => {
     if (!open) return undefined;
+    if (mode !== 'self') {
+      setAnswersMap({});
+      return undefined;
+    }
     let cancelled = false;
     loadCoachingAnswers()
       .then((map) => {
@@ -117,14 +125,14 @@ export default function SaikakuIntegrationModal({
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [open]);
+  }, [open, mode]);
 
   const requestClose = useCallback(() => {
-    if (hasUnsavedAnswers && !window.confirm('保存していない回答があります。閉じますか？')) {
+    if (mode === 'self' && hasUnsavedAnswers && !window.confirm('保存していない回答があります。閉じますか？')) {
       return;
     }
     onClose?.();
-  }, [hasUnsavedAnswers, onClose]);
+  }, [hasUnsavedAnswers, mode, onClose]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -156,8 +164,11 @@ export default function SaikakuIntegrationModal({
   const selectedSummary = summaries[selectedIndex] ?? summaries[0] ?? integrationSummary ?? null;
   const selectedSource = sourceFromSummary(selectedSummary, source);
   const integration = integrationBodyFromSummary(selectedSummary);
+  const displayIntegration = isAdminMode && integration
+    ? { ...integration, coaching_questions: [] }
+    : integration;
   const legacy = isLegacyFallback(selectedSummary);
-  const stale = selectedSummary?.status === 'stale';
+  const stale = !isAdminMode && selectedSummary?.status === 'stale';
 
   return (
     <div
@@ -204,6 +215,38 @@ export default function SaikakuIntegrationModal({
           gap: 16,
         }}>
           <div>
+            {isAdminMode && userInfo && (
+              <div style={{
+                background: '#F5F0E8',
+                border: '1px solid rgba(232,224,212,0.68)',
+                borderRadius: 10,
+                padding: '8px 10px',
+                marginBottom: 12,
+                minWidth: 220,
+                maxWidth: 420,
+              }}>
+                <div style={{
+                  color: '#2A2520',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  lineHeight: 1.5,
+                  fontFamily: "'Noto Serif JP', serif",
+                  wordBreak: 'break-word',
+                }}>
+                  {userInfo.userName ?? '—'}
+                </div>
+                {userInfo.userEmail && (
+                  <div style={{
+                    fontSize: 12,
+                    color: '#7A7060',
+                    lineHeight: 1.5,
+                    wordBreak: 'break-word',
+                  }}>
+                    {userInfo.userEmail}
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{
               fontSize: 9,
               color: '#B8960C',
@@ -317,7 +360,7 @@ export default function SaikakuIntegrationModal({
             </label>
           )}
 
-          {integration ? (
+          {displayIntegration ? (
             <div style={{
               borderRadius: 14,
               overflow: 'hidden',
@@ -325,14 +368,14 @@ export default function SaikakuIntegrationModal({
               border: '1px solid #E8E0D4',
             }}>
               <SaikakuIntegration
-                integration={integration}
+                integration={displayIntegration}
                 source={selectedSource}
-                status={selectedSummary?.status}
-                answersMap={answersMap}
-                onSave={handleCoachingSave}
-                saving={saving}
-                lastSavedAt={lastSavedAt}
-                onDirtyChange={setHasUnsavedAnswers}
+                status={isAdminMode ? undefined : selectedSummary?.status}
+                answersMap={isAdminMode ? {} : answersMap}
+                onSave={isAdminMode ? undefined : handleCoachingSave}
+                saving={isAdminMode ? false : saving}
+                lastSavedAt={isAdminMode ? null : lastSavedAt}
+                onDirtyChange={isAdminMode ? undefined : setHasUnsavedAnswers}
                 defaultOpen
                 readOnly
               />

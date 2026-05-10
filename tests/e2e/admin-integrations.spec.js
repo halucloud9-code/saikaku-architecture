@@ -50,6 +50,7 @@ function integrationBody(score, activationCore) {
     integration_score: score,
     activation_core: activationCore,
     activation_equation: `${activationCore} equation`,
+    coaching_questions: ['E2E admin-only coaching question'],
   };
 }
 
@@ -193,11 +194,17 @@ test.afterEach(async () => {
   await deleteAuthUserByEmail(adminEmail);
 });
 
-test('admin can inspect integrations list and detail modal with legacy and stale badges', async ({ page }) => {
+test('admin can inspect integrations list and shared read-only detail modal', async ({ page }) => {
   await mkdir(screenshotDir, { recursive: true });
   const admin = await createAuthUser(adminEmail, password);
   await clearUser(admin.uid);
   await seedAdminIntegrationsDataset();
+  const coachingRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/me/coaching-answers') {
+      coachingRequests.push(request.url());
+    }
+  });
 
   await loginAs(page, adminEmail, password);
   await page.goto('/admin');
@@ -206,30 +213,46 @@ test('admin can inspect integrations list and detail modal with legacy and stale
   await page.getByRole('button', { name: '統合分析（—）' }).click();
 
   await expect(page.getByRole('table', { name: '統合分析一覧' })).toBeVisible();
+  const table = page.getByRole('table', { name: '統合分析一覧' });
+  await expect(table.getByRole('columnheader')).toHaveCount(6);
+  await expect(table.getByRole('columnheader', { name: 'ユーザー' })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: '才覚 label' })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'UAAM label' })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: '再生成回数' })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'integration_score' })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: '更新日時' })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'メール' })).toHaveCount(0);
+  await expect(table.getByRole('columnheader', { name: 'model' })).toHaveCount(0);
+  await expect(table.getByRole('columnheader', { name: 'status' })).toHaveCount(0);
+  await expect(table.getByRole('columnheader', { name: 'createdAt' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '統合分析（4）' })).toBeVisible();
   await expect(page.getByText('E2E Active User')).toBeVisible();
+  await expect(page.getByText('e2e-active@example.com')).toBeVisible();
   await expect(page.getByText('E2E Saikaku Active Label')).toBeVisible();
   await expect(page.getByText('E2E UAAM Active Label')).toBeVisible();
   const activeRow = page.getByText('E2E Active User').locator('xpath=ancestor::tr');
   await expect(activeRow.getByText('再生成', { exact: true })).toBeVisible();
-  await expect(page.getByText('才覚側 stale')).toBeVisible();
-  await expect(page.getByText('UAAM側 stale')).toBeVisible();
+  await expect(page.getByText('才覚側 stale')).toHaveCount(0);
+  await expect(page.getByText('UAAM側 stale')).toHaveCount(0);
   await expect(page.getByText('E2E Legacy User')).toBeVisible();
   await expect(page.getByText('E2E Legacy Saikaku Label')).toBeVisible();
   await expect(page.getByText('(legacy)').first()).toBeVisible();
-  await expect(page.getByText('移行前')).toBeVisible();
+  await expect(page.getByText('移行前')).toHaveCount(0);
   await page.screenshot({ path: `${screenshotDir}/integrations-tab-list.png`, fullPage: true });
 
   await activeRow.click();
 
-  const dialog = page.getByRole('dialog', { name: '統合分析詳細' });
+  const dialog = page.getByRole('dialog', { name: '才覚発動統合分析' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText(/E2E Active Integration Core/)).toBeVisible();
-  await expect(dialog.getByText('saikaku-active', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('uaam-active', { exact: true })).toBeVisible();
-  await expect(dialog.getByText(buildPairKey('saikaku-active', 'uaam-active'), { exact: true })).toBeVisible();
+  await expect(dialog.getByText('E2E Active User')).toBeVisible();
+  await expect(dialog.getByText('e2e-active@example.com')).toBeVisible();
+  await expect(dialog.getByText('E2E Active Integration Core', { exact: true })).toBeVisible();
   await expect(dialog.getByText('E2E Saikaku Active Label')).toBeVisible();
   await expect(dialog.getByText('E2E UAAM Active Label')).toBeVisible();
+  await expect(dialog.getByText('E2E admin-only coaching question')).toHaveCount(0);
+  await expect(dialog.getByPlaceholder('あなたの考えを書いてみてください')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /回答を保存/ })).toHaveCount(0);
+  expect(coachingRequests).toHaveLength(0);
   await page.screenshot({ path: `${screenshotDir}/integrations-tab-modal.png`, fullPage: true });
 
   await page.keyboard.press('Escape');
