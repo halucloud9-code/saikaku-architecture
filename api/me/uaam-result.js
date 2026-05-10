@@ -1,4 +1,6 @@
 import { db } from '../lib/firebaseAdmin.js';
+import { isLegacyFallback, listIntegrationDocs } from '../lib/legacyIntegration.js';
+import { responseStatusForIntegration } from '../lib/integrationStatus.js';
 import { serializeTimestamps } from '../lib/serialize.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
 import { isValidAttemptId, selectIntegrationForAttempt } from '../../shared/attemptLogic.js';
@@ -16,65 +18,7 @@ function readAttemptId(req) {
   return value;
 }
 
-function integrationFromDoc(docSnap) {
-  return {
-    id: docSnap.id,
-    ...docSnap.data(),
-  };
-}
-
-function legacyIntegrationFromParent(parentData) {
-  if (!parentData) return null;
-
-  const integration =
-    parentData['analysis.saikaku_integration']
-    ?? parentData.analysis?.saikaku_integration
-    ?? null;
-
-  if (!integration) return null;
-
-  const generatedAt = parentData.integrationUpdatedAt ?? null;
-  const legacySource = {
-    saikakuLabel: parentData.analysis?.saikaku_attempt_label ?? null,
-    uaamLabel: parentData.analysis?.uaam_attempt_label ?? null,
-  };
-
-  return {
-    id: 'legacy-fallback__legacy-fallback',
-    saikakuAttemptId: 'legacy-fallback',
-    uaamAttemptId: 'legacy-fallback',
-    integration,
-    regenerationCount: 0,
-    model: 'unknown-legacy',
-    source: legacySource,
-    createdAt: generatedAt,
-    updatedAt: generatedAt,
-    status: 'active',
-    isLegacyFallback: true,
-  };
-}
-
-function listIntegrationDocs(integrationsSnap, uaamParentData) {
-  if (!integrationsSnap.empty) return integrationsSnap.docs.map(integrationFromDoc);
-  const legacy = legacyIntegrationFromParent(uaamParentData);
-  return legacy ? [legacy] : [];
-}
-
-function isLegacyFallbackIntegration(integrationDoc) {
-  return integrationDoc?.saikakuAttemptId === 'legacy-fallback'
-    && integrationDoc?.uaamAttemptId === 'legacy-fallback';
-}
-
-function responseStatusForIntegration(integrationDoc, latestSaikakuAttemptId) {
-  if (isLegacyFallbackIntegration(integrationDoc)) return 'active';
-
-  return typeof latestSaikakuAttemptId === 'string'
-    && latestSaikakuAttemptId !== integrationDoc.saikakuAttemptId
-    ? 'stale'
-    : 'active';
-}
-
-function integrationSummary(integrationDoc, latestSaikakuAttemptId) {
+function integrationSummary(integrationDoc, latestIds) {
   if (!integrationDoc?.integration) return null;
 
   const body = integrationDoc.integration;
@@ -92,7 +36,7 @@ function integrationSummary(integrationDoc, latestSaikakuAttemptId) {
     activationCore,
     saikakuAttemptId: integrationDoc.saikakuAttemptId,
     uaamAttemptId: integrationDoc.uaamAttemptId,
-    status: responseStatusForIntegration(integrationDoc, latestSaikakuAttemptId),
+    status: responseStatusForIntegration(integrationDoc, 'uaam', latestIds),
     regenerationCount: integrationDoc.regenerationCount ?? 0,
     source: integrationDoc.source ?? null,
     integration: body,
@@ -100,7 +44,7 @@ function integrationSummary(integrationDoc, latestSaikakuAttemptId) {
 }
 
 function legacyFallbackIntegration(integrations) {
-  return integrations.find(isLegacyFallbackIntegration) ?? null;
+  return integrations.find(isLegacyFallback) ?? null;
 }
 
 function selectUaamIntegration(integrations, attemptId, attemptIsLegacy) {
@@ -153,6 +97,10 @@ export default withMeHandler(async function handler(req, res) {
   const latestSaikakuAttemptId = saikakuParentSnap.exists
     ? saikakuParentSnap.data()?.latestAttemptId ?? null
     : null;
+  const latestIds = {
+    saikakuAttemptId: latestSaikakuAttemptId,
+    uaamAttemptId: data.latestAttemptId ?? null,
+  };
   const resolvedAttemptId = requestedAttemptId ?? data.latestAttemptId ?? null;
 
   let scores = data.scores ?? null;
@@ -176,7 +124,7 @@ export default withMeHandler(async function handler(req, res) {
   }
 
   const selectedIntegration = selectUaamIntegration(integrations, resolvedAttemptId, attemptIsLegacy);
-  const summary = integrationSummary(selectedIntegration, latestSaikakuAttemptId);
+  const summary = integrationSummary(selectedIntegration, latestIds);
   const includeIntegrationSummary = requestedAttemptId !== null || !!summary;
 
   if (!scores || !analysis) {

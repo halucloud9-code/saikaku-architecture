@@ -4,11 +4,11 @@
 
 | 層 | コマンド | カバレッジ | 所要時間 |
 |----|----------|------------|----------|
-| Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter (8 tests) | < 1 秒 |
+| Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter / AdminScreen 統合分析タブ (74 tests) | < 5 秒 |
 | Rules | `npm run test:rules` | Firestore rules 21 シナリオ (`/api/me/*` 経由化で attempts/uaam_results parent の read deny を反転検証) | 〜2 秒 |
-| API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF (34 tests) | 〜20 秒 |
-| E2E | `npm run test:e2e` | Playwright 3 フロー (badge/history/limit) | 〜60 秒 |
-| **All** | `npm run test:all` | 全部直列実行 | 〜90 秒 |
+| API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF + `/api/admin/integrations` (122 tests) | 〜30 秒 |
+| E2E | `npm run test:e2e` | Playwright 29 フロー (badge/history/limit/admin-integrations 等) | 〜100 秒 |
+| **All** | `npm run test:all` | 全部直列実行 | 〜140 秒 |
 
 ## 前提
 
@@ -99,3 +99,8 @@ if (
 
 ### concurrency テストが flaky
 `MOCK_ANTHROPIC_DELAY_MS` が小さすぎる可能性。`tests/api/concurrent-from-{zero,one}.test.js` で 1500ms に設定しているが、CI 環境が遅い場合は 2000ms 以上に上げる。
+
+issue #73 で追加した deterministic 化（1 本目の `pendingAttemptId` 確認後に 2 本目を投げる）でも race が残る場合は、`waitForPendingAttempt()` のタイムアウト（40 回 × 50ms = 2 秒）を伸ばす。
+
+### admin-integrations フルスイート pollution
+`/api/admin/integrations` は `db.collectionGroup('integrations').get()` で全 user の integrations を取得する仕様。`tests/api/admin-integrations.test.js` は他テストの fixture が collectionGroup に混ざることを許容し、`fixtureItems = response.body.integrations.filter((item) => fixtureUids.includes(item.uid))` で自テストの seed のみに絞って検証する。`afterEach` で seed した fixture も完全クリアし、後続テストへの漏れを防ぐ。
