@@ -1,9 +1,9 @@
 import { db } from '../lib/firebaseAdmin.js';
 import { isLegacyFallback, listIntegrationDocs } from '../lib/legacyIntegration.js';
-import { responseStatusForIntegration } from '../lib/integrationStatus.js';
+import { integrationSummary, recentIntegrationSummaries } from '../lib/recentIntegrationSummaries.js';
 import { serializeTimestamps } from '../lib/serialize.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
-import { isValidAttemptId, selectIntegrationForAttempt, timestampToMillis } from '../../shared/attemptLogic.js';
+import { isValidAttemptId, selectIntegrationForAttempt } from '../../shared/attemptLogic.js';
 
 function readSingleQueryValue(value) {
   return Array.isArray(value) ? value[0] : value;
@@ -16,31 +16,6 @@ function readAttemptId(req) {
     return undefined;
   }
   return value;
-}
-
-function integrationSummary(integrationDoc, latestIds) {
-  if (!integrationDoc?.integration) return null;
-
-  const body = integrationDoc.integration;
-  const integrationScore = typeof body.integration_score === 'number'
-    ? body.integration_score
-    : null;
-  const activationCore = typeof body.activation_core === 'string'
-    ? body.activation_core
-    : null;
-
-  return {
-    exists: true,
-    generatedAt: integrationDoc.updatedAt ?? integrationDoc.createdAt ?? null,
-    integrationScore,
-    activationCore,
-    saikakuAttemptId: integrationDoc.saikakuAttemptId,
-    uaamAttemptId: integrationDoc.uaamAttemptId,
-    status: responseStatusForIntegration(integrationDoc, 'uaam', latestIds),
-    regenerationCount: integrationDoc.regenerationCount ?? 0,
-    source: integrationDoc.source ?? null,
-    integration: body,
-  };
 }
 
 function legacyFallbackIntegration(integrations) {
@@ -58,30 +33,6 @@ function selectUaamIntegration(integrations, attemptId, attemptIsLegacy) {
   // integration を attach しない（PR #60 P2 対応）。
   if (attemptIsLegacy) return legacyFallbackIntegration(integrations);
   return null;
-}
-
-function recentIntegrationSummary(integrationDoc, latestIds) {
-  const summary = integrationSummary(integrationDoc, latestIds);
-  if (!summary) return null;
-  if (integrationDoc?.isLegacyFallback === true) {
-    return { ...summary, isLegacyFallback: true };
-  }
-  return summary;
-}
-
-function compareRecentIntegrationSummaries(a, b) {
-  const aTime = timestampToMillis(a?.generatedAt) ?? Number.NEGATIVE_INFINITY;
-  const bTime = timestampToMillis(b?.generatedAt) ?? Number.NEGATIVE_INFINITY;
-  if (aTime !== bTime) return bTime - aTime;
-  return 0;
-}
-
-function recentIntegrationSummaries(integrations, latestIds) {
-  return integrations
-    .map((integrationDoc) => recentIntegrationSummary(integrationDoc, latestIds))
-    .filter(Boolean)
-    .sort(compareRecentIntegrationSummaries)
-    .slice(0, 2);
 }
 
 function emptyResult(includeIntegrationSummary, recent = []) {
@@ -106,13 +57,28 @@ export default withMeHandler(async function handler(req, res) {
 
   const parentRef = db.collection('uaam_results').doc(decoded.uid);
   const saikakuParentRef = db.collection('results').doc(decoded.uid);
+  let attemptData = null;
+  let attemptIsLegacy = false;
+
+  if (requestedAttemptId) {
+    // attemptId 指定時は、まず軽量な attempt doc だけを検証する。
+    // 存在しない attempt で parent/integrations の重い補助 read を起動しない。
+    const attemptSnap = await parentRef.collection('attempts').doc(requestedAttemptId).get();
+    if (!attemptSnap.exists || attemptSnap.data()?.status !== 'committed') {
+      return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
+    }
+
+    attemptData = attemptSnap.data() ?? {};
+    attemptIsLegacy = !!attemptData.isLegacy;
+  }
+
   const [snapshot, saikakuParentSnap, integrationsSnap] = await Promise.all([
     parentRef.get(),
     saikakuParentRef.get(),
     parentRef.collection('integrations').get(),
   ]);
 
-  const data = snapshot.exists ? (snapshot.data() || {}) : null;
+  const data = snapshot.exists ? (snapshot.data() ?? {}) : null;
   const integrations = listIntegrationDocs(integrationsSnap, data);
   const latestSaikakuAttemptId = saikakuParentSnap.exists
     ? saikakuParentSnap.data()?.latestAttemptId ?? null
@@ -134,19 +100,8 @@ export default withMeHandler(async function handler(req, res) {
 
   let scores = data.scores ?? null;
   let analysis = data.analysis ?? null;
-  let attemptIsLegacy = false;
 
   if (requestedAttemptId) {
-    // legacy-fallback も他の attemptId と同様に existence check を要求する。
-    // この仮想 ID は read 内の integration synthesis 用であり、実 attempt として
-    // クライアント送信されるべきではない（migration 後は legacy-v1 が実 ID）。
-    const attemptSnap = await parentRef.collection('attempts').doc(requestedAttemptId).get();
-    if (!attemptSnap.exists || attemptSnap.data()?.status !== 'committed') {
-      return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
-    }
-
-    const attemptData = attemptSnap.data();
-    attemptIsLegacy = !!attemptData?.isLegacy;
     const full = attemptData?.full ?? {};
     scores = full.scores ?? null;
     analysis = full.analysis ?? null;

@@ -95,6 +95,28 @@ async function seedIntegration(uid, saikakuAttemptId, uaamAttemptId, overrides =
   await db.collection('uaam_results').doc(uid).collection('integrations').doc(pairKey).set(doc);
 }
 
+function mockSupportingReadsFail(uid) {
+  const parentRef = db.collection('uaam_results').doc(uid);
+  const saikakuParentRef = db.collection('results').doc(uid);
+  const integrationsRef = parentRef.collection('integrations');
+  const docGet = Object.getPrototypeOf(parentRef).get;
+  const collectionGet = Object.getPrototypeOf(integrationsRef).get;
+
+  vi.spyOn(Object.getPrototypeOf(parentRef), 'get').mockImplementation(function get(...args) {
+    if (this.path === parentRef.path || this.path === saikakuParentRef.path) {
+      throw new Error(`supporting doc read should not run: ${this.path}`);
+    }
+    return docGet.apply(this, args);
+  });
+
+  vi.spyOn(Object.getPrototypeOf(integrationsRef), 'get').mockImplementation(function get(...args) {
+    if (this.path === integrationsRef.path) {
+      throw new Error(`supporting integration read should not run: ${this.path}`);
+    }
+    return collectionGet.apply(this, args);
+  });
+}
+
 describe('API /api/me/uaam-result', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -183,6 +205,17 @@ describe('API /api/me/uaam-result', () => {
       code: 'internal_error',
       requestId: expect.any(String),
     });
+  });
+
+  it('returns 404 for a missing requested attempt before supporting reads can fail', async () => {
+    const uid = 'u-me-uaam-result-missing-attempt-short-circuit';
+    await clearAllUserState(uid);
+    mockSupportingReadsFail(uid);
+
+    const response = await api.get('/api/me/uaam-result?attemptId=missing-attempt').set('x-test-uid', uid);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'attempt not found', code: 'not_found' });
   });
 
   describe('recentIntegrationSummaries', () => {

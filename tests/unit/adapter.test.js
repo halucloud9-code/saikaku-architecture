@@ -67,6 +67,7 @@ describe('attemptAdapter', () => {
         coach_confirmed_personality_level: 'L5',
         coach_confirmed_leadership_stage: 4,
         coach_observation_note: '観察メモ',
+        recentIntegrationSummaries: null,
       },
     });
   });
@@ -112,5 +113,26 @@ describe('attemptAdapter', () => {
     expect(out.result.leadership_stage).toEqual({ stage: 3, name: '第3段階' });
     expect(out.result.coach_confirmed_leadership_stage).toBe(4);
     expect(out.result.coach_confirmed_personality_level).toBe('L5');
+  });
+
+  it.each([
+    [undefined, null],
+    [[], []],
+    [[{ activationCore: 'Recent Core' }], [{ activationCore: 'Recent Core' }]],
+  ])('bridges UAAM recentIntegrationSummaries %s without collapsing the shape', (input, expected) => {
+    const attempt = {
+      full: { scores: {}, analysis: null },
+      raw: { input: {} },
+    };
+    if (input !== undefined) {
+      attempt.recentIntegrationSummaries = input;
+    }
+
+    const out = attemptToResultProps(attempt, 'uaam');
+
+    expect(out.result.recentIntegrationSummaries).toEqual(expected);
+    if (Array.isArray(input)) {
+      expect(out.result.recentIntegrationSummaries).toBe(input);
+    }
   });
 });
