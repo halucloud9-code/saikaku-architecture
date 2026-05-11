@@ -78,6 +78,26 @@ All fields are top-level fields. They are not nested under `analysis`.
   - For `kind='saikaku'`: returns ALL integrations whose `saikakuAttemptId === attemptId` as an array, same sort order.
 - Sort is deterministic — Firestore document order is NOT guaranteed.
 
+## Recent Integration Summaries (issue #81)
+
+- `/api/me/uaam-result` レスポンスに `recentIntegrationSummaries: SummaryShape[]` を**常に**含める。
+- 構築フロー（`api/me/uaam-result.js`）:
+  1. 既取得の `integrationsSnap` (= `listIntegrationDocs(integrationsSnap, data)`) を再利用し、追加の Firestore read は発生させない。
+  2. 各 doc に `integrationSummary(doc, latestIds)` を適用する。**body 欠損 doc は `null` を返す既存仕様を保持**。
+  3. `.filter(Boolean)` で null を除外。
+  4. `generatedAt` (= `updatedAt ?? createdAt`) で**降順 client-side sort** (`timestampToMillis` で正規化、null は `-Infinity` 扱い)。Firestore `orderBy` は使わない (PR #72 [P2] 踏襲)。
+  5. `.slice(0, 2)` で最大2件保証。
+  6. legacy fallback doc の場合は `isLegacyFallback: true` を含めて返す。
+- レスポンスの `serializeTimestamps` を必ず通すこと（Timestamp → ISO 8601 文字列）。
+- `recentIntegrationSummaries[].integration` に**統合分析本体を同梱**する（UI 側 modal で表示するため）。レスポンス payload 増加は 2件分 = 数KB で許容範囲。
+- 0件 (subcollection 空 / 全 body 欠損) のときは `[]` を返す。
+
+### UI consumer responsibility (`src/screens/uaam/UAAMResultScreen.jsx`)
+
+- `effectiveResult?.recentIntegrationSummaries ?? []` で読み取る（旧キャッシュ shape 防御）。
+- `analysis.saikaku_integration?.integration_score === undefined` の **else 分岐**（生成ボタン表示状態）でのみ描画。`isHistoryView` (= `attemptData` あり) では描画しない。
+- 行クリック / Enter / Space → `SaikakuIntegrationModal` を `kind="uaam"` + 単数 summary 渡しで起動。
+
 ## Migration Script
 
 - File: `scripts/migrate-integrations-to-subcollection.mjs`.
