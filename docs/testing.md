@@ -8,7 +8,7 @@
 | UI | `npm test` (vitest.ui.config.js) | LoginScreen / AllPairsTriangle / coaching-answers-client / normalize-question-text + **CSV エクスポート (exportCsv / uaamExportFields / integrationsExportFields, #87 / #88)** (65 tests) | 〜3 秒 |
 | Rules | `npm run test:rules` | Firestore rules 21 シナリオ (`/api/me/*` 経由化で attempts/uaam_results parent の read deny を反転検証) | 〜2 秒 |
 | API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF + `/api/admin/integrations` (134 tests) | 〜30 秒 |
-| E2E | `npm run test:e2e` | Playwright 16 spec ファイル (badge/history/limit/admin-integrations/uaam-recent-integrations + **admin-uaam-export (#87) / admin-integrations-export (#88) / admin-integrations-search (#89)**) | 〜180 秒 |
+| E2E | `npm run test:e2e` | Playwright 42 tests / 16 spec ファイル (badge/history/limit/admin-integrations/uaam-recent-integrations + **admin-uaam-export (#87) / admin-integrations-export (#88) / admin-integrations-search (#89)**) | 〜240 秒 |
 | **All** | `npm run test:all` | 全部直列実行 | 〜220 秒 |
 
 ## 前提
