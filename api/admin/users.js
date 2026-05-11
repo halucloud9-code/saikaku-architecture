@@ -60,6 +60,7 @@ export default async function handler(req, res) {
       photoURL: d.photoURL || '',
       scores: d.scores || null,
       analysis: d.analysis || null,
+      bias_message: d.bias_message || null,
       answers: d.answers || null,
       vAnswers: d.vAnswers || null,
       uaamCreatedAt: d.createdAt?._seconds
