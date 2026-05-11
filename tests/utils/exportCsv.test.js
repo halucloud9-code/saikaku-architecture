@@ -35,6 +35,25 @@ describe('buildCsv', () => {
     expect(csv).toBe('\uFEFFA,B\r\n,');
   });
 
+  it('neutralizes formula-leading cells to prevent CSV injection', () => {
+    const csv = buildCsv(
+      [
+        { name: '=cmd|"/c calc"!A1', email: '+SUM(A1)' },
+        { name: '-2+3+cmd', email: '@SUM(A1)' },
+        { name: '\tinjected', email: 'safe@example.com' },
+      ],
+      [
+        { key: 'name', label: 'Name' },
+        { key: 'email', label: 'Email' },
+      ],
+    );
+
+    const lines = csv.split('\r\n');
+    expect(lines[1]).toBe('"\'=cmd|""/c calc""!A1",\'+SUM(A1)');
+    expect(lines[2]).toBe("'-2+3+cmd,'@SUM(A1)");
+    expect(lines[3]).toBe("'\tinjected,safe@example.com");
+  });
+
   it('only exports allowlisted fields', () => {
     const csv = buildCsv([{ a: 1, secret: 'leaked' }], [
       { key: 'a', label: 'A' },

@@ -1,12 +1,17 @@
 const UTF8_BOM = '\uFEFF';
+const FORMULA_PREFIX_RE = /^[=+\-@\t\r]/;
 
 function normalizeCellValue(value) {
   if (value === null || value === undefined) return '';
   return String(value);
 }
 
+function neutralizeFormula(text) {
+  return FORMULA_PREFIX_RE.test(text) ? `'${text}` : text;
+}
+
 function escapeCsvCell(value) {
-  const text = normalizeCellValue(value);
+  const text = neutralizeFormula(normalizeCellValue(value));
   const escaped = text.replace(/"/g, '""');
   return /[,"\n\r]/.test(escaped) ? `"${escaped}"` : escaped;
 }
