@@ -1216,6 +1216,11 @@ export default function AdminScreen({ user, onBack, onLogout }) {
     }
   };
 
+  const handleTabChange = (key) => {
+    setTab(key);
+    setSearch('');
+  };
+
   // 本日・今週のカウントと検索フィルター（usersやsearchが変わった時のみ再計算）
   const today = useMemo(() => {
     const todayStr = new Date().toDateString();
@@ -1269,6 +1274,18 @@ export default function AdminScreen({ user, onBack, onLogout }) {
     }
     return list;
   }, [uaamUsers, search, vFilter]);
+
+  const filteredIntegrations = useMemo(() => {
+    if (!search) return integrations;
+    const q = search.toLowerCase();
+    return integrations.filter(
+      (item) =>
+        item.userName?.toLowerCase()?.includes(q) ||
+        item.userEmail?.toLowerCase()?.includes(q) ||
+        item.source?.saikakuLabel?.toLowerCase()?.includes(q) ||
+        item.source?.uaamLabel?.toLowerCase()?.includes(q)
+    );
+  }, [integrations, search]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F0E8' }}>
@@ -1377,7 +1394,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           ].map(({ key, label, count }) => (
             <button
               key={key}
-              onClick={() => setTab(key)}
+              onClick={() => handleTabChange(key)}
               style={{
                 padding: '10px 24px',
                 border: 'none',
@@ -2060,6 +2077,30 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             >
               更新
             </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="名前・メール・ラベルで検索..."
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #D4C9B0',
+                  background: '#FDFCFA',
+                  fontSize: 13,
+                  color: '#2A2520',
+                  width: 260,
+                  fontFamily: 'Noto Sans JP, sans-serif',
+                  outline: 'none',
+                }}
+              />
+              <span style={{ textAlign: 'right', fontSize: 12, color: '#D4C9B0' }}>
+                {filteredIntegrations.length} 件表示 / 総計 {integrations.length} 件
+              </span>
+            </div>
             <button
               onClick={handleExportIntegrations}
               disabled={exporting}
@@ -2128,6 +2169,10 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060', fontSize: 14 }}>
               まだ統合分析がありません
             </div>
+          ) : filteredIntegrations.length === 0 ? (
+            <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060', fontSize: 14 }}>
+              該当する統合分析が見つかりません
+            </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table aria-label="統合分析一覧" style={{ width: '100%', minWidth: 920, borderCollapse: 'collapse' }}>
@@ -2159,7 +2204,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {integrations.map((item, idx) => (
+                  {filteredIntegrations.map((item, idx) => (
                     <tr
                       key={`${item.uid || 'unknown'}-${item.pairKey || idx}`}
                       onClick={() => setSelectedIntegration(item)}
@@ -2223,10 +2268,6 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             </div>
           )}
         </div>
-
-        <p style={{ textAlign: 'center', fontSize: 12, color: '#D4C9B0', marginTop: 16 }}>
-          {integrations.length} 件表示 / 総計 {integrations.length} 件
-        </p>
         </>)}
       </div>
 
