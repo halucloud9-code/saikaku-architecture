@@ -60,7 +60,10 @@ export default async function handler(req, res) {
       photoURL: d.photoURL || '',
       scores: d.scores || null,
       analysis: d.analysis || null,
-      bias_message: d.bias_message || null,
+      // bias_message は undefined / null / object の三状態を区別する（AdminScreen.getOrCalcBias 参照）。
+      // undefined = legacy（再計算）、null = 明示的に健全保存、object = 保存済みメッセージ。
+      // `|| null` の coercion は legacy を健全と誤認させるため使わない。
+      bias_message: d.bias_message,
       answers: d.answers || null,
       vAnswers: d.vAnswers || null,
       uaamCreatedAt: d.createdAt?._seconds
