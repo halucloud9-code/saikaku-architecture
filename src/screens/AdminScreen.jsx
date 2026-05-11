@@ -3,6 +3,7 @@ import { auth, signOutUser } from '../firebase';
 import { Chart, computePcts, CHART_COLORS } from '../utils/chartUtils';
 import ActivationPanel from '../ActivationPanel';
 import ActivationMatrix from './uaam/ActivationMatrix';
+import SaikakuIntegrationModal from './uaam/SaikakuIntegrationModal';
 import {
   getVFlags,
   calculateBiasMessage,
@@ -40,6 +41,78 @@ function BiasBadge({ data }) {
     }}>
       バイアス {biasPct}%
     </span>
+  );
+}
+
+function displayValue(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  return value;
+}
+
+function formatAdminDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('ja-JP');
+}
+
+function buildAdminIntegrationSummary(item) {
+  if (!item) return null;
+  return {
+    saikakuAttemptId: item.saikakuAttemptId,
+    uaamAttemptId: item.uaamAttemptId,
+    integration: item.integration,
+    status: item.status,
+    regenerationCount: item.regenerationCount,
+    model: item.model,
+    source: item.source,
+    generatedAt: item.updatedAt ?? item.createdAt,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    pairKey: item.pairKey,
+    isLegacyFallback: item.isLegacyFallback,
+  };
+}
+
+function IntegrationBadge({ children }) {
+  const styles = { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' };
+
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '2px 7px',
+      borderRadius: 4,
+      border: `1px solid ${styles.border}`,
+      background: styles.bg,
+      color: styles.color,
+      fontSize: 11,
+      fontWeight: 700,
+      lineHeight: 1.4,
+      whiteSpace: 'nowrap',
+    }}>
+      {children}
+    </span>
+  );
+}
+
+function IntegrationLabelCell({ item, field }) {
+  const label = item?.source?.[field] ?? '—';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 220 }}>
+      <span style={{
+        fontFamily: 'Shippori Mincho, serif',
+        fontSize: 13,
+        color: label === '—' ? '#B0A898' : '#2A2520',
+        lineHeight: 1.5,
+        wordBreak: 'break-word',
+      }}>
+        {label}
+      </span>
+      {item?.isLegacyFallback && (
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#7A7060' }}>(legacy)</span>
+      )}
+    </div>
   );
 }
 
@@ -950,13 +1023,18 @@ function GradeBadge({ name }) {
 export default function AdminScreen({ user, onBack, onLogout }) {
   const [users, setUsers] = useState([]);
   const [uaamUsers, setUaamUsers] = useState([]);
+  const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [integrationsLoading, setIntegrationsLoading] = useState(false);
+  const [integrationsLoaded, setIntegrationsLoaded] = useState(false);
   const [error, setError] = useState('');
+  const [integrationsError, setIntegrationsError] = useState('');
   const [selected, setSelected] = useState(null);
   const [selectedUaam, setSelectedUaam] = useState(null);
+  const [selectedIntegration, setSelectedIntegration] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState('saikaku'); // 'saikaku' | 'uaam'
+  const [tab, setTab] = useState('saikaku'); // 'saikaku' | 'uaam' | 'integrations'
   const [vFilter, setVFilter] = useState('all'); // 'all' | 'v1_high' | 'v2_high' | 'v3_diff' | 'critical'
   const [deleting, setDeleting] = useState(false);
   const [ghostEmail, setGhostEmail] = useState('');
@@ -966,6 +1044,11 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (tab !== 'integrations' || integrationsLoaded) return;
+    fetchIntegrations();
+  }, [tab, integrationsLoaded]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -984,6 +1067,26 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       setError(e.message || 'データの取得に失敗しました');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchIntegrations = async () => {
+    setIntegrationsLoading(true);
+    setIntegrationsError('');
+    try {
+      if (!auth.currentUser) throw new Error('認証セッションが切れました');
+      const idToken = await auth.currentUser.getIdToken(true);
+      const res = await fetch('/api/admin/integrations', {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '取得に失敗しました');
+      setIntegrations(data.integrations || []);
+      setIntegrationsLoaded(true);
+    } catch (e) {
+      setIntegrationsError(e.message || '統合分析の取得に失敗しました');
+    } finally {
+      setIntegrationsLoading(false);
     }
   };
 
@@ -1184,7 +1287,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px 80px' }}>
+      <div style={{ maxWidth: tab === 'integrations' ? 1320 : 1200, margin: '0 auto', padding: '32px 24px 80px' }}>
         {/* サマリーカード */}
         <div
           style={{
@@ -1230,6 +1333,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           {[
             { key: 'saikaku', label: '才覚領域', count: users.length },
             { key: 'uaam', label: 'UAAM診断', count: uaamUsers.length },
+            { key: 'integrations', label: '統合分析', count: integrations.length },
           ].map(({ key, label, count }) => (
             <button
               key={key}
@@ -1246,7 +1350,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                 transition: 'all 0.2s',
               }}
             >
-              {label}（{loading ? '—' : count}）
+              {label}（{key === 'integrations' ? (!integrationsLoaded || integrationsLoading ? '—' : count) : (loading ? '—' : count)}）
             </button>
           ))}
         </div>
@@ -1859,6 +1963,197 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           {filteredUaam.length} 件表示 / 総計 {uaamUsers.length} 件
         </p>
         </>)}
+
+        {/* ━━━ 統合分析タブ ━━━ */}
+
+        {tab === 'integrations' && (<>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h2
+              style={{
+                fontFamily: 'Shippori Mincho, serif',
+                fontSize: 18,
+                fontWeight: 700,
+                color: '#2A2520',
+                margin: 0,
+              }}
+            >
+              統合分析一覧
+            </h2>
+            <button
+              onClick={fetchIntegrations}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: '1px solid #D4C9B0',
+                background: 'transparent',
+                color: '#7A7060',
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              更新
+            </button>
+          </div>
+        </div>
+
+        {integrationsError && (
+          <div
+            style={{
+              padding: '12px 16px',
+              background: '#F8EDEA',
+              border: '1px solid #D89080',
+              borderRadius: 8,
+              marginBottom: 16,
+              fontSize: 14,
+              color: '#A84432',
+            }}
+          >
+            {integrationsError}
+          </div>
+        )}
+
+        <div
+          style={{
+            background: '#FDFCFA',
+            borderRadius: 12,
+            border: '1px solid #D4C9B0',
+            overflow: 'hidden',
+            boxShadow: '0 2px 8px rgba(42,37,32,0.04)',
+          }}
+        >
+          {!integrationsLoaded && !integrationsLoading ? (
+            <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060', fontSize: 14 }}>
+              統合分析は未読込です
+            </div>
+          ) : integrationsLoading ? (
+            <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060' }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  border: '3px solid #D4C9B0',
+                  borderTopColor: '#C4922A',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 12px',
+                }}
+              />
+              読み込み中...
+            </div>
+          ) : integrations.length === 0 ? (
+            <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060', fontSize: 14 }}>
+              まだ統合分析がありません
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table aria-label="統合分析一覧" style={{ width: '100%', minWidth: 920, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#F5F0E8', borderBottom: '2px solid #D4C9B0' }}>
+                    {[
+                      'ユーザー',
+                      '才覚 label',
+                      'UAAM label',
+                      '再生成回数',
+                      'integration_score',
+                      '更新日時',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          padding: '12px 12px',
+                          textAlign: 'left',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: '#7A7060',
+                          letterSpacing: '0.06em',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {integrations.map((item, idx) => (
+                    <tr
+                      key={`${item.uid || 'unknown'}-${item.pairKey || idx}`}
+                      onClick={() => setSelectedIntegration(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedIntegration(item);
+                        }
+                      }}
+                      tabIndex={0}
+                      aria-label={`統合分析詳細 ${displayValue(item.userName)} ${displayValue(item.pairKey)}`}
+                      style={{
+                        borderBottom: '1px solid #D4C9B0',
+                        background: idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#FBF4E8')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? '#FDFCFA' : '#FAF8F4')}
+                    >
+                      <td style={{ padding: '12px', minWidth: 190 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: displayValue(item.userName) === '—' ? '#B0A898' : '#2A2520' }}>
+                            {displayValue(item.userName)}
+                          </span>
+                          {item.userEmail && (
+                            <span style={{ fontSize: 11, color: '#B0A898' }}>
+                              {item.userEmail}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <IntegrationLabelCell item={item} field="saikakuLabel" />
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <IntegrationLabelCell item={item} field="uaamLabel" />
+                      </td>
+                      <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#2A2520' }}>
+                            {item.regenerationCount ?? 0}
+                          </span>
+                          {(item.regenerationCount ?? 0) === 1 && <IntegrationBadge>再生成</IntegrationBadge>}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: item.integration?.integration_score === null || item.integration?.integration_score === undefined ? '#B0A898' : '#C4922A' }}>
+                          {item.integration?.integration_score ?? '—'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 12, color: item.updatedAt ? '#7A7060' : '#B0A898' }}>
+                          {formatAdminDate(item.updatedAt)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <p style={{ textAlign: 'center', fontSize: 12, color: '#D4C9B0', marginTop: 16 }}>
+          {integrations.length} 件表示 / 総計 {integrations.length} 件
+        </p>
+        </>)}
       </div>
 
       {/* 才覚領域 詳細モーダル */}
@@ -1878,6 +2173,22 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           onClose={() => setSelectedUaam(null)}
           onDelete={handleDelete}
           onSave={handleSaveUser}
+        />
+      )}
+
+      {/* 統合分析 詳細モーダル */}
+      {selectedIntegration && (
+        <SaikakuIntegrationModal
+          open={!!selectedIntegration}
+          mode="admin"
+          kind="uaam"
+          integrationSummary={buildAdminIntegrationSummary(selectedIntegration)}
+          userInfo={{
+            userName: selectedIntegration.userName,
+            userEmail: selectedIntegration.userEmail,
+            coachingAnswers: selectedIntegration.coachingAnswers ?? {},
+          }}
+          onClose={() => setSelectedIntegration(null)}
         />
       )}
     </div>

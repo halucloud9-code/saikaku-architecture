@@ -5,6 +5,7 @@ import waitOn from 'wait-on';
 const ports = [3001, 5173, 8090, 9099];
 const children = [];
 let shuttingDown = false;
+const e2eAdminEmails = process.env.ADMIN_EMAILS || process.env.VITE_ADMIN_EMAILS || 'admin-e2e@example.com';
 
 const sharedEnv = {
   ...process.env,
@@ -23,6 +24,8 @@ const sharedEnv = {
   GCLOUD_PROJECT: 'demo-saikaku',
   MOCK_ANTHROPIC: '1',
   NODE_ENV: 'test',
+  ADMIN_EMAILS: e2eAdminEmails,
+  VITE_ADMIN_EMAILS: process.env.VITE_ADMIN_EMAILS || e2eAdminEmails,
 };
 
 function log(message) {

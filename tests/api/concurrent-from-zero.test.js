@@ -19,8 +19,20 @@ describe('API /api/analyze concurrency from attemptCount=0', () => {
 
   afterAll(() => setMockDelay(0));
 
+  async function waitForPendingAttempt() {
+    for (let i = 0; i < 40; i += 1) {
+      if ((await getParent('results', uid))?.pendingAttemptId) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error('pendingAttemptId was not set');
+  }
+
   it('allows one request and rejects the concurrent pending conflict', async () => {
-    const responses = await Promise.all([analyzeRequest(uid), analyzeRequest(uid)]);
+    const firstRequest = analyzeRequest(uid).then((response) => response);
+    await waitForPendingAttempt();
+    const secondResponse = await analyzeRequest(uid);
+    const firstResponse = await firstRequest;
+    const responses = [firstResponse, secondResponse];
     const statuses = responses.map((res) => res.status).sort();
 
     expect(statuses).toEqual([200, 409]);

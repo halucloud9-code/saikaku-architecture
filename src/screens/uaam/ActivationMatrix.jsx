@@ -83,16 +83,25 @@ function CornerBadge({ g, pos, align, delay, onMouseEnter, onMouseLeave }) {
       {/* スコア */}
       <div style={{
         fontFamily: "'DM Sans', sans-serif",
-        fontSize: 'clamp(13px, 3vw, 18px)',
-        fontWeight: 700,
-        color: `rgba(${c[0]},${c[1]},${c[2]},0.9)`,
         marginTop: 3,
         lineHeight: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: align === 'right' ? 'flex-end' : 'flex-start',
       }}>
-        {g.total}
-        <span style={{ fontSize: '0.55em', fontWeight: 400, color: `rgba(${c[0]},${c[1]},${c[2]},0.5)`, marginLeft: 2 }}>
-          /{g.max}
-        </span>
+        <div style={{
+          fontSize: 'clamp(15px, 3.6vw, 22px)',
+          fontWeight: 700,
+          color: `rgba(${c[0]},${c[1]},${c[2]},0.9)`,
+          lineHeight: 1,
+        }}>{g.pct}<span style={{ fontSize: '0.55em', fontWeight: 400, color: `rgba(${c[0]},${c[1]},${c[2]},0.55)`, marginLeft: 1 }}>%</span></div>
+        <div style={{
+          fontSize: 'clamp(10px, 2vw, 12px)',
+          fontWeight: 400,
+          color: `rgba(${c[0]},${c[1]},${c[2]},0.45)`,
+          lineHeight: 1,
+          marginTop: 1,
+        }}>{g.total}<span style={{ fontSize: '1em', fontWeight: 400, color: `rgba(${c[0]},${c[1]},${c[2]},0.45)`, marginLeft: 1 }}>/{g.max}</span></div>
       </div>
       {/* ミニバー */}
       <div style={{

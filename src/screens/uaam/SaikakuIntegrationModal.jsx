@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import SaikakuIntegration, { formatIntegrationDate } from './SaikakuIntegration';
-import { loadCoachingAnswers } from '../../api/coachingAnswers';
+import { loadCoachingAnswers, saveCoachingAnswers } from '../../api/coachingAnswers';
 
 const LEGACY_MESSAGE = 'この統合分析は移行前のデータです。最新の組み合わせで再生成してください';
 
 function isLegacyFallback(summary) {
-  return summary?.saikakuAttemptId === 'legacy-fallback'
+  return summary?.isLegacyFallback === true
+    || summary?.saikakuAttemptId === 'legacy-fallback'
     || summary?.uaamAttemptId === 'legacy-fallback';
 }
 
@@ -89,20 +90,34 @@ export default function SaikakuIntegrationModal({
   integrationSummaries,
   kind,
   source,
+  mode = 'self',
+  userInfo,
 }) {
+  const isAdminMode = mode === 'admin';
   const summaries = useMemo(
     () => summaryList(integrationSummary, integrationSummaries),
     [integrationSummary, integrationSummaries],
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [answersMap, setAnswersMap] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [hasUnsavedAnswers, setHasUnsavedAnswers] = useState(false);
 
   useEffect(() => {
     if (open) setSelectedIndex(0);
   }, [open, integrationSummary, integrationSummaries]);
 
   useEffect(() => {
+    if (open) setHasUnsavedAnswers(false);
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return undefined;
+    if (mode !== 'self') {
+      setAnswersMap({});
+      return undefined;
+    }
     let cancelled = false;
     loadCoachingAnswers()
       .then((map) => {
@@ -110,31 +125,53 @@ export default function SaikakuIntegrationModal({
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [open]);
+  }, [open, mode]);
+
+  const requestClose = useCallback(() => {
+    if (mode === 'self' && hasUnsavedAnswers && !window.confirm('保存していない回答があります。閉じますか？')) {
+      return;
+    }
+    onClose?.();
+  }, [hasUnsavedAnswers, mode, onClose]);
 
   useEffect(() => {
     if (!open) return undefined;
 
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose?.();
+      if (event.key === 'Escape') requestClose();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   if (!open) return null;
+
+  const handleCoachingSave = async (items) => {
+    setSaving(true);
+    try {
+      const updated = await saveCoachingAnswers(items);
+      setAnswersMap(updated);
+      setLastSavedAt(new Date());
+    } catch (e) {
+      console.warn('[coaching] save failed:', e);
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const selectedSummary = summaries[selectedIndex] ?? summaries[0] ?? integrationSummary ?? null;
   const selectedSource = sourceFromSummary(selectedSummary, source);
   const integration = integrationBodyFromSummary(selectedSummary);
   const legacy = isLegacyFallback(selectedSummary);
-  const stale = selectedSummary?.status === 'stale';
+  const stale = !isAdminMode && selectedSummary?.status === 'stale';
+  const visibleAnswersMap = isAdminMode ? (userInfo?.coachingAnswers ?? {}) : answersMap;
 
   return (
     <div
       data-testid="saikaku-integration-modal-backdrop"
-      onClick={onClose}
+      onClick={requestClose}
       style={{
         position: 'fixed',
         inset: 0,
@@ -176,6 +213,38 @@ export default function SaikakuIntegrationModal({
           gap: 16,
         }}>
           <div>
+            {isAdminMode && userInfo && (
+              <div style={{
+                background: '#F5F0E8',
+                border: '1px solid rgba(232,224,212,0.68)',
+                borderRadius: 10,
+                padding: '8px 10px',
+                marginBottom: 12,
+                minWidth: 220,
+                maxWidth: 420,
+              }}>
+                <div style={{
+                  color: '#2A2520',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  lineHeight: 1.5,
+                  fontFamily: "'Noto Serif JP', serif",
+                  wordBreak: 'break-word',
+                }}>
+                  {userInfo.userName ?? '—'}
+                </div>
+                {userInfo.userEmail && (
+                  <div style={{
+                    fontSize: 12,
+                    color: '#7A7060',
+                    lineHeight: 1.5,
+                    wordBreak: 'break-word',
+                  }}>
+                    {userInfo.userEmail}
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{
               fontSize: 9,
               color: '#B8960C',
@@ -214,7 +283,7 @@ export default function SaikakuIntegrationModal({
           <button
             type="button"
             aria-label="閉じる"
-            onClick={onClose}
+            onClick={requestClose}
             style={{
               width: 32,
               height: 32,
@@ -299,10 +368,15 @@ export default function SaikakuIntegrationModal({
               <SaikakuIntegration
                 integration={integration}
                 source={selectedSource}
-                status={selectedSummary?.status}
-                answersMap={answersMap}
+                status={isAdminMode ? undefined : selectedSummary?.status}
+                answersMap={visibleAnswersMap}
+                onSave={isAdminMode ? undefined : handleCoachingSave}
+                saving={isAdminMode ? false : saving}
+                lastSavedAt={isAdminMode ? null : lastSavedAt}
+                onDirtyChange={isAdminMode ? undefined : setHasUnsavedAnswers}
                 defaultOpen
                 readOnly
+                disableCoachingInput={isAdminMode}
               />
             </div>
           ) : (
