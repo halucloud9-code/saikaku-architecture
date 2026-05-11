@@ -1,0 +1,79 @@
+name: Codex Auto-Fix
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  trigger-fix:
+    if: github.event.review.user.login == 'chatgpt-codex-connector[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment @codex when actionable findings exist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request.number;
+            const reviewId = context.payload.review.id;
+            const reviewSubmittedAt = new Date(context.payload.review.submitted_at);
+
+            // 全ページを paginate で取得して、現在の review (review.id) に属する
+            // inline comments だけを actionable とみなす。
+            const allReviewComments = await github.paginate(
+              github.rest.pulls.listReviewComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr,
+                per_page: 100,
+              },
+            );
+            const codexInlineForThisReview = allReviewComments.filter(
+              (c) =>
+                c.user &&
+                c.user.login === 'chatgpt-codex-connector[bot]' &&
+                c.pull_request_review_id === reviewId,
+            );
+            if (codexInlineForThisReview.length === 0) {
+              core.info(
+                `No actionable Codex inline comments for review ${reviewId}. Skipping auto-fix request.`,
+              );
+              return;
+            }
+
+            // 同様に issue comments も全ページ取得。過去にこの review に対する
+            // trigger コメントが残っていれば重複起動を防止。
+            const allIssueComments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                per_page: 100,
+              },
+            );
+            const alreadyTriggered = allIssueComments.some((c) => {
+              if (!c.body || !c.body.includes('<!-- codex-auto-fix:trigger -->')) return false;
+              return new Date(c.created_at) > reviewSubmittedAt;
+            });
+            if (alreadyTriggered) {
+              core.info('Auto-fix already triggered for this review. Skipping.');
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              body: [
+                '@codex address the feedback above. Keep the original intent intact, ',
+                'and run typecheck/tests locally before pushing.',
+                '',
+                '<!-- codex-auto-fix:trigger -->',
+              ].join(''),
+            });
+            core.info(
+              `Posted auto-fix request on PR #${pr} for review ${reviewId} (${codexInlineForThisReview.length} actionable comments).`,
+            );
