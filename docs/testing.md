@@ -4,10 +4,10 @@
 
 | 層 | コマンド | カバレッジ | 所要時間 |
 |----|----------|------------|----------|
-| Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter / AdminScreen 統合分析タブ (74 tests) | < 5 秒 |
+| Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter / AdminScreen 統合分析タブ / SelectScreen cache shape (75 tests) | < 5 秒 |
 | Rules | `npm run test:rules` | Firestore rules 21 シナリオ (`/api/me/*` 経由化で attempts/uaam_results parent の read deny を反転検証) | 〜2 秒 |
-| API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF + `/api/admin/integrations` (122 tests) | 〜30 秒 |
-| E2E | `npm run test:e2e` | Playwright 29 フロー (badge/history/limit/admin-integrations 等) | 〜100 秒 |
+| API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF (recentAttempts 含む) + `/api/admin/integrations` (127 tests) | 〜30 秒 |
+| E2E | `npm run test:e2e` | Playwright 40 シナリオ (badge / history / limit / admin-integrations / select-recent-attempts / issue-47 snapshots / issue-77 snapshots 等) | 〜2.5 分 |
 | **All** | `npm run test:all` | 全部直列実行 | 〜140 秒 |
 
 ## 前提
