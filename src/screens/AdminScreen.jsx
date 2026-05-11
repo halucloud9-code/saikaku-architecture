@@ -1132,6 +1132,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       setUaamUsers((prev) => prev.filter((u) => u.uid !== uid));
       setSelected(null);
       setSelectedUaam(null);
+      fetchSummaryCounts();
     } catch (e) {
       setError(e.message || '削除に失敗しました');
     } finally {
@@ -1158,6 +1159,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       // リストからも除外
       setUsers(prev => prev.filter(u => u.email !== ghostEmail.trim()));
       setUaamUsers(prev => prev.filter(u => u.email !== ghostEmail.trim()));
+      fetchSummaryCounts();
     } catch (e) {
       setGhostMsg(`❌ ${e.message}`);
     } finally {

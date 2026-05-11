@@ -22,7 +22,8 @@ const {
 const { db } = await import('../../api/lib/firebaseAdmin.js');
 
 const SAIKAKU_UIDS = ['s-today-1', 's-yesterday-1', 's-old-1'];
-const UAAM_UIDS = ['u-today-1', 'u-yesterday-1', 'u-updated-only'];
+const UAAM_UIDS = ['u-today-1', 'u-yesterday-1', 'u-updated-only', 'u-legacy-today', 'u-legacy-old'];
+const ROGUE_UID = 'rogue-namespace-uid';
 
 function ts(iso) {
   return Timestamp.fromDate(new Date(iso));
@@ -64,6 +65,8 @@ async function clearFixtures() {
     ...SAIKAKU_UIDS.map((uid) => clearUserState('results', uid)),
     ...UAAM_UIDS.map((uid) => clearUserState('uaam_results', uid)),
   ]);
+  await deleteQueryDocs(db.collection('other_results').doc(ROGUE_UID).collection('integrations'));
+  await db.collection('other_results').doc(ROGUE_UID).delete().catch(() => {});
 }
 
 async function seedIntegration(uid, pairKey, createdAt) {
@@ -113,6 +116,36 @@ async function seedSummaryDataset() {
     seedIntegration('u-today-1', 'pairKey2', '2026-05-11T05:00:00Z'),
     seedIntegration('u-yesterday-1', 'pairKey3', '2026-04-29T00:00:00Z'),
   ]);
+}
+
+async function seedRogueIntegration(createdAt) {
+  // 他親 namespace (`other_results/{uid}/integrations/`) に rogue doc を seed する。
+  // `uaam_results` 配下ではないため summary count には含まれない期待値で検証する。
+  await db
+    .collection('other_results')
+    .doc(ROGUE_UID)
+    .collection('integrations')
+    .doc('rogue-pair')
+    .set({
+      saikakuAttemptId: 'rogue-saikaku',
+      uaamAttemptId: 'rogue-uaam',
+      integration: { integration_score: 99, activation_core: 'rogue' },
+      createdAt: ts(createdAt),
+      updatedAt: ts(createdAt),
+    });
+}
+
+async function seedLegacyParent(uid, integrationUpdatedAt) {
+  await seedParent('uaam_results', uid, {
+    uid,
+    createdAt: ts('2026-04-01T00:00:00Z'),
+    updatedAt: ts(integrationUpdatedAt),
+    integrationUpdatedAt: ts(integrationUpdatedAt),
+    analysis: {
+      type_name: 'Legacy Type',
+      saikaku_integration: { integration_score: 70, activation_core: 'Legacy Core' },
+    },
+  });
 }
 
 function authGet() {
@@ -165,6 +198,50 @@ describe('API /api/admin/summary-counts', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.breakdown.uaam).toEqual({ today: 1, thisWeek: 2 });
+  });
+
+  it('excludes integrations from non-uaam_results namespaces (rogue path)', async () => {
+    await seedSummaryDataset();
+    await seedRogueIntegration('2026-05-12T02:00:00Z'); // 本日 boundary 内だが他親 namespace
+
+    const response = await authGet();
+
+    expect(response.status).toBe(200);
+    // rogue doc は uaam_results 配下ではないので integrations.today は変わらず 1
+    expect(response.body.breakdown.integrations).toEqual({ today: 1, thisWeek: 2 });
+  });
+
+  it('includes legacy parent-embedded integrations in counts when no subcollection docs exist for that uid', async () => {
+    await seedSummaryDataset();
+    await seedLegacyParent('u-legacy-today', '2026-05-12T02:00:00Z');
+    await seedLegacyParent('u-legacy-old', '2026-04-01T00:00:00Z');
+
+    const response = await authGet();
+
+    expect(response.status).toBe(200);
+    // 既存 1(today) / 2(thisWeek) + legacy 1(today, u-legacy-today) / 1(thisWeek, u-legacy-today のみ)
+    expect(response.body.breakdown.integrations).toEqual({ today: 2, thisWeek: 3 });
+  });
+
+  it('does not double-count legacy when subcollection docs already exist for the same uid', async () => {
+    await seedSummaryDataset();
+    // u-today-1 は subcollection に既に pair が 2 件あるので、parent に legacy field を足しても legacy としてはカウントしない
+    await seedParent('uaam_results', 'u-today-1', {
+      uid: 'u-today-1',
+      createdAt: ts('2026-05-12T02:00:00Z'),
+      updatedAt: ts('2026-05-12T02:00:00Z'),
+      integrationUpdatedAt: ts('2026-05-12T02:00:00Z'),
+      analysis: {
+        type_name: 'Legacy Type',
+        saikaku_integration: { integration_score: 70, activation_core: 'Legacy Core' },
+      },
+    });
+
+    const response = await authGet();
+
+    expect(response.status).toBe(200);
+    // subcollection 2件カウント維持、legacy は加算しない
+    expect(response.body.breakdown.integrations).toEqual({ today: 1, thisWeek: 2 });
   });
 
   it('returns 401 when Authorization is missing', async () => {
