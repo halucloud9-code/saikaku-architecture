@@ -63,6 +63,7 @@
 | `api/me/history.js` | GET /api/me/history?kind=uaam | 各 UAAM attempt に `integrationSummary: null \| object` を含む |
 | `api/me/uaam-result.js` | GET /api/me/uaam-result?attemptId=X | 対応する単一 integrationSummary を返す |
 | `api/admin/restore-scores.js` | POST /api/admin/restore-scores | 管理者用スコア復元 |
+| `api/admin/summary-counts.js` | GET /api/admin/summary-counts | 管理画面サマリーカード用。`results` / `uaam_results` / `collectionGroup('integrations')` の本日/今週カウントを JST 基準で Firestore aggregate `count()` で集計（`src/utils/adminSummaryCounts.js` の境界計算を共用）。レスポンス: `{ today, thisWeek, breakdown: { saikaku, uaam, integrations } }` |
 
 ---
 

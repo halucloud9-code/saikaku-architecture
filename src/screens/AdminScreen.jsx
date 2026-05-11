@@ -1031,6 +1031,8 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   const [uaamUsers, setUaamUsers] = useState([]);
   const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [summaryCounts, setSummaryCounts] = useState(null);
+  const [summaryCountsLoading, setSummaryCountsLoading] = useState(true);
   const [integrationsLoading, setIntegrationsLoading] = useState(false);
   const [integrationsLoaded, setIntegrationsLoaded] = useState(false);
   const [error, setError] = useState('');
@@ -1049,6 +1051,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
 
   useEffect(() => {
     fetchUsers();
+    fetchSummaryCounts();
   }, []);
 
   useEffect(() => {
@@ -1073,6 +1076,24 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       setError(e.message || 'データの取得に失敗しました');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSummaryCounts = async () => {
+    setSummaryCountsLoading(true);
+    try {
+      if (!auth.currentUser) throw new Error('認証セッションが切れました');
+      const idToken = await auth.currentUser.getIdToken(true);
+      const res = await fetch('/api/admin/summary-counts', {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '取得に失敗しました');
+      setSummaryCounts(data);
+    } catch {
+      setSummaryCounts(null);
+    } finally {
+      setSummaryCountsLoading(false);
     }
   };
 
@@ -1221,20 +1242,6 @@ export default function AdminScreen({ user, onBack, onLogout }) {
     setSearch('');
   };
 
-  // 本日・今週のカウントと検索フィルター（usersやsearchが変わった時のみ再計算）
-  const today = useMemo(() => {
-    const todayStr = new Date().toDateString();
-    return users.filter((u) => u.createdAt && new Date(u.createdAt).toDateString() === todayStr).length;
-  }, [users]);
-
-  const thisWeek = useMemo(() => {
-    const now = Date.now();
-    return users.filter((u) => {
-      if (!u.createdAt) return false;
-      return (now - new Date(u.createdAt).getTime()) / (1000 * 60 * 60 * 24) < 7;
-    }).length;
-  }, [users]);
-
   const filtered = useMemo(() => {
     if (!search) return users;
     const q = search.toLowerCase();
@@ -1286,6 +1293,14 @@ export default function AdminScreen({ user, onBack, onLogout }) {
         item.source?.uaamLabel?.toLowerCase()?.includes(q)
     );
   }, [integrations, search]);
+
+  const summaryBreakdown = summaryCounts?.breakdown;
+  const todaySummaryText = summaryBreakdown
+    ? `才覚 ${summaryBreakdown.saikaku.today} / UAAM ${summaryBreakdown.uaam.today} / 統合 ${summaryBreakdown.integrations.today}`
+    : null;
+  const thisWeekSummaryText = summaryBreakdown
+    ? `才覚 ${summaryBreakdown.saikaku.thisWeek} / UAAM ${summaryBreakdown.uaam.thisWeek} / 統合 ${summaryBreakdown.integrations.thisWeek}`
+    : null;
 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F0E8' }}>
@@ -1355,9 +1370,19 @@ export default function AdminScreen({ user, onBack, onLogout }) {
           }}
         >
           {[
-            { label: '総参加者数', value: users.length, color: '#C4922A' },
-            { label: '本日の解析数', value: today, color: '#4A6FA5' },
-            { label: '今週の解析数', value: thisWeek, color: '#A84432' },
+            { label: '総参加者数', value: loading ? '—' : users.length, color: '#C4922A' },
+            {
+              label: '本日の解析数',
+              value: summaryCountsLoading ? '—' : summaryCounts?.today ?? '—',
+              color: '#4A6FA5',
+              subText: summaryCountsLoading ? null : todaySummaryText,
+            },
+            {
+              label: '今週の解析数',
+              value: summaryCountsLoading ? '—' : summaryCounts?.thisWeek ?? '—',
+              color: '#A84432',
+              subText: summaryCountsLoading ? null : thisWeekSummaryText,
+            },
           ].map((item) => (
             <div
               key={item.label}
@@ -1379,8 +1404,13 @@ export default function AdminScreen({ user, onBack, onLogout }) {
                   lineHeight: 1,
                 }}
               >
-                {loading ? '—' : item.value}
+                {item.value}
               </div>
+              {item.subText && (
+                <div style={{ fontSize: 11, color: '#7A7060', marginTop: 6 }}>
+                  {item.subText}
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -144,6 +144,17 @@ function installFetchMock(integrations = integrationFixture()) {
         uaamUsers: [{ uid: 'u-uaam', name: 'UAAM User', email: 'uaam@example.com' }],
       });
     }
+    if (url === '/api/admin/summary-counts') {
+      return response(200, {
+        today: 0,
+        thisWeek: 0,
+        breakdown: {
+          saikaku: { today: 0, thisWeek: 0 },
+          uaam: { today: 0, thisWeek: 0 },
+          integrations: { today: 0, thisWeek: 0 },
+        },
+      });
+    }
     if (url === '/api/admin/integrations') {
       return response(200, { integrations });
     }
