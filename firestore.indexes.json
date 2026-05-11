@@ -1,13 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "results",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "attempts",
       "queryScope": "COLLECTION",
       "fields": [
