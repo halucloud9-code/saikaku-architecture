@@ -95,6 +95,30 @@ describe('UAAM export field extraction', () => {
     expect(rows[0].impact).toBe('');
   });
 
+  it('recomputes bias_message for legacy users (undefined) via calculateBiasMessage', () => {
+    const rows = buildUaamRows([
+      makeUser({
+        bias_message: undefined,
+        vAnswers: { V1: 1, V2: 2, V3: 1 },
+        scores: {
+          mindset: { total: 20, max: 80, percentage: 25 },
+          literacy: { total: 24, max: 80, percentage: 30 },
+          competency: { total: 28, max: 80, percentage: 35 },
+          impact: { total: 32, max: 80, percentage: 40 },
+        },
+      }),
+    ]);
+
+    expect(rows[0].bias_message).not.toBe('');
+    expect(typeof rows[0].bias_message).toBe('string');
+  });
+
+  it('preserves explicit null bias_message (healthy) as empty CSV cell', () => {
+    const rows = buildUaamRows([makeUser({ bias_message: null })]);
+
+    expect(rows[0].bias_message).toBe('');
+  });
+
   it('does not leak coaching answers into the CSV', () => {
     const rows = buildUaamRows([
       makeUser({

@@ -1,4 +1,4 @@
-import { getVFlags } from '../data/uaam_questions';
+import { getVFlags, calculateBiasMessage } from '../data/uaam_questions';
 
 export const UAAM_EXPORT_FIELD_DEFS = [
   { key: 'name', label: '名前' },
@@ -19,6 +19,20 @@ export const UAAM_EXPORT_FIELD_DEFS = [
 export function pct(score) {
   if (score == null) return '';
   return score.percentage ?? Math.round((score.total / (score.max || 1)) * 100);
+}
+
+// AdminScreen.getOrCalcBias と同じ三状態 (undefined=legacy→recalc, null=明示的健全, object=保存済み) を保持する。
+// CSV と UI の bias 表示を完全一致させるため、UI 側ロジックを inline 複製。
+export function resolveBiasMessage(u) {
+  if (u.bias_message !== undefined && u.bias_message !== null) return u.bias_message;
+  if (u.bias_message === null) return null;
+  const v = u.vAnswers || {};
+  const s = u.scores || {};
+  const totalPct = Math.round(
+    ((s.mindset?.total || 0) + (s.literacy?.total || 0) +
+      (s.competency?.total || 0) + (s.impact?.total || 0)) / 320 * 100,
+  );
+  return calculateBiasMessage(v, totalPct);
 }
 
 export function formatJpDate(value) {
@@ -51,7 +65,7 @@ export function buildUaamRows(uaamUsers) {
       v2: vFlags.flags.V2 ?? 'none',
       v3: vFlags.flags.V3 ?? 'none',
       bias_level: vFlags.level,
-      bias_message: u.bias_message?.message ?? '',
+      bias_message: resolveBiasMessage(u)?.message ?? '',
       type_name: u.analysis?.type_name ?? '',
       uaamUpdatedAt: formatJpDate(u.uaamUpdatedAt),
     };
