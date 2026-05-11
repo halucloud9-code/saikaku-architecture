@@ -1033,6 +1033,8 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [summaryCounts, setSummaryCounts] = useState(null);
   const [summaryCountsLoading, setSummaryCountsLoading] = useState(true);
+  // 並行する fetchSummaryCounts 呼び出し (mount + 削除後 refresh) で古いレスポンスが新しいレスポンスを上書きしないよう、リクエスト世代番号で判定する。
+  const summaryCountsReqIdRef = useRef(0);
   const [integrationsLoading, setIntegrationsLoading] = useState(false);
   const [integrationsLoaded, setIntegrationsLoaded] = useState(false);
   const [error, setError] = useState('');
@@ -1080,6 +1082,8 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   };
 
   const fetchSummaryCounts = async () => {
+    const reqId = summaryCountsReqIdRef.current + 1;
+    summaryCountsReqIdRef.current = reqId;
     setSummaryCountsLoading(true);
     try {
       if (!auth.currentUser) throw new Error('認証セッションが切れました');
@@ -1089,11 +1093,17 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '取得に失敗しました');
+      // 古いリクエストの応答が新しいリクエストの応答より遅れて到着した場合は破棄
+      if (summaryCountsReqIdRef.current !== reqId) return;
       setSummaryCounts(data);
     } catch {
+      if (summaryCountsReqIdRef.current !== reqId) return;
       setSummaryCounts(null);
     } finally {
-      setSummaryCountsLoading(false);
+      // loading 解除も最新リクエストのみ
+      if (summaryCountsReqIdRef.current === reqId) {
+        setSummaryCountsLoading(false);
+      }
     }
   };
 

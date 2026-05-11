@@ -39,41 +39,50 @@ function tsToMillis(ts) {
 // (2) 未移行 legacy UAAM では `uaam_results/{uid}` 親に `analysis.saikaku_integration` が埋め込まれており、admin タブでは legacy fallback として 1件表示される (api/admin/integrations.js の `legacyIntegrationFromParent` 経由)
 //
 // 両者を含めることで「admin タブの表示件数」と「サマリーカードの統合分析件数」を整合させる。
+// 読み取りコストを抑えるため、subcollection / legacy 双方とも Firestore 側で `>= thisWeekBoundary` に絞り込む。
+// legacy の重複除外チェック (= subcollection に doc が1件でもあるか) は legacy 候補に対してのみ limit(1) で個別問い合わせ。
 async function countIntegrationsForBoundaries(todayBoundary, thisWeekBoundary) {
   const todayMs = todayBoundary.getTime();
   const thisWeekMs = thisWeekBoundary.getTime();
+  const thisWeekTs = Timestamp.fromDate(thisWeekBoundary);
 
-  const [cgSnap, uaamParentsSnap] = await Promise.all([
-    db.collectionGroup('integrations').get(),
-    db.collection('uaam_results').get(),
+  const [cgSnap, recentLegacyParentsSnap] = await Promise.all([
+    // 直近7日以内の subcollection doc のみ取得（rogue path も含むので doc filter は post-fetch で行う）
+    db.collectionGroup('integrations').where('createdAt', '>=', thisWeekTs).get(),
+    // legacy 候補: 直近7日以内に integrationUpdatedAt が更新された uaam_results parent のみ取得
+    db.collection('uaam_results').where('integrationUpdatedAt', '>=', thisWeekTs).get(),
   ]);
 
-  const uidsWithSubcollection = new Set();
+  // subcollection 集計（namespace filter 適用）
   let subToday = 0;
   let subThisWeek = 0;
-
   for (const docSnap of cgSnap.docs) {
     // (1) namespace filter: uaam_results/{uid}/integrations/{pairKey} のみ
     if (docSnap.ref.parent.parent?.parent.id !== 'uaam_results') continue;
-
-    const uid = docSnap.ref.parent.parent?.id;
-    if (uid) uidsWithSubcollection.add(uid);
-
     const ms = tsToMillis(docSnap.data().createdAt);
     if (ms === null) continue;
     if (ms >= todayMs) subToday += 1;
     if (ms >= thisWeekMs) subThisWeek += 1;
   }
 
+  // legacy 候補を抽出 (analysis.saikaku_integration を持つ doc のみ)
+  const legacyCandidates = recentLegacyParentsSnap.docs.filter((docSnap) => {
+    return !!legacyIntegrationFromParent(docSnap.data());
+  });
+
+  // 各 legacy 候補について subcollection が空かどうか limit(1) で確認
+  const subcollChecks = await Promise.all(
+    legacyCandidates.map((docSnap) =>
+      db.collection('uaam_results').doc(docSnap.id).collection('integrations').limit(1).get()
+    )
+  );
+
+  // legacy 集計（subcollection が空の uid のみ legacy として +1）
   let legacyToday = 0;
   let legacyThisWeek = 0;
-
-  for (const docSnap of uaamParentsSnap.docs) {
-    // (2) legacy fallback: subcollection に1件もない uid のみ legacy 1件として数える (admin タブと同じ意味論)
-    if (uidsWithSubcollection.has(docSnap.id)) continue;
-    const parentData = docSnap.data();
-    if (!legacyIntegrationFromParent(parentData)) continue;
-
+  for (let i = 0; i < legacyCandidates.length; i += 1) {
+    if (!subcollChecks[i].empty) continue;
+    const parentData = legacyCandidates[i].data();
     const ms = tsToMillis(parentData.integrationUpdatedAt);
     if (ms === null) continue;
     if (ms >= todayMs) legacyToday += 1;
