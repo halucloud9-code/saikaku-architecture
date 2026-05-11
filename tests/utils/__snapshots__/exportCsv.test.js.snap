@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildCsv > matches the UAAM export column order snapshot 1`] = `
+"﻿名前,メール,志(%),知(%),技(%),衝(%),V1,V2,V3,bias_level,bias_message,タイプ名,診断日
+Alice,alice@example.com,0,80,75,90,none,warning,critical,5,needs review,天地型,2026-05-01
+Bob,bob@example.com,,,,,none,none,none,1,,未分類,"
+`;

@@ -4,6 +4,8 @@ import { Chart, computePcts, CHART_COLORS } from '../utils/chartUtils';
 import ActivationPanel from '../ActivationPanel';
 import ActivationMatrix from './uaam/ActivationMatrix';
 import SaikakuIntegrationModal from './uaam/SaikakuIntegrationModal';
+import { buildCsv, downloadCsv } from '../utils/exportCsv';
+import { buildUaamRows, UAAM_EXPORT_FIELD_DEFS } from '../utils/uaamExport';
 import {
   getVFlags,
   calculateBiasMessage,
@@ -1176,6 +1178,23 @@ export default function AdminScreen({ user, onBack, onLogout }) {
     }
   };
 
+  const handleExportUaam = () => {
+    setExporting(true);
+    try {
+      if (uaamUsers.length === 0) {
+        alert('UAAMデータがありません');
+        return;
+      }
+
+      const csvText = buildCsv(buildUaamRows(uaamUsers), UAAM_EXPORT_FIELD_DEFS);
+      downloadCsv('uaam_results.csv', csvText);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // 本日・今週のカウントと検索フィルター（usersやsearchが変わった時のみ再計算）
   const today = useMemo(() => {
     const todayStr = new Date().toDateString();
@@ -1783,6 +1802,23 @@ export default function AdminScreen({ user, onBack, onLogout }) {
               <option value="v2_flag">V2フラグあり</option>
               <option value="v3_flag">V3フラグあり</option>
             </select>
+            <button
+              onClick={handleExportUaam}
+              disabled={exporting}
+              style={{
+                padding: '8px 20px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#C4922A',
+                color: '#FDFCFA',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: exporting ? 'wait' : 'pointer',
+                opacity: exporting ? 0.7 : 1,
+              }}
+            >
+              {exporting ? '処理中...' : 'CSVエクスポート'}
+            </button>
           </div>
         </div>
 

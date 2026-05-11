@@ -1,3 +1,6 @@
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
@@ -86,6 +89,29 @@ export async function loginAs(page, email, password) {
   await page.getByPlaceholder('パスワード（6文字以上）').fill(password);
   await page.locator('.login-btn-gold').click();
   await expect(page.getByText('才覚解読プログラム')).toBeVisible({ timeout: 15000 });
+}
+
+export async function downloadCsvAndAssert(page, clickAction, expectedFilename) {
+  const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+  const clickPromise = typeof clickAction === 'function'
+    ? clickAction()
+    : clickAction.click();
+
+  const [download] = await Promise.all([
+    downloadPromise,
+    clickPromise,
+  ]);
+
+  expect(download.suggestedFilename()).toBe(expectedFilename);
+
+  const dir = await mkdtemp(join(tmpdir(), 'saikaku-e2e-csv-'));
+  const filePath = join(dir, expectedFilename);
+  await download.saveAs(filePath);
+  const csvText = await readFile(filePath, 'utf8');
+
+  expect(csvText.startsWith('\uFEFF')).toBe(true);
+
+  return { download, csvText };
 }
 
 export async function fillSaikakuForm(page) {
