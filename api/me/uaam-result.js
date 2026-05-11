@@ -124,7 +124,10 @@ export default withMeHandler(async function handler(req, res) {
   const recent = recentIntegrationSummaries(integrations, latestIds);
 
   if (!snapshot.exists) {
-    return res.status(200).json(serializeTimestamps(emptyResult(requestedAttemptId !== null, recent)));
+    // 親 doc が存在しない場合、Firestore の仕様上 subcollection に orphaned
+    // integration が残っている可能性がある。ユーザー視点で「結果は無い」状態と
+    // 整合させるため、recentIntegrationSummaries は明示的に空配列で返す。
+    return res.status(200).json(serializeTimestamps(emptyResult(requestedAttemptId !== null, [])));
   }
 
   const resolvedAttemptId = requestedAttemptId ?? data.latestAttemptId ?? null;

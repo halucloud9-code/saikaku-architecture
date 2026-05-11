@@ -123,6 +123,26 @@ describe('API /api/me/uaam-result', () => {
     expect(response.body).toEqual({ scores: null, analysis: null, recentIntegrationSummaries: [] });
   });
 
+  it('returns empty recentIntegrationSummaries when parent is absent but orphaned subcollection docs exist', async () => {
+    // Firestore は親 doc 削除時に subcollection を残すため、orphaned integration が
+    // 残存しているケース。「結果は無い」状態と整合させるため空配列で返すこと。
+    const uid = 'u-me-uaam-result-absent-with-orphans';
+    await clearAllUserState(uid);
+    await seedIntegration(uid, 'saikaku-orphan-a', 'uaam-orphan-a', {
+      integration: integrationBody(91, 'Orphan Core A'),
+      updatedAt: at(2),
+    });
+    await seedIntegration(uid, 'saikaku-orphan-b', 'uaam-orphan-b', {
+      integration: integrationBody(82, 'Orphan Core B'),
+      updatedAt: at(1),
+    });
+
+    const response = await api.get('/api/me/uaam-result').set('x-test-uid', uid);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ scores: null, analysis: null, recentIntegrationSummaries: [] });
+  });
+
   it('returns null scores and analysis when saved result data is partial', async () => {
     const uid = 'u-me-uaam-result-partial';
     await clearUserState('uaam_results', uid);
