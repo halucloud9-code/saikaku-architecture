@@ -7,6 +7,10 @@ import SaikakuIntegrationModal from './uaam/SaikakuIntegrationModal';
 import { buildCsv, downloadCsv } from '../utils/exportCsv';
 import { buildUaamRows, UAAM_EXPORT_FIELD_DEFS } from '../utils/uaamExport';
 import {
+  buildIntegrationsRows,
+  INTEGRATIONS_EXPORT_FIELD_DEFS,
+} from '../utils/integrationsExport';
+import {
   getVFlags,
   calculateBiasMessage,
   determinePersonalityLevel,
@@ -1195,6 +1199,23 @@ export default function AdminScreen({ user, onBack, onLogout }) {
     }
   };
 
+  const handleExportIntegrations = () => {
+    setExporting(true);
+    try {
+      if (integrations.length === 0) {
+        alert('統合分析データがありません');
+        return;
+      }
+
+      const csvText = buildCsv(buildIntegrationsRows(integrations), INTEGRATIONS_EXPORT_FIELD_DEFS);
+      downloadCsv('saikaku_integrations.csv', csvText);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // 本日・今週のカウントと検索フィルター（usersやsearchが変わった時のみ再計算）
   const today = useMemo(() => {
     const todayStr = new Date().toDateString();
@@ -2038,6 +2059,23 @@ export default function AdminScreen({ user, onBack, onLogout }) {
               }}
             >
               更新
+            </button>
+            <button
+              onClick={handleExportIntegrations}
+              disabled={exporting}
+              style={{
+                padding: '8px 20px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#C4922A',
+                color: '#FDFCFA',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: exporting ? 'wait' : 'pointer',
+                opacity: exporting ? 0.7 : 1,
+              }}
+            >
+              {exporting ? '処理中...' : 'CSVエクスポート'}
             </button>
           </div>
         </div>
