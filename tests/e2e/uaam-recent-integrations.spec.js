@@ -202,8 +202,8 @@ test('UAAM result old cache shape without recentIntegrationSummaries does not cr
   await expect(page.getByTestId('recent-integration-0')).toHaveCount(0);
 });
 
-test('UAAM history detail does not render recent integration rows', async ({ page }, testInfo) => {
-  const { email, user } = await createCleanUser('history-empty', testInfo);
+test('UAAM history detail renders recent integration rows and opens modal on click and Enter', async ({ page }, testInfo) => {
+  const { email, user } = await createCleanUser('history-rows-modal', testInfo);
   await seedUserWithRecentIntegrations(user.uid);
 
   await loginAs(page, email, password);
@@ -214,5 +214,22 @@ test('UAAM history detail does not render recent integration rows', async ({ pag
 
   await expect(page.getByText('Unique Ability Activation Matrix').first()).toBeVisible();
   await expect(page.getByRole('button', { name: /才覚×UAAM 統合発動分析を生成する/ })).toBeVisible();
-  await expect(page.getByTestId('recent-integration-0')).toHaveCount(0);
+  await expect(page.getByTestId('recent-integration-0')).toBeVisible();
+  await expect(page.getByTestId('recent-integration-1')).toBeVisible();
+  await expect(page.getByTestId('recent-integration-2')).toHaveCount(0);
+  await expect(page.getByTestId('recent-integration-0')).toContainText('E2E Recent Core 2');
+  await expect(page.getByTestId('recent-integration-1')).toContainText('E2E Recent Core 1');
+
+  await page.getByTestId('recent-integration-0').click();
+  const dialog = page.getByRole('dialog', { name: '才覚発動統合分析' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('E2E Recent Core 2', { exact: true })).toBeVisible();
+
+  await dialog.getByRole('button', { name: '閉じる' }).click();
+  await expect(dialog).toHaveCount(0);
+
+  await page.getByTestId('recent-integration-1').focus();
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('E2E Recent Core 1', { exact: true })).toBeVisible();
 });

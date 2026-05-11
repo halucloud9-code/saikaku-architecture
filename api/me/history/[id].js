@@ -1,5 +1,7 @@
 import { db } from '../../lib/firebaseAdmin.js';
 import { backfillAttemptSummary, getKindConfig, legacyDocToAttempt } from '../../lib/legacy.js';
+import { listIntegrationDocs } from '../../lib/legacyIntegration.js';
+import { recentIntegrationSummaries } from '../../lib/recentIntegrationSummaries.js';
 import { serializeTimestamps } from '../../lib/serialize.js';
 import { authenticateMeRequest, withMeHandler } from '../_auth.js';
 import { isValidAttemptId } from '../../../shared/attemptLogic.js';
@@ -9,7 +11,7 @@ function readSingleQueryValue(value) {
 }
 
 function attemptDetail(docSnap, kind) {
-  const data = docSnap.data() || {};
+  const data = docSnap.data() ?? {};
   return {
     id: docSnap.id,
     status: data.status ?? null,
@@ -19,6 +21,22 @@ function attemptDetail(docSnap, kind) {
     createdAt: data.createdAt ?? null,
     isLegacy: !!data.isLegacy,
   };
+}
+
+function uaamRecentIntegrationSummaries(parentSnap, integrationsSnap, saikakuParentSnap) {
+  if (!parentSnap?.exists) return [];
+
+  const parentData = parentSnap.data() ?? {};
+  const latestIds = {
+    saikakuAttemptId: saikakuParentSnap?.exists
+      ? saikakuParentSnap.data()?.latestAttemptId ?? null
+      : null,
+    uaamAttemptId: parentData.latestAttemptId ?? null,
+  };
+  return recentIntegrationSummaries(
+    listIntegrationDocs(integrationsSnap, parentData),
+    latestIds,
+  );
 }
 
 export default withMeHandler(async function handler(req, res) {
@@ -38,19 +56,48 @@ export default withMeHandler(async function handler(req, res) {
   }
 
   const parentRef = db.collection(config.collection).doc(decoded.uid);
+  const isUaam = kind === 'uaam';
 
   if (id === 'legacy-fallback') {
-    const parentSnap = await parentRef.get();
+    const [parentSnap, integrationsSnap, saikakuParentSnap] = isUaam
+      ? await Promise.all([
+        parentRef.get(),
+        parentRef.collection('integrations').get(),
+        db.collection('results').doc(decoded.uid).get(),
+      ])
+      : [await parentRef.get(), null, null];
     const legacy = parentSnap.exists ? legacyDocToAttempt(parentSnap.data(), kind) : null;
     if (!legacy) return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
+    if (isUaam) {
+      legacy.recentIntegrationSummaries = uaamRecentIntegrationSummaries(
+        parentSnap,
+        integrationsSnap,
+        saikakuParentSnap,
+      );
+    }
     return res.status(200).json(serializeTimestamps(legacy));
   }
 
-  const attemptSnap = await parentRef.collection('attempts').doc(id).get();
+  const attemptRef = parentRef.collection('attempts').doc(id);
+  const attemptSnap = await attemptRef.get();
   if (!attemptSnap.exists) return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
   if (attemptSnap.data()?.status !== 'committed') {
     return res.status(404).json({ error: 'attempt not found', code: 'not_found' });
   }
 
-  return res.status(200).json(serializeTimestamps(attemptDetail(attemptSnap, kind)));
+  const response = attemptDetail(attemptSnap, kind);
+  if (isUaam) {
+    const [parentSnap, integrationsSnap, saikakuParentSnap] = await Promise.all([
+      parentRef.get(),
+      parentRef.collection('integrations').get(),
+      db.collection('results').doc(decoded.uid).get(),
+    ]);
+    response.recentIntegrationSummaries = uaamRecentIntegrationSummaries(
+      parentSnap,
+      integrationsSnap,
+      saikakuParentSnap,
+    );
+  }
+
+  return res.status(200).json(serializeTimestamps(response));
 });

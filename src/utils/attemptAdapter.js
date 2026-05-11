@@ -40,6 +40,7 @@ export function attemptToResultProps(attempt, kind) {
       // ActivationPanel が `第${coachConfirmed.leadership_stage}` のように scalar として参照するため正規化しない
       coach_confirmed_leadership_stage: attempt.full?.coach_confirmed_leadership_stage ?? null,
       coach_observation_note: attempt.full?.coach_observation_note ?? null,
+      recentIntegrationSummaries: attempt.recentIntegrationSummaries ?? null,
     },
   };
 }

@@ -2080,7 +2080,7 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
     return { axis, data: order.map(k => subs[k] || 0), labels: order.map(k => SUB_LABELS[k]), order };
   });
   const recentIntegrationSummaries = effectiveResult?.recentIntegrationSummaries ?? [];
-  const visibleRecentIntegrationSummaries = !isHistoryView && Array.isArray(recentIntegrationSummaries)
+  const visibleRecentIntegrationSummaries = Array.isArray(recentIntegrationSummaries)
     ? recentIntegrationSummaries.slice(0, 2)
     : [];
   const integrationSource = integrationSourceFromSummary(integrationSummary, analysis);

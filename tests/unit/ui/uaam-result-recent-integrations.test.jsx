@@ -150,6 +150,47 @@ function renderScreen(result) {
   );
 }
 
+function attemptDataFromResult(result, overrides = {}) {
+  const attempt = {
+    id: 'attempt-unit-history',
+    status: 'committed',
+    full: {
+      scores: result.scores,
+      analysis: result.analysis,
+      name: result.name,
+      bias_message: result.bias_message,
+      personality_level: result.personality_level,
+      leadership_stage: result.leadership_stage,
+      three_elements: result.three_elements,
+    },
+    raw: {
+      input: {
+        answers: result.answers,
+        vAnswers: result.vAnswers,
+      },
+    },
+    ...overrides,
+  };
+  if (Object.prototype.hasOwnProperty.call(result, 'recentIntegrationSummaries')) {
+    attempt.recentIntegrationSummaries = result.recentIntegrationSummaries;
+  }
+  return attempt;
+}
+
+function renderHistoryScreen(attemptData) {
+  return render(
+    <UAAMResultScreen
+      user={user}
+      result={null}
+      attemptData={attemptData}
+      isAdmin={false}
+      onReset={noop}
+      onAdmin={noop}
+      onLogout={noop}
+    />,
+  );
+}
+
 describe('UAAMResultScreen recent integrations', () => {
   beforeEach(() => {
     coachingMocks.loadCoachingAnswers.mockResolvedValue({});
@@ -177,6 +218,23 @@ describe('UAAMResultScreen recent integrations', () => {
 
   it('does not crash when recentIntegrationSummaries is missing from an old cache shape', () => {
     renderScreen(baseResult());
+
+    expect(screen.queryByTestId('recent-integration-0')).toBeNull();
+    expect(screen.getByRole('button', { name: /才覚×UAAM 統合発動分析を生成する/ })).toBeInTheDocument();
+  });
+
+  it('renders recent integration rows in history view from attemptData', () => {
+    renderHistoryScreen(attemptDataFromResult(baseResult({
+      recentIntegrationSummaries: [recentSummary(0), recentSummary(1)],
+    })));
+
+    expect(screen.getByTestId('recent-integration-0')).toHaveTextContent('Recent Core 1');
+    expect(screen.getByTestId('recent-integration-1')).toHaveTextContent('Recent Core 2');
+    expect(screen.queryByTestId('recent-integration-2')).toBeNull();
+  });
+
+  it('does not crash in history view when recentIntegrationSummaries is missing from an old cache shape', () => {
+    renderHistoryScreen(attemptDataFromResult(baseResult()));
 
     expect(screen.queryByTestId('recent-integration-0')).toBeNull();
     expect(screen.getByRole('button', { name: /才覚×UAAM 統合発動分析を生成する/ })).toBeInTheDocument();
