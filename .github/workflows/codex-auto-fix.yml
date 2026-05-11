@@ -17,26 +17,45 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request.number;
-            const { data: comments } = await github.rest.pulls.listReviewComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr,
-            });
-            const codexInline = comments.filter(
-              c => c.user && c.user.login === 'chatgpt-codex-connector[bot]'
+            const reviewId = context.payload.review.id;
+            const reviewSubmittedAt = new Date(context.payload.review.submitted_at);
+
+            // 全ページを paginate で取得して、現在の review (review.id) に属する
+            // inline comments だけを actionable とみなす。
+            const allReviewComments = await github.paginate(
+              github.rest.pulls.listReviewComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr,
+                per_page: 100,
+              },
             );
-            if (codexInline.length === 0) {
-              core.info('No actionable Codex inline comments. Skipping auto-fix request.');
+            const codexInlineForThisReview = allReviewComments.filter(
+              (c) =>
+                c.user &&
+                c.user.login === 'chatgpt-codex-connector[bot]' &&
+                c.pull_request_review_id === reviewId,
+            );
+            if (codexInlineForThisReview.length === 0) {
+              core.info(
+                `No actionable Codex inline comments for review ${reviewId}. Skipping auto-fix request.`,
+              );
               return;
             }
-            const { data: issueComments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr,
-              per_page: 100,
-            });
-            const reviewSubmittedAt = new Date(context.payload.review.submitted_at);
-            const alreadyTriggered = issueComments.some(c => {
+
+            // 同様に issue comments も全ページ取得。過去にこの review に対する
+            // trigger コメントが残っていれば重複起動を防止。
+            const allIssueComments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                per_page: 100,
+              },
+            );
+            const alreadyTriggered = allIssueComments.some((c) => {
               if (!c.body || !c.body.includes('<!-- codex-auto-fix:trigger -->')) return false;
               return new Date(c.created_at) > reviewSubmittedAt;
             });
@@ -55,4 +74,6 @@ jobs:
                 '<!-- codex-auto-fix:trigger -->',
               ].join(''),
             });
-            core.info(`Posted auto-fix request on PR #${pr}.`);
+            core.info(
+              `Posted auto-fix request on PR #${pr} for review ${reviewId} (${codexInlineForThisReview.length} actionable comments).`,
+            );
