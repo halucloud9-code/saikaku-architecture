@@ -24,7 +24,8 @@ const UAAM_TYPE_NAME = 'E2E Export Type';
 const BIAS_MESSAGE = 'E2E bias message';
 const COACHING_ANSWER_SECRET = 'e2e_export_secret_coaching_answer';
 const UPDATED_AT = Timestamp.fromDate(new Date('2026-05-07T12:00:00.000Z'));
-const EXPECTED_HEADER = '名前,メール,志(%),知(%),技(%),衝(%),V1,V2,V3,bias_level,bias_message,タイプ名,診断日';
+const EXPECTED_HEADER =
+  '名前,メール,志(%),知(%),技(%),衝(%),基軸力,認知力,転換力,熟達力,謙学力,論理力,活用力,統率力,本質力,創造力,伝達力,協働力,構想力,変革力,実装力,影響力,V1,V2,V3,bias_level,bias_message,タイプ名,診断日';
 
 function getAdminAuth() {
   if (!getApps().length) {
@@ -48,12 +49,12 @@ async function cleanup() {
   await deleteAuthUserByEmail(adminEmail);
 }
 
-function axisScore(total, max, percentage) {
+function axisScore(total, max, percentage, subs = {}) {
   return {
     total,
     max,
     percentage,
-    subs: {},
+    subs,
     domainSubs: {},
     domainTotal: total,
   };
@@ -67,10 +68,30 @@ async function seedUaamExportFixture() {
       name: UAAM_NAME,
       email: UAAM_EMAIL,
       scores: {
-        mindset: axisScore(70, 80, 88),
-        literacy: axisScore(40, 60, 67),
-        competency: axisScore(30, 50, 60),
-        impact: axisScore(21, 50, 42),
+        mindset: axisScore(70, 80, 88, {
+          meaning: 1,
+          mindfulness: 2,
+          mindshift: 3,
+          mastery: 4,
+        }),
+        literacy: axisScore(40, 60, 67, {
+          learning: 5,
+          logical: 6,
+          life: 7,
+          leadership: 8,
+        }),
+        competency: axisScore(30, 50, 60, {
+          critical: 9,
+          creativity: 10,
+          communication: 11,
+          collaboration: 12,
+        }),
+        impact: axisScore(21, 50, 42, {
+          idea: 13,
+          innovation: 14,
+          implementation: 15,
+          influence: 16,
+        }),
       },
       vAnswers: {
         V1: 1,
@@ -126,13 +147,31 @@ test('admin can export UAAM results as CSV', async ({ page }) => {
   expect(bodyRow).not.toContain(COACHING_ANSWER_SECRET);
   expect(csvText).not.toContain(COACHING_ANSWER_SECRET);
   expect(csvText).not.toContain('coaching_answers');
-  expect(bodyRow.split(',')).toEqual([
+  const bodyColumns = bodyRow.split(',');
+  expect(bodyColumns.length).toBe(EXPECTED_HEADER.split(',').length);
+  expect(bodyColumns).toEqual([
     UAAM_NAME,
     UAAM_EMAIL,
     '88',
     '67',
     '60',
     '42',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    '11',
+    '12',
+    '13',
+    '14',
+    '15',
+    '16',
     'critical',
     'warning',
     'none',

@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`buildCsv > matches the UAAM export column order snapshot 1`] = `
-"﻿名前,メール,志(%),知(%),技(%),衝(%),V1,V2,V3,bias_level,bias_message,タイプ名,診断日
-Alice,alice@example.com,0,80,75,90,none,warning,critical,5,needs review,天地型,2026-05-01
-Bob,bob@example.com,,,,,none,none,none,1,,未分類,"
+"﻿名前,メール,志(%),知(%),技(%),衝(%),基軸力,認知力,転換力,熟達力,謙学力,論理力,活用力,統率力,本質力,創造力,伝達力,協働力,構想力,変革力,実装力,影響力,V1,V2,V3,bias_level,bias_message,タイプ名,診断日
+Alice,alice@example.com,0,80,75,90,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,none,warning,critical,5,needs review,天地型,2026-05-01
+Bob,bob@example.com,,,,,,,,,,,,,,,,,,,,,none,none,none,1,,未分類,"
 `;
