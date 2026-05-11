@@ -445,9 +445,6 @@ function SelectRoute() {
       onSelectSaikaku={() => navigate('/input')}
       onSelectUaam={() => navigate('/uaam')}
       onSelectHistory={handleSelectHistory}
-      onSelectAttempt={(id, kind) => {
-        navigate(`/history/${kind}/${encodeURIComponent(id)}`);
-      }}
       onAdmin={() => navigate('/admin')}
       onLogout={handleLogout}
     />

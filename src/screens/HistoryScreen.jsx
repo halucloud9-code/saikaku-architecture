@@ -2,12 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { auth, signOutUser } from '../firebase';
 import { summarizeFromParent, timestampToMillis } from '../../shared/attemptLogic.js';
 import SaikakuIntegrationModal from './uaam/SaikakuIntegrationModal';
-import {
-  formatAttemptDate,
-  getAttemptDate,
-  getAttemptLabel,
-  getAttemptOrdinal,
-} from '../utils/attemptDisplay';
 
 const TOKENS = {
   saikaku: {
@@ -27,6 +21,49 @@ const TOKENS = {
     soft: 'rgba(74,111,165,0.10)',
   },
 };
+
+function formatDate(value) {
+  if (value === null || value === undefined) return '日付未設定';
+  let date;
+  if (typeof value === 'string') {
+    date = new Date(value);
+  } else if (typeof value?.toDate === 'function') {
+    date = value.toDate();
+  } else if (typeof value?._seconds === 'number') {
+    date = new Date(value._seconds * 1000);
+  } else {
+    date = new Date(value);
+  }
+
+  if (Number.isNaN(date.getTime())) return '日付未設定';
+
+  return new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function getAttemptDate(attempt) {
+  return attempt.summary?.createdAt ?? attempt.createdAt ?? null;
+}
+
+function getAttemptLabel(attempt, kind) {
+  if (kind === 'uaam') {
+    return attempt.summary?.typeName
+      ?? 'MATRIX 診断結果';
+  }
+
+  return attempt.summary?.kakuchiiki
+    ?? '才覚領域 診断結果';
+}
+
+function getAttemptOrdinal(attempt, index, total) {
+  if (attempt.isLegacy) return '保存済み履歴';
+  return `${total - index}回目`;
+}
 
 function emptyDetails() {
   return {
@@ -471,7 +508,7 @@ export default function HistoryScreen({ user, kind, onBack, onSelectAttemptId, o
                       whiteSpace: 'nowrap',
                       paddingTop: 4,
                     }}>
-                      {formatAttemptDate(getAttemptDate(attempt))}
+                      {formatDate(getAttemptDate(attempt))}
                     </span>
                   </div>
                   <div style={{
