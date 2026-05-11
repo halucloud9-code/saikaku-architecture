@@ -122,6 +122,45 @@ All fields are top-level fields. They are not nested under `analysis`.
 | 504 | `upstream_timeout` | LLM call exceeded 9.5min (lock window) |
 | 500 | `internal_error` | unexpected error. Body contains only `{ code, requestId }`. Stack/message logged server-side with `requestId` for correlation |
 
+## CSV Export from Admin Screen (#88)
+
+`src/utils/integrationsExport.js` provides the column allowlist consumed by `src/screens/AdminScreen.jsx` → `handleExportIntegrations`. The CSV is built **client-side** from the `/api/admin/integrations` response — no additional Firestore reads, no server-side export endpoint.
+
+### Allowlisted Columns
+
+| Column | Source | Notes |
+|---|---|---|
+| `名前` | `item.userName` | from API `userName` |
+| `メール` | `item.userEmail` | from API `userEmail` |
+| `pairKey` | `item.pairKey` | doc id, `${saikakuAttemptId}__${uaamAttemptId}` |
+| `saikakuAttemptId` | `item.saikakuAttemptId` | |
+| `uaamAttemptId` | `item.uaamAttemptId` | |
+| `saikakuLabel` | **`item.source?.saikakuLabel`** | **nested under `source`**, not top-level |
+| `uaamLabel` | **`item.source?.uaamLabel`** | **nested under `source`**, not top-level |
+| `regenerationCount` | `item.regenerationCount ?? 0` | `??` preserves falsy 0 |
+| `integration_score` | `item.integration?.integration_score ?? ''` | |
+| `status` | `item.status` | `'active'` / `'stale'` |
+| `staleSaikaku` | `item.staleSaikaku ? 'true' : 'false'` | boolean → string |
+| `staleUaam` | `item.staleUaam ? 'true' : 'false'` | boolean → string |
+| `model` | `item.model` | |
+| `isLegacyFallback` | `item.isLegacyFallback ? 'true' : 'false'` | boolean → string |
+| `createdAt` | `item.createdAt` | ISO string already from API |
+| `updatedAt` | `item.updatedAt` | ISO string already from API |
+
+### Excluded (allowlist enforcement)
+
+The following fields exist in the `/api/admin/integrations` response but are **physically absent from CSV** because they are not in `INTEGRATIONS_EXPORT_FIELD_DEFS`:
+
+- `coachingAnswers` — privacy
+- `integration.summary`, `integration.recommendations`, `integration.{any other body field}` — privacy + cell bloat
+- `_createdAtMillis` — internal sort key, irrelevant to consumers
+
+E2E leak guard: `tests/utils/integrationsExportFields.test.js` injects mock `coachingAnswers`, `integration.summary`, `integration.recommendations` and asserts those strings are absent from `buildCsv()` output. This is the contract — adding a field to the response payload does NOT add it to the CSV unless the allowlist is updated.
+
+### Sanitization
+
+- `escapeCsvCell` (in `src/utils/exportCsv.js`) prefixes any cell starting with `=` / `+` / `-` / `@` / `\t` / `\r` with `'` to neutralize spreadsheet formula injection (OWASP CSV Injection Prevention compliant).
+
 ## attemptId Validation (Phase 2 M-4)
 
 - Shared predicate `isValidAttemptId(s)` in `shared/attemptLogic.js`.

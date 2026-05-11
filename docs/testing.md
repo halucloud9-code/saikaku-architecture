@@ -5,10 +5,11 @@
 | 層 | コマンド | カバレッジ | 所要時間 |
 |----|----------|------------|----------|
 | Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter / AdminScreen 統合分析タブ / UAAMResultScreen 最近の統合分析リスト (90 tests) | < 10 秒 |
+| UI | `npm test` (vitest.ui.config.js) | LoginScreen / AllPairsTriangle / coaching-answers-client / normalize-question-text + **CSV エクスポート (exportCsv / uaamExportFields / integrationsExportFields, #87 / #88)** (65 tests) | 〜3 秒 |
 | Rules | `npm run test:rules` | Firestore rules 21 シナリオ (`/api/me/*` 経由化で attempts/uaam_results parent の read deny を反転検証) | 〜2 秒 |
 | API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF + `/api/admin/integrations` (134 tests) | 〜30 秒 |
-| E2E | `npm run test:e2e` | Playwright 39 フロー (badge/history/limit/admin-integrations/uaam-recent-integrations 等) | 〜170 秒 |
-| **All** | `npm run test:all` | 全部直列実行 | 〜210 秒 |
+| E2E | `npm run test:e2e` | Playwright 16 spec ファイル (badge/history/limit/admin-integrations/uaam-recent-integrations + **admin-uaam-export (#87) / admin-integrations-export (#88) / admin-integrations-search (#89)**) | 〜180 秒 |
+| **All** | `npm run test:all` | 全部直列実行 | 〜220 秒 |
 
 ## 前提
 

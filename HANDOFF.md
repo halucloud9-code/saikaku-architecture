@@ -66,6 +66,24 @@
 
 ---
 
+## 管理画面のクライアント側機能 (#87 / #88 / #89)
+
+| 機能 | 場所 | 備考 |
+|---|---|---|
+| 才覚 CSV エクスポート | `handleExport` → `/api/admin/export` | サーバー側 export (既存)。本番稼働中・自動テストなしのため変更しない |
+| **UAAM 診断 CSV エクスポート** | `handleExportUaam` + `src/utils/uaamExport.js` (#87) | **クライアント側生成**。`uaamUsers` state を allowlist で投影。追加 API なし・追加 Firestore Read なし |
+| **統合分析 CSV エクスポート** | `handleExportIntegrations` + `src/utils/integrationsExport.js` (#88) | **クライアント側生成**。`integrations` state を allowlist で投影。`coachingAnswers` / `integration.summary` / `integration.recommendations` は allowlist 不在で物理的に除外 |
+| **統合分析タブ検索** | `filteredIntegrations` useMemo (#89) | `userName` / `userEmail` / `source.saikakuLabel` / `source.uaamLabel` で case-insensitive 一致。export は filter 非適用で全件出力 |
+| 共通 CSV ビルダー | `src/utils/exportCsv.js` (#87) | allowlist 方式 `buildCsv(rows, fieldDefs)` + DOM ダウンロード `downloadCsv(filename, csvText)`。formula injection 中和 (`'` prefix) を `escapeCsvCell` で自動適用 |
+| タブ切替時の検索リセット | `handleTabChange` (#89) | 全 3 タブ (saikaku / UAAM / integrations) で `setSearch('')` を一体化、ghost-filter 防止 |
+
+**重要な不変条件**:
+- CSV ビルダーは `fieldDefs` allowlist に列挙された key のみ抽出。`...row` スプレッドや `Object.values(row)` での全フィールドダンプは禁止 (Round 2 debate critical)
+- export は常に全件 (`uaamUsers` / `integrations` の元配列を渡す)。検索フィルタ後の subset は使わない
+- `bias_message` の三状態 (`undefined` = legacy → recalc, `null` = 明示的健全, object = 保存済み) を `resolveBiasMessage` で保持。`|| null` での coercion は禁止
+
+---
+
 ## 構造的防衛層（バグ再発防止）
 
 ### ① Contract層（AIレスポンス検証）
