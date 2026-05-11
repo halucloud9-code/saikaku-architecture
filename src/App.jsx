@@ -88,20 +88,23 @@ function createSeedUaamResult() {
  * 保存済みUAAM結果を読み込む
  */
 async function loadSavedUaamResult(uid) {
-  void uid;
-  try {
-    if (!auth.currentUser) return null;
+  const currentUser = auth.currentUser;
+  if (!currentUser || currentUser.uid !== uid) return null;
 
-    const idToken = await auth.currentUser.getIdToken();
+  try {
+    const idToken = await currentUser.getIdToken();
+    if (auth.currentUser?.uid !== uid) return null;
+
     const res = await fetch('/api/me/uaam-result', {
       headers: { Authorization: `Bearer ${idToken}` },
     });
     if (!res.ok) return null;
 
     const data = await res.json();
+    if (auth.currentUser?.uid !== uid) return null;
     if (!data.scores || !data.analysis) return null;
 
-    return { scores: data.scores, analysis: data.analysis };
+    return data;
   } catch (e) {
     console.warn('[UAAM] Failed to load saved result:', e);
   }

@@ -20,7 +20,8 @@ import {
 import ActivationMatrix from './ActivationMatrix';
 import AllPairsTriangle, { SymmetricMatrix } from './AllPairsTriangle';
 import ActivationPanel from '../../ActivationPanel';
-import SaikakuIntegration from './SaikakuIntegration';
+import SaikakuIntegration, { formatIntegrationDate } from './SaikakuIntegration';
+import SaikakuIntegrationModal from './SaikakuIntegrationModal';
 import { loadCoachingAnswers, saveCoachingAnswers } from '../../api/coachingAnswers';
 import { normalizeScores } from '../../utils/normalize';
 import { attemptToResultProps } from '../../utils/attemptAdapter';
@@ -140,6 +141,19 @@ function integrationSourceFromSummary(summary, analysis) {
       ?? summary.generatedAt
       ?? null,
   };
+}
+
+function recentIntegrationTitle(summary, index) {
+  return summary?.activationCore
+    ?? summary?.integration?.activation_core
+    ?? `統合分析 ${index + 1}`;
+}
+
+function recentIntegrationSourceLabel(summary) {
+  const source = summary?.source ?? {};
+  const saikakuLabel = source.saikakuLabel ?? summary?.saikakuAttemptId ?? '才覚領域';
+  const uaamLabel = source.uaamLabel ?? summary?.uaamAttemptId ?? 'UAAM';
+  return `${saikakuLabel} × ${uaamLabel}`;
 }
 
 function IntegrationNotice({ tone = 'stale', children, onRegenerate, disabled, loading }) {
@@ -1887,6 +1901,7 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   // 統合分析は state で管理（バックフィル後に更新できるように）
   const [analysis, setAnalysis] = useState(() => effectiveResult?.analysis ?? null);
   const [integrationSummary, setIntegrationSummary] = useState(() => effectiveResult?.integrationSummary ?? null);
+  const [recentModalSummary, setRecentModalSummary] = useState(null);
   const [integrating, setIntegrating] = useState(false);
   const [integrateError, setIntegrateError] = useState('');
   const [coachingAnswersMap, setCoachingAnswersMap] = useState({});
@@ -2064,6 +2079,10 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
     const order = SUB_ORDER[axis.key];
     return { axis, data: order.map(k => subs[k] || 0), labels: order.map(k => SUB_LABELS[k]), order };
   });
+  const recentIntegrationSummaries = effectiveResult?.recentIntegrationSummaries ?? [];
+  const visibleRecentIntegrationSummaries = !isHistoryView && Array.isArray(recentIntegrationSummaries)
+    ? recentIntegrationSummaries.slice(0, 2)
+    : [];
   const integrationSource = integrationSourceFromSummary(integrationSummary, analysis);
   const integrationIsStale = integrationSummary?.status === 'stale';
   const integrationIsLegacy = isLegacyIntegrationSummary(integrationSummary);
@@ -2081,6 +2100,14 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
   const runLatestPairRegeneration = () => runIntegration({
     uaamAttemptId: integrationIsLegacy ? undefined : integrationSummary?.uaamAttemptId,
   });
+  const openRecentIntegration = (summary) => {
+    setRecentModalSummary(summary);
+  };
+  const handleRecentIntegrationKeyDown = (event, summary) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openRecentIntegration(summary);
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: LIGHT_BG }}>
@@ -2292,6 +2319,73 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
                     {integrateError}
                   </p>
                 )}
+                {visibleRecentIntegrationSummaries.length > 0 && (
+                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: ACCENT_GOLD,
+                      letterSpacing: '0.08em',
+                    }}>
+                      過去の統合分析
+                    </div>
+                    {visibleRecentIntegrationSummaries.map((summary, index) => {
+                      const title = recentIntegrationTitle(summary, index);
+                      return (
+                        <div
+                          key={`${summary.saikakuAttemptId ?? 'saikaku'}-${summary.uaamAttemptId ?? 'uaam'}-${summary.generatedAt ?? index}`}
+                          data-testid={`recent-integration-${index}`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${title}を開く`}
+                          onClick={() => openRecentIntegration(summary)}
+                          onKeyDown={(event) => handleRecentIntegrationKeyDown(event, summary)}
+                          style={{
+                            border: `1px solid ${BORDER}`,
+                            background: LIGHT_BG,
+                            borderRadius: 8,
+                            padding: '11px 12px',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                          }}
+                        >
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'baseline',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                            marginBottom: 4,
+                          }}>
+                            <span style={{
+                              color: TEXT_PRIMARY,
+                              fontSize: 13,
+                              fontWeight: 800,
+                              lineHeight: 1.5,
+                            }}>
+                              {title}
+                            </span>
+                            <span style={{
+                              color: TEXT_MUTED,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {formatIntegrationDate(summary.generatedAt)}
+                            </span>
+                          </div>
+                          <div style={{
+                            color: TEXT_SECONDARY,
+                            fontSize: 11,
+                            lineHeight: 1.6,
+                            wordBreak: 'break-word',
+                          }}>
+                            {recentIntegrationSourceLabel(summary)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </Section>
             )}
 
@@ -2333,6 +2427,12 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
           )}
         </div>
       </div>
+      <SaikakuIntegrationModal
+        open={!!recentModalSummary}
+        onClose={() => setRecentModalSummary(null)}
+        kind="uaam"
+        integrationSummary={recentModalSummary}
+      />
     </div>
   );
 }
