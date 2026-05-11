@@ -1,4 +1,13 @@
-import { getVFlags, calculateBiasMessage } from '../data/uaam_questions';
+import {
+  UAAM_AXES,
+  SUB_LABELS_JP,
+  getVFlags,
+  calculateBiasMessage,
+} from '../data/uaam_questions';
+
+const UAAM_SUB_FIELD_DEFS = UAAM_AXES.flatMap((axis) => (
+  axis.subs.map((sub) => ({ key: sub.key, label: SUB_LABELS_JP[sub.key] }))
+));
 
 export const UAAM_EXPORT_FIELD_DEFS = [
   { key: 'name', label: '名前' },
@@ -7,6 +16,7 @@ export const UAAM_EXPORT_FIELD_DEFS = [
   { key: 'literacy', label: '知(%)' },
   { key: 'competency', label: '技(%)' },
   { key: 'impact', label: '衝(%)' },
+  ...UAAM_SUB_FIELD_DEFS,
   { key: 'v1', label: 'V1' },
   { key: 'v2', label: 'V2' },
   { key: 'v3', label: 'V3' },
@@ -53,6 +63,14 @@ export function buildUaamRows(uaamUsers) {
 
   return uaamUsers.map((u) => {
     const vFlags = getVFlags(u.vAnswers ?? {});
+    const subScores = Object.fromEntries(
+      UAAM_AXES.flatMap((axis) => (
+        axis.subs.map((sub) => [
+          sub.key,
+          u.scores?.[axis.key]?.subs?.[sub.key] ?? '',
+        ])
+      )),
+    );
 
     return {
       name: u.name ?? '',
@@ -61,6 +79,7 @@ export function buildUaamRows(uaamUsers) {
       literacy: pct(u.scores?.literacy),
       competency: pct(u.scores?.competency),
       impact: pct(u.scores?.impact),
+      ...subScores,
       v1: vFlags.flags.V1 ?? 'none',
       v2: vFlags.flags.V2 ?? 'none',
       v3: vFlags.flags.V3 ?? 'none',

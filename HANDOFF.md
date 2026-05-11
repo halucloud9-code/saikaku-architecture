@@ -71,7 +71,7 @@
 | 機能 | 場所 | 備考 |
 |---|---|---|
 | 才覚 CSV エクスポート | `handleExport` → `/api/admin/export` | サーバー側 export (既存)。本番稼働中・自動テストなしのため変更しない |
-| **UAAM 診断 CSV エクスポート** | `handleExportUaam` + `src/utils/uaamExport.js` (#87) | **クライアント側生成**。`uaamUsers` state を allowlist で投影。追加 API なし・追加 Firestore Read なし |
+| **UAAM 診断 CSV エクスポート** | `handleExportUaam` + `src/utils/uaamExport.js` (#87, #97) | **クライアント側生成**。`uaamUsers` state を allowlist で投影。追加 API なし・追加 Firestore Read なし。29 列構成: 名前 / メール / 4 軸 % / **16 サブカテゴリ raw スコア (#97)** / V1-V3 / bias_level / bias_message / タイプ名 / 診断日。サブ列は `UAAM_AXES[].subs[].key` 順、ラベルは `SUB_LABELS_JP` を import (ハードコード重複なし)、`u.scores?.[axis]?.subs?.[sub] ?? ''` で null 安全抽出 |
 | **統合分析 CSV エクスポート** | `handleExportIntegrations` + `src/utils/integrationsExport.js` (#88) | **クライアント側生成**。`integrations` state を allowlist で投影。`coachingAnswers` / `integration.summary` / `integration.recommendations` は allowlist 不在で物理的に除外 |
 | **統合分析タブ検索** | `filteredIntegrations` useMemo (#89) | `userName` / `userEmail` / `source.saikakuLabel` / `source.uaamLabel` で case-insensitive 一致。export は filter 非適用で全件出力 |
 | 共通 CSV ビルダー | `src/utils/exportCsv.js` (#87) | allowlist 方式 `buildCsv(rows, fieldDefs)` + DOM ダウンロード `downloadCsv(filename, csvText)`。formula injection 中和 (`'` prefix) を `escapeCsvCell` で自動適用 |
