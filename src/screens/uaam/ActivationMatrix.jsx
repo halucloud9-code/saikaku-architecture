@@ -889,14 +889,29 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
                       color: `rgba(${c[0]},${c[1]},${c[2]},0.6)`,
                     }}>{g.en}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                    <span style={{
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    lineHeight: 1,
+                  }}>
+                    <div style={{
                       fontFamily: NUM_FONT, fontSize: 22, fontWeight: 800,
                       color: `rgba(${c[0]},${c[1]},${c[2]},0.9)`, lineHeight: 1,
-                    }}>{g.total}</span>
-                    <span style={{
-                      fontSize: 10, color: `rgba(${c[0]},${c[1]},${c[2]},0.45)`, fontWeight: 400,
-                    }}>/{g.max}</span>
+                    }}>{g.pct}<span style={{
+                      fontSize: '0.55em', fontWeight: 400,
+                      color: `rgba(${c[0]},${c[1]},${c[2]},0.55)`,
+                      marginLeft: 1,
+                    }}>%</span></div>
+                    <div style={{
+                      fontSize: 10, fontWeight: 400,
+                      color: `rgba(${c[0]},${c[1]},${c[2]},0.45)`,
+                      lineHeight: 1, marginTop: 1,
+                    }}>{g.total}<span style={{
+                      fontSize: '1em', fontWeight: 400,
+                      color: `rgba(${c[0]},${c[1]},${c[2]},0.45)`,
+                      marginLeft: 1,
+                    }}>/{g.max}</span></div>
                   </div>
                 </div>
                 <div style={{
@@ -909,10 +924,6 @@ export default function ActivationMatrix({ scores, maxSub = 20 }) {
                     borderRadius: 2, transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
                   }} />
                 </div>
-                <div style={{
-                  fontSize: 10, fontWeight: 600,
-                  color: `rgba(${c[0]},${c[1]},${c[2]},0.55)`, letterSpacing: '0.05em',
-                }}>{g.pct}%</div>
               </div>
             );
           })}
