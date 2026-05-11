@@ -153,7 +153,8 @@ The following fields exist in the `/api/admin/integrations` response but are **p
 
 - `coachingAnswers` — privacy
 - `integration.summary`, `integration.recommendations`, `integration.{any other body field}` — privacy + cell bloat
-- `_createdAtMillis` — internal sort key, irrelevant to consumers
+
+Note: `_createdAtMillis` is used server-side for sort then stripped before response (`integrations.map(({ _createdAtMillis, ...item }) => item)` in `api/admin/integrations.js`), so it never reaches the client and is irrelevant to the CSV contract.
 
 E2E leak guard: `tests/utils/integrationsExportFields.test.js` injects mock `coachingAnswers`, `integration.summary`, `integration.recommendations` and asserts those strings are absent from `buildCsv()` output. This is the contract — adding a field to the response payload does NOT add it to the CSV unless the allowlist is updated.
 
