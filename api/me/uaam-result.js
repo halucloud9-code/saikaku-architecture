@@ -3,7 +3,7 @@ import { isLegacyFallback, listIntegrationDocs } from '../lib/legacyIntegration.
 import { responseStatusForIntegration } from '../lib/integrationStatus.js';
 import { serializeTimestamps } from '../lib/serialize.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
-import { isValidAttemptId, selectIntegrationForAttempt } from '../../shared/attemptLogic.js';
+import { isValidAttemptId, selectIntegrationForAttempt, timestampToMillis } from '../../shared/attemptLogic.js';
 
 function readSingleQueryValue(value) {
   return Array.isArray(value) ? value[0] : value;
@@ -60,8 +60,32 @@ function selectUaamIntegration(integrations, attemptId, attemptIsLegacy) {
   return null;
 }
 
-function emptyResult(includeIntegrationSummary) {
-  const response = { scores: null, analysis: null };
+function recentIntegrationSummary(integrationDoc, latestIds) {
+  const summary = integrationSummary(integrationDoc, latestIds);
+  if (!summary) return null;
+  if (integrationDoc?.isLegacyFallback === true) {
+    return { ...summary, isLegacyFallback: true };
+  }
+  return summary;
+}
+
+function compareRecentIntegrationSummaries(a, b) {
+  const aTime = timestampToMillis(a?.generatedAt) ?? Number.NEGATIVE_INFINITY;
+  const bTime = timestampToMillis(b?.generatedAt) ?? Number.NEGATIVE_INFINITY;
+  if (aTime !== bTime) return bTime - aTime;
+  return 0;
+}
+
+function recentIntegrationSummaries(integrations, latestIds) {
+  return integrations
+    .map((integrationDoc) => recentIntegrationSummary(integrationDoc, latestIds))
+    .filter(Boolean)
+    .sort(compareRecentIntegrationSummaries)
+    .slice(0, 2);
+}
+
+function emptyResult(includeIntegrationSummary, recent = []) {
+  const response = { scores: null, analysis: null, recentIntegrationSummaries: recent };
   if (includeIntegrationSummary) response.integrationSummary = null;
   return response;
 }
@@ -88,19 +112,21 @@ export default withMeHandler(async function handler(req, res) {
     parentRef.collection('integrations').get(),
   ]);
 
-  if (!snapshot.exists) {
-    return res.status(200).json(emptyResult(requestedAttemptId !== null));
-  }
-
-  const data = snapshot.data() || {};
+  const data = snapshot.exists ? (snapshot.data() || {}) : null;
   const integrations = listIntegrationDocs(integrationsSnap, data);
   const latestSaikakuAttemptId = saikakuParentSnap.exists
     ? saikakuParentSnap.data()?.latestAttemptId ?? null
     : null;
   const latestIds = {
     saikakuAttemptId: latestSaikakuAttemptId,
-    uaamAttemptId: data.latestAttemptId ?? null,
+    uaamAttemptId: data?.latestAttemptId ?? null,
   };
+  const recent = recentIntegrationSummaries(integrations, latestIds);
+
+  if (!snapshot.exists) {
+    return res.status(200).json(serializeTimestamps(emptyResult(requestedAttemptId !== null, recent)));
+  }
+
   const resolvedAttemptId = requestedAttemptId ?? data.latestAttemptId ?? null;
 
   let scores = data.scores ?? null;
@@ -128,7 +154,7 @@ export default withMeHandler(async function handler(req, res) {
   const includeIntegrationSummary = requestedAttemptId !== null || !!summary;
 
   if (!scores || !analysis) {
-    return res.status(200).json(emptyResult(includeIntegrationSummary));
+    return res.status(200).json(serializeTimestamps(emptyResult(includeIntegrationSummary, recent)));
   }
 
   const responseAnalysis = selectedIntegration?.integration
@@ -138,6 +164,7 @@ export default withMeHandler(async function handler(req, res) {
   const response = {
     scores,
     analysis: responseAnalysis,
+    recentIntegrationSummaries: recent,
   };
   if (includeIntegrationSummary) response.integrationSummary = summary;
 
