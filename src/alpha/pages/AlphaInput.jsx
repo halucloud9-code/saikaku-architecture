@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { doc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
-import { db, signOutUser } from '../../firebase';
-import { PRESENTERS, EVENT_ID } from '../uaam16';
+import { db } from '../../firebase';
+import { PRESENTERS, EVENT_ID, SAIKAKU_TAGS, AFFINITY_DOMAINS, RESONANCE_ACTIONS } from '../uaam16';
 import PresenterCard from '../components/PresenterCard';
-import UAAMTagPicker from '../components/UAAMTagPicker';
 import TalkLevelSelector from '../components/TalkLevelSelector';
 
 const S = {
@@ -13,7 +12,39 @@ const S = {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif',
     fontSize: 15, lineHeight: 1.6,
   },
+  label: {
+    fontSize: 13, color: '#a1a1aa', marginBottom: 8,
+    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+  },
+  section: { marginBottom: 20 },
+  chips: { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  textarea: {
+    width: '100%', background: '#0a0a0b', border: '1px solid #2a2a35',
+    borderRadius: 8, color: '#f4f4f5', padding: '10px 12px',
+    fontSize: 13, fontFamily: 'inherit', resize: 'none',
+    outline: 'none', boxSizing: 'border-box',
+  },
 };
+
+function chip(label, active, onClick, disabled) {
+  return (
+    <button
+      key={label}
+      onClick={onClick}
+      disabled={disabled && !active}
+      style={{
+        padding: '6px 12px', borderRadius: 20, cursor: disabled && !active ? 'default' : 'pointer',
+        border: `1px solid ${active ? '#e63946' : '#2a2a35'}`,
+        background: active ? '#e6394618' : 'transparent',
+        color: active ? '#e63946' : disabled && !active ? '#3a3a45' : '#a1a1aa',
+        fontSize: 13, fontWeight: active ? 600 : 400,
+        transition: 'all 0.15s',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
 
 function Toast({ msg, show }) {
   return (
@@ -23,38 +54,57 @@ function Toast({ msg, show }) {
       fontSize: 13, fontWeight: 600,
       opacity: show ? 1 : 0, pointerEvents: 'none',
       transition: 'opacity 0.2s',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-      zIndex: 100,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 100,
     }}>
       {msg}
     </div>
   );
 }
 
+const EMPTY_FORM = {
+  saikaku: [],
+  saikakuOther: '',
+  domains: [],
+  domainsOther: '',
+  actions: [],
+  help: '',
+  condition: '',
+  talkLevel: null,
+};
+
+function formFromSaved(data) {
+  if (!data) return EMPTY_FORM;
+  const saikakuOtherEntry = (data.saikaku ?? []).find(s => s.startsWith('その他:'));
+  const domainsOtherEntry = (data.domains ?? []).find(s => s.startsWith('その他:'));
+  return {
+    saikaku: (data.saikaku ?? []).map(s => s.startsWith('その他:') ? 'その他' : s),
+    saikakuOther: saikakuOtherEntry ? saikakuOtherEntry.slice(4) : '',
+    domains: (data.domains ?? []).map(s => s.startsWith('その他:') ? 'その他' : s),
+    domainsOther: domainsOtherEntry ? domainsOtherEntry.slice(4) : '',
+    actions: data.actions ?? [],
+    help: data.help ?? '',
+    condition: data.condition ?? '',
+    talkLevel: data.talkLevel ?? null,
+  };
+}
+
 export default function AlphaInput({ user, onLogout }) {
   const [saved, setSaved] = useState(new Map());
   const [current, setCurrent] = useState(null);
-  const [tags, setTags] = useState(new Set());
-  const [talkLevel, setTalkLevel] = useState(null);
-  const [memo, setMemo] = useState('');
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '' });
   const [loading, setLoading] = useState(true);
   const panelRef = useRef(null);
 
-  // 既存保存データをロード
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDocs(
-          collection(db, 'alpha_events', EVENT_ID, 'resonance')
-        );
+        const snap = await getDocs(collection(db, 'alpha_events', EVENT_ID, 'resonance'));
         const map = new Map();
         snap.forEach(d => {
           const data = d.data();
-          if (data.fromUid === user.uid) {
-            map.set(data.toUid, data);
-          }
+          if (data.fromUid === user.uid) map.set(data.toUid, data);
         });
         setSaved(map);
       } catch (e) {
@@ -67,30 +117,44 @@ export default function AlphaInput({ user, onLogout }) {
   }, [user.uid]);
 
   const selectPresenter = (p) => {
-    const prev = saved.get(p.uid);
     setCurrent(p);
-    setTags(new Set(prev?.tags ?? []));
-    setTalkLevel(prev?.talkLevel ?? null);
-    setMemo(prev?.memo ?? '');
+    setForm(formFromSaved(saved.get(p.uid)));
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
+  const toggleSet = (key, value, max) => {
+    setForm(f => {
+      const arr = f[key];
+      if (arr.includes(value)) return { ...f, [key]: arr.filter(v => v !== value) };
+      if (max && arr.length >= max) return f;
+      return { ...f, [key]: [...arr, value] };
+    });
+  };
+
   const handleSave = async () => {
-    if (!talkLevel || !current) return;
+    if (!form.talkLevel || !current) return;
     setSaving(true);
     try {
-      const docId = `${user.uid}__${current.uid}`;
+      const saikakuFinal = form.saikaku.map(s =>
+        s === 'その他' ? `その他:${form.saikakuOther}` : s
+      );
+      const domainsFinal = form.domains.map(s =>
+        s === 'その他' ? `その他:${form.domainsOther}` : s
+      );
       const data = {
         fromUid: user.uid,
         fromName: user.displayName || user.email || '',
         toUid: current.uid,
         toName: current.name,
-        tags: Array.from(tags),
-        talkLevel,
-        memo,
+        saikaku: saikakuFinal,
+        domains: domainsFinal,
+        actions: form.actions,
+        help: form.help,
+        condition: form.condition,
+        talkLevel: form.talkLevel,
         updatedAt: serverTimestamp(),
       };
-      await setDoc(doc(db, 'alpha_events', EVENT_ID, 'resonance', docId), data);
+      await setDoc(doc(db, 'alpha_events', EVENT_ID, 'resonance', `${user.uid}__${current.uid}`), data);
       setSaved(prev => new Map(prev).set(current.uid, data));
       showToast('保存しました');
 
@@ -124,6 +188,7 @@ export default function AlphaInput({ user, onLogout }) {
           border: '3px solid #2a2a35', borderTopColor: '#e63946',
           animation: 'spin 1s linear infinite',
         }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -176,7 +241,7 @@ export default function AlphaInput({ user, onLogout }) {
           {/* Presenter info */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 14,
-            paddingBottom: 16, borderBottom: '1px solid #2a2a35', marginBottom: 18,
+            paddingBottom: 16, borderBottom: '1px solid #2a2a35', marginBottom: 20,
           }}>
             <div style={{
               width: 56, height: 56, borderRadius: '50%',
@@ -192,65 +257,121 @@ export default function AlphaInput({ user, onLogout }) {
             </div>
           </div>
 
-          {/* Saikaku readonly */}
-          <div style={{
-            background: 'rgba(255,255,255,0.02)', borderRadius: 8,
-            padding: '12px 14px', marginBottom: 18, fontSize: 12,
-          }}>
-            {[['価値観', current.values], ['才能', current.talents], ['情熱', current.passions]].map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', gap: 8, padding: '4px 0' }}>
-                <span style={{ color: '#71717a', flexShrink: 0, width: 44 }}>{k}</span>
-                <span style={{ color: '#a1a1aa' }}>{v}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* UAAM tag picker */}
-          <div style={{ marginBottom: 18 }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-              fontSize: 13, color: '#a1a1aa', marginBottom: 8,
-            }}>
-              <span>見えた才覚（最大3つ）</span>
-              <span style={{ fontSize: 11, color: '#71717a' }}>{tags.size}/3</span>
+          {/* ① 才覚で感じたもの */}
+          <div style={S.section}>
+            <div style={S.label}>
+              <span>① 才覚で感じたもの</span>
+              <span style={{ fontSize: 11, color: '#71717a' }}>最大3つ　{form.saikaku.length}/3</span>
             </div>
-            <UAAMTagPicker selected={tags} onChange={setTags} />
-          </div>
-
-          {/* Talk level */}
-          <div style={{ marginBottom: 18 }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-              fontSize: 13, color: '#a1a1aa', marginBottom: 8,
-            }}>
-              <span>後で話したい度</span>
-              <span style={{ fontSize: 11, color: '#71717a' }}>必須</span>
+            <div style={S.chips}>
+              {SAIKAKU_TAGS.map(tag => chip(
+                tag,
+                form.saikaku.includes(tag),
+                () => toggleSet('saikaku', tag, 3),
+                form.saikaku.length >= 3,
+              ))}
             </div>
-            <TalkLevelSelector value={talkLevel} onChange={setTalkLevel} />
+            {form.saikaku.includes('その他') && (
+              <input
+                value={form.saikakuOther}
+                onChange={e => setForm(f => ({ ...f, saikakuOther: e.target.value }))}
+                placeholder="具体的に..."
+                maxLength={40}
+                style={{
+                  marginTop: 8, width: '100%', background: '#0a0a0b',
+                  border: '1px solid #2a2a35', borderRadius: 8,
+                  color: '#f4f4f5', padding: '8px 12px', fontSize: 13,
+                  fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            )}
           </div>
 
-          {/* Memo */}
-          <div style={{ marginBottom: 18 }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-              fontSize: 13, color: '#a1a1aa', marginBottom: 8,
-            }}>
-              <span>メモ（任意）</span>
-              <span style={{ fontSize: 11, color: '#71717a' }}>80字</span>
+          {/* ② 親和性を感じた領域 */}
+          <div style={S.section}>
+            <div style={S.label}>
+              <span>② 親和性を感じた領域</span>
+              <span style={{ fontSize: 11, color: '#71717a' }}>複数可</span>
+            </div>
+            <div style={S.chips}>
+              {AFFINITY_DOMAINS.map(tag => chip(
+                tag,
+                form.domains.includes(tag),
+                () => toggleSet('domains', tag, null),
+                false,
+              ))}
+            </div>
+            {form.domains.includes('その他') && (
+              <input
+                value={form.domainsOther}
+                onChange={e => setForm(f => ({ ...f, domainsOther: e.target.value }))}
+                placeholder="具体的に..."
+                maxLength={40}
+                style={{
+                  marginTop: 8, width: '100%', background: '#0a0a0b',
+                  border: '1px solid #2a2a35', borderRadius: 8,
+                  color: '#f4f4f5', padding: '8px 12px', fontSize: 13,
+                  fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            )}
+          </div>
+
+          {/* ③ この人と… */}
+          <div style={S.section}>
+            <div style={S.label}>
+              <span>③ この人と…</span>
+              <span style={{ fontSize: 11, color: '#71717a' }}>複数可</span>
+            </div>
+            <div style={S.chips}>
+              {RESONANCE_ACTIONS.map(tag => chip(
+                tag,
+                form.actions.includes(tag),
+                () => toggleSet('actions', tag, null),
+                false,
+              ))}
+            </div>
+          </div>
+
+          {/* ④ 手伝えること・繋げられること */}
+          <div style={S.section}>
+            <div style={S.label}>
+              <span>④ 手伝えること・繋げられること</span>
+              <span style={{ fontSize: 11, color: '#71717a' }}>任意</span>
             </div>
             <textarea
-              value={memo}
-              onChange={e => setMemo(e.target.value)}
-              maxLength={80}
+              value={form.help}
+              onChange={e => setForm(f => ({ ...f, help: e.target.value }))}
+              maxLength={200}
               rows={2}
-              placeholder="ひとこと..."
-              style={{
-                width: '100%', background: '#0a0a0b', border: '1px solid #2a2a35',
-                borderRadius: 8, color: '#f4f4f5', padding: '10px 12px',
-                fontSize: 13, fontFamily: 'inherit', resize: 'none',
-                outline: 'none', boxSizing: 'border-box',
-              }}
+              placeholder="例：営業先を紹介できる、SNS運用を手伝える..."
+              style={S.textarea}
             />
+          </div>
+
+          {/* ⑤ こうなれば動ける */}
+          <div style={S.section}>
+            <div style={S.label}>
+              <span>⑤「こうなれば動ける」があれば</span>
+              <span style={{ fontSize: 11, color: '#71717a' }}>任意</span>
+            </div>
+            <textarea
+              value={form.condition}
+              onChange={e => setForm(f => ({ ...f, condition: e.target.value }))}
+              maxLength={200}
+              rows={2}
+              placeholder="例：具体的なプロジェクト案が出たら..."
+              style={S.textarea}
+            />
+          </div>
+
+          {/* ⑥ 後で話したい度 */}
+          <div style={S.section}>
+            <div style={S.label}>
+              <span>⑥ 後で話したい度</span>
+              <span style={{ fontSize: 11, color: '#e63946' }}>必須</span>
+            </div>
+            <TalkLevelSelector value={form.talkLevel} onChange={v => setForm(f => ({ ...f, talkLevel: v }))} />
           </div>
 
           {/* Actions */}
@@ -266,13 +387,14 @@ export default function AlphaInput({ user, onLogout }) {
             </button>
             <button
               onClick={handleSave}
-              disabled={!talkLevel || saving}
+              disabled={!form.talkLevel || saving}
               style={{
                 flex: 1, padding: '14px 20px',
-                background: talkLevel && !saving ? '#e63946' : '#2a2a35',
+                background: form.talkLevel && !saving ? '#e63946' : '#2a2a35',
                 color: '#fff', border: 'none', borderRadius: 8,
-                fontSize: 15, fontWeight: 700, cursor: talkLevel && !saving ? 'pointer' : 'not-allowed',
-                opacity: talkLevel && !saving ? 1 : 0.5,
+                fontSize: 15, fontWeight: 700,
+                cursor: form.talkLevel && !saving ? 'pointer' : 'not-allowed',
+                opacity: form.talkLevel && !saving ? 1 : 0.5,
               }}
             >
               {saving ? '保存中…' : '保存して次へ'}
@@ -280,10 +402,7 @@ export default function AlphaInput({ user, onLogout }) {
           </div>
         </div>
       ) : (
-        <div style={{
-          textAlign: 'center', padding: '60px 20px',
-          color: '#71717a', fontSize: 14,
-        }}>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#71717a', fontSize: 14 }}>
           {progress >= total ? (
             <>
               <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.6 }}>✓</div>

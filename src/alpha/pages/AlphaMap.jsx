@@ -2,23 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import * as d3 from 'd3';
 import { db } from '../../firebase';
-import { PRESENTERS, UAAM16, EVENT_ID } from '../uaam16';
+import { PRESENTERS, EVENT_ID } from '../uaam16';
 
-const DOMAIN_COLORS = {
-  '構想': '#3b82f6',
-  '実装': '#10b981',
-  '変革': '#f59e0b',
-  '統合': '#a855f7',
-};
+// talkLevel → エッジ色
+const LEVEL_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#f97316', '#e63946'];
+
+function tagColor(talkLevel) {
+  return LEVEL_COLORS[Math.min((talkLevel ?? 1) - 1, 4)];
+}
 
 // 参加者UIDから名前
 const presenterMap = new Map(PRESENTERS.map(p => [p.uid, p]));
-
-// UAAM16タグIDからドメイン色
-function tagColor(tagId) {
-  const tag = UAAM16.find(t => t.id === tagId);
-  return tag ? DOMAIN_COLORS[tag.domain] : '#a1a1aa';
-}
 
 function buildGraph(resonances) {
   const nodes = PRESENTERS.map(p => ({ id: p.uid, name: p.name }));
@@ -39,7 +33,7 @@ function buildGraph(resonances) {
       // ここでは presenterMap に fromUid があるかチェック
       const fromPresenter = presenterMap.get(r.fromUid);
       const source = fromPresenter ? r.fromUid : `_ext_${r.fromUid.slice(0, 6)}`;
-      weightMap.set(key, { source, target: r.toUid, weight: r.talkLevel, tags: r.tags ?? [] });
+      weightMap.set(key, { source, target: r.toUid, weight: r.talkLevel });
     }
   });
 
@@ -108,7 +102,7 @@ export default function AlphaMap() {
       .selectAll('line')
       .data(links)
       .enter().append('line')
-      .attr('stroke', d => d.tags?.[0] ? tagColor(d.tags[0]) : '#2a2a35')
+      .attr('stroke', d => tagColor(d.weight))
       .attr('stroke-opacity', 0.5)
       .attr('stroke-width', d => Math.max(1, d.weight * 0.6));
 
@@ -225,14 +219,14 @@ export default function AlphaMap() {
         borderRadius: 10, padding: '10px 14px', backdropFilter: 'blur(8px)',
       }}>
         <div style={{ fontSize: 10, color: '#71717a', marginBottom: 8, letterSpacing: '0.1em' }}>
-          EDGE COLOR — 才覚ドメイン
+          EDGE COLOR — 話したい度
         </div>
-        {Object.entries(DOMAIN_COLORS).map(([domain, color]) => (
-          <div key={domain} style={{
+        {['Lv1', 'Lv2', 'Lv3', 'Lv4', 'Lv5'].map((label, i) => (
+          <div key={label} style={{
             display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4,
           }}>
-            <div style={{ width: 16, height: 2, background: color, borderRadius: 1 }} />
-            <span style={{ fontSize: 11, color: '#a1a1aa' }}>{domain}</span>
+            <div style={{ width: 16, height: 2, background: LEVEL_COLORS[i], borderRadius: 1 }} />
+            <span style={{ fontSize: 11, color: '#a1a1aa' }}>{label}</span>
           </div>
         ))}
         <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #1c1c24' }}>

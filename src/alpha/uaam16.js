@@ -1,24 +1,26 @@
 export const EVENT_ID = 'retreat-alpha-2026';
 
-export const DOMAINS = ['構想', '実装', '変革', '統合'];
+// ① 才覚で感じたもの（max 3）
+export const SAIKAKU_TAGS = [
+  'ストーリー力', '人を巻き込む力', '分析力', '実行力', '調和力',
+  '発信力', '営業力', '共感力', '企画力', '教育力',
+  '専門性', '世界観', '熱量', '信頼感', 'その他',
+];
 
-export const UAAM16 = [
-  { id: 'ninchi',  domain: '構想', name: '認知力' },
-  { id: 'kousou',  domain: '構想', name: '構想力' },
-  { id: 'kijiku',  domain: '構想', name: '基軸力' },
-  { id: 'douki',   domain: '構想', name: '動機力' },
-  { id: 'sekkei',  domain: '実装', name: '設計力' },
-  { id: 'jikkou',  domain: '実装', name: '実行力' },
-  { id: 'kanryou', domain: '実装', name: '完了力' },
-  { id: 'kaizen',  domain: '実装', name: '改善力' },
-  { id: 'kyoumei', domain: '変革', name: '共鳴力' },
-  { id: 'hassin',  domain: '変革', name: '発信力' },
-  { id: 'sendou',  domain: '変革', name: '先導力' },
-  { id: 'kessou',  domain: '変革', name: '結束力' },
-  { id: 'tougou',  domain: '統合', name: '統合力' },
-  { id: 'shouwa',  domain: '統合', name: '昇華力' },
-  { id: 'jisouka', domain: '統合', name: '事相化力' },
-  { id: 'tenchi',  domain: '統合', name: '天地力' },
+// ② 親和性を感じた領域（複数可）
+export const AFFINITY_DOMAINS = [
+  'AI', '教育', '地域活性', '芸術・表現', 'チームビルディング',
+  'コミュニティ', '経営', '福祉', '国際', 'SNS', 'その他',
+];
+
+// ③ この人と…（複数可）
+export const RESONANCE_ACTIONS = [
+  '一緒に何かやりたい',
+  '応援したい',
+  '詳しく話したい',
+  '紹介したい人がいる',
+  '自分が手伝えることがある',
+  '今後可能性を感じる',
 ];
 
 export const PRESENTERS = [

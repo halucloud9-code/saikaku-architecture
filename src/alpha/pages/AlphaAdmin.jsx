@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { db, signOutUser } from '../../firebase';
-import { PRESENTERS, UAAM16, EVENT_ID } from '../uaam16';
+import { db } from '../../firebase';
+import { PRESENTERS, EVENT_ID } from '../uaam16';
 
 const S = {
   app: {
@@ -14,14 +14,21 @@ const S = {
   },
 };
 
-function tagName(id) {
-  return UAAM16.find(t => t.id === id)?.name ?? id;
+function tagBadge(label, color = '#e63946') {
+  return (
+    <span key={label} style={{
+      fontSize: 11, background: `${color}20`, color,
+      padding: '2px 7px', borderRadius: 4, fontWeight: 600,
+    }}>
+      {label}
+    </span>
+  );
 }
 
 export default function AlphaAdmin({ user, onLogout }) {
   const [resonances, setResonances] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('top3'); // 'top3' | 'raw'
+  const [view, setView] = useState('top3');
 
   useEffect(() => {
     const load = async () => {
@@ -39,7 +46,6 @@ export default function AlphaAdmin({ user, onLogout }) {
     load();
   }, []);
 
-  // 各プレゼンターへの共鳴をtalkLevelでソートしてTOP3を計算
   const top3Map = (() => {
     const map = new Map();
     PRESENTERS.forEach(p => {
@@ -69,28 +75,20 @@ export default function AlphaAdmin({ user, onLogout }) {
     <div style={S.app}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 4px 16px', borderBottom: '1px solid #2a2a35', marginBottom: 20,
       }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>α管理画面</div>
-          <div style={{ fontSize: 12, color: '#71717a', marginTop: 2 }}>
-            {resonances.length} 件のデータ
-          </div>
+          <div style={{ fontSize: 12, color: '#71717a', marginTop: 2 }}>{resonances.length} 件のデータ</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <a
-            href="/alpha"
-            style={{
-              padding: '6px 12px', background: 'transparent',
-              border: '1px solid #2a2a35', borderRadius: 8,
-              color: '#a1a1aa', fontSize: 13, textDecoration: 'none',
-            }}
-          >
-            入力画面
-          </a>
+          <a href="/alpha" style={{
+            padding: '6px 12px', background: 'transparent',
+            border: '1px solid #2a2a35', borderRadius: 8,
+            color: '#a1a1aa', fontSize: 13, textDecoration: 'none',
+          }}>入力画面</a>
           <button onClick={onLogout} style={{
             background: 'transparent', border: '1px solid #2a2a35',
             color: '#71717a', fontSize: 11, padding: '4px 10px',
@@ -99,7 +97,6 @@ export default function AlphaAdmin({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Tab */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {[['top3', 'TOP3一覧'], ['raw', '全データ']].map(([key, label]) => (
           <button
@@ -121,9 +118,58 @@ export default function AlphaAdmin({ user, onLogout }) {
 
       {view === 'top3' ? (
         <Top3View top3Map={top3Map} resonances={resonances} />
-      ) : view === 'raw' ? (
+      ) : (
         <RawView resonances={resonances} />
-      ) : null}
+      )}
+    </div>
+  );
+}
+
+function ResonanceEntry({ r, rank }) {
+  const rankColors = ['#e63946', '#a1a1aa', '#71717a'];
+  const color = rankColors[rank] ?? '#71717a';
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+      padding: '10px 0', borderTop: rank === 0 ? 'none' : '1px solid #1c1c24',
+    }}>
+      <div style={{
+        width: 24, height: 24, borderRadius: '50%',
+        background: `${color}22`, border: `1px solid ${color}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, fontWeight: 700, color, flexShrink: 0,
+      }}>
+        {rank + 1}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {r.fromName || r.fromUid?.slice(0, 8)}
+          </span>
+          <span style={{
+            fontSize: 11, background: '#e6394620', color: '#e63946',
+            padding: '2px 6px', borderRadius: 4, fontWeight: 700,
+          }}>
+            Lv.{r.talkLevel}
+          </span>
+        </div>
+        {r.saikaku?.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+            {r.saikaku.map(s => tagBadge(s, '#a78bfa'))}
+          </div>
+        )}
+        {r.actions?.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+            {r.actions.map(s => tagBadge(s, '#10b981'))}
+          </div>
+        )}
+        {r.help && (
+          <div style={{ fontSize: 11, color: '#71717a', marginTop: 4 }}>手伝い: {r.help}</div>
+        )}
+        {r.condition && (
+          <div style={{ fontSize: 11, color: '#71717a', marginTop: 2 }}>条件: {r.condition}</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -157,55 +203,10 @@ function Top3View({ top3Map, resonances }) {
                 <div style={{ fontSize: 11, color: '#71717a' }}>{totalResponses}人が入力</div>
               </div>
             </div>
-
             {entries.length === 0 ? (
               <div style={{ fontSize: 12, color: '#71717a', padding: '8px 0' }}>データなし</div>
             ) : (
-              entries.map((r, i) => (
-                <div key={r.id} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 10,
-                  padding: '8px 0',
-                  borderTop: i === 0 ? 'none' : '1px solid #1c1c24',
-                }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: '50%',
-                    background: ['#e63946', '#a1a1aa', '#71717a'][i] + '22',
-                    border: `1px solid ${['#e63946', '#a1a1aa', '#71717a'][i]}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700,
-                    color: ['#e63946', '#a1a1aa', '#71717a'][i],
-                    flexShrink: 0,
-                  }}>
-                    {i + 1}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>
-                      {r.fromName || r.fromUid.slice(0, 8)}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <span style={{
-                        fontSize: 11, background: '#e6394620', color: '#e63946',
-                        padding: '2px 6px', borderRadius: 4, fontWeight: 700,
-                      }}>
-                        Lv.{r.talkLevel}
-                      </span>
-                      {r.tags?.map(tid => (
-                        <span key={tid} style={{
-                          fontSize: 10, color: '#71717a',
-                          background: '#1c1c24', padding: '2px 6px', borderRadius: 4,
-                        }}>
-                          {tagName(tid)}
-                        </span>
-                      ))}
-                    </div>
-                    {r.memo && (
-                      <div style={{ fontSize: 11, color: '#71717a', marginTop: 4 }}>
-                        {r.memo}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
+              entries.map((r, i) => <ResonanceEntry key={r.id} r={r} rank={i} />)
             )}
           </div>
         );
@@ -224,48 +225,59 @@ function RawView({ resonances }) {
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{
-        width: '100%', borderCollapse: 'collapse',
-        fontSize: 12, color: '#a1a1aa',
-      }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid #2a2a35' }}>
-            {['聞き手', '話し手', 'Lv', '才覚タグ', 'メモ'].map(h => (
-              <th key={h} style={{
-                padding: '8px 12px', textAlign: 'left',
-                color: '#71717a', fontWeight: 600, fontSize: 11,
-                letterSpacing: '0.05em',
-              }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {resonances.map(r => (
-            <tr key={r.id} style={{ borderBottom: '1px solid #1c1c24' }}>
-              <td style={{ padding: '10px 12px' }}>{r.fromName || r.fromUid?.slice(0, 8)}</td>
-              <td style={{ padding: '10px 12px', fontWeight: 600, color: '#f4f4f5' }}>{r.toName}</td>
-              <td style={{ padding: '10px 12px' }}>
-                <span style={{
-                  background: '#e6394620', color: '#e63946',
-                  padding: '2px 6px', borderRadius: 4, fontWeight: 700,
-                }}>
-                  {r.talkLevel}
-                </span>
-              </td>
-              <td style={{ padding: '10px 12px' }}>
-                {r.tags?.map(id => tagName(id)).join(' / ') || '—'}
-              </td>
-              <td style={{ padding: '10px 12px', color: '#71717a' }}>{r.memo || '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {resonances.map(r => (
+        <div key={r.id} style={{
+          background: '#14141a', border: '1px solid #2a2a35',
+          borderRadius: 10, padding: '14px 16px', fontSize: 13,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontWeight: 700, color: '#f4f4f5' }}>
+              {r.fromName || r.fromUid?.slice(0, 8)}
+              <span style={{ color: '#71717a', fontWeight: 400 }}> → </span>
+              {r.toName}
+            </span>
+            <span style={{
+              fontSize: 11, background: '#e6394620', color: '#e63946',
+              padding: '2px 8px', borderRadius: 4, fontWeight: 700,
+            }}>
+              Lv.{r.talkLevel}
+            </span>
+          </div>
+          {r.saikaku?.length > 0 && (
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ fontSize: 11, color: '#71717a', marginRight: 6 }}>才覚:</span>
+              {r.saikaku.map(s => tagBadge(s, '#a78bfa'))}
+            </div>
+          )}
+          {r.domains?.length > 0 && (
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ fontSize: 11, color: '#71717a', marginRight: 6 }}>領域:</span>
+              {r.domains.map(s => tagBadge(s, '#60a5fa'))}
+            </div>
+          )}
+          {r.actions?.length > 0 && (
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ fontSize: 11, color: '#71717a', marginRight: 6 }}>アクション:</span>
+              {r.actions.map(s => tagBadge(s, '#10b981'))}
+            </div>
+          )}
+          {r.help && (
+            <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>
+              <span style={{ color: '#71717a' }}>手伝い: </span>{r.help}
+            </div>
+          )}
+          {r.condition && (
+            <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 2 }}>
+              <span style={{ color: '#71717a' }}>条件: </span>{r.condition}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
 
-// ── PDF一括書き出し ──────────────────────────────────────────
 function buildCardHtml(presenter, entries, resonances) {
   const totalResponses = resonances.filter(r => r.toUid === presenter.uid).length;
   const rankColors = ['#e63946', '#a1a1aa', '#71717a'];
@@ -285,12 +297,14 @@ function buildCardHtml(presenter, entries, resonances) {
               <span style="font-size:11px;background:#3a0a0d;color:#e63946;padding:2px 8px;border-radius:4px;font-weight:700">
                 Lv.${r.talkLevel}
               </span>
-              ${(r.tags ?? []).map(tid => {
-                const tag = UAAM16.find(t => t.id === tid);
-                return `<span style="font-size:11px;color:#888;background:#222;padding:2px 8px;border-radius:4px">${tag?.name ?? tid}</span>`;
-              }).join('')}
+              ${(r.saikaku ?? []).map(s => `<span style="font-size:11px;color:#a78bfa;background:#1c1430;padding:2px 8px;border-radius:4px">${s}</span>`).join('')}
             </div>
-            ${r.memo ? `<div style="font-size:11px;color:#888;margin-top:4px">${r.memo}</div>` : ''}
+            ${(r.actions ?? []).length > 0 ? `
+            <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">
+              ${r.actions.map(s => `<span style="font-size:11px;color:#10b981;background:#0a2018;padding:2px 8px;border-radius:4px">${s}</span>`).join('')}
+            </div>` : ''}
+            ${r.help ? `<div style="font-size:11px;color:#888;margin-top:4px">手伝い: ${r.help}</div>` : ''}
+            ${r.condition ? `<div style="font-size:11px;color:#888;margin-top:2px">条件: ${r.condition}</div>` : ''}
           </div>
         </div>`
     ).join('');
@@ -344,9 +358,7 @@ function PdfExportButton({ top3Map, resonances }) {
         document.body.appendChild(container);
 
         const canvas = await html2canvas(container.firstElementChild, {
-          scale: 2,
-          backgroundColor: '#14141a',
-          useCORS: true,
+          scale: 2, backgroundColor: '#14141a', useCORS: true,
         });
         document.body.removeChild(container);
 
@@ -373,10 +385,8 @@ function PdfExportButton({ top3Map, resonances }) {
       disabled={exporting}
       style={{
         padding: '8px 16px', borderRadius: 8, cursor: exporting ? 'not-allowed' : 'pointer',
-        border: '1px solid #2a2a35',
-        background: 'transparent',
-        color: exporting ? '#71717a' : '#10b981',
-        fontSize: 13,
+        border: '1px solid #2a2a35', background: 'transparent',
+        color: exporting ? '#71717a' : '#10b981', fontSize: 13,
         opacity: exporting ? 0.6 : 1,
       }}
     >
