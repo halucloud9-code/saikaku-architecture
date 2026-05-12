@@ -12,15 +12,25 @@ const pathname = window.location.pathname;
 const isAdminPath = pathname === '/alpha/admin';
 const isMapPath = pathname === '/alpha/map';
 
+const T = {
+  bg: '#F5F0E8',
+  card: '#FFFFFF',
+  border: '#E0D8CE',
+  text: '#2A2520',
+  muted: '#8A7A6A',
+  accent: '#C4922A',
+  fontFamily: "'Noto Serif JP', 'Hiragino Sans', sans-serif",
+};
+
 function Spinner() {
   return (
     <div style={{
-      minHeight: '100vh', background: '#0a0a0b',
+      minHeight: '100vh', background: T.bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div style={{
         width: 36, height: 36, borderRadius: '50%',
-        border: '3px solid #2a2a35', borderTopColor: '#e63946',
+        border: `3px solid ${T.border}`, borderTopColor: T.accent,
         animation: 'spin 1s linear infinite',
       }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -46,27 +56,34 @@ function AlphaLogin({ onLogin }) {
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#0a0a0b',
+      minHeight: '100vh', background: T.bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif',
+      fontFamily: T.fontFamily,
     }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{
-        background: '#14141a', border: '1px solid #2a2a35',
+        background: T.card, border: `1px solid ${T.border}`,
         borderRadius: 16, padding: 40, width: '100%', maxWidth: 360,
-        textAlign: 'center',
+        textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
       }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f5', marginBottom: 8 }}>
+        <div style={{
+          fontSize: 11, fontWeight: 600, color: T.accent,
+          letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 16,
+        }}>
+          Retreat α 2026
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: T.text, marginBottom: 8 }}>
           α共鳴シート
         </div>
-        <div style={{ fontSize: 14, color: '#71717a', marginBottom: 32 }}>
-          リトリートα — 2026
+        <div style={{ fontSize: 13, color: T.muted, marginBottom: 32 }}>
+          Googleアカウントでログイン
         </div>
 
         {error && (
           <div style={{
-            fontSize: 13, color: '#e63946', marginBottom: 16,
-            background: '#e6394620', padding: '10px 14px', borderRadius: 8,
+            fontSize: 13, color: '#a84432', marginBottom: 16,
+            background: '#a8443210', padding: '10px 14px', borderRadius: 8,
+            border: '1px solid #a8443220',
           }}>
             {error}
           </div>
@@ -77,16 +94,17 @@ function AlphaLogin({ onLogin }) {
           disabled={loading}
           style={{
             width: '100%', padding: '14px 20px',
-            background: loading ? '#2a2a35' : '#e63946',
+            background: loading ? T.border : T.accent,
             color: '#fff', border: 'none', borderRadius: 10,
             fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            transition: 'background 0.2s',
           }}
         >
           {loading ? (
             <div style={{
               width: 20, height: 20, borderRadius: '50%',
-              border: '2px solid #555', borderTopColor: '#fff',
+              border: `2px solid rgba(255,255,255,0.3)`, borderTopColor: '#fff',
               animation: 'spin 1s linear infinite',
             }} />
           ) : (
@@ -109,14 +127,14 @@ function AlphaLogin({ onLogin }) {
 function Unauthorized() {
   return (
     <div style={{
-      minHeight: '100vh', background: '#0a0a0b',
+      minHeight: '100vh', background: T.bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: '#a1a1aa', fontFamily: 'sans-serif',
+      color: T.muted, fontFamily: T.fontFamily,
     }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
-        <div>この画面へのアクセス権限がありません</div>
-        <a href="/alpha" style={{ color: '#e63946', marginTop: 16, display: 'block', fontSize: 13 }}>
+        <div style={{ color: T.text }}>この画面へのアクセス権限がありません</div>
+        <a href="/alpha" style={{ color: T.accent, marginTop: 16, display: 'block', fontSize: 13 }}>
           入力画面へ戻る
         </a>
       </div>
@@ -139,7 +157,6 @@ export default function AlphaApp() {
     signOutUser().then(() => setUser(null));
   };
 
-  // /alpha/map は認証不要（プロジェクター投影用）
   if (isMapPath) return <AlphaMap />;
 
   if (authLoading) return <Spinner />;

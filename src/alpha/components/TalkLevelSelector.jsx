@@ -15,9 +15,9 @@ export default function TalkLevelSelector({ value, onChange }) {
           onClick={() => onChange(l.value)}
           style={{
             padding: '12px 0',
-            border: `1px solid ${value === l.value ? '#e63946' : '#2a2a35'}`,
-            background: value === l.value ? '#e63946' : 'transparent',
-            color: value === l.value ? '#fff' : '#a1a1aa',
+            border: `1px solid ${value === l.value ? '#C4922A' : '#E0D8CE'}`,
+            background: value === l.value ? '#C4922A' : '#FFFFFF',
+            color: value === l.value ? '#fff' : '#6A5A4A',
             borderRadius: 8,
             cursor: 'pointer',
             fontSize: 15,

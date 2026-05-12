@@ -5,38 +5,50 @@ import { PRESENTERS, EVENT_ID, SAIKAKU_TAGS, AFFINITY_DOMAINS, RESONANCE_ACTIONS
 import PresenterCard from '../components/PresenterCard';
 import TalkLevelSelector from '../components/TalkLevelSelector';
 
+const T = {
+  bg: '#F5F0E8',
+  card: '#FFFFFF',
+  border: '#E0D8CE',
+  borderSubtle: '#EDE8E0',
+  text: '#2A2520',
+  muted: '#8A7A6A',
+  sub: '#6A5A4A',
+  accent: '#C4922A',
+  accentBg: 'rgba(196,146,42,0.10)',
+  fontFamily: "'Noto Serif JP', 'Hiragino Sans', sans-serif",
+};
+
 const S = {
   app: {
     maxWidth: 720, margin: '0 auto', minHeight: '100vh',
-    padding: 16, background: '#0a0a0b', color: '#f4f4f5',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif',
-    fontSize: 15, lineHeight: 1.6,
+    padding: 16, background: T.bg, color: T.text,
+    fontFamily: T.fontFamily, fontSize: 15, lineHeight: 1.6,
   },
   label: {
-    fontSize: 13, color: '#a1a1aa', marginBottom: 8,
+    fontSize: 13, color: T.sub, marginBottom: 8,
     display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
   },
-  section: { marginBottom: 20 },
+  section: { marginBottom: 22 },
   chips: { display: 'flex', flexWrap: 'wrap', gap: 8 },
   textarea: {
-    width: '100%', background: '#0a0a0b', border: '1px solid #2a2a35',
-    borderRadius: 8, color: '#f4f4f5', padding: '10px 12px',
+    width: '100%', background: T.bg, border: `1px solid ${T.border}`,
+    borderRadius: 8, color: T.text, padding: '10px 12px',
     fontSize: 13, fontFamily: 'inherit', resize: 'none',
     outline: 'none', boxSizing: 'border-box',
   },
 };
 
-function chip(label, active, onClick, disabled) {
+function Chip({ label, active, onClick, disabled }) {
   return (
     <button
-      key={label}
       onClick={onClick}
       disabled={disabled && !active}
       style={{
-        padding: '6px 12px', borderRadius: 20, cursor: disabled && !active ? 'default' : 'pointer',
-        border: `1px solid ${active ? '#e63946' : '#2a2a35'}`,
-        background: active ? '#e6394618' : 'transparent',
-        color: active ? '#e63946' : disabled && !active ? '#3a3a45' : '#a1a1aa',
+        padding: '6px 14px', borderRadius: 20,
+        cursor: disabled && !active ? 'default' : 'pointer',
+        border: `1px solid ${active ? T.accent : T.border}`,
+        background: active ? T.accentBg : T.card,
+        color: active ? T.accent : disabled && !active ? T.border : T.sub,
         fontSize: 13, fontWeight: active ? 600 : 400,
         transition: 'all 0.15s',
       }}
@@ -50,11 +62,11 @@ function Toast({ msg, show }) {
   return (
     <div style={{
       position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-      background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 24,
+      background: T.accent, color: '#fff', padding: '10px 20px', borderRadius: 24,
       fontSize: 13, fontWeight: 600,
       opacity: show ? 1 : 0, pointerEvents: 'none',
       transition: 'opacity 0.2s',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 100,
+      boxShadow: '0 8px 24px rgba(196,146,42,0.3)', zIndex: 100,
     }}>
       {msg}
     </div>
@@ -62,13 +74,10 @@ function Toast({ msg, show }) {
 }
 
 const EMPTY_FORM = {
-  saikaku: [],
-  saikakuOther: '',
-  domains: [],
-  domainsOther: '',
+  saikaku: [], saikakuOther: '',
+  domains: [], domainsOther: '',
   actions: [],
-  help: '',
-  condition: '',
+  help: '', condition: '',
   talkLevel: null,
 };
 
@@ -185,7 +194,7 @@ export default function AlphaInput({ user, onLogout }) {
       <div style={{ ...S.app, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{
           width: 36, height: 36, borderRadius: '50%',
-          border: '3px solid #2a2a35', borderTopColor: '#e63946',
+          border: `3px solid ${T.border}`, borderTopColor: T.accent,
           animation: 'spin 1s linear infinite',
         }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -200,21 +209,26 @@ export default function AlphaInput({ user, onLogout }) {
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 4px 16px', borderBottom: '1px solid #2a2a35', marginBottom: 20,
+        padding: '12px 4px 16px', borderBottom: `1px solid ${T.border}`, marginBottom: 20,
       }}>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>α共鳴シート</div>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>α共鳴シート</div>
+          <div style={{ fontSize: 11, color: T.accent, letterSpacing: '0.15em', marginTop: 2 }}>
+            RETREAT α 2026
+          </div>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 12, color: '#71717a' }}>進捗 {progress}/{total}</div>
+          <div style={{ fontSize: 12, color: T.muted }}>進捗 {progress}/{total}</div>
           <button onClick={onLogout} style={{
-            background: 'transparent', border: '1px solid #2a2a35',
-            color: '#71717a', fontSize: 11, padding: '4px 10px',
+            background: 'transparent', border: `1px solid ${T.border}`,
+            color: T.muted, fontSize: 11, padding: '4px 10px',
             borderRadius: 6, cursor: 'pointer',
           }}>ログアウト</button>
         </div>
       </div>
 
       {/* Presenter grid */}
-      <div style={{ fontSize: 11, color: '#71717a', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: T.muted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
         話し手を選択
       </div>
       <div style={{
@@ -235,25 +249,26 @@ export default function AlphaInput({ user, onLogout }) {
       {/* Input panel */}
       {current ? (
         <div ref={panelRef} style={{
-          background: '#14141a', border: '1px solid #2a2a35',
+          background: T.card, border: `1px solid ${T.border}`,
           borderRadius: 12, padding: 20, marginBottom: 20,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
         }}>
           {/* Presenter info */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 14,
-            paddingBottom: 16, borderBottom: '1px solid #2a2a35', marginBottom: 20,
+            paddingBottom: 16, borderBottom: `1px solid ${T.borderSubtle}`, marginBottom: 20,
           }}>
             <div style={{
               width: 56, height: 56, borderRadius: '50%',
-              background: '#1c1c24', border: '1px solid #2a2a35',
+              background: T.bg, border: `1px solid ${T.border}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 22, fontWeight: 700, color: '#a1a1aa', flexShrink: 0,
+              fontSize: 22, fontWeight: 700, color: T.accent, flexShrink: 0,
             }}>
               {current.name.charAt(0)}
             </div>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 700 }}>{current.name}</div>
-              <div style={{ fontSize: 12, color: '#71717a', marginTop: 2 }}>話し手</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: T.text }}>{current.name}</div>
+              <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>話し手</div>
             </div>
           </div>
 
@@ -261,14 +276,16 @@ export default function AlphaInput({ user, onLogout }) {
           <div style={S.section}>
             <div style={S.label}>
               <span>① 才覚で感じたもの</span>
-              <span style={{ fontSize: 11, color: '#71717a' }}>最大3つ　{form.saikaku.length}/3</span>
+              <span style={{ fontSize: 11, color: T.muted }}>最大3つ　{form.saikaku.length}/3</span>
             </div>
             <div style={S.chips}>
-              {SAIKAKU_TAGS.map(tag => chip(
-                tag,
-                form.saikaku.includes(tag),
-                () => toggleSet('saikaku', tag, 3),
-                form.saikaku.length >= 3,
+              {SAIKAKU_TAGS.map(tag => (
+                <Chip
+                  key={tag} label={tag}
+                  active={form.saikaku.includes(tag)}
+                  onClick={() => toggleSet('saikaku', tag, 3)}
+                  disabled={form.saikaku.length >= 3}
+                />
               ))}
             </div>
             {form.saikaku.includes('その他') && (
@@ -278,9 +295,9 @@ export default function AlphaInput({ user, onLogout }) {
                 placeholder="具体的に..."
                 maxLength={40}
                 style={{
-                  marginTop: 8, width: '100%', background: '#0a0a0b',
-                  border: '1px solid #2a2a35', borderRadius: 8,
-                  color: '#f4f4f5', padding: '8px 12px', fontSize: 13,
+                  marginTop: 8, width: '100%', background: T.bg,
+                  border: `1px solid ${T.border}`, borderRadius: 8,
+                  color: T.text, padding: '8px 12px', fontSize: 13,
                   fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
                 }}
               />
@@ -291,14 +308,16 @@ export default function AlphaInput({ user, onLogout }) {
           <div style={S.section}>
             <div style={S.label}>
               <span>② 親和性を感じた領域</span>
-              <span style={{ fontSize: 11, color: '#71717a' }}>複数可</span>
+              <span style={{ fontSize: 11, color: T.muted }}>複数可</span>
             </div>
             <div style={S.chips}>
-              {AFFINITY_DOMAINS.map(tag => chip(
-                tag,
-                form.domains.includes(tag),
-                () => toggleSet('domains', tag, null),
-                false,
+              {AFFINITY_DOMAINS.map(tag => (
+                <Chip
+                  key={tag} label={tag}
+                  active={form.domains.includes(tag)}
+                  onClick={() => toggleSet('domains', tag, null)}
+                  disabled={false}
+                />
               ))}
             </div>
             {form.domains.includes('その他') && (
@@ -308,9 +327,9 @@ export default function AlphaInput({ user, onLogout }) {
                 placeholder="具体的に..."
                 maxLength={40}
                 style={{
-                  marginTop: 8, width: '100%', background: '#0a0a0b',
-                  border: '1px solid #2a2a35', borderRadius: 8,
-                  color: '#f4f4f5', padding: '8px 12px', fontSize: 13,
+                  marginTop: 8, width: '100%', background: T.bg,
+                  border: `1px solid ${T.border}`, borderRadius: 8,
+                  color: T.text, padding: '8px 12px', fontSize: 13,
                   fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
                 }}
               />
@@ -321,29 +340,30 @@ export default function AlphaInput({ user, onLogout }) {
           <div style={S.section}>
             <div style={S.label}>
               <span>③ この人と…</span>
-              <span style={{ fontSize: 11, color: '#71717a' }}>複数可</span>
+              <span style={{ fontSize: 11, color: T.muted }}>複数可</span>
             </div>
             <div style={S.chips}>
-              {RESONANCE_ACTIONS.map(tag => chip(
-                tag,
-                form.actions.includes(tag),
-                () => toggleSet('actions', tag, null),
-                false,
+              {RESONANCE_ACTIONS.map(tag => (
+                <Chip
+                  key={tag} label={tag}
+                  active={form.actions.includes(tag)}
+                  onClick={() => toggleSet('actions', tag, null)}
+                  disabled={false}
+                />
               ))}
             </div>
           </div>
 
-          {/* ④ 手伝えること・繋げられること */}
+          {/* ④ 手伝えること */}
           <div style={S.section}>
             <div style={S.label}>
               <span>④ 手伝えること・繋げられること</span>
-              <span style={{ fontSize: 11, color: '#71717a' }}>任意</span>
+              <span style={{ fontSize: 11, color: T.muted }}>任意</span>
             </div>
             <textarea
               value={form.help}
               onChange={e => setForm(f => ({ ...f, help: e.target.value }))}
-              maxLength={200}
-              rows={2}
+              maxLength={200} rows={2}
               placeholder="例：営業先を紹介できる、SNS運用を手伝える..."
               style={S.textarea}
             />
@@ -353,13 +373,12 @@ export default function AlphaInput({ user, onLogout }) {
           <div style={S.section}>
             <div style={S.label}>
               <span>⑤「こうなれば動ける」があれば</span>
-              <span style={{ fontSize: 11, color: '#71717a' }}>任意</span>
+              <span style={{ fontSize: 11, color: T.muted }}>任意</span>
             </div>
             <textarea
               value={form.condition}
               onChange={e => setForm(f => ({ ...f, condition: e.target.value }))}
-              maxLength={200}
-              rows={2}
+              maxLength={200} rows={2}
               placeholder="例：具体的なプロジェクト案が出たら..."
               style={S.textarea}
             />
@@ -369,7 +388,7 @@ export default function AlphaInput({ user, onLogout }) {
           <div style={S.section}>
             <div style={S.label}>
               <span>⑥ 後で話したい度</span>
-              <span style={{ fontSize: 11, color: '#e63946' }}>必須</span>
+              <span style={{ fontSize: 11, color: '#a84432' }}>必須</span>
             </div>
             <TalkLevelSelector value={form.talkLevel} onChange={v => setForm(f => ({ ...f, talkLevel: v }))} />
           </div>
@@ -379,8 +398,8 @@ export default function AlphaInput({ user, onLogout }) {
             <button
               onClick={() => setCurrent(null)}
               style={{
-                padding: '14px 16px', background: 'transparent', color: '#a1a1aa',
-                border: '1px solid #2a2a35', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                padding: '14px 16px', background: 'transparent', color: T.sub,
+                border: `1px solid ${T.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 13,
               }}
             >
               閉じる
@@ -390,11 +409,12 @@ export default function AlphaInput({ user, onLogout }) {
               disabled={!form.talkLevel || saving}
               style={{
                 flex: 1, padding: '14px 20px',
-                background: form.talkLevel && !saving ? '#e63946' : '#2a2a35',
+                background: form.talkLevel && !saving ? T.accent : T.border,
                 color: '#fff', border: 'none', borderRadius: 8,
                 fontSize: 15, fontWeight: 700,
                 cursor: form.talkLevel && !saving ? 'pointer' : 'not-allowed',
-                opacity: form.talkLevel && !saving ? 1 : 0.5,
+                opacity: form.talkLevel && !saving ? 1 : 0.6,
+                transition: 'background 0.2s',
               }}
             >
               {saving ? '保存中…' : '保存して次へ'}
@@ -402,15 +422,15 @@ export default function AlphaInput({ user, onLogout }) {
           </div>
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#71717a', fontSize: 14 }}>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: T.muted, fontSize: 14 }}>
           {progress >= total ? (
             <>
-              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.6 }}>✓</div>
+              <div style={{ fontSize: 32, marginBottom: 12, color: T.accent, opacity: 0.7 }}>✓</div>
               全員分入力完了。お疲れさま。
             </>
           ) : (
             <>
-              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>◎</div>
+              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>◎</div>
               上のリストから話し手を選んで入力を始める
             </>
           )}
