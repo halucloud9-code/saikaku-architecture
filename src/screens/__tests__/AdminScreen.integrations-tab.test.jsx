@@ -164,7 +164,7 @@ function installFetchMock(integrations = integrationFixture()) {
 
 async function renderAdminAndOpenIntegrations() {
   render(<AdminScreen user={adminUser} onBack={noop} onLogout={noop} />);
-  const tab = screen.getByRole('button', { name: '統合分析（—）' });
+  const tab = screen.getByRole('button', { name: /統合分析/ });
   await userEvent.click(tab);
   return screen.findByRole('table', { name: '統合分析一覧' });
 }
@@ -181,25 +181,23 @@ describe('AdminScreen integrations tab', () => {
     vi.clearAllMocks();
   });
 
-  it('defers fetching admin integrations until the integrations tab is opened', async () => {
+  it('prefetches admin integrations on mount', async () => {
     render(<AdminScreen user={adminUser} onBack={noop} onLogout={noop} />);
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/admin/users', {
+      expect(fetch).toHaveBeenCalledWith('/api/admin/integrations', {
         headers: { Authorization: 'Bearer id-token' },
       });
     });
 
-    expect(fetch.mock.calls.map(([url]) => url)).not.toContain('/api/admin/integrations');
-    expect(screen.getByRole('button', { name: '統合分析（—）' })).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: '統合分析（—）' }));
-
-    await screen.findByRole('table', { name: '統合分析一覧' });
-    expect(fetch).toHaveBeenCalledWith('/api/admin/integrations', {
-      headers: { Authorization: 'Bearer id-token' },
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '統合分析（4）' })).toBeInTheDocument();
     });
-    expect(screen.getByRole('button', { name: '統合分析（4）' })).toBeInTheDocument();
+    expect(fetch.mock.calls.filter(([url]) => url === '/api/admin/integrations')).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('button', { name: '統合分析（4）' }));
+    await screen.findByRole('table', { name: '統合分析一覧' });
+    expect(fetch.mock.calls.filter(([url]) => url === '/api/admin/integrations')).toHaveLength(1);
   });
 
   it('fetches admin integrations and renders the integrations tab with six table columns', async () => {

@@ -1035,7 +1035,8 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   const [summaryCountsLoading, setSummaryCountsLoading] = useState(true);
   // 並行する fetchSummaryCounts 呼び出し (mount + 削除後 refresh) で古いレスポンスが新しいレスポンスを上書きしないよう、リクエスト世代番号で判定する。
   const summaryCountsReqIdRef = useRef(0);
-  const [integrationsLoading, setIntegrationsLoading] = useState(false);
+  const integrationsReqIdRef = useRef(0);
+  const [integrationsLoading, setIntegrationsLoading] = useState(true);
   const [integrationsLoaded, setIntegrationsLoaded] = useState(false);
   const [error, setError] = useState('');
   const [integrationsError, setIntegrationsError] = useState('');
@@ -1054,10 +1055,11 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   useEffect(() => {
     fetchUsers();
     fetchSummaryCounts();
+    fetchIntegrations();
   }, []);
 
   useEffect(() => {
-    if (tab !== 'integrations' || integrationsLoaded) return;
+    if (tab !== 'integrations' || integrationsLoaded || integrationsLoading) return;
     fetchIntegrations();
   }, [tab, integrationsLoaded]);
 
@@ -1108,6 +1110,8 @@ export default function AdminScreen({ user, onBack, onLogout }) {
   };
 
   const fetchIntegrations = async () => {
+    const reqId = integrationsReqIdRef.current + 1;
+    integrationsReqIdRef.current = reqId;
     setIntegrationsLoading(true);
     setIntegrationsError('');
     try {
@@ -1118,12 +1122,16 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '取得に失敗しました');
+      if (integrationsReqIdRef.current !== reqId) return;
       setIntegrations(data.integrations || []);
       setIntegrationsLoaded(true);
     } catch (e) {
+      if (integrationsReqIdRef.current !== reqId) return;
       setIntegrationsError(e.message || '統合分析の取得に失敗しました');
     } finally {
-      setIntegrationsLoading(false);
+      if (integrationsReqIdRef.current === reqId) {
+        setIntegrationsLoading(false);
+      }
     }
   };
 
@@ -1140,8 +1148,10 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       if (!res.ok) throw new Error(data.error || '削除に失敗しました');
       setUsers((prev) => prev.filter((u) => u.uid !== uid));
       setUaamUsers((prev) => prev.filter((u) => u.uid !== uid));
+      setIntegrations((prev) => prev.filter((it) => it.uid !== uid));
       setSelected(null);
       setSelectedUaam(null);
+      setSelectedIntegration((cur) => (cur && cur.uid === uid ? null : cur));
       fetchSummaryCounts();
     } catch (e) {
       setError(e.message || '削除に失敗しました');
@@ -1167,8 +1177,13 @@ export default function AdminScreen({ user, onBack, onLogout }) {
       setGhostMsg(`✅ ${ghostEmail} を削除しました`);
       setGhostEmail('');
       // リストからも除外
-      setUsers(prev => prev.filter(u => u.email !== ghostEmail.trim()));
-      setUaamUsers(prev => prev.filter(u => u.email !== ghostEmail.trim()));
+      const removedEmail = ghostEmail.trim();
+      setUsers(prev => prev.filter(u => u.email !== removedEmail));
+      setUaamUsers(prev => prev.filter(u => u.email !== removedEmail));
+      // 統合分析側も整合性を保つため再フェッチ（item に email が必ずあるとは限らないため filter ではなく re-fetch）
+      if (integrationsLoaded || integrationsLoading) {
+        fetchIntegrations();
+      }
       fetchSummaryCounts();
     } catch (e) {
       setGhostMsg(`❌ ${e.message}`);
@@ -2188,11 +2203,7 @@ export default function AdminScreen({ user, onBack, onLogout }) {
             boxShadow: '0 2px 8px rgba(42,37,32,0.04)',
           }}
         >
-          {!integrationsLoaded && !integrationsLoading ? (
-            <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060', fontSize: 14 }}>
-              統合分析は未読込です
-            </div>
-          ) : integrationsLoading ? (
+          {integrationsLoading ? (
             <div style={{ padding: '48px', textAlign: 'center', color: '#7A7060' }}>
               <div
                 style={{
