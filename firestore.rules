@@ -2,63 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Client writes are restricted to consentAt and selectedKakuchiiki.
-    // All attempts/* writes go through the Admin SDK only.
-    // Diagnostic results and uaam_results are written exclusively by the API server.
-    function signedInAs(uid) {
-      return request.auth != null && request.auth.uid == uid;
-    }
-
-    function changedKeys() {
-      return request.resource.data.diff(resource.data).affectedKeys();
-    }
-
+    // results コレクション：本人のみ読み書き可
+    // 管理者の読み取りは firebase-admin（バックエンド）経由のため
+    // フロントからの直接アクセスは本人分のみに制限する
     match /results/{uid} {
-      allow read: if signedInAs(uid);
-
-      allow create: if signedInAs(uid)
-        && request.resource.data.keys().hasOnly(['consentAt'])
-        && request.resource.data.consentAt is timestamp;
-
-      allow update: if signedInAs(uid)
-        && changedKeys().hasOnly(['consentAt', 'selectedKakuchiiki'])
-        && (!changedKeys().hasAny(['consentAt'])
-             || request.resource.data.consentAt is timestamp)
-        && (!changedKeys().hasAny(['selectedKakuchiiki'])
-             || (request.resource.data.selectedKakuchiiki is string
-                 && request.resource.data.selectedKakuchiiki.size() < 200));
-
-      allow delete: if false;
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    match /results/{uid}/attempts/{aid} {
-      allow read: if false;
-      allow write: if false;
-    }
-
-    match /results/{uid}/_locks/{lockId} {
-      allow read, write: if false;
-    }
-
+    // uaam_results コレクション：本人のみ読み書き可
     match /uaam_results/{uid} {
-      allow read: if false;
-      allow write: if false;
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    match /uaam_results/{uid}/attempts/{aid} {
-      allow read: if false;
-      allow write: if false;
+    // alpha_events: 認証済みユーザーが自分のfromUidを持つresonanceを書き込める
+    match /alpha_events/{eventId}/resonance/{docId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.resource.data.fromUid == request.auth.uid;
     }
 
-    match /uaam_results/{uid}/integrations/{pairKey} {
-      allow read, write: if false;
+    // その他のコレクションへのアクセスはすべて拒否
+    // alpha_events: 認証済みユーザーが自分のfromUidを持つresonanceを書き込める
+    match /alpha_events/{eventId}/resonance/{docId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.resource.data.fromUid == request.auth.uid;
     }
 
-    match /uaam_results/{uid}/_locks/{lockId} {
-      allow read, write: if false;
-    }
-
-    match /{document=**} {
+        match /{document=**} {
       allow read, write: if false;
     }
   }
