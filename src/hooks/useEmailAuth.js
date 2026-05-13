@@ -34,6 +34,11 @@ const buildVerificationRequestBody = (email, uid, continueUrl) => {
   return body;
 };
 
+const buildActionCodeSettings = (continueUrl) => {
+  if (typeof continueUrl !== 'string' || !continueUrl.trim()) return undefined;
+  return { url: continueUrl, handleCodeInApp: false };
+};
+
 export function useEmailAuth({ onLogin, continueUrl } = {}) {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -68,17 +73,18 @@ export function useEmailAuth({ onLogin, continueUrl } = {}) {
   };
 
   const requestVerificationEmailWithFallback = async (targetEmail, user) => {
+    const actionCodeSettings = buildActionCodeSettings(continueUrl);
     try {
       const { res, data } = await requestVerificationEmail(targetEmail, user.uid);
       // 送信元アドレスを保存（UI表示用）
       if (data.from_email) setFromEmail(data.from_email);
       // カスタム API 未設定またはエラー → Firebase デフォルトで送信
       if (!res.ok || data.method === 'firebase_default') {
-        try { await sendVerificationEmail(user); } catch (_) {}
+        try { await sendVerificationEmail(user, actionCodeSettings); } catch (_) {}
       }
     } catch (_) {
       // フォールバック: Firebase デフォルト（こちらも失敗を許容）
-      try { await sendVerificationEmail(user); } catch (_) {}
+      try { await sendVerificationEmail(user, actionCodeSettings); } catch (_) {}
     }
   };
 
@@ -178,7 +184,7 @@ export function useEmailAuth({ onLogin, continueUrl } = {}) {
       // カスタム API 未設定 → Firebase デフォルトで送信
       if (data.method === 'firebase_default' && password) {
         const result = await signInWithEmail(email, password);
-        await sendVerificationEmail(result.user);
+        await sendVerificationEmail(result.user, buildActionCodeSettings(continueUrl));
         await signOutUser();
       }
       if (data.from_email) setFromEmail(data.from_email);
