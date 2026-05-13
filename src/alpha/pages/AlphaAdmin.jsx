@@ -211,7 +211,7 @@ function MatchingView({ resonances }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <span style={{ fontSize: 13, color: T.sub }}>Lv以上を表示：</span>
+        <span style={{ fontSize: 13, color: T.sub }}>関心レベル：</span>
         {[1, 2, 3, 4, 5].map(v => (
           <button
             key={v}
