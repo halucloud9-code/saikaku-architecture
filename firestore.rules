@@ -22,14 +22,7 @@ service cloud.firestore {
     }
 
     // その他のコレクションへのアクセスはすべて拒否
-    // alpha_events: 認証済みユーザーが自分のfromUidを持つresonanceを書き込める
-    match /alpha_events/{eventId}/resonance/{docId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null
-        && request.resource.data.fromUid == request.auth.uid;
-    }
-
-        match /{document=**} {
+    match /{document=**} {
       allow read, write: if false;
     }
   }
