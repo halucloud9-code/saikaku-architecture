@@ -8,29 +8,23 @@ const LEVELS = [
 
 export default function TalkLevelSelector({ value, onChange }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+    <div style={{ display: 'flex', gap: 6 }}>
       {LEVELS.map(l => (
         <button
           key={l.value}
           onClick={() => onChange(l.value)}
           style={{
-            padding: '12px 0',
+            flex: 1, padding: '6px 0',
             border: `1px solid ${value === l.value ? '#C4922A' : '#E0D8CE'}`,
             background: value === l.value ? '#C4922A' : '#FFFFFF',
             color: value === l.value ? '#fff' : '#6A5A4A',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontSize: 15,
-            fontWeight: 600,
-            transition: 'all 0.1s',
-            textAlign: 'center',
+            borderRadius: 6, cursor: 'pointer',
+            fontSize: 13, fontWeight: 600,
+            transition: 'all 0.1s', textAlign: 'center',
           }}
         >
-          {l.label}
-          <span style={{
-            display: 'block', fontSize: 9,
-            marginTop: 2, opacity: 0.7, fontWeight: 400,
-          }}>
+          {l.value}
+          <span style={{ display: 'block', fontSize: 9, opacity: 0.7, fontWeight: 400 }}>
             {l.sub}
           </span>
         </button>
