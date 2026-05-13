@@ -196,31 +196,41 @@ function SummaryView({ resonances }) {
 
 // ── マッチングビュー（A） ──────────────────────────────
 function MatchingView({ resonances }) {
-  const [minLevel, setMinLevel] = useState(3);
+  const [level, setLevel] = useState(null);
 
   const filtered = resonances
-    .filter(r => r.talkLevel >= minLevel)
+    .filter(r => level === null || r.talkLevel === level)
     .sort((a, b) => b.talkLevel - a.talkLevel);
 
   const isMutual = (r) => {
     return resonances.some(
-      s => s.fromName === r.toName && s.toName === r.fromName && s.talkLevel >= minLevel
+      s => s.fromName === r.toName && s.toName === r.fromName
     );
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, color: T.sub }}>関心レベル：</span>
+        <button
+          onClick={() => setLevel(null)}
+          style={{
+            padding: '6px 12px', borderRadius: 20, cursor: 'pointer',
+            border: `1px solid ${level === null ? T.accent : T.border}`,
+            background: level === null ? T.accent : T.card,
+            color: level === null ? '#fff' : T.sub,
+            fontSize: 12, fontWeight: 700,
+          }}
+        >すべて</button>
         {[1, 2, 3, 4, 5].map(v => (
           <button
             key={v}
-            onClick={() => setMinLevel(v)}
+            onClick={() => setLevel(level === v ? null : v)}
             style={{
               width: 36, height: 36, borderRadius: '50%', cursor: 'pointer',
-              border: `1px solid ${minLevel === v ? T.accent : T.border}`,
-              background: minLevel === v ? T.accent : T.card,
-              color: minLevel === v ? '#fff' : T.sub,
+              border: `1px solid ${level === v ? T.accent : T.border}`,
+              background: level === v ? T.accent : T.card,
+              color: level === v ? '#fff' : T.sub,
               fontSize: 13, fontWeight: 700,
             }}
           >{v}</button>
