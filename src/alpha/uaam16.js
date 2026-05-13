@@ -24,7 +24,7 @@ export const RESONANCE_ACTIONS = [
 ];
 
 export const PRESENTERS = [
-  { uid: 'u01', name: '澤井ひろき',  values: '守護 / 正義 / 結束',             talents: '場づくり / 発見力 / 実践力',       passions: '愛護 / 探求 / 育成' },
+  { uid: 'u01', name: '澤井洸蕎',  values: '守護 / 正義 / 結束',             talents: '場づくり / 発見力 / 実践力',       passions: '愛護 / 探求 / 育成' },
   { uid: 'u02', name: '藤原宗賢',    values: 'シンプル / 調和 / 継続力',        talents: '共感力 / 統合力 / 言語化',         passions: '人間育成 / 宇宙探究 / 場づくり' },
   { uid: 'u03', name: '山永彩葵',    values: '愛と幸せ / つながり / 拡大発展',  talents: '共感力 / 国際対話 / 創造力',       passions: '中東探求 / 国際交流 / 文化継承' },
   { uid: 'u04', name: '浜口奈々',    values: '生命愛護 / 進化成長 / 心身統一',  talents: '身体表現 / 導引力 / 感受統合',     passions: '身体修行 / 人材覚醒 / 自然融合' },
