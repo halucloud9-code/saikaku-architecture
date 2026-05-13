@@ -210,7 +210,7 @@ function MatchingView({ resonances }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, color: T.sub }}>関心レベル：</span>
         {[1, 2, 3, 4, 5].map(v => (
           <button
@@ -225,7 +225,8 @@ function MatchingView({ resonances }) {
             }}
           >{v}</button>
         ))}
-        <span style={{ fontSize: 12, color: T.muted }}>{filtered.length}件</span>
+        <span style={{ fontSize: 11, color: T.muted }}>1: 少し　3: 話したい　5: 即・すぐ話したい</span>
+        <span style={{ fontSize: 12, color: T.muted, marginLeft: 4 }}>{filtered.length}件</span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
