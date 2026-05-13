@@ -550,17 +550,17 @@ export default function AlphaAdmin({ user, onLogout }) {
           <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>{resonances.length} 件のデータ</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <a href="/alpha/map" target="_blank" rel="noreferrer" style={{
-            padding: '7px 12px', background: 'transparent', border: `1px solid ${T.border}`,
-            borderRadius: 8, color: T.sub, fontSize: 13, textDecoration: 'none',
-          }}>マップ（E）</a>
           <button onClick={() => exportCSV(resonances)} style={{
             padding: '7px 12px', background: 'transparent', border: `1px solid ${T.border}`,
             borderRadius: 8, color: T.blue, fontSize: 13, cursor: 'pointer',
-          }}>CSV書き出し（D）</button>
+          }}>CSV書き出し</button>
           <PdfExportButton top3Map={top3Map} resonances={resonances} />
           <a href="/alpha" style={{ padding: '6px 12px', border: `1px solid ${T.border}`, borderRadius: 8, color: T.sub, fontSize: 13, textDecoration: 'none' }}>入力画面</a>
           <button onClick={onLogout} style={{ background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer' }}>ログアウト</button>
+          <a href="/alpha/map" target="_blank" rel="noreferrer" style={{
+            padding: '7px 12px', background: 'transparent', border: `1px solid ${T.border}`,
+            borderRadius: 8, color: T.sub, fontSize: 13, textDecoration: 'none',
+          }}>マップ</a>
         </div>
       </div>
 
