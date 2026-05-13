@@ -14,6 +14,7 @@ app.use(express.json({ limit: '10mb' }));
 const analyzeHandler = await import('./analyze.js');
 const uaamHandler = await import('./uaam.js');
 const integrateHandler = await import('./integrate.js');
+const sendVerificationEmailHandler = await import('./send-verification-email.js');
 
 let adminHandlers = {};
 let meHandlers = {};
@@ -78,6 +79,11 @@ app.all('/api/uaam', (req, res) => {
 
 app.all('/api/integrate', (req, res) => {
   const handler = integrateHandler.default || integrateHandler;
+  return handler(req, res);
+});
+
+app.all('/api/send-verification-email', (req, res) => {
+  const handler = sendVerificationEmailHandler.default || sendVerificationEmailHandler;
   return handler(req, res);
 });
 

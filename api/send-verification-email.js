@@ -6,8 +6,51 @@
  *   3. どちらも未設定の場合は Firebase デフォルトにフォールバック（スパム注意）
  */
 import { getAuth } from 'firebase-admin/auth';
-import { ADMIN_EMAILS } from './lib/firebaseAdmin.js';
+import './lib/firebaseAdmin.js';
 import { createTransport } from 'nodemailer';
+
+const DEFAULT_CONTINUE_URL = 'https://saikaku-architecture.vercel.app/';
+const ALLOWED_ORIGINS = [
+  'https://saikaku-architecture.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+];
+
+const getAllowedOrigins = () => {
+  const origins = new Set(ALLOWED_ORIGINS);
+  const vercelUrl = typeof process.env.VERCEL_URL === 'string' ? process.env.VERCEL_URL.trim() : '';
+
+  if (vercelUrl) {
+    try {
+      origins.add(new URL(`https://${vercelUrl}`).origin);
+    } catch {
+      // Ignore invalid deployment metadata and keep the static allowlist.
+    }
+  }
+
+  return origins;
+};
+
+export const resolveContinueUrl = (continueUrl) => {
+  const trimmed = typeof continueUrl === 'string' ? continueUrl.trim() : '';
+  if (!trimmed) {
+    return DEFAULT_CONTINUE_URL;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (getAllowedOrigins().has(parsed.origin)) {
+      return parsed.href;
+    }
+  } catch {
+    // Fall through to the shared rejection path below.
+  }
+
+  console.warn('[continueUrl rejected]', continueUrl);
+  return DEFAULT_CONTINUE_URL;
+};
 
 const EMAIL_HTML = (link) => `
 <!DOCTYPE html>
@@ -74,7 +117,7 @@ const EMAIL_HTML = (link) => `
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { email, uid } = req.body;
+  const { email, uid, continueUrl } = req.body || {};
   if (!email || !uid) return res.status(400).json({ error: 'email と uid が必要です' });
 
   const GMAIL_USER         = process.env.GMAIL_USER;
@@ -92,7 +135,7 @@ export default async function handler(req, res) {
   try {
     // Firebase Admin で確認リンクを生成
     const link = await getAuth().generateEmailVerificationLink(email, {
-      url: 'https://saikaku-architecture.vercel.app/',
+      url: resolveContinueUrl(continueUrl),
       handleCodeInApp: false,
     });
 

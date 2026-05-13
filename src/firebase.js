@@ -54,8 +54,8 @@ export const signInWithEmail = async (email, password) => {
 };
 
 // メールアドレス確認メール送信
-export const sendVerificationEmail = async (user) => {
-  return sendEmailVerification(user);
+export const sendVerificationEmail = async (user, actionCodeSettings) => {
+  return sendEmailVerification(user, actionCodeSettings);
 };
 
 // パスワードリセットメール送信
