@@ -390,6 +390,11 @@ export default function AlphaInput({ user, onLogout }) {
               <span>⑥ 後で話したい度</span>
               <span style={{ fontSize: 11, color: '#a84432' }}>必須</span>
             </div>
+            <div style={{ fontSize: 11, color: T.muted, marginBottom: 8, display: 'flex', gap: 12 }}>
+              <span>1: 少し</span>
+              <span>3: 話したい</span>
+              <span>5: 即・すぐ話したい</span>
+            </div>
             <TalkLevelSelector value={form.talkLevel} onChange={v => setForm(f => ({ ...f, talkLevel: v }))} />
           </div>
 
