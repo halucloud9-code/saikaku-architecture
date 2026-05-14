@@ -117,11 +117,17 @@ export default function AlphaMap() {
   const applyHighlight = () => {
     const svg = d3.select(svgRef.current);
     const sel = selectedNodeIdRef.current;
-    svg.selectAll('line').attr('stroke-opacity', function() {
+    svg.selectAll('line').each(function() {
       const d = d3.select(this).datum();
       const baseOpacity = d.mutual ? 0.95 : (0.4 + d.weight * 0.1);
-      if (!sel) return baseOpacity;
-      return (d.source.id === sel || d.target.id === sel) ? baseOpacity : 0.05;
+      const visible = !sel || d.source.id === sel || d.target.id === sel;
+      const line = d3.select(this);
+      line.attr('stroke-opacity', visible ? baseOpacity : 0.05);
+      // 片方向の矢印 marker は line の opacity に追従しないため、
+      // フェード時は marker を外して同時に消す
+      if (!d.mutual) {
+        line.attr('marker-end', visible ? 'url(#arrow-oneway)' : null);
+      }
     });
     svg.selectAll('g.node-g').attr('opacity', function() {
       const d = d3.select(this).datum();
