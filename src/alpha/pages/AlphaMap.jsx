@@ -14,15 +14,12 @@ function tagColor(talkLevel) {
 }
 
 function buildGraph(resonances, activeLevels) {
-  const nodes = PRESENTERS.map(p => ({ id: p.uid, name: p.name }));
-  const externalNodes = new Map(); // _ext_id -> node
-  const weightMap = new Map();
+  const externalNodes = new Map();
+  const directed = new Map(); // 'from→to' -> { source, target, level }
 
   resonances.forEach(r => {
     if (activeLevels && !activeLevels.has(r.talkLevel)) return;
 
-    // fromUid (Firebase Auth UID) を presenter uid (u01..u23) に解決する。
-    // ハル/なつ/未登録ユーザーは presenter uid を持たないので、_ext_ ノード扱い。
     const sourcePresenterUid = FIREBASE_UID_TO_PRESENTER_UID.get(r.fromUid);
     const source = sourcePresenterUid || `_ext_${r.fromUid.slice(0, 6)}`;
 
@@ -31,17 +28,43 @@ function buildGraph(resonances, activeLevels) {
       externalNodes.set(source, { id: source, name: knownName || r.fromName || '外部', external: true });
     }
 
-    const key = `${source}→${r.toUid}`;
-    const existing = weightMap.get(key);
-    if (existing) {
-      existing.weight = Math.max(existing.weight, r.talkLevel);
-    } else {
-      weightMap.set(key, { source, target: r.toUid, weight: r.talkLevel });
-    }
+    directed.set(`${source}→${r.toUid}`, { source, target: r.toUid, level: r.talkLevel });
   });
 
-  const links = [...weightMap.values()];
-  return { nodes: [...nodes, ...externalNodes.values()], links };
+  // mutual (両者から相互にエントリあり) を1本の link にまとめる
+  const links = [];
+  const seen = new Set();
+  let mutualCount = 0;
+  let oneWayCount = 0;
+  for (const [key, d] of directed) {
+    if (seen.has(key)) continue;
+    const reverseKey = `${d.target}→${d.source}`;
+    if (directed.has(reverseKey)) {
+      const rev = directed.get(reverseKey);
+      links.push({
+        source: d.source, target: d.target,
+        weight: Math.max(d.level, rev.level),
+        mutual: true,
+      });
+      seen.add(key);
+      seen.add(reverseKey);
+      mutualCount++;
+    } else {
+      links.push({
+        source: d.source, target: d.target,
+        weight: d.level,
+        mutual: false,
+      });
+      seen.add(key);
+      oneWayCount++;
+    }
+  }
+
+  const nodes = [
+    ...PRESENTERS.map(p => ({ id: p.uid, name: p.name })),
+    ...externalNodes.values(),
+  ];
+  return { nodes, links, mutualCount, oneWayCount };
 }
 
 export default function AlphaMap() {
@@ -52,6 +75,12 @@ export default function AlphaMap() {
   const [lastUpdated, setLastUpdated] = useState(null);
   // 表示するtalkLevel。デフォルトはLv5のみ。
   const [activeLevels, setActiveLevels] = useState(() => new Set([5]));
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [mutualCount, setMutualCount] = useState(0);
+  const [oneWayCount, setOneWayCount] = useState(0);
+  // selectedNodeId を tick 内 / d3 handler 内から最新値で読むため ref で保持
+  const selectedNodeIdRef = useRef(null);
+  selectedNodeIdRef.current = selectedNodeId;
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -73,11 +102,33 @@ export default function AlphaMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // フィルタが変わったら再描画
+  // フィルタが変わったら再描画 (選択ノードは保持)
   useEffect(() => {
     renderGraph(resonancesRef.current, activeLevels);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLevels]);
+
+  // 選択変化時はノード/エッジの強調だけ更新 (再シミュレーションしない)
+  useEffect(() => {
+    applyHighlight();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNodeId]);
+
+  const applyHighlight = () => {
+    const svg = d3.select(svgRef.current);
+    const sel = selectedNodeIdRef.current;
+    svg.selectAll('line').attr('stroke-opacity', function() {
+      const d = d3.select(this).datum();
+      const baseOpacity = d.mutual ? 0.95 : (0.4 + d.weight * 0.1);
+      if (!sel) return baseOpacity;
+      return (d.source.id === sel || d.target.id === sel) ? baseOpacity : 0.05;
+    });
+    svg.selectAll('g.node-g').attr('opacity', function() {
+      const d = d3.select(this).datum();
+      if (!sel) return 1;
+      return d.id === sel ? 1 : 0.25;
+    });
+  };
 
   const toggleLevel = (lv) => {
     setActiveLevels(prev => {
@@ -95,7 +146,25 @@ export default function AlphaMap() {
     const H = window.innerHeight;
     svg.attr('width', W).attr('height', H);
 
-    const { nodes, links } = buildGraph(resonances, levels);
+    const graph = buildGraph(resonances, levels);
+    const { nodes, links } = graph;
+    setMutualCount(graph.mutualCount);
+    setOneWayCount(graph.oneWayCount);
+
+    // defs: 矢印マーカー (片方向リンク用)
+    const defs = svg.append('defs');
+    defs.append('marker')
+      .attr('id', 'arrow-oneway')
+      .attr('viewBox', '0 -4 8 8')
+      .attr('refX', 8)
+      .attr('refY', 0)
+      .attr('markerWidth', 7)
+      .attr('markerHeight', 7)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-4 L8,0 L0,4')
+      .attr('fill', '#e63946')
+      .attr('fill-opacity', 0.85);
 
     // zoom container
     const g = svg.append('g');
@@ -105,6 +174,11 @@ export default function AlphaMap() {
         .scaleExtent([0.3, 3])
         .on('zoom', (e) => g.attr('transform', e.transform))
     );
+
+    // 背景クリックで選択解除
+    svg.on('click', (e) => {
+      if (e.target === svgRef.current) setSelectedNodeId(null);
+    });
 
     // Simulation
     // Lv3+ (強い共鳴) のリンクだけが距離を縮めるように strength を効かせ、
@@ -123,20 +197,29 @@ export default function AlphaMap() {
       .force('collision', d3.forceCollide(d => d.external ? 22 : 38));
     simRef.current = sim;
 
-    // Links (edges) - 表示対象のtalkLevelのみ描画されている前提
+    // Links (edges)
+    // mutual: 金色の太線 (相互共鳴ペア)
+    // one-way: talkLevelカラーの細線 + 矢印 (片想い)
     const linkSel = g.append('g')
       .selectAll('line')
       .data(links)
       .enter().append('line')
-      .attr('stroke', d => tagColor(d.weight))
-      .attr('stroke-opacity', d => 0.4 + d.weight * 0.1)
-      .attr('stroke-width', d => Math.max(1, d.weight * 0.7));
+      .attr('stroke', d => d.mutual ? '#fbbf24' : tagColor(d.weight))
+      .attr('stroke-opacity', d => d.mutual ? 0.95 : (0.4 + d.weight * 0.1))
+      .attr('stroke-width', d => d.mutual ? Math.max(2.5, d.weight * 0.8) : Math.max(1, d.weight * 0.5))
+      .attr('marker-end', d => d.mutual ? null : 'url(#arrow-oneway)');
 
     // Nodes (circles)
     const nodeSel = g.append('g')
       .selectAll('g')
       .data(nodes)
       .enter().append('g')
+      .attr('class', 'node-g')
+      .style('cursor', 'pointer')
+      .on('click', (e, d) => {
+        e.stopPropagation();
+        setSelectedNodeId(prev => (prev === d.id ? null : d.id));
+      })
       .call(
         d3.drag()
           .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
@@ -192,15 +275,30 @@ export default function AlphaMap() {
       .attr('fill', '#a1a1aa')
       .text(d => d.name);
 
-    // Tick
+    // Tick: 矢印用にtarget側を半径分手前で止める
     sim.on('tick', () => {
       linkSel
         .attr('x1', d => d.source.x)
         .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y);
+        .attr('x2', d => {
+          const dx = d.target.x - d.source.x;
+          const dy = d.target.y - d.source.y;
+          const len = Math.sqrt(dx * dx + dy * dy) || 1;
+          const r = (d.target.external ? 18 : 28) + (d.mutual ? 0 : 4);
+          return d.target.x - (dx / len) * r;
+        })
+        .attr('y2', d => {
+          const dx = d.target.x - d.source.x;
+          const dy = d.target.y - d.source.y;
+          const len = Math.sqrt(dx * dx + dy * dy) || 1;
+          const r = (d.target.external ? 18 : 28) + (d.mutual ? 0 : 4);
+          return d.target.y - (dy / len) * r;
+        });
       nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
     });
+
+    // 描画完了後に現在の選択ハイライトを反映
+    applyHighlight();
   };
 
   return (
@@ -232,12 +330,33 @@ export default function AlphaMap() {
           <div style={{ fontSize: 12, color: '#a1a1aa' }}>
             <span style={{ color: '#f4f4f5', fontWeight: 700 }}>{count}</span> 件の共鳴
           </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11 }}>
+            <span style={{ color: '#fbbf24' }}>
+              ★ 相互 <span style={{ fontWeight: 700 }}>{mutualCount}</span>
+            </span>
+            <span style={{ color: '#e63946' }}>
+              → 片方向 <span style={{ fontWeight: 700 }}>{oneWayCount}</span>
+            </span>
+          </div>
           {lastUpdated && (
-            <div style={{ fontSize: 10, color: '#71717a', marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: '#71717a', marginTop: 4 }}>
               {lastUpdated.toLocaleTimeString('ja-JP')} 更新
             </div>
           )}
         </div>
+
+        {selectedNodeId && (
+          <button
+            onClick={() => setSelectedNodeId(null)}
+            style={{
+              background: 'rgba(251,191,36,0.15)', border: '1px solid #fbbf24',
+              borderRadius: 10, padding: '6px 12px', cursor: 'pointer',
+              color: '#fbbf24', fontSize: 11, textAlign: 'left',
+            }}
+          >
+            選択: {(PRESENTERS.find(p => p.uid === selectedNodeId)?.name) || selectedNodeId} (クリックで解除)
+          </button>
+        )}
       </div>
 
       {/* Legend / Filter */}
