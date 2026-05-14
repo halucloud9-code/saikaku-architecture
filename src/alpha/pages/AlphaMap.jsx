@@ -13,12 +13,14 @@ function tagColor(talkLevel) {
   return LEVEL_COLORS[Math.min((talkLevel ?? 1) - 1, 4)];
 }
 
-function buildGraph(resonances) {
+function buildGraph(resonances, activeLevels) {
   const nodes = PRESENTERS.map(p => ({ id: p.uid, name: p.name }));
   const externalNodes = new Map(); // _ext_id -> node
   const weightMap = new Map();
 
   resonances.forEach(r => {
+    if (activeLevels && !activeLevels.has(r.talkLevel)) return;
+
     // fromUid (Firebase Auth UID) を presenter uid (u01..u23) に解決する。
     // ハル/なつ/未登録ユーザーは presenter uid を持たないので、_ext_ ノード扱い。
     const sourcePresenterUid = FIREBASE_UID_TO_PRESENTER_UID.get(r.fromUid);
@@ -32,7 +34,7 @@ function buildGraph(resonances) {
     const key = `${source}→${r.toUid}`;
     const existing = weightMap.get(key);
     if (existing) {
-      existing.weight += r.talkLevel;
+      existing.weight = Math.max(existing.weight, r.talkLevel);
     } else {
       weightMap.set(key, { source, target: r.toUid, weight: r.talkLevel });
     }
@@ -45,8 +47,11 @@ function buildGraph(resonances) {
 export default function AlphaMap() {
   const svgRef = useRef(null);
   const simRef = useRef(null);
+  const resonancesRef = useRef([]);
   const [count, setCount] = useState(0);
   const [lastUpdated, setLastUpdated] = useState(null);
+  // 表示するtalkLevel。デフォルトはLv5のみ。
+  const [activeLevels, setActiveLevels] = useState(() => new Set([5]));
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -54,9 +59,10 @@ export default function AlphaMap() {
       (snap) => {
         const resonances = [];
         snap.forEach(d => resonances.push({ id: d.id, ...d.data() }));
+        resonancesRef.current = resonances;
         setCount(resonances.length);
         setLastUpdated(new Date());
-        renderGraph(resonances);
+        renderGraph(resonances, activeLevels);
       },
       (err) => console.error('[AlphaMap] snapshot error:', err)
     );
@@ -64,9 +70,24 @@ export default function AlphaMap() {
       unsub();
       simRef.current?.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const renderGraph = (resonances) => {
+  // フィルタが変わったら再描画
+  useEffect(() => {
+    renderGraph(resonancesRef.current, activeLevels);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLevels]);
+
+  const toggleLevel = (lv) => {
+    setActiveLevels(prev => {
+      const next = new Set(prev);
+      if (next.has(lv)) next.delete(lv); else next.add(lv);
+      return next;
+    });
+  };
+
+  const renderGraph = (resonances, levels) => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
 
@@ -74,7 +95,7 @@ export default function AlphaMap() {
     const H = window.innerHeight;
     svg.attr('width', W).attr('height', H);
 
-    const { nodes, links } = buildGraph(resonances);
+    const { nodes, links } = buildGraph(resonances, levels);
 
     // zoom container
     const g = svg.append('g');
@@ -102,16 +123,14 @@ export default function AlphaMap() {
       .force('collision', d3.forceCollide(d => d.external ? 22 : 38));
     simRef.current = sim;
 
-    // Links (edges)
-    // Lv1-2: 薄いグレー細線 (背景としての関係性ヒント)
-    // Lv3+ : talkLevel カラーで濃く太く (注目すべき共鳴)
+    // Links (edges) - 表示対象のtalkLevelのみ描画されている前提
     const linkSel = g.append('g')
       .selectAll('line')
       .data(links)
       .enter().append('line')
-      .attr('stroke', d => d.weight >= 3 ? tagColor(d.weight) : '#3a3a45')
-      .attr('stroke-opacity', d => d.weight >= 3 ? 0.75 : 0.18)
-      .attr('stroke-width', d => d.weight >= 3 ? Math.max(1.4, d.weight * 0.9) : 0.6);
+      .attr('stroke', d => tagColor(d.weight))
+      .attr('stroke-opacity', d => 0.4 + d.weight * 0.1)
+      .attr('stroke-width', d => Math.max(1, d.weight * 0.7));
 
     // Nodes (circles)
     const nodeSel = g.append('g')
@@ -133,9 +152,10 @@ export default function AlphaMap() {
       .attr('stroke-width', 1.5)
       .attr('stroke-dasharray', d => d.external ? '3,2' : null);
 
-    // Resonance count indicator ring
+    // Resonance count indicator ring (filter後のtalkLevelで集計)
     const receivedCount = new Map();
     resonances.forEach(r => {
+      if (levels && !levels.has(r.talkLevel)) return;
       receivedCount.set(r.toUid, (receivedCount.get(r.toUid) ?? 0) + r.talkLevel);
     });
     const maxScore = Math.max(1, ...receivedCount.values());
@@ -220,23 +240,41 @@ export default function AlphaMap() {
         </div>
       </div>
 
-      {/* Legend */}
+      {/* Legend / Filter */}
       <div style={{
         position: 'absolute', bottom: 16, left: 16,
         background: 'rgba(20,20,26,0.85)', border: '1px solid #2a2a35',
         borderRadius: 10, padding: '10px 14px', backdropFilter: 'blur(8px)',
       }}>
         <div style={{ fontSize: 10, color: '#71717a', marginBottom: 8, letterSpacing: '0.1em' }}>
-          EDGE COLOR — 話したい度
+          FILTER — 話したい度
         </div>
-        {['Lv1', 'Lv2', 'Lv3', 'Lv4', 'Lv5'].map((label, i) => (
-          <div key={label} style={{
-            display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4,
-          }}>
-            <div style={{ width: 16, height: 2, background: LEVEL_COLORS[i], borderRadius: 1 }} />
-            <span style={{ fontSize: 11, color: '#a1a1aa' }}>{label}</span>
-          </div>
-        ))}
+        {[1, 2, 3, 4, 5].map((lv) => {
+          const on = activeLevels.has(lv);
+          return (
+            <button
+              key={lv}
+              onClick={() => toggleLevel(lv)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', marginBottom: 4, padding: '3px 6px',
+                background: on ? 'rgba(255,255,255,0.05)' : 'transparent',
+                border: '1px solid', borderColor: on ? '#3a3a45' : 'transparent',
+                borderRadius: 6, cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <div style={{
+                width: 16, height: 3, background: LEVEL_COLORS[lv - 1], borderRadius: 1,
+                opacity: on ? 1 : 0.25,
+              }} />
+              <span style={{
+                fontSize: 11, color: on ? '#f4f4f5' : '#52525b', fontWeight: on ? 600 : 400,
+              }}>
+                Lv{lv}
+              </span>
+            </button>
+          );
+        })}
         <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #1c1c24' }}>
           <div style={{ fontSize: 10, color: '#71717a', marginBottom: 4 }}>NODE RING — 共鳴スコア</div>
           {[['高', '#e63946'], ['中', '#f59e0b'], ['低', '#3b82f6']].map(([label, color]) => (
