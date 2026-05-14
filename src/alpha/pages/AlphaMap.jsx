@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import * as d3 from 'd3';
 import { db } from '../../firebase';
-import { PRESENTERS, EVENT_ID, FIREBASE_UID_TO_PRESENTER_UID } from '../uaam16';
+import { PRESENTERS, EVENT_ID, FIREBASE_UID_TO_PRESENTER_UID, LISTENER_ONLY_USERS } from '../uaam16';
+
+const LISTENER_ONLY_MAP = new Map(LISTENER_ONLY_USERS.map(u => [u.firebaseUid, u.name]));
 
 // talkLevel → エッジ色
 const LEVEL_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#f97316', '#e63946'];
@@ -23,7 +25,8 @@ function buildGraph(resonances) {
     const source = sourcePresenterUid || `_ext_${r.fromUid.slice(0, 6)}`;
 
     if (!sourcePresenterUid && !externalNodes.has(source)) {
-      externalNodes.set(source, { id: source, name: r.fromName || '外部', external: true });
+      const knownName = LISTENER_ONLY_MAP.get(r.fromUid);
+      externalNodes.set(source, { id: source, name: knownName || r.fromName || '外部', external: true });
     }
 
     const key = `${source}→${r.toUid}`;
@@ -83,26 +86,32 @@ export default function AlphaMap() {
     );
 
     // Simulation
+    // Lv3+ (強い共鳴) のリンクだけが距離を縮めるように strength を効かせ、
+    // Lv1-2 はレイアウトに影響させずに薄く描画するだけにする。
     simRef.current?.stop();
     const sim = d3.forceSimulation(nodes)
+      .alphaDecay(0.05)
+      .velocityDecay(0.6)
       .force('link', d3.forceLink(links)
         .id(d => d.id)
-        .distance(d => 120 - d.weight * 8)
-        .strength(d => Math.min(d.weight / 10, 0.8))
+        .distance(d => d.weight >= 3 ? 180 - d.weight * 12 : 260)
+        .strength(d => d.weight >= 3 ? Math.min(d.weight / 8, 0.6) : 0.02)
       )
-      .force('charge', d3.forceManyBody().strength(-200))
+      .force('charge', d3.forceManyBody().strength(-260))
       .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collision', d3.forceCollide(d => d.external ? 22 : 36));
+      .force('collision', d3.forceCollide(d => d.external ? 22 : 38));
     simRef.current = sim;
 
     // Links (edges)
+    // Lv1-2: 薄いグレー細線 (背景としての関係性ヒント)
+    // Lv3+ : talkLevel カラーで濃く太く (注目すべき共鳴)
     const linkSel = g.append('g')
       .selectAll('line')
       .data(links)
       .enter().append('line')
-      .attr('stroke', d => tagColor(d.weight))
-      .attr('stroke-opacity', 0.5)
-      .attr('stroke-width', d => Math.max(1, d.weight * 0.6));
+      .attr('stroke', d => d.weight >= 3 ? tagColor(d.weight) : '#3a3a45')
+      .attr('stroke-opacity', d => d.weight >= 3 ? 0.75 : 0.18)
+      .attr('stroke-width', d => d.weight >= 3 ? Math.max(1.4, d.weight * 0.9) : 0.6);
 
     // Nodes (circles)
     const nodeSel = g.append('g')
