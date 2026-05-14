@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import * as d3 from 'd3';
 import { db } from '../../firebase';
-import { PRESENTERS, EVENT_ID } from '../uaam16';
+import { PRESENTERS, EVENT_ID, FIREBASE_UID_TO_PRESENTER_UID } from '../uaam16';
 
 // talkLevel → エッジ色
 const LEVEL_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#f97316', '#e63946'];
@@ -11,34 +11,32 @@ function tagColor(talkLevel) {
   return LEVEL_COLORS[Math.min((talkLevel ?? 1) - 1, 4)];
 }
 
-// 参加者UIDから名前
-const presenterMap = new Map(PRESENTERS.map(p => [p.uid, p]));
-
 function buildGraph(resonances) {
   const nodes = PRESENTERS.map(p => ({ id: p.uid, name: p.name }));
-  const links = [];
+  const externalNodes = new Map(); // _ext_id -> node
   const weightMap = new Map();
 
   resonances.forEach(r => {
-    const key = `${r.fromUid}→${r.toUid}`;
-    // fromUid はFirebase UID, toUid は u01..u23
-    // グラフには toUid (u01..u23) の間のエッジのみを引く
-    // → 聞き手側のuidがu01..u23に含まれるかどうか分からないので
-    //   talkLevel * 重みでエッジを貼る
+    // fromUid (Firebase Auth UID) を presenter uid (u01..u23) に解決する。
+    // ハル/なつ/未登録ユーザーは presenter uid を持たないので、_ext_ ノード扱い。
+    const sourcePresenterUid = FIREBASE_UID_TO_PRESENTER_UID.get(r.fromUid);
+    const source = sourcePresenterUid || `_ext_${r.fromUid.slice(0, 6)}`;
+
+    if (!sourcePresenterUid && !externalNodes.has(source)) {
+      externalNodes.set(source, { id: source, name: r.fromName || '外部', external: true });
+    }
+
+    const key = `${source}→${r.toUid}`;
     const existing = weightMap.get(key);
     if (existing) {
       existing.weight += r.talkLevel;
     } else {
-      // fromUid が u01..u23 でない場合、エッジを匿名ノードとして扱う
-      // ここでは presenterMap に fromUid があるかチェック
-      const fromPresenter = presenterMap.get(r.fromUid);
-      const source = fromPresenter ? r.fromUid : `_ext_${r.fromUid.slice(0, 6)}`;
       weightMap.set(key, { source, target: r.toUid, weight: r.talkLevel });
     }
   });
 
-  weightMap.forEach(link => links.push(link));
-  return { nodes, links };
+  const links = [...weightMap.values()];
+  return { nodes: [...nodes, ...externalNodes.values()], links };
 }
 
 export default function AlphaMap() {
@@ -94,7 +92,7 @@ export default function AlphaMap() {
       )
       .force('charge', d3.forceManyBody().strength(-200))
       .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collision', d3.forceCollide(36));
+      .force('collision', d3.forceCollide(d => d.external ? 22 : 36));
     simRef.current = sim;
 
     // Links (edges)
@@ -120,10 +118,11 @@ export default function AlphaMap() {
 
     // Circle
     nodeSel.append('circle')
-      .attr('r', 28)
-      .attr('fill', '#14141a')
-      .attr('stroke', '#2a2a35')
-      .attr('stroke-width', 1.5);
+      .attr('r', d => d.external ? 18 : 28)
+      .attr('fill', d => d.external ? '#1a1a22' : '#14141a')
+      .attr('stroke', d => d.external ? '#3a3a45' : '#2a2a35')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', d => d.external ? '3,2' : null);
 
     // Resonance count indicator ring
     const receivedCount = new Map();
@@ -150,17 +149,17 @@ export default function AlphaMap() {
     // Initial letter
     nodeSel.append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '-2px')
-      .attr('font-size', 18)
+      .attr('dy', d => d.external ? '-1px' : '-2px')
+      .attr('font-size', d => d.external ? 12 : 18)
       .attr('font-weight', 700)
-      .attr('fill', '#f4f4f5')
-      .text(d => d.name.charAt(0));
+      .attr('fill', d => d.external ? '#a1a1aa' : '#f4f4f5')
+      .text(d => (d.name || '?').charAt(0));
 
     // Name label
     nodeSel.append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '18px')
-      .attr('font-size', 9)
+      .attr('dy', d => d.external ? '14px' : '18px')
+      .attr('font-size', d => d.external ? 8 : 9)
       .attr('fill', '#a1a1aa')
       .text(d => d.name);
 
