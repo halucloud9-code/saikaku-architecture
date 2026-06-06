@@ -5,12 +5,15 @@ import { useEmailAuth } from '../hooks/useEmailAuth';
 import { EVENT_TITLE } from './data';
 import ProgressInput from './pages/ProgressInput';
 import ProgressAdmin from './pages/ProgressAdmin';
+import ProgressResult from './pages/ProgressResult';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
   .split(',').map(e => e.trim()).filter(Boolean);
 
 const pathname = window.location.pathname;
 const isAdminPath = pathname === '/alpha-progress/admin';
+// /alpha-progress/result/{groupId} → 発表者向け集計結果ページ（ログイン必須・事業単位）
+const resultGroupId = (pathname.match(/^\/alpha-progress\/result\/([A-Za-z0-9_-]+)\/?$/) || [])[1] || null;
 
 const T = {
   bg: '#F5F0E8',
@@ -72,7 +75,8 @@ function ProgressLogin({ onLogin }) {
     },
   } = useEmailAuth({
     onLogin,
-    continueUrl: `${window.location.origin}/alpha-progress`,
+    // メール認証後は今いるパス（結果ページ等）に戻す
+    continueUrl: `${window.location.origin}${window.location.pathname}`,
   });
 
   const disabled = !agreed || loading;
@@ -593,6 +597,11 @@ export default function ProgressApp() {
   if (!user) return <ProgressLogin onLogin={setUser} />;
 
   const isAdmin = ADMIN_EMAILS.includes(user.email);
+
+  if (resultGroupId) {
+    // ログイン済みなら誰でも、自分に配られたURLの事業の集計を見られる（事業単位の共有リンク）
+    return <ProgressResult groupId={resultGroupId} user={user} onLogout={handleLogout} />;
+  }
 
   if (isAdminPath) {
     if (!isAdmin) return <Unauthorized />;
