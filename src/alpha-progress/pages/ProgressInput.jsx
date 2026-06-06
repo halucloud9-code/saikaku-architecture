@@ -269,10 +269,12 @@ export default function ProgressInput({ user, onLogout }) {
             </div>
             <div>
               <div style={{ fontSize: 17, fontWeight: 800, color: T.text, lineHeight: 1.35 }}>{current.name}</div>
-              <div style={{ fontSize: 12, color: T.accent, marginTop: 3, fontWeight: 700 }}>
-                発表：{current.presenter}
-                {current.members && current.members.length ? `　｜　メンバー：${current.members.join('・')}` : ''}
-              </div>
+              {(current.presenter || (current.members && current.members.length > 0)) && (
+                <div style={{ fontSize: 12, color: T.accent, marginTop: 3, fontWeight: 700 }}>
+                  {current.presenter ? `発表：${current.presenter}` : ''}
+                  {current.members && current.members.length ? `${current.presenter ? '　｜　' : ''}メンバー：${current.members.join('・')}` : ''}
+                </div>
+              )}
             </div>
           </div>
 

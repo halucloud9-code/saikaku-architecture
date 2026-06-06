@@ -37,9 +37,11 @@ export default function GroupCard({ group, done, active, onClick }) {
         <div style={{ fontSize: 14.5, fontWeight: 800, color: '#2A2520', lineHeight: 1.35 }}>
           {group.name}
         </div>
-        <div style={{ fontSize: 11.5, color: '#9C7D18', marginTop: 5, fontWeight: 700 }}>
-          発表：{group.presenter}
-        </div>
+        {group.presenter && (
+          <div style={{ fontSize: 11.5, color: '#9C7D18', marginTop: 5, fontWeight: 700 }}>
+            発表：{group.presenter}
+          </div>
+        )}
         <div style={{ fontSize: 11, color: '#8A7A6A', marginTop: 3, lineHeight: 1.4 }}>
           {members}
         </div>
