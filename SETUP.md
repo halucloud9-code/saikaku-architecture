@@ -196,7 +196,7 @@ npm run test:all    # 全部
     ↓ IDトークン + 入力データをPOST
 [Vercel API /api/analyze]
     ↓ トークン検証 + Claude API 呼び出し
-[Claude API claude-sonnet-4]
+[Claude API claude-sonnet-4-6]
     ↓ JSON結果を返す
 [Vercel API]
     ↓ 結果を Firestore に保存
