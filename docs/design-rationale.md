@@ -781,3 +781,41 @@ if (isEmailProvider && !u.emailVerified) {
 - テスト: `tests/send-verification-email.test.js` (新規)
 - プラン: `plans/issue-105-alpha-email-login.md`
 - Debate: `debate/plan-debate-20260513-issue-105/round-1/fact-check.md`
+
+## 16. 才覚領域の生成トーンを実用版に変更 + analyze.js を Sonnet 4.6 化
+
+### 背景
+才覚領域診断が生成する `kakuchiiki` / `kakuchiiki_options`（才覚領域名）は、従来「脚本家・コピーライターが書くような洗練された言葉」を志向する詩的トーンで生成していた（例:「天地を繋ぎ、地球を動かす者」）。象徴性は高い一方、本人が翌日から行動に移すには抽象度が高すぎるという課題があった。過去に別途 85 名分の才覚領域フレーズを詩的→実用版に手動翻訳する検証（`docs/才覚領域_実用版_生成プロンプトv2.md` に翻訳原則をまとめ済み）を行っており、今回はその原則を診断時の**一次生成プロンプト自体**に組み込んだ。
+
+### 設計判断: フィールド一本化（新規フィールド追加を棄却）
+| 検討案 | 採否 | 理由 |
+|---|---|---|
+| (A) `kakuchiiki_practical` 等の新規フィールドを追加し詩的版と併存 | 棄却 | 表示・選択・統合(`integrate.js`)のどこでも使われず死蔵になる。「詩的/実用どちらを selected とするか」の責任分離が発生（Codex・Claude独立サブエージェント双方が round-1 debate で指摘） |
+| (B) **既存 `kakuchiiki` / `kakuchiiki_options` の生成トーンだけ差し替え（フィールド不変）** | **採用** | 消費経路（`ResultScreen.jsx` 表示・選択、`api/integrate.js` の文字列連結）はいずれも kakuchiiki を opaque な文字列として扱うため、フィールド不変なら変更が生成プロンプトの一箇所に閉じる。過去データ（詩的版）も同一フィールド・同一UIでそのまま表示可能 |
+
+### 実装
+- `api/analyze.js` の `SYSTEM_PROMPT` 内「■ STEP2：才覚領域名の生成」区間のみ書き換え。**掛け算演算の骨格（WHY×HOW×WHAT / STEP1核ワード抽出→STEP2生成）は維持**し、STEP2 の出力トーン規則だけ実用版に変更:
+  - 才能（HOW）＝動詞で表す（例: 言語化して／整理して／つないで）
+  - 情熱（WHAT）＝狭めすぎない領域名（例: 教育、地域づくり、探究の学び）
+  - 文末＝平易な人名詞で締める（例: 〜人／〜支援者／〜案内人）。凝った造語の役職名（魂の航路を拓く者、等）は禁止例として明記
+  - 文章型 20〜35 字程度
+  - `insight` / `what` / `reward` / 各軸の生成指示には波及させない旨を明記（トーン変更の影響範囲を STEP2 に限定）
+- `model` を `claude-sonnet-4-20250514`（2026-06-15 廃止予定）から `claude-sonnet-4-6` に更新（`claude-api` スキルで一次ソース確認済み）。**このモデル更新は `api/analyze.js` のみが対象、`api/uaam.js` / `api/integrate.js` は Sonnet 4 据え置き**（スコープ外）。
+- `tests/fixtures/anthropic/saikaku-1.json` の `kakuchiiki` / `kakuchiiki_options` を実用版トーンの例文に更新。
+- `src/screens/ResultScreen.jsx` の WHAT セクション補助ラベル2箇所（「才覚領域から自然に生まれること」→「才覚領域を活かす活動」等）を実用版トーンに合わせて調整。選択保存(`selectedKakuchiiki`)・カード選択ロジック・PDF/印刷ロジックは無変更。
+
+### 検証
+- `node --check` / fixture JSON parse: OK
+- vitest api (emulator, MOCK_ANTHROPIC): 23 ファイル 143 件 全パス
+- vitest unit (UI): 12 ファイル 84 件 全パス
+- **実 API 検証**（`claude-sonnet-4-6` に実際に1回生成させて確認）: `output_tokens` 1813 / `max_tokens` 8192（余裕あり、引き上げ不要）、`stop_reason: end_turn`、`kakuchiiki` は動詞＋領域＋人名詞締めの実用版トーン（24〜27字）、`insight` / `what` / `reward` とも正常出力
+- Playwright e2e: `history-api-flow.spec.js`（生成→表示、既存1件は flaky でリトライ後成功・本変更と無関係と確認）、`history-flow.spec.js`（過去データ=詩的版の表示）全パス。選択カードクリック + PDF(`window.print`)トリガーは一時 spec で個別検証（コミット対象外）
+
+### スコープ外として切り出し（既存問題）
+`/codex-code-review` が検出した以下は本 PR の差分とは無関係な既存の技術的負債のため issue #109 として切り出し: Firestore rules によるクライアント直接書き込みの改ざん余地（`ResultScreen.jsx` の `setDoc`）、`ResultScreen.jsx` の責務過多（906行）、キーボードフォーカス不可視（`outline: 'none'`）、AI レスポンス必須フィールド検証の甘さ（軸データのネスト欠損を検出できない）。
+
+### 参照
+- 方針ドキュメント: `docs/才覚領域_実用版_生成プロンプトv2.md`
+- 実装: `api/analyze.js`、`src/screens/ResultScreen.jsx`、`tests/fixtures/anthropic/saikaku-1.json`
+- プラン: `plans/saikaku-practical-kakuchiiki.md`
+- 切り出しissue: #109

@@ -14,7 +14,7 @@ test('badge display after a saikaku diagnosis', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '才覚領域を発見する' })).toBeVisible({ timeout: 15000 });
   await fillSaikakuForm(page);
 
-  await expect(page.getByText('問いに火を灯す人').first()).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('誠実に本音を言語化して探究の場を育てる人').first()).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: 'もう一度解析する' }).click();
 
   await expect(page.getByTestId('badge-saikaku')).toContainText('診断済み (1/2)', { timeout: 15000 });

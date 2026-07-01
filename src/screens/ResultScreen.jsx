@@ -613,7 +613,7 @@ export default function ResultScreen({ user, result, attemptData, isAdmin, onRes
                 <div style={{ width: 3, height: 24, background: 'linear-gradient(to bottom, #F0C96E, #C4922A)', borderRadius: 2 }} />
                 <div>
                   <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 22, fontWeight: 800, color: '#FFD700', letterSpacing: '0.15em' }}>What</span>
-                  <span style={{ fontSize: 13, color: '#6A6050', marginLeft: 10 }}>才覚領域から自然に生まれること</span>
+                  <span style={{ fontSize: 13, color: '#6A6050', marginLeft: 10 }}>才覚領域を活かす活動</span>
                 </div>
               </div>
               {effectiveResult.what.products?.length > 0 && (
@@ -759,7 +759,7 @@ export default function ResultScreen({ user, result, attemptData, isAdmin, onRes
                 {effectiveResult.what.products?.length > 0 && (
                   <div style={{ marginBottom: 4 }}>
                     <p style={{ fontSize: 12, fontWeight: 800, color: '#FFD700', letterSpacing: '0.08em', margin: '0 0 3px' }}>
-                      ▶ What — 自然に生まれること
+                      ▶ What — 具体的な活動
                     </p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                       {effectiveResult.what.products.map((p, i) => (
