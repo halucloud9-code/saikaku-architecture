@@ -1,8 +1,9 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebaseAdmin.js';
+import { MAX_DIAGNOSIS_ATTEMPTS } from '../../shared/attemptLogic.js';
 
 export class LimitExceededError extends Error {
-  constructor(message = '診断は最大2回までです') {
+  constructor(message = `診断は最大${MAX_DIAGNOSIS_ATTEMPTS}回までです`) {
     super(message);
     this.name = 'LimitExceededError';
     this.status = 429;
@@ -62,8 +63,8 @@ export async function reserveAttempt({ collection, uid, kind }) {
       count = 1;
     }
 
-    if (count >= 2) {
-      throw new LimitExceededError('診断は最大2回までです');
+    if (count >= MAX_DIAGNOSIS_ATTEMPTS) {
+      throw new LimitExceededError(`診断は最大${MAX_DIAGNOSIS_ATTEMPTS}回までです`);
     }
 
     const newAttemptRef = docRef.collection('attempts').doc();

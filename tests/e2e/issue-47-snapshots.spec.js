@@ -76,25 +76,26 @@ const states = [
     },
     waitForUi: async (page) => {
       await page.getByTestId('badge-saikaku').waitFor({ state: 'visible' });
-      await page.getByText('診断済み (1/2)').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (1/3)').waitFor({ state: 'visible' });
       await page.getByTestId('history-link-saikaku').waitFor({ state: 'visible' });
     },
   },
   {
-    name: 'state-count2',
+    name: 'state-count3',
     seed: async (uid) => {
       await seedUser(uid, 'saikaku', {
-        parent: saikakuParent(2),
+        parent: saikakuParent(3),
         attempts: {
           'attempt-1': saikakuAttempt(),
           'attempt-2': saikakuAttempt(),
+          'attempt-3': saikakuAttempt(),
         },
       });
     },
     waitForUi: async (page) => {
       await page.getByTestId('badge-saikaku').waitFor({ state: 'visible' });
-      await page.getByText('診断済み (2/2)').waitFor({ state: 'visible' });
-      await page.getByText('診断は最大2回まで実施済み').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (3/3)').waitFor({ state: 'visible' });
+      await page.getByText('診断は最大3回まで実施済み').waitFor({ state: 'visible' });
     },
   },
   {
@@ -113,7 +114,7 @@ const states = [
     },
     waitForUi: async (page) => {
       await page.getByTestId('badge-saikaku').waitFor({ state: 'visible' });
-      await page.getByText('診断済み (1/2)').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (1/3)').waitFor({ state: 'visible' });
       await page.getByTestId('history-link-saikaku').waitFor({ state: 'visible' });
       await page.getByText('処理中…').waitFor({ state: 'visible' });
     },
@@ -128,25 +129,26 @@ const states = [
     },
     waitForUi: async (page) => {
       await page.getByTestId('badge-uaam').waitFor({ state: 'visible' });
-      await page.getByText('診断済み (1/2)').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (1/3)').waitFor({ state: 'visible' });
       await page.getByTestId('history-link-uaam').waitFor({ state: 'visible' });
     },
   },
   {
-    name: 'state-uaam-count2',
+    name: 'state-uaam-count3',
     seed: async (uid) => {
       await seedUser(uid, 'uaam', {
-        parent: uaamParent(2),
+        parent: uaamParent(3),
         attempts: {
           'attempt-1': uaamAttempt(),
           'attempt-2': uaamAttempt('探究を実装する人'),
+          'attempt-3': uaamAttempt('探究を実装する人'),
         },
       });
     },
     waitForUi: async (page) => {
       await page.getByTestId('badge-uaam').waitFor({ state: 'visible' });
-      await page.getByText('診断済み (2/2)').waitFor({ state: 'visible' });
-      await page.getByText('診断は最大2回まで実施済み').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (3/3)').waitFor({ state: 'visible' });
+      await page.getByText('診断は最大3回まで実施済み').waitFor({ state: 'visible' });
     },
   },
   {
@@ -165,7 +167,7 @@ const states = [
     },
     waitForUi: async (page) => {
       await page.getByTestId('badge-uaam').waitFor({ state: 'visible' });
-      await page.getByText('診断済み (1/2)').waitFor({ state: 'visible' });
+      await page.getByText('診断済み (1/3)').waitFor({ state: 'visible' });
       await page.getByTestId('history-link-uaam').waitFor({ state: 'visible' });
       await page.getByText('処理中…').waitFor({ state: 'visible' });
     },

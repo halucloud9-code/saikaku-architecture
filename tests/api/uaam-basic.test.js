@@ -18,18 +18,19 @@ describe('API /api/uaam basic reservation coverage', () => {
     resetMockCallCount();
   });
 
-  it('enforces the two-attempt limit', async () => {
+  it('enforces the three-attempt limit', async () => {
     const uid = 'u-uaam-basic';
     await clearUserState('uaam_results', uid);
 
     expect((await uaamRequest(uid, minimalUaamBody())).status).toBe(200);
     expect((await uaamRequest(uid, minimalUaamBody())).status).toBe(200);
-    const third = await uaamRequest(uid, minimalUaamBody());
+    expect((await uaamRequest(uid, minimalUaamBody())).status).toBe(200);
+    const fourth = await uaamRequest(uid, minimalUaamBody());
 
-    expect(third.status).toBe(429);
-    expect(third.body.code).toBe('LIMIT_EXCEEDED');
-    expect((await getParent('uaam_results', uid)).attemptCount).toBe(2);
-    expect(getMockCallCount('uaam')).toBe(2);
+    expect(fourth.status).toBe(429);
+    expect(fourth.body.code).toBe('LIMIT_EXCEEDED');
+    expect((await getParent('uaam_results', uid)).attemptCount).toBe(3);
+    expect(getMockCallCount('uaam')).toBe(3);
   });
 
   it('handles concurrent requests with one commit and one conflict', async () => {
@@ -70,9 +71,10 @@ describe('API /api/uaam basic reservation coverage', () => {
   it('rejects over-limit uaam requests before mock LLM calls', async () => {
     const uid = 'u-uaam-limit';
     await clearUserState('uaam_results', uid);
-    await seedParent('uaam_results', uid, { attemptCount: 2, pendingAttemptId: null });
+    await seedParent('uaam_results', uid, { attemptCount: 3, pendingAttemptId: null });
     await seedAttempt('uaam_results', uid, 'seed-1', { status: 'committed', createdAt: Timestamp.now() });
     await seedAttempt('uaam_results', uid, 'seed-2', { status: 'committed', createdAt: Timestamp.now() });
+    await seedAttempt('uaam_results', uid, 'seed-3', { status: 'committed', createdAt: Timestamp.now() });
     resetMockCallCount();
 
     const responses = await Promise.all([uaamRequest(uid), uaamRequest(uid)]);

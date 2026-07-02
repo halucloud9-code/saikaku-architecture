@@ -16,7 +16,7 @@ describe('API /api/analyze basic reservation flow', () => {
     resetMockCallCount();
   });
 
-  it('commits the first two attempts and rejects the third before LLM call', async () => {
+  it('commits the first three attempts and rejects the fourth before LLM call', async () => {
     const first = await analyzeRequest(uid);
     expect(first.status).toBe(200);
     expect(first.body.kakuchiiki).toBeTruthy();
@@ -31,8 +31,14 @@ describe('API /api/analyze basic reservation flow', () => {
     expect(getMockCallCount('saikaku')).toBe(2);
 
     const third = await analyzeRequest(uid);
-    expect(third.status).toBe(429);
-    expect(third.body.code).toBe('LIMIT_EXCEEDED');
-    expect(getMockCallCount('saikaku')).toBe(2);
+    expect(third.status).toBe(200);
+    expect((await getParent('results', uid)).attemptCount).toBe(3);
+    expect(await listAttempts('results', uid)).toHaveLength(3);
+    expect(getMockCallCount('saikaku')).toBe(3);
+
+    const fourth = await analyzeRequest(uid);
+    expect(fourth.status).toBe(429);
+    expect(fourth.body.code).toBe('LIMIT_EXCEEDED');
+    expect(getMockCallCount('saikaku')).toBe(3);
   });
 });

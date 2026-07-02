@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { signOutUser } from '../firebase';
 import useDiagnosisStatus from '../hooks/useDiagnosisStatus';
+import { MAX_DIAGNOSIS_ATTEMPTS } from '../../shared/attemptLogic.js';
 
 export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectUaam, onSelectHistory, onAdmin, onLogout }) {
   const [hoverSaikaku, setHoverSaikaku] = useState(false);
@@ -25,7 +26,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
       alert('処理中の診断があります。完了をお待ちいただくか、長時間続く場合はサポートまでお問い合わせください。');
       return;
     }
-    alert('診断は最大2回まで実施済みです。履歴を確認する場合は「履歴を見る」からどうぞ。');
+    alert(`診断は最大${MAX_DIAGNOSIS_ATTEMPTS}回まで実施済みです。履歴を確認する場合は「履歴を見る」からどうぞ。`);
   };
 
   const handleSaikakuClick = () => {
@@ -70,7 +71,7 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
         zIndex: 2,
         pointerEvents: 'none',
       }}>
-        診断済み ({count}/2)
+        診断済み ({count}/{MAX_DIAGNOSIS_ATTEMPTS})
       </div>
     );
   };
@@ -116,9 +117,9 @@ export default function SelectScreen({ user, isAdmin, onSelectSaikaku, onSelectU
   };
 
   const renderHistoryArea = (count, hasPending) => {
-    const hasVisibleMeta = status !== null && (hasPending || count >= 2);
+    const hasVisibleMeta = status !== null && (hasPending || count >= MAX_DIAGNOSIS_ATTEMPTS);
     if (!hasVisibleMeta) return null;
-    const metaText = hasPending ? '処理中…' : '診断は最大2回まで実施済み';
+    const metaText = hasPending ? '処理中…' : `診断は最大${MAX_DIAGNOSIS_ATTEMPTS}回まで実施済み`;
     return (
       <div style={{
         display: 'flex',

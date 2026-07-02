@@ -107,7 +107,7 @@ describe('API /api/me/history', () => {
       attemptCount: 2,
       hasPending: false,
       pendingAttemptId: null,
-      isStartBlocked: true,
+      isStartBlocked: false,
     });
   });
 
@@ -161,7 +161,7 @@ describe('API /api/me/history', () => {
       attemptCount: 2,
       hasPending: false,
       pendingAttemptId: null,
-      isStartBlocked: true,
+      isStartBlocked: false,
     });
   });
 

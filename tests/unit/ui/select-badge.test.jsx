@@ -24,7 +24,7 @@ function statusOf({ committedCount = 0, hasPending = false, hasResult = false } 
     hasPending,
     pendingAttemptId: hasPending ? 'pending-1' : null,
     hasResult,
-    isStartBlocked: hasPending || committedCount >= 2,
+    isStartBlocked: hasPending || committedCount >= 3,
   };
 }
 
@@ -62,7 +62,7 @@ describe('SelectScreen badge', () => {
     expect(screen.queryByText(/診断済み/)).toBeNull();
   });
 
-  it('shows 1/2 for saikaku when attemptCount=1', () => {
+  it('shows 1/3 for saikaku when attemptCount=1', () => {
     useDiagnosisStatus.mockReturnValue(hookValue({
       saikaku: statusOf({ committedCount: 1, hasResult: true }),
       uaam: statusOf(),
@@ -70,20 +70,20 @@ describe('SelectScreen badge', () => {
 
     renderSelect();
 
-    expect(screen.getByTestId('badge-saikaku')).toHaveTextContent('診断済み (1/2)');
+    expect(screen.getByTestId('badge-saikaku')).toHaveTextContent('診断済み (1/3)');
     expect(screen.getByTestId('history-link-saikaku')).toHaveTextContent('履歴を見る (1)');
   });
 
-  it('shows 2/2 and the limit notice for saikaku', () => {
+  it('shows 3/3 and the limit notice for saikaku', () => {
     useDiagnosisStatus.mockReturnValue(hookValue({
-      saikaku: statusOf({ committedCount: 2, hasResult: true }),
+      saikaku: statusOf({ committedCount: 3, hasResult: true }),
       uaam: statusOf(),
     }));
 
     renderSelect();
 
-    expect(screen.getByTestId('badge-saikaku')).toHaveTextContent('診断済み (2/2)');
-    expect(screen.getByText('診断は最大2回まで実施済み')).toBeInTheDocument();
+    expect(screen.getByTestId('badge-saikaku')).toHaveTextContent('診断済み (3/3)');
+    expect(screen.getByText('診断は最大3回まで実施済み')).toBeInTheDocument();
   });
 
   it('shows the hook-normalized legacy fallback count', () => {
@@ -94,7 +94,7 @@ describe('SelectScreen badge', () => {
 
     renderSelect();
 
-    expect(screen.getByTestId('badge-saikaku')).toHaveTextContent('(1/2)');
+    expect(screen.getByTestId('badge-saikaku')).toHaveTextContent('(1/3)');
   });
 
   it('shows uaam badge independently from saikaku', () => {
@@ -106,7 +106,7 @@ describe('SelectScreen badge', () => {
     renderSelect();
 
     expect(screen.queryByTestId('badge-saikaku')).toBeNull();
-    expect(screen.getByTestId('badge-uaam')).toHaveTextContent('診断済み (1/2)');
+    expect(screen.getByTestId('badge-uaam')).toHaveTextContent('診断済み (1/3)');
   });
 
   it('shows history area and pending indicator for pending-only state', () => {

@@ -9,14 +9,15 @@ import {
   seedParent,
 } from './_helpers.js';
 
-describe('API /api/analyze concurrency from attemptCount=2', () => {
-  const uid = 'u-conc-2';
+describe('API /api/analyze concurrency from attemptCount=3', () => {
+  const uid = 'u-conc-3';
 
   beforeEach(async () => {
     await clearUserState('results', uid);
-    await seedParent('results', uid, { attemptCount: 2, pendingAttemptId: null, createdAt: Timestamp.now() });
+    await seedParent('results', uid, { attemptCount: 3, pendingAttemptId: null, createdAt: Timestamp.now() });
     await seedAttempt('results', uid, 'seed-1', { status: 'committed', createdAt: Timestamp.now() });
     await seedAttempt('results', uid, 'seed-2', { status: 'committed', createdAt: Timestamp.now() });
+    await seedAttempt('results', uid, 'seed-3', { status: 'committed', createdAt: Timestamp.now() });
     resetMockCallCount();
   });
 

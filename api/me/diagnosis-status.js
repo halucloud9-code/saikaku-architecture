@@ -1,7 +1,7 @@
 import { db } from '../lib/firebaseAdmin.js';
 import { getKindConfig, hasParentResult } from '../lib/legacy.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
-import { summarizeFromParent } from '../../shared/attemptLogic.js';
+import { MAX_DIAGNOSIS_ATTEMPTS, summarizeFromParent } from '../../shared/attemptLogic.js';
 
 const KINDS = ['saikaku', 'uaam'];
 
@@ -49,7 +49,7 @@ async function loadKindStatus(kind, uid) {
     hasPending,
     pendingAttemptId,
     hasResult,
-    isStartBlocked: hasPending || committedCount >= 2,
+    isStartBlocked: hasPending || committedCount >= MAX_DIAGNOSIS_ATTEMPTS,
   };
 }
 

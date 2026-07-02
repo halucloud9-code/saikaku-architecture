@@ -26,9 +26,16 @@ describe('summarizeFromParent', () => {
     });
   });
 
-  it('blocks start when two committed attempts exist', () => {
+  it('does not block start when only two committed attempts exist', () => {
     expect(summarizeFromParent({ attemptCount: 2, pendingAttemptId: null })).toMatchObject({
       committedCount: 2,
+      isStartBlocked: false,
+    });
+  });
+
+  it('blocks start when three committed attempts exist', () => {
+    expect(summarizeFromParent({ attemptCount: 3, pendingAttemptId: null })).toMatchObject({
+      committedCount: 3,
       isStartBlocked: true,
     });
   });
@@ -70,11 +77,12 @@ describe('summarizeFromAttemptsAndParent', () => {
       [
         { id: 'attempt-1', status: 'committed' },
         { id: 'attempt-2', status: 'committed' },
+        { id: 'attempt-3', status: 'committed' },
       ],
       { attemptCount: 0, pendingAttemptId: null },
     )).toMatchObject({
-      committedCount: 2,
-      attemptCount: 2,
+      committedCount: 3,
+      attemptCount: 3,
       hasPending: false,
       pendingAttemptId: null,
       isStartBlocked: true,

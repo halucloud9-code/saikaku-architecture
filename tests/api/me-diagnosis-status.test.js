@@ -42,43 +42,45 @@ describe('API /api/me/diagnosis-status', () => {
     });
   });
 
-  it('returns attemptCount 2 after seeding parent counts and committed attempts independently', async () => {
-    const uid = 'u-me-status-two';
+  it('returns attemptCount 3 after seeding parent counts and committed attempts independently', async () => {
+    const uid = 'u-me-status-three';
     await clearUserState('results', uid);
     await clearUserState('uaam_results', uid);
     const createdAt = Timestamp.fromDate(new Date('2026-05-01T00:00:00.000Z'));
 
     await seedParent('results', uid, {
-      attemptCount: 2,
+      attemptCount: 3,
       result: { kakuchiiki: '問いに火を灯す人' },
       createdAt,
     });
     await seedAttempt('results', uid, 'saikaku-1', { status: 'committed', createdAt });
     await seedAttempt('results', uid, 'saikaku-2', { status: 'committed', createdAt });
+    await seedAttempt('results', uid, 'saikaku-3', { status: 'committed', createdAt });
 
     await seedParent('uaam_results', uid, {
-      attemptCount: 2,
+      attemptCount: 3,
       scores: { mindset: { total: 60 } },
       analysis: { type_name: '実装する案内人' },
       createdAt,
     });
     await seedAttempt('uaam_results', uid, 'uaam-1', { status: 'committed', createdAt });
     await seedAttempt('uaam_results', uid, 'uaam-2', { status: 'committed', createdAt });
+    await seedAttempt('uaam_results', uid, 'uaam-3', { status: 'committed', createdAt });
 
     const response = await api.get('/api/me/diagnosis-status').set('x-test-uid', uid);
 
     expect(response.status).toBe(200);
     expect(response.body.saikaku).toMatchObject({
-      committedCount: 2,
-      attemptCount: 2,
+      committedCount: 3,
+      attemptCount: 3,
       hasPending: false,
       pendingAttemptId: null,
       hasResult: true,
       isStartBlocked: true,
     });
     expect(response.body.uaam).toMatchObject({
-      committedCount: 2,
-      attemptCount: 2,
+      committedCount: 3,
+      attemptCount: 3,
       hasPending: false,
       pendingAttemptId: null,
       hasResult: true,

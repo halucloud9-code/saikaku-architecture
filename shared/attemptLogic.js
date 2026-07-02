@@ -24,6 +24,8 @@ function timestampToMillis(value) {
 const ATTEMPT_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const RESERVED_ATTEMPT_ID_RE = /^__.*__$/;
 
+export const MAX_DIAGNOSIS_ATTEMPTS = 3;
+
 export function isValidAttemptId(value) {
   return typeof value === 'string'
     && ATTEMPT_ID_RE.test(value)
@@ -118,7 +120,7 @@ export function summarizeFromParent(parentData) {
   const rawCommitted = (data.attemptCount ?? 0) - (hasPending ? 1 : 0);
   const legacyFloor = hasResult ? 1 : 0;
   const committedCount = Math.max(rawCommitted, legacyFloor);
-  const isStartBlocked = hasPending || committedCount >= 2;
+  const isStartBlocked = hasPending || committedCount >= MAX_DIAGNOSIS_ATTEMPTS;
 
   return {
     committedCount,
@@ -150,7 +152,7 @@ export function summarizeFromAttemptsAndParent(attemptDocs, parentData) {
     hasPending,
     pendingAttemptId: hasPending ? pendingAttemptId : null,
     hasResult,
-    isStartBlocked: hasPending || committedCount >= 2,
+    isStartBlocked: hasPending || committedCount >= MAX_DIAGNOSIS_ATTEMPTS,
   };
 }
 

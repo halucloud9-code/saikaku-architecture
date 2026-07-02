@@ -14,7 +14,7 @@ test('modern one-attempt user is not double counted and can start a second diagn
   });
 
   await loginAs(page, email, password);
-  await expect(page.getByTestId('badge-saikaku')).toContainText('診断済み (1/2)', { timeout: 15000 });
+  await expect(page.getByTestId('badge-saikaku')).toContainText('診断済み (1/3)', { timeout: 15000 });
   await expect(page.getByTestId('history-link-saikaku')).toContainText('履歴を見る (1)');
 
   await page.getByTestId('card-saikaku-overlay').click();
