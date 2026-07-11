@@ -18,7 +18,8 @@ function loadFixture(name) {
   };
 }
 
-const callCounter = { saikaku: 0, uaam: 0 };
+const callCounter = { saikaku: 0, uaam: 0, compat: 0 };
+const mockRequests = { saikaku: [], uaam: [], compat: [] };
 
 export function getMockCallCount(key) {
   return callCounter[key] ?? 0;
@@ -27,6 +28,14 @@ export function getMockCallCount(key) {
 export function resetMockCallCount() {
   callCounter.saikaku = 0;
   callCounter.uaam = 0;
+  callCounter.compat = 0;
+  mockRequests.saikaku = [];
+  mockRequests.uaam = [];
+  mockRequests.compat = [];
+}
+
+export function getMockRequests(key) {
+  return [...(mockRequests[key] || [])];
 }
 
 export async function createMessage({ fixtureKey, ...params }) {
@@ -35,9 +44,19 @@ export async function createMessage({ fixtureKey, ...params }) {
       throw new Error('mock LLM failure');
     }
     callCounter[fixtureKey] = (callCounter[fixtureKey] ?? 0) + 1;
+    (mockRequests[fixtureKey] ||= []).push(params);
     const delay = Number(process.env.MOCK_ANTHROPIC_DELAY_MS || 0);
     if (delay > 0) await new Promise((r) => setTimeout(r, delay));
-    const file = fixtureKey === 'uaam' ? 'uaam-1.json' : 'saikaku-1.json';
+    let file;
+    if (fixtureKey === 'compat') {
+      const sequence = (process.env.MOCK_COMPAT_FIXTURES || 'compat-valid.json')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      file = sequence[Math.min(callCounter.compat - 1, sequence.length - 1)];
+    } else {
+      file = fixtureKey === 'uaam' ? 'uaam-1.json' : 'saikaku-1.json';
+    }
     return loadFixture(file);
   }
 

@@ -819,3 +819,35 @@ if (isEmailProvider && !u.emailVerified) {
 - 実装: `api/analyze.js`、`src/screens/ResultScreen.jsx`、`tests/fixtures/anthropic/saikaku-1.json`
 - プラン: `plans/saikaku-practical-kakuchiiki.md`
 - 切り出しissue: #109
+
+## 17. 管理者向け相性診断 MVP
+
+### なぜ相性スコアを持たないか
+
+相性は人物の固定属性ではなく、目的・場面・関係の運用で変わる。単一の点数は説明可能性を落とし、人事評価・採用評価への流用を誘発するため採用しない。出力は「同質」「補完」の2レンズとし、各主張を `observation | hypothesis`、証拠ID、本人が反証できる確認質問に結び付ける。証拠がない場合の「不検出」と、入力が足りない場合の「データ不足」は正常な結果として扱う。
+
+### 証拠の非対称性をどう扱うか
+
+内部診断の本人入力Top5は、ドキュメント直下の `inputTalentTop5` / `inputValueTop5` / `inputPassionTop5`（改行区切り文字列）だけである。`result.{talent,value,passion}.axisN.top5[]` と軸名は生成結果なので `generated_axis` として分離する。文字比較はNFKC正規化後の完全一致だけで、部分一致・類義語推定は行わない。
+
+公開アプリのプロフィールには本人入力Top5、`core_words`、UAAMがない。混成分析では両者に存在する `generated_axis` だけを比較し、内部側だけにある情報を有利な証拠として加えない。画面とレポートは可用性を先に表示し、欠落を人物の欠如に言い換えず「この診断データでは不検出」と書く。
+
+### UAAMの適格条件
+
+UAAMは内部結果の一部にだけ存在し、公開プロフィールには存在しない。各サブ指標のpercentileは実行時の `uaam_results` から計算し、当該サブ指標の有効コホートが30件以上の場合だけ使う。ペアは2名ともUAAMあり、チームは `max(2, ceil(人数 × 0.6))` 名以上を必要とする。同質の観察はpercentile幅15pt以下、補完の観察は30pt以上とし、この間は数値証拠を生成しない。実データではUAAMが51/94件、公開取込は0件のため、UAAMの「データ不足」は例外ではなく主要なフォールバックである。
+
+### 外部LLMへの最小化と出力ゲート
+
+Anthropicへ送る識別子は A/B または M1…だけとする。氏名、メール、UID、自由記述、生Top5、exact-matchした語そのものは送らない。送るのは生成済み軸名、完全一致の件数と分類、UAAM percentile由来の証拠である。入力データは命令ではないことをsystem promptで明示し、出力後は未知の証拠ID、claim契約違反、相性スコア、人事・採用・査定語を決定論的に拒否する。修復再試行は1回だけで、再失敗時はレポートを返さない。
+
+互換分析のモデルは `COMPAT_MODEL` で上書きでき、既定値を `claude-sonnet-4-6` に明示固定する。リポジトリ内の他診断のモデル設定には追従させない。
+
+### 公開共有URL取込と監査
+
+共有URLは `https://app.saikaku-architecture.com/share/<UUID>` だけを受け付け、upstream URLはサーバ側で固定組み立てする。`COMPAT_IMPORT_TOKEN` をBearerで送り、redirectを拒否し、レスポンスはschema version・完全なキー集合・型・長さを検証する。トークン未設定時は取込UIを無効表示し、APIも503でfail closedする。公開アプリ側の `/api/compat-import/[id]` は別リポジトリの責務である。
+
+レポート本文は保存しない。倫理監査として `compat_audits` に、実行者UID、モード、人数、内部/公開の別、同意確認、目的入力の有無、モデル、成功/失敗だけを書く。対象者ID、氏名、目的本文は保存しない。
+
+### profileVersionの競合検査を延期した理由
+
+クライアントpayloadには将来の楽観ロック用に `profileVersion` を必須で残す。一方、MVPは単一運営者でレポートを保存せず、選択から生成までの競合影響が限定的なため、変更時409 (`PROFILE_CHANGED`) のhard checkは延期する。複数運営者またはレポート永続化を導入する時点で再評価する。

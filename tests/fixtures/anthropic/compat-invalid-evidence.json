@@ -1,0 +1,27 @@
+{
+  "dataSufficiency": {
+    "summary": "利用できる診断データの範囲内で分析します。",
+    "limitations": []
+  },
+  "lenses": [
+    {
+      "id": "similarity",
+      "status": "detected",
+      "summary": "同質性があります。",
+      "claims": [
+        {
+          "text": "根拠のない主張です。",
+          "kind": "observation",
+          "evidenceIds": ["E-DOES-NOT-EXIST"],
+          "verificationQuestion": "具体的な場面はありますか？"
+        }
+      ]
+    },
+    {
+      "id": "complementarity",
+      "status": "not_detected",
+      "summary": "この診断データでは不検出です。",
+      "claims": []
+    }
+  ]
+}

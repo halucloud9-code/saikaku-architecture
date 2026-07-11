@@ -14,6 +14,9 @@
     },
     "api/admin/restore-scores.js": {
       "maxDuration": 30
+    },
+    "api/admin/compat-analyze.js": {
+      "maxDuration": 120
     }
   },
   "rewrites": [

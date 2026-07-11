@@ -24,6 +24,7 @@ import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
 import LoadingOverlay from './components/LoadingOverlay';
 import NavigationGuardDialog from './components/NavigationGuardDialog';
 import RequireAdmin from './components/RequireAdmin';
+import CompatScreen from './compat/CompatScreen';
 import { normalizeScores } from './utils/normalize';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
@@ -663,6 +664,19 @@ function AdminRoute() {
   );
 }
 
+function CompatRoute() {
+  const { user, handleLogout } = useAppContext();
+  const navigate = useNavigate();
+
+  return (
+    <CompatScreen
+      user={user}
+      onBack={() => navigate('/admin')}
+      onLogout={handleLogout}
+    />
+  );
+}
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -682,6 +696,7 @@ const router = createBrowserRouter([
         element: <RequireAdmin />,
         children: [
           { index: true, element: <AdminRoute /> },
+          { path: 'compat', element: <CompatRoute /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },
