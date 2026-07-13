@@ -1,0 +1,219 @@
+{
+ "id": "arch-03",
+ "judgeModel": "claude-opus-4-8",
+ "runs": [
+  {
+   "run": 1,
+   "elapsedMs": 14188,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "kakuchiiki本体「誠実に問いを分解して、社会の土台になるシステムを設計し続ける人」は誠実(価値)・分解/設計(才能)・システム設計(情熱)の複数要素を統合し、深化Q1「世界が少し楽になる設計」Q3「社会の土台を支える」に接地。item4の因果説明も「誠実に問いを分解して」で価値観が才能の使い方を方向づける関係が読める。options3案はいずれも本体と語彙を大きく共有せず上位軸に対応しておりitem6該当なし。item2捏造も入力範囲内に収まり該当なし。",
+   "invalid_deductions": [],
+   "doubtful_deductions": [
+    {
+     "item": "item3",
+     "anchor": "軸説明がTOP5語のうち1語だけに依存し、他のTOP5語または深化回答との接続が出力に示されていない軸: -3/件",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "コーヒー・登山・ボードゲームに宿る、思考と感覚を研ぎ澄ます時間",
+     "quote_input": "コーヒー\n登山\nボードゲーム",
+     "note": "passion axis3は3語を並列するが他TOP5・深化回答との接続なし。ただし1語依存ではなく3語列挙のため条件に完全一致せずdoubtful"
+    },
+    {
+     "item": "item8_llm",
+     "anchor": "軸名が一般辞書にない語・独自連結の複合語・比喩のみで通常の人物特性として読めない語: -3/件",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "\"name\": \"論理誠実\"",
+     "quote_input": "（入力に根拠なし）",
+     "note": "「論理誠実」は独自連結の複合語だが人物特性として概ね読めるためdoubtful"
+    },
+    {
+     "item": "item8_llm",
+     "anchor": "軸名が一般辞書にない語・独自連結の複合語・比喩のみで通常の人物特性として読めない語: -3/件",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "\"name\": \"自律探究\"",
+     "quote_input": "（入力に根拠なし）",
+     "note": "「自律探究」も独自複合語だが意味は読み取れるためdoubtful"
+    }
+   ]
+  },
+  {
+   "run": 2,
+   "elapsedMs": 19245,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "kakuchiikiは入力の複数語（誠実・分解・システム設計）とQ3の土台を統合し因果的に接続しており、item1/item4の置換・並列列挙アンカーには該当しない。core_wordsとの対応も価値=誠実・才能=仕組みを設計する・情熱=システム設計と主軸に整合。optionsは本体と名詞・動詞の共有が7割未満で意味差があり、item6_llm非該当。insightは入力具体語（設計図・世界が少し楽・10年後・現場）を参照しており一般助言のみの段落なし。全体に確信できる減点は検出されず、上記は全て疑義止まりでconfirmedなし。",
+   "invalid_deductions": [],
+   "doubtful_deductions": [
+    {
+     "item": "item2",
+     "anchor": "入力から引用できない具体的属性・経験の断定",
+     "points": 5,
+     "status": "doubtful",
+     "quote_output": "技術顧問・OSS支援・技術書の印税という形で、眠っていても仕組みが稼ぐ状態が生まれる。",
+     "quote_input": "（入力に根拠なし）",
+     "note": "報酬の具体形は推測範疇とも読めるため疑義。断定的だが「生まれる」という将来推測の体裁でもあり、doubtful止まり。"
+    },
+    {
+     "item": "item3",
+     "anchor": "軸説明がTOP5語のうち1語だけに依存し他との接続が示されていない軸",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "答えが見つかるまで手を止めない、粘り強く調べ続ける力",
+     "quote_input": "粘り強く調べる",
+     "note": "探索力軸は「粘り強く調べる」1語中心だが、items内に集中するも含み深化Q2の探究姿勢とも緩く接続しうるため疑義。"
+    },
+    {
+     "item": "item5",
+     "anchor": "kakuchiiki・主要見出しの中心語が具体場面を伴わない抽象語のみ",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "社会の土台になるシステムを設計し続ける人",
+     "quote_input": "社会の土台を支えられている",
+     "note": "「土台」は抽象寄りだがQ3の入力語に接地しており、「システムを設計」という具体動作を伴うため中心語が抽象のみとは言えず疑義。"
+    },
+    {
+     "item": "item8_llm",
+     "anchor": "軸名が一般辞書にない独自連結の複合語",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "\"name\": \"論理誠実\"",
+     "quote_input": "論理／誠実",
+     "note": "「論理誠実」は独自連結だが構成語が明快で人物特性として読めるため疑義。"
+    }
+   ]
+  },
+  {
+   "run": 3,
+   "elapsedMs": 17775,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "kakuchiikiは掛け算演算・横断統合ともに満たしており、item4の因果関係（誠実→問いを分解→社会の土台になるシステム設計）が読み取れる。core_wordsと主軸（talent45%仕組み設計・passion50%システム設計・value40%論理誠実）も整合。捏造レベルの断定はrewardのみ疑義。全体的に入力根拠（深化Q1「こう作れば世界が少し楽になる」設計、Q3「社会の土台」）を的確に参照しており confirmed 減点は無し。",
+   "invalid_deductions": [],
+   "doubtful_deductions": [
+    {
+     "item": "item1",
+     "anchor": "軸名がAI生成の機能語であるべきだが入力語の置換のみ",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "\"name\": \"システム設計\"",
+     "quote_input": "■情熱TOP5:\nシステム設計",
+     "note": "passion_axis1名がitems内の入力語「システム設計」と同一。ただしdescriptionでプログラミング・自動化との接続説明があるため疑義。"
+    },
+    {
+     "item": "item2",
+     "anchor": "入力から引用できない具体的属性・報酬形態の断定",
+     "points": 5,
+     "status": "doubtful",
+     "quote_output": "技術顧問・OSS支援・技術書の印税という形で、眠っていても仕組みが稼ぐ状態が生まれる。",
+     "quote_input": "（入力に根拠なし）",
+     "note": "reward欄は診断の予測範囲としても具体職業「技術顧問」等を断定気味だが、入力語オープンソース・技術書からの一般的敷衍とも読めるため疑義。"
+    },
+    {
+     "item": "item5",
+     "anchor": "中心語が抽象語のみ（土台・世界）",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "社会の土台になるシステムを設計し続ける人",
+     "quote_input": "地味だけど社会の土台を支えられている。",
+     "note": "「社会の土台」は抽象語だが「システムを設計」という具体行動を伴うため減点対象外の可能性が高い。"
+    },
+    {
+     "item": "item8_llm",
+     "anchor": "軸名が独自連結の複合語",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "\"name\": \"論理誠実\"",
+     "quote_input": "■価値観TOP5:\n論理\n誠実",
+     "note": "「論理誠実」は入力2語の連結だがenglish「Logical Integrity」で通常特性として読めるため疑義。"
+    },
+    {
+     "item": "item8_llm",
+     "anchor": "軸名が独自連結の複合語",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "\"name\": \"余暇の深み\"",
+     "quote_input": "■情熱その他:\nコーヒー\n登山\nボードゲーム",
+     "note": "「余暇の深み」はやや独自だが人物特性として読めなくはないため疑義。"
+    }
+   ]
+  }
+ ]
+}

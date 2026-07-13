@@ -1,0 +1,28 @@
+{
+ "id": "arch-04",
+ "item2_machine": {
+  "deductions": []
+ },
+ "item3_machine": {
+  "deductions": []
+ },
+ "item6_machine": {
+  "deductions": []
+ },
+ "item7": {
+  "deductions": [],
+  "score": 10
+ },
+ "item8_machine": {
+  "deductions": [
+   {
+    "anchor": "軸名2-6字逸脱",
+    "points": 2,
+    "detail": "passion: 担い手を育てる"
+   }
+  ]
+ },
+ "item10_machine": {
+  "deductions": []
+ }
+}

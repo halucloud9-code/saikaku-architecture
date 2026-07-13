@@ -1,0 +1,63 @@
+{
+ "id": "arch-01",
+ "judgeModel": "claude-opus-4-8",
+ "elapsedMs": 13857,
+ "item1": {
+  "deductions": [
+   {
+    "anchor": "軸名・kakuchiikiが入力語の同一語置換のみ",
+    "points": 3,
+    "quote_output": "\"name\": \"継承\"",
+    "quote_input": "■価値観TOP5:...継承",
+    "note": "value axis1名が入力語「継承」の同一語。他の入力語との接続・選定理由が軸単位で示されていない"
+   },
+   {
+    "anchor": "軸名・kakuchiikiが入力語の同一語置換のみ",
+    "points": 3,
+    "quote_output": "\"name\": \"信頼\"",
+    "quote_input": "■価値観TOP5: 信頼",
+    "note": "value axis2名が入力語「信頼」の同一語置換"
+   },
+   {
+    "anchor": "軸名・kakuchiikiが入力語の同一語置換のみ",
+    "points": 3,
+    "quote_output": "\"name\": \"ものづくり\"",
+    "quote_input": "■情熱TOP5: ものづくり",
+    "note": "passion axis1名が入力語「ものづくり」の同一語置換"
+   },
+   {
+    "anchor": "軸名・kakuchiikiが入力語の同一語置換のみ",
+    "points": 3,
+    "quote_output": "\"name\": \"地域経済\"",
+    "quote_input": "■情熱TOP5:...地域経済",
+    "note": "passion axis3名が入力語「地域経済」の同一語置換"
+   }
+  ]
+ },
+ "item2": {
+  "deductions": []
+ },
+ "item3": {
+  "deductions": []
+ },
+ "item4": {
+  "deductions": []
+ },
+ "item5": {
+  "deductions": []
+ },
+ "item9": {
+  "deductions": []
+ },
+ "item8_llm": {
+  "deductions": []
+ },
+ "item6_llm": {
+  "deductions": []
+ },
+ "item10_llm": {
+  "deductions": []
+ },
+ "notes": "item1: value axis1/axis2、passion axis1/axis3 の軸名が入力語の同一語置換で、軸単位での他入力語接続の説明が名称自体には無い。ただしdescriptionでは複数語を接続しているため、置換のみとみなすか迷いあり（descriptionは軸名の根拠として一定機能）。kakuchiiki「親父から受け取った町工場の技術を次の世代へまとめて渡す人」は継承・現場をまとめる・町工場を接続しており置換のみではなく減点せず。item4 kakuchiikiは要素の因果関係（受け取った→渡す）を含み並列列挙のみではないと判断。演算3問も概ね読み取れるため減点せず。",
+ "invalid_deductions": []
+}

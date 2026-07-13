@@ -1,0 +1,118 @@
+{
+ "id": "arch-02",
+ "judgeModel": "claude-opus-4-8",
+ "runs": [
+  {
+   "run": 1,
+   "elapsedMs": 14871,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名（傾聴力・関係構築・育成力・誠実さ・成長志向・公正な愛・子どもの教育・言葉と表現・自然と創造）はいずれも入力語の単純置換ではなく複数items・深化回答を束ねる機能語で、descriptionに接続説明がある。kakuchiikiに固有対象残存なし。減点なし。item2: insightの「10年後の連鎖の起点にいるのはあなただ」等は深化Q3を根拠とした一般的解釈範囲内で捏造断定とまでは言えない。rewardのeconomic/socialは推測トーンで固有属性の断定なし。item3: 各軸descriptionは複数語を統合しており1語依存の軸は見当たらない。item4: kakuchiiki『誠実に子どもの話を聞いて、一人ひとりの成長を支える人』は価値観(誠実)が才能(聞く)の姿勢を方向づけ情熱(成長)へつなぐ因果構造が読め、insightでも制約・具体化・統合が説明されている。矛盾なし。主軸(誠実/子どもの話を聞く/子どもの成長)と対応。item5: 抽象語のみの中心語なし、映像性は入力根拠(個別メモ・読み聞かせ・全国訪問)に基づく。item9: insightは入力具体語句(ちゃんと伝えきれたか・変化に気づき・先生のおかげ)を多数参照し一般助言のみの段落なし。item8_llm: 軸名はいずれも辞書的に読める。item6_llm: options3案は本体と名詞・動詞を共有しつつ変化/連鎖/丁寧など意味差があり上位軸と対応。item10_llm: kakuchiikiは完結文。全項目で確信できる減点は検出されなかった。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  },
+  {
+   "run": 2,
+   "elapsedMs": 13726,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "kakuchiiki『誠実に子どもの話を聞いて、一人ひとりの成長を支える人』は価値観core（誠実）・才能core（子どもの話を聞く）・情熱core（子どもの成長）の3要素に対応し、insightで『誠実さと粘り強さが社会を編む』等の因果も示されるため、item4の並列列挙減点・矛盾減点・主軸非対応減点はいずれも該当しないと判断。軸名（傾聴力・関係構築・育成力・誠実さ・成長志向・公正な愛）はいずれも通常の人物特性として読める語でitem8_llm非該当。optionsは本体と名詞・動詞を共有するが形容詞差分のみとまでは言えず（『変化を受け取る』『連鎖』『積み重なる場』等の意味差あり）item6_llm非該当。深化Q1〜Q3の語句がinsight・whatに接地しており捏造・非接地は確認できずitem2/item5非該当。",
+   "invalid_deductions": [],
+   "doubtful_deductions": [
+    {
+     "item": "item4",
+     "anchor": "演算3問①価値観が才能の使い方をどう制約・方向づけるか",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "誠実に子どもの話を聞いて、一人ひとりの成長を支える人",
+     "quote_input": "誠実／子どもの話を聞く",
+     "note": "kakuchiikiで『誠実に』が『聞く』を修飾し価値観が才能の使い方を方向づける構造は読めるが、制約・方向づけとしての明示は弱い。疑義ありdoubtful"
+    }
+   ]
+  },
+  {
+   "run": 3,
+   "elapsedMs": 13665,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名は「傾聴力」「関係構築」「育成力」等の機能語で、descriptionで複数入力語の接続や動機を説明しており置換のみではない。kakuchiikiに固有対象残存なし。item2: 「教え子が『あの時先生が話を聞いてくれたから』」等は深化Q3・Q1の一般的解釈範囲内で捏造とは言い切れず、断定的属性の新規捏造は確認できないため減点なし。item4: kakuchiiki『誠実に子どもの話を聞いて、一人ひとりの成長を支える人』は価値観(誠実)・才能(聞く)・情熱(成長)の3要素を含み、insightで誠実さと粘り強さが連鎖を生む因果を1文以上で説明しており並列列挙のみとは言えない。演算3問・矛盾・主軸対応いずれもNoとまでは言えない。item5: kakuchiikiは『子どもの話を聞く』という具体行動・対象を伴い抽象語のみではない。item8_llm: 軸名はいずれも一般語として読める。item6_llm: options3案は本体と主要名詞を一部共有するが動詞・視点(変化を受け取る/連鎖/場をつくる)に意味差があり形容詞差分のみとは言い切れず、上位軸と対応している。item10_llm: 完結した文として読める。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  }
+ ]
+}

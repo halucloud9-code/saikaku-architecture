@@ -1,0 +1,50 @@
+{
+ "id": "arch-06",
+ "judgeModel": "claude-opus-4-8",
+ "elapsedMs": 14777,
+ "item1": {
+  "deductions": []
+ },
+ "item2": {
+  "deductions": [
+   {
+    "anchor": "入力から引用できない具体的属性・職業の断定",
+    "points": 5,
+    "quote_output": "信頼関係のあるお客様に、家族の万一に備えたライフプラン見直しの場を定期的に設ける",
+    "quote_input": "（入力に根拠なし）",
+    "note": "「ライフプラン見直し」は保険営業等の具体職務を断定するが、入力の情熱は「営業」のみで業種特定の根拠なし。ただしQ1「お客様の万一に役立てているか」との接続もあり疑義。低リスク側に寄せ最小限で計上。"
+   }
+  ]
+ },
+ "item3": {
+  "deductions": []
+ },
+ "item4": {
+  "deductions": [
+   {
+    "anchor": "演算3問①価値観が才能の使い方をどう制約・方向づけるか",
+    "points": 3,
+    "quote_output": "信頼を積み重ねて人の縁をつなぎ、家族の代まで安心を届ける営業人",
+    "quote_input": "信頼／誠実／貢献",
+    "note": "kakuchiikiは要素を並べるが、価値観（誠実・貢献）が才能（本音を引き出す等）の使い方をどう制約・方向づけるかがkakuchiiki本文では読み取りにくい。insight側では「恐れが聞かせ・通わせる」と因果があるためNoとは断定しづらいが、掛け算演算の中庸として計上。"
+   }
+  ]
+ },
+ "item5": {
+  "deductions": []
+ },
+ "item9": {
+  "deductions": []
+ },
+ "item8_llm": {
+  "deductions": []
+ },
+ "item6_llm": {
+  "deductions": []
+ },
+ "item10_llm": {
+  "deductions": []
+ },
+ "notes": "item2のライフプラン見直しはQ1『お客様の万一に本当に役立てているか』を根拠に一般的解釈内とも読めるため疑義があるが、業種断定の側面を最小限で計上した。item4①はinsightに因果説明があるため減点しない選択もあり得たが、kakuchiiki本体の演算薄さを理由に計上。他アンカー（kakuchiiki抽象語、優先軸対応、options差分、矛盾）はいずれも該当せず。",
+ "invalid_deductions": []
+}

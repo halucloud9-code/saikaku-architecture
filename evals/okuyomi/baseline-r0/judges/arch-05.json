@@ -1,0 +1,34 @@
+{
+ "id": "arch-05",
+ "judgeModel": "claude-opus-4-8",
+ "elapsedMs": 12592,
+ "item1": {
+  "deductions": []
+ },
+ "item2": {
+  "deductions": []
+ },
+ "item3": {
+  "deductions": []
+ },
+ "item4": {
+  "deductions": []
+ },
+ "item5": {
+  "deductions": []
+ },
+ "item9": {
+  "deductions": []
+ },
+ "item8_llm": {
+  "deductions": []
+ },
+ "item6_llm": {
+  "deductions": []
+ },
+ "item10_llm": {
+  "deductions": []
+ },
+ "notes": "item1: 各軸名（世界観構築・作り込む力・巻き込む力・表現の自由・映像表現等）は入力語を含むが、descriptionで他の入力語との接続や動機説明があり、単純置換のみとは言えない。kakuchiikiは複数入力語（名もない人=Q2、感情を汲む、映像で伝える、ドキュメンタリー）を統合し接続説明ありで減点なし。item2: insightの『死ぬこと…届けきれないまま終わること』はQ1に接地、『声を持てなかった人が語り始める』はQ3に接地。products/rewardの具体はいずれも入力語（旅・音楽・写真・埋もれた声）から導かれ捏造断定なし。item4: kakuchiikiは『掘り起こし→届ける』で価値観(表現)・才能(映像で伝える)・情熱(ドキュメンタリー)の3要素に因果的接続あり、演算3問とも読み取れる。矛盾なし。item5: kakuchiiki中心語は『名もない人の感情を映像で掘り起こす』と具体的行動・対象を伴い抽象語のみではない。item6_llm: optionsは本体と語を共有しつつ自由・感性/粘り強く/旅・挑戦と切り口を変え意味差あり、上位軸と対応。item8_llm: 軸名はすべて通常語として読める。",
+ "invalid_deductions": []
+}

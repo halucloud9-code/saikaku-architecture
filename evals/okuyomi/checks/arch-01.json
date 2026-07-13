@@ -1,0 +1,28 @@
+{
+ "id": "arch-01",
+ "item2_machine": {
+  "deductions": []
+ },
+ "item3_machine": {
+  "deductions": []
+ },
+ "item6_machine": {
+  "deductions": [
+   {
+    "anchor": "字数逸脱(20-35)",
+    "points": 3,
+    "detail": "36字: 受け継いだ技術と誇りを次の担い手へつなぎ、ものづくりの現場を守り続ける人"
+   }
+  ]
+ },
+ "item7": {
+  "deductions": [],
+  "score": 10
+ },
+ "item8_machine": {
+  "deductions": []
+ },
+ "item10_machine": {
+  "deductions": []
+ }
+}
