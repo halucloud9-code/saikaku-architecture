@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 const DIR = "evals/okuyomi";
 const MODEL = "claude-sonnet-4-6";
 
-const envLocal = readFileSync(".env.local", "utf8");
+const envLocal = existsSync(".env.local") ? readFileSync(".env.local", "utf8") : "";
 // 注: この repo の .env.local は ANTHROPIC_API_KEY が空値（本番キーは Vercel env のみ）。
 // eval は env 変数で渡す: ANTHROPIC_API_KEY=... node evals/okuyomi/gen-arch.mjs
 const KEY = process.env.ANTHROPIC_API_KEY || (envLocal.match(/^ANTHROPIC_API_KEY\s*=\s*"?([^\s"#]+)/m) || [])[1];

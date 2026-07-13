@@ -4,7 +4,10 @@
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 
 const DIR = "evals/okuyomi";
-const sum = (ds) => (ds ?? []).reduce((a, d) => a + (d.points || 0), 0);
+// 確定性ゲートを report 読み取り時にも適用（judge 書込時のゲートと二重化）
+const DOUBT_RE = /とまでは言えない|疑義|微妙|念のため|迷[いうっ]|borderline|not.?certain/;
+const gate = (ds) => (ds ?? []).filter((d) => !DOUBT_RE.test(d.note ?? "") && d.status !== "doubtful" && d.skip !== true);
+const sum = (ds) => gate(ds ?? []).reduce((a, d) => a + (d.points || 0), 0);
 const clip = (n) => Math.max(0, Math.min(10, n));
 
 const rows = [];

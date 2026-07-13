@@ -52,7 +52,8 @@ for (const file of readdirSync(`${DIR}/outputs`).filter((f) => f.endsWith(".json
 
   const item7 = [];
   for (const [catName, cat] of Object.entries(cats)) {
-    const ps = axesOf(cat).map((a) => a.percentage ?? 0);
+    const ps = axesOf(cat).map((a) => Number(a.percentage));
+    if (ps.some((n) => !Number.isFinite(n))) { item7.push({ anchor: "percentage非数値", points: 3, detail: `${catName}: ${JSON.stringify(axesOf(cat).map((a) => a.percentage))}` }); continue; }
     if (ps.length >= 2) {
       if (Math.max(...ps) - Math.min(...ps) <= 6) item7.push({ anchor: "均等配分(max-min≤6)", points: 4, detail: `${catName}: ${ps.join("/")}` });
       const sum = ps.reduce((a, b) => a + b, 0);
@@ -69,10 +70,10 @@ for (const file of readdirSync(`${DIR}/outputs`).filter((f) => f.endsWith(".json
 
   const item10m = [];
   const missing = [
-    !axesOf(r.talent).length && "talent.axes", !axesOf(r.value).length && "value.axes", !axesOf(r.passion).length && "passion.axes",
+    axesOf(r.talent).length !== 3 && "talent.axes(3軸必須)", axesOf(r.value).length !== 3 && "value.axes(3軸必須)", axesOf(r.passion).length !== 3 && "passion.axes(3軸必須)",
     !kk && "kakuchiiki", !r.insight && "insight",
     !(r.core_words?.talent_core && r.core_words?.value_core && r.core_words?.passion_core) && "core_words",
-    !(Array.isArray(r.what?.products) && r.what.products.length === 5) && "what.products(5個)",
+    !(Array.isArray(r.what?.products) && r.what.products.length === 5 && r.what.products.every((x) => typeof x === "string" && x.trim())) && "what.products(5個・非空)",
     !(r.reward?.economic && r.reward?.social && r.reward?.intrinsic && r.reward?.model) && "reward",
   ].filter(Boolean);
   if (missing.length) item10m.push({ anchor: "必須フィールド欠落", points: 5, detail: missing.join(",") });
