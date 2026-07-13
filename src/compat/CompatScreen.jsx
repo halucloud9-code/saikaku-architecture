@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import './compat.css';
-
-const STATUS_LABELS = {
-  detected: '検出',
-  not_detected: 'この診断データでは不検出',
-  insufficient: 'データ不足',
-};
-
-const CATEGORY_LABELS = { talent: '才能', value: '価値観', passion: '情熱' };
+import CompatReport, { Availability } from './CompatReport';
 
 async function apiFetch(user, path, options = {}) {
   const token = await user.getIdToken();
@@ -24,64 +16,6 @@ async function apiFetch(user, path, options = {}) {
   return data;
 }
 
-function Availability({ availability }) {
-  if (!availability) return null;
-  return (
-    <div className="compat-badges" aria-label="利用可能な診断データ">
-      {Object.entries(availability.categories || {}).map(([category, state]) => (
-        <span className="compat-badge" key={category}>
-          {CATEGORY_LABELS[category]}: {state.userTop5 ? '本人Top5＋' : ''}{state.generatedAxes ? '生成軸' : 'この診断データでは不検出'}
-        </span>
-      ))}
-      <span className={`compat-badge ${availability.uaam ? '' : 'muted'}`}>UAAM: {availability.uaam ? 'あり' : 'データなし'}</span>
-    </div>
-  );
-}
-
-export function CompatReport({ result }) {
-  if (!result) return null;
-  return (
-    <section className="compat-report" aria-label="相性分析結果">
-      <div className="compat-section sufficiency">
-        <p className="compat-kicker">§0 データ充足度</p>
-        <h2>最初に、読める範囲</h2>
-        <p>{result.dataSufficiency.summary}</p>
-        <div className="compat-availability-list">
-          {result.dataSufficiency.memberAvailability?.map((member) => (
-            <div key={member.alias} className="compat-availability-row">
-              <strong>{member.alias}</strong>
-              <Availability availability={member} />
-            </div>
-          ))}
-        </div>
-        {result.dataSufficiency.limitations?.length > 0 && (
-          <ul>{result.dataSufficiency.limitations.map((item) => <li key={item}>{item}</li>)}</ul>
-        )}
-      </div>
-
-      {result.lenses.map((lens) => (
-        <div className="compat-section" key={lens.id}>
-          <p className="compat-kicker">{lens.id === 'similarity' ? '同質レンズ' : '補完レンズ'}</p>
-          <h2>{STATUS_LABELS[lens.status] || lens.status}</h2>
-          <p>{lens.summary}</p>
-          {lens.claims.map((claim, index) => (
-            <article className="compat-claim" key={`${lens.id}-${index}`}>
-              <p className={`compat-claim-kind ${claim.kind}`}>
-                {claim.kind === 'hypothesis' ? '[仮説]' : '[観察]'}
-              </p>
-              <p>{claim.text}</p>
-              <p className="compat-evidence-ids">証拠: {claim.evidenceIds.join(', ')}</p>
-              <p className="compat-question">確認したい問い：{claim.verificationQuestion}</p>
-            </article>
-          ))}
-        </div>
-      ))}
-
-      <footer className="compat-ethics">{result.ethicsNotice}</footer>
-    </section>
-  );
-}
-
 export default function CompatScreen({ user, onBack, onLogout }) {
   const [mode, setMode] = useState('pair');
   const [profiles, setProfiles] = useState([]);
@@ -93,6 +27,12 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [shareConsent, setShareConsent] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [share, setShare] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
 
@@ -122,6 +62,10 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setResult(null);
     setError('');
     setConsent(false);
+    setShareConsent(false);
+    setShare(null);
+    setCopied(false);
+    setShareError('');
   };
 
   const toggleProfile = (profile) => {
@@ -132,6 +76,19 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       return [...current, { source: 'internal', id: profile.id, profileVersion: profile.profileVersion, displayName: profile.displayName, availability: profile.availability }];
     });
     setResult(null);
+    setShareConsent(false);
+    setShare(null);
+    setCopied(false);
+    setShareError('');
+  };
+
+  const removeMember = (member) => {
+    setSelected((current) => current.filter((item) => item !== member));
+    setResult(null);
+    setShareConsent(false);
+    setShare(null);
+    setCopied(false);
+    setShareError('');
   };
 
   const importProfile = async () => {
@@ -148,6 +105,10 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       });
       setShareUrl('');
       setResult(null);
+      setShareConsent(false);
+      setShare(null);
+      setCopied(false);
+      setShareError('');
     } catch (cause) {
       setError(cause.message);
     } finally {
@@ -159,6 +120,10 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setAnalyzing(true);
     setError('');
     setResult(null);
+    setShareConsent(false);
+    setShare(null);
+    setCopied(false);
+    setShareError('');
     try {
       const data = await apiFetch(user, '/api/admin/compat-analyze', {
         method: 'POST',
@@ -174,6 +139,55 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       setError(cause.message);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const issueShare = async () => {
+    setSharing(true);
+    setShareError('');
+    setCopied(false);
+    try {
+      const issued = await apiFetch(user, '/api/admin/compat-share', {
+        method: 'POST',
+        body: JSON.stringify({
+          report: result,
+          mode,
+          goal: mode === 'team' ? goal.trim() : '',
+          memberLabels: selected.map((member) => member.displayName),
+          consentConfirmed: shareConsent,
+        }),
+      });
+      setShare({ ...issued, revoked: false });
+    } catch (cause) {
+      setShareError(cause.message);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const copyShareUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(share.url);
+      setCopied(true);
+    } catch {
+      setShareError('共有URLをコピーできませんでした。URL欄から手動でコピーしてください。');
+    }
+  };
+
+  const revokeShare = async () => {
+    if (!window.confirm('この共有URLを失効させます。元には戻せません。よろしいですか？')) return;
+    setRevoking(true);
+    setShareError('');
+    try {
+      await apiFetch(user, '/api/admin/compat-share', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'revoke', shareId: share.shareId }),
+      });
+      setShare((current) => ({ ...current, revoked: true }));
+    } catch (cause) {
+      setShareError(cause.message);
+    } finally {
+      setRevoking(false);
     }
   };
 
@@ -200,7 +214,14 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         {mode === 'team' && (
           <label className="compat-field">
             <span>チームの目的 <b>必須</b></span>
-            <textarea value={goal} onChange={(event) => setGoal(event.target.value)} maxLength={500} placeholder="例：新規事業の仮説を3か月で検証する" />
+            <textarea value={goal} onChange={(event) => {
+              setGoal(event.target.value);
+              setResult(null);
+              setShareConsent(false);
+              setShare(null);
+              setCopied(false);
+              setShareError('');
+            }} maxLength={500} placeholder="例：新規事業の仮説を3か月で検証する" />
           </label>
         )}
 
@@ -237,7 +258,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
             {selected.map((member, index) => (
               <div className="compat-selected-row" key={member.source === 'internal' ? member.id : member.shareUrl}>
                 <span><b>{mode === 'pair' ? (index === 0 ? 'A' : 'B') : `M${index + 1}`}</b> {member.displayName}</span>
-                <button type="button" onClick={() => setSelected((current) => current.filter((item) => item !== member))}>外す</button>
+                <button type="button" onClick={() => removeMember(member)}>外す</button>
               </div>
             ))}
           </div>
@@ -255,7 +276,38 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       </section>
 
       <CompatReport result={result} />
+
+      {result && (
+        <section className="compat-share-controls" aria-label="分析結果の共有">
+          <p className="compat-kicker">SHARE</p>
+          <h2>対象者へ結果を共有</h2>
+          <p>URLを知る人が閲覧できます。有効期間は発行から30日で、いつでも失効できます。</p>
+          <label className="compat-consent">
+            <input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} disabled={!!share} />
+            <span>本結果の共有について、対象者全員の同意を確認しました</span>
+          </label>
+          {shareError && <p className="compat-error" role="alert">{shareError}</p>}
+          {!share && (
+            <button type="button" className="compat-button primary" onClick={issueShare} disabled={!shareConsent || sharing}>
+              {sharing ? '発行しています…' : '共有URLを発行'}
+            </button>
+          )}
+          {share && (
+            <div className="compat-share-issued">
+              <label className="compat-field">
+                <span>共有URL</span>
+                <input aria-label="発行済み共有URL" readOnly value={share.url} />
+              </label>
+              {!share.revoked ? (
+                <div className="compat-share-actions">
+                  <button type="button" className="compat-button secondary" onClick={copyShareUrl}>{copied ? 'コピーしました' : 'コピー'}</button>
+                  <button type="button" className="compat-button danger" onClick={revokeShare} disabled={revoking}>{revoking ? '失効中…' : '失効させる'}</button>
+                </div>
+              ) : <p className="compat-share-revoked" role="status">この共有URLは失効しました。</p>}
+            </div>
+          )}
+        </section>
+      )}
     </main>
   );
 }
-

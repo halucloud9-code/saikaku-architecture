@@ -15,6 +15,7 @@ const analyzeHandler = await import('./analyze.js');
 const uaamHandler = await import('./uaam.js');
 const integrateHandler = await import('./integrate.js');
 const sendVerificationEmailHandler = await import('./send-verification-email.js');
+const compatShareHandler = await import('./compat-share.js');
 
 let adminHandlers = {};
 let meHandlers = {};
@@ -84,6 +85,11 @@ app.all('/api/integrate', (req, res) => {
 
 app.all('/api/send-verification-email', (req, res) => {
   const handler = sendVerificationEmailHandler.default || sendVerificationEmailHandler;
+  return handler(req, res);
+});
+
+app.all('/api/compat-share', (req, res) => {
+  const handler = compatShareHandler.default || compatShareHandler;
   return handler(req, res);
 });
 

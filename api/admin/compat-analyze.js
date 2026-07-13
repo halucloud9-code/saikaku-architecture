@@ -3,6 +3,7 @@ import { db } from '../lib/firebaseAdmin.js';
 import { buildCompatEvidence } from '../lib/compatEvidence.js';
 import { normalizeInternalProfile } from '../lib/compatProfiles.js';
 import { COMPAT_MODEL, generateCompatOutput } from '../lib/compatPrompt.js';
+import { COMPAT_ETHICS_NOTICE } from '../lib/compatShare.js';
 import { fetchPublicCompatProfile } from '../lib/publicCompatImport.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
@@ -117,7 +118,7 @@ export default async function handler(req, res) {
       dataSufficiency: evidence.dataSufficiency,
       lenses: generated.lenses,
       evidence: evidence.promptEvidence,
-      ethicsNotice: '本結果は相互理解のための対話素材です。人事評価・採用評価には流用しません。',
+      ethicsNotice: COMPAT_ETHICS_NOTICE,
       model: COMPAT_MODEL,
     };
     await writeAudit(admin, input, 'completed');
@@ -138,4 +139,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ code: 'INTERNAL_ERROR', error: '相性分析に失敗しました' });
   }
 }
-

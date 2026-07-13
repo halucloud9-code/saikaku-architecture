@@ -23,6 +23,7 @@
 .compat-field { display: grid; gap: 8px; margin-top: 22px; }
 .compat-field b { color: #9f3d31; font-size: .75rem; }
 .compat-field textarea, .compat-import-row input { border: 1px solid var(--compat-line); border-radius: 10px; padding: 12px 14px; background: white; color: var(--compat-ink); font: inherit; }
+.compat-field input { border: 1px solid var(--compat-line); border-radius: 10px; padding: 12px 14px; background: white; color: var(--compat-ink); font: inherit; }
 .compat-field textarea { min-height: 92px; resize: vertical; }
 .compat-profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; max-height: 420px; overflow: auto; padding: 2px; }
 .compat-profile { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 10px; padding: 14px; border: 1px solid var(--compat-line); border-radius: 12px; cursor: pointer; background: white; }
@@ -42,6 +43,7 @@
 .compat-button { border-radius: 10px; border: 1px solid transparent; padding: 11px 17px; font: inherit; font-weight: 700; cursor: pointer; }
 .compat-button.primary { background: var(--compat-deep); color: white; min-width: 220px; }
 .compat-button.secondary { background: transparent; color: var(--compat-ink); border-color: var(--compat-line); }
+.compat-button.danger { background: #8b4138; color: white; }
 .compat-button:disabled { cursor: not-allowed; opacity: .42; }
 .compat-error { color: #982f25; background: #f9e7e4; border-radius: 9px; padding: 10px 12px; }
 .compat-report { display: grid; gap: 16px; margin-top: 28px; }
@@ -51,6 +53,7 @@
 .compat-section li { margin: 7px 0; line-height: 1.65; }
 .compat-availability-list { display: grid; gap: 9px; margin: 18px 0; }
 .compat-availability-row { display: grid; grid-template-columns: 44px 1fr; align-items: center; }
+.compat-member-label { display: block; margin-top: 3px; color: var(--compat-muted); font-size: .72rem; font-weight: 500; overflow-wrap: anywhere; }
 .compat-claim { border-top: 1px solid var(--compat-line); padding: 18px 0 2px; }
 .compat-claim-kind { display: inline-block; margin: 0; padding: 3px 8px; border-radius: 5px; font-size: .75rem; font-weight: 700; }
 .compat-claim-kind.observation { color: #2e6251; background: #e3f0e9; }
@@ -58,10 +61,20 @@
 .compat-evidence-ids { color: var(--compat-muted); font-family: ui-monospace, monospace; font-size: .78rem; }
 .compat-question { padding-left: 12px; border-left: 3px solid var(--compat-gold); }
 .compat-ethics { color: var(--compat-muted); text-align: center; padding: 12px; font-size: .84rem; }
+.compat-share-controls, .compat-share-guidance, .compat-share-state { max-width: 1180px; margin: 24px auto 0; }
+.compat-share-controls, .compat-share-guidance { background: var(--compat-card); border: 1px solid var(--compat-line); border-radius: 16px; padding: clamp(20px, 4vw, 34px); }
+.compat-share-controls h2 { margin: 5px 0 10px; font-family: "Noto Serif JP", serif; }
+.compat-share-controls > p:not(.compat-kicker), .compat-share-guidance { color: var(--compat-muted); line-height: 1.7; }
+.compat-share-issued { margin-top: 18px; }
+.compat-share-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.compat-share-revoked { color: #8b4138; font-weight: 700; }
+.compat-share-guidance { border-left: 5px solid var(--compat-gold); }
+.compat-share-guidance p { margin: 0; }
+.compat-share-guidance p + p { margin-top: 8px; }
+.compat-share-page .compat-report { margin-top: 16px; }
 
 @media (max-width: 700px) {
   .compat-header { flex-direction: column; }
   .compat-import-row { grid-template-columns: 1fr; }
   .compat-button.primary { width: 100%; }
 }
-

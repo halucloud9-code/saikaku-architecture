@@ -17,6 +17,14 @@ vi.mock('firebase-admin/auth', () => ({
 const { api, Timestamp, clearUserState, seedParent, getMockCallCount, resetMockCallCount } = await import('./_helpers.js');
 const { db } = await import('../../api/lib/firebaseAdmin.js');
 const { getMockRequests } = await import('../../api/lib/anthropicClient.js');
+const { default: express } = await import('express');
+const { default: request } = await import('supertest');
+const { default: publicCompatShareHandler } = await import('../../api/compat-share.js');
+
+const publicApp = express();
+publicApp.use(express.json());
+publicApp.all('/api/compat-share', (req, res) => publicCompatShareHandler(req, res));
+const publicApi = request(publicApp);
 
 const UID_A = 'compat-user-a';
 const UID_B = 'compat-user-b';
@@ -60,9 +68,36 @@ async function deleteCompatAudits() {
   await batch.commit();
 }
 
+async function deleteCompatShares() {
+  const snapshot = await db.collection('compat_shares').get();
+  if (snapshot.empty) return;
+  const batch = db.batch();
+  snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+  await batch.commit();
+}
+
 async function cleanup() {
   await Promise.all(FIXTURE_UIDS.flatMap((uid) => [clearUserState('results', uid), clearUserState('uaam_results', uid)]));
-  await deleteCompatAudits();
+  await Promise.all([deleteCompatAudits(), deleteCompatShares()]);
+}
+
+async function analyzePairReport() {
+  const response = await api.post('/api/admin/compat-analyze')
+    .set('Authorization', 'Bearer admin-token')
+    .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
+  expect(response.status).toBe(200);
+  return response.body;
+}
+
+function shareIssueBody(report, overrides = {}) {
+  return {
+    report,
+    mode: 'pair',
+    goal: '',
+    memberLabels: ['Member A', 'Member B'],
+    consentConfirmed: true,
+    ...overrides,
+  };
 }
 
 beforeAll(cleanup);
@@ -225,5 +260,133 @@ describe('admin compat public import', () => {
       expect.objectContaining({ method: 'GET', redirect: 'error' }),
     );
     fetchSpy.mockRestore();
+  });
+});
+
+describe('compat report sharing', () => {
+  it.each([
+    ['missing token', undefined, 401, 'UNAUTHORIZED'],
+    ['non-admin', 'user-token', 403, 'FORBIDDEN'],
+    ['unverified admin', 'unverified-token', 403, 'EMAIL_UNVERIFIED'],
+  ])('rejects share issuance by %s', async (_name, token, status, code) => {
+    let pending = api.post('/api/admin/compat-share').send(shareIssueBody({}));
+    if (token) pending = pending.set('Authorization', `Bearer ${token}`);
+    const response = await pending;
+    expect(response.status).toBe(status);
+    expect(response.body.code).toBe(code);
+  });
+
+  it('rejects non-admin revocation', async () => {
+    const response = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer user-token')
+      .send({ action: 'revoke', shareId: '11111111-1111-4111-8111-111111111111' });
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe('FORBIDDEN');
+  });
+
+  it('requires separate sharing consent before validating the report', async () => {
+    const response = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody({}, { consentConfirmed: false }));
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('CONSENT_REQUIRED');
+    expect((await db.collection('compat_shares').get()).empty).toBe(true);
+  });
+
+  it('re-validates the report and writes nothing for an unknown evidence claim', async () => {
+    const report = await analyzePairReport();
+    const tampered = structuredClone(report);
+    tampered.lenses[0] = {
+      id: 'similarity',
+      status: 'detected',
+      summary: '改ざん',
+      claims: [{
+        text: '根拠のない人物評',
+        kind: 'hypothesis',
+        evidenceIds: ['E-999'],
+        verificationQuestion: '確認できますか？',
+      }],
+    };
+    const response = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody(tampered));
+    expect(response.status).toBe(422);
+    expect(response.body.code).toBe('REPORT_INVALID');
+    expect((await db.collection('compat_shares').get()).empty).toBe(true);
+    const shareAudits = (await db.collection('compat_audits').get()).docs
+      .map((doc) => doc.data())
+      .filter((audit) => audit.action?.startsWith('share_'));
+    expect(shareAudits).toEqual([]);
+  });
+
+  it('issues, serves, audits, revokes, and hides expired/revoked/unknown shares uniformly', async () => {
+    const report = await analyzePairReport();
+    const issued = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .set('Origin', 'http://localhost:5173')
+      .send(shareIssueBody(report));
+    expect(issued.status).toBe(201);
+    expect(issued.body.shareId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
+    expect(issued.body.url).toBe(`http://localhost:5173/compat/share/${issued.body.shareId}`);
+
+    const stored = await db.collection('compat_shares').doc(issued.body.shareId).get();
+    expect(stored.exists).toBe(true);
+    expect(stored.data()).toMatchObject({
+      report,
+      memberLabels: ['Member A', 'Member B'],
+      mode: 'pair',
+      goalProvided: false,
+      consentConfirmed: true,
+      actorUid: 'admin-user',
+      revoked: false,
+    });
+    expect(JSON.stringify(stored.data())).not.toContain(UID_A);
+    expect(stored.data().expiresAt.toMillis() - stored.data().createdAt.toMillis()).toBeGreaterThan(29 * 24 * 60 * 60 * 1_000);
+
+    const visible = await publicApi.get('/api/compat-share').query({ id: issued.body.shareId });
+    expect(visible.status).toBe(200);
+    expect(visible.headers['cache-control']).toContain('no-store');
+    expect(visible.headers['referrer-policy']).toBe('no-referrer');
+    expect(visible.headers['x-robots-tag']).toContain('noindex');
+    expect(visible.body).toEqual({ report, memberLabels: ['Member A', 'Member B'], mode: 'pair', goalProvided: false });
+
+    const revoked = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'revoke', shareId: issued.body.shareId });
+    expect(revoked.status).toBe(200);
+    expect(revoked.body).toMatchObject({ shareId: issued.body.shareId, revoked: true });
+
+    const revokedGet = await publicApi.get('/api/compat-share').query({ id: issued.body.shareId });
+    expect(revokedGet.status).toBe(404);
+    expect(revokedGet.headers['cache-control']).toContain('no-store');
+
+    await db.collection('compat_shares').doc(issued.body.shareId).update({
+      revoked: false,
+      expiresAt: Timestamp.fromMillis(Date.now() - 1),
+    });
+    const expiredGet = await publicApi.get('/api/compat-share').query({ id: issued.body.shareId });
+    const unknownGet = await publicApi.get('/api/compat-share').query({ id: '22222222-2222-4222-8222-222222222222' });
+    expect(expiredGet.status).toBe(404);
+    expect(unknownGet.status).toBe(404);
+    expect(expiredGet.body).toEqual(revokedGet.body);
+    expect(unknownGet.body).toEqual(revokedGet.body);
+
+    const shareAudits = (await db.collection('compat_audits').get()).docs
+      .map((doc) => doc.data())
+      .filter((audit) => audit.action?.startsWith('share_'));
+    expect(shareAudits).toHaveLength(2);
+    expect(shareAudits.map((audit) => audit.action).sort()).toEqual(['share_issued', 'share_revoked']);
+    for (const audit of shareAudits) {
+      expect(audit).toMatchObject({ shareId: issued.body.shareId, actorUid: 'admin-user' });
+      expect(Object.keys(audit).sort()).toEqual(['action', 'actorUid', 'createdAt', 'shareId']);
+    }
+  });
+
+  it('returns 400 for a malformed public ID without cache or index leakage', async () => {
+    const response = await publicApi.get('/api/compat-share').query({ id: 'not-a-uuid' });
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('INVALID_SHARE_ID');
+    expect(response.headers['cache-control']).toContain('no-store');
+    expect(response.headers['x-robots-tag']).toContain('noindex');
   });
 });
