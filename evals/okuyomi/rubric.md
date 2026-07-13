@@ -76,7 +76,7 @@
 
 ### 10. 文の完結・字数遵守〔機械〕
 - 〔public〕description が句点等で完結していない（途中切れ）: **-2/件**
-- 〔共通〕必須フィールド欠落・空（axes/kakuchiiki/insight/summary、arch: core_words/what/reward）: **-5**
+- 〔共通〕必須フィールド欠落・空（axes/kakuchiiki/insight/summary/what/reward、arch は core_words も）: **-5**（v0.3.2: public にも what/reward を必須化 — バリデータは null 許容だがユーザー向け行動計画の欠落は品質欠陥）
 - 〔共通〕フィールド字数が仕様上限超過: **-1/件**（最大-5）
 - 〔arch〕kakuchiiki が文として読めない断片列: **-3**（このサブアンカーのみLLM所有）
 
@@ -109,3 +109,4 @@
 | v0.2 | 2026-07-07 | Codex独立レビュー20指摘中19反映: 全LLMアンカーの可算化（アルバイトテスト）、#2/#9・#1/#5/#6の二重減点排除、#4に矛盾未調停(-4)と主軸不整合(-5)を追加、演算3問の焼き込み、致命キャップの引用限定、混合項目の所有者固定、per-appアダプタを#2/#3/#4/#6/#8/#10に明記、表記ゆれ辞書制、en をスコープ外に |
 | v0.3 | 2026-07-12 | GPT-5.6 Sol 独立レビュー反映（つかさ承認）: 有効減点4条件化（確定性ゲート status:confirmed 必須・skip/疑義noteの機械除外）、人物名詞に「目利き」追加、合否ラウンドは3回中央値+致命アンカー2/3再現、production readiness 併記契約（p90/deep timeout 非悪化） |
 | v0.3.1 | 2026-07-13 | Codex bot PRレビュー反映: #1固有対象アンカーを kakuchiiki_options にも拡張、疑義マーカーに「迷い」追加、ハーネス堅牢化（3軸必須・products非空・percentage数値検証・.env.local任意化・実行コマンドtsx化） |
+| v0.3.2 | 2026-07-13 | bot 3周目反映: public #10 に what/reward 必須化、レポートは失敗行があれば FAILED（平均で合否を出さない）、gen はプロンプトハッシュ不一致の stale 出力を自動再生成 |
