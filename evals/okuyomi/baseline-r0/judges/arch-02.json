@@ -1,0 +1,42 @@
+{
+ "id": "arch-02",
+ "judgeModel": "claude-opus-4-8",
+ "elapsedMs": 13392,
+ "item1": {
+  "deductions": []
+ },
+ "item2": {
+  "deductions": []
+ },
+ "item3": {
+  "deductions": []
+ },
+ "item4": {
+  "deductions": []
+ },
+ "item5": {
+  "deductions": [
+   {
+    "anchor": "kakuchiiki・主要見出しの中心語が抽象語のみ",
+    "points": 3,
+    "quote_output": "あなたにしか開けない扉がある——それは「誰かの隣にいる」ことを仕事にできる世界への扉だ。",
+    "quote_input": "（入力に根拠なし）",
+    "note": "「世界への扉」は抽象語だが、insight内でありkakuchiiki本体・主要見出しではないため疑義。kakuchiiki本体『誠実に子どもの声を聴きながら成長の場を育てる人』は具体行動を伴うため減点対象外と判断"
+   }
+  ]
+ },
+ "item9": {
+  "deductions": []
+ },
+ "item8_llm": {
+  "deductions": []
+ },
+ "item6_llm": {
+  "deductions": []
+ },
+ "item10_llm": {
+  "deductions": []
+ },
+ "notes": "item5の減点はkakuchiiki本体・主要見出しではなくinsight中の一文への適用のため疑義が残る。kakuchiiki本体『誠実に子どもの声を聴きながら成長の場を育てる人』は誠実→聴く→成長の場を育てるという因果を含み、item4の演算要件を満たすと判断し減点なし。options3案はいずれも本体と語を共有しつつ場面差（学級/読み聞かせ・合唱/隣に座る）があり意味差が形容詞差分のみとは言えないためitem6_llm減点なし。insight・descriptionは深化Q1『あなたは大切と伝えきれたか』・Q2『しんどさを抱えた子や先生の話を聞いて回りたい』・Q3『連鎖が広がる』を接地しており捏造なし。判断に迷った箇所は減点回避しnotesに記載",
+ "invalid_deductions": []
+}

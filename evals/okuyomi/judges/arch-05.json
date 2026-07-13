@@ -1,0 +1,108 @@
+{
+ "id": "arch-05",
+ "judgeModel": "claude-opus-4-8",
+ "runs": [
+  {
+   "run": 1,
+   "elapsedMs": 10825,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名（世界観構築・制作力・発信力・表現の自由・挑戦・共感・映像表現・旅と音楽・日常の発見）は入力語の単純置換ではなく複数入力語を束ねた機能的抽象語で、descriptionで接続が説明されている。kakuchiikiに固有対象残存なし。item2: insightの『これをやらないと自分が終わる』はQ1『終わるのが一番怖くて心残り』から解釈範囲内、旅・カメラ・シャッターはQ2の記述に接地。捏造の断定は見当たらない。item3: 各軸descriptionは複数TOP5語・深化回答と接続。item4: kakuchiiki『感性で人の物語を映像に残し、埋もれた声を社会に届ける作り手』は感性(value)→映像(talent)→社会に届ける(passion/Q3)で要素間の因果が読める。矛盾なし、主軸対応あり。item5: kakuchiikiは『映像に残し』『声を社会に届ける』と行動・対象を伴い抽象語のみではない。item9: insightは撮れなかった物語・カメラ・旅など入力具体語を参照。item8_llm: 軸名はいずれも通常の人物特性として読める語。item6_llm: optionsは本体と意味差があり上位軸に対応。item10_llm: kakuchiikiは文として読める。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  },
+  {
+   "run": 2,
+   "elapsedMs": 14051,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名（世界観構築・制作力・発信力・表現の自由・挑戦・共感・映像表現・旅と音楽・日常の発見）はいずれも入力語からの1語置換ではなく、複数items・descriptionで接続説明あり。kakuchiikiは機能語であり固有対象そのままではない。減点なし。item2: insightやwhat/rewardの記述はいずれもQ1〜Q3・TOP5語に接地（撮れなかった物語→Q1、カメラで旅→Q2、作品を見た誰かが語り始める→Q3）。捏造断定は確認できず。item3: 各軸は複数items・深化回答と接続。item4: kakuchiiki『感性で人の物語を映像に残し、埋もれた声を社会に届ける』はvalue_core表現/感性・talent_core映像・passionドキュメンタリーが対応し、因果（感性で→映像に残し→社会に届ける）が読める。演算3問も価値観(表現の自由)→才能(映像)→情熱(ドキュメンタリー)の連鎖でおおむね成立。矛盾なし。item5: kakuchiikiは『物語を映像に残し』『声を社会に届ける』と行動・対象を伴い抽象語のみではない。insightに見る・誰に対して・何をするが接地。item8_llm: いずれも辞書的に読める語。item6_llm: optionsは本体と主要名詞を一部共有するが記録者/表現者/担い手と視点差あり、意味差は形容詞差分のみとまでは言えず疑義のため減点せず。item10_llm: 文として完結。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  },
+  {
+   "run": 3,
+   "elapsedMs": 14912,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: value_axis1『表現の自由』は入力語『表現』『自由』の連結だが、descriptionで『感性と表現を、誰にも折られずに全開にすること』と複数入力語(表現・自由・感性)を統合し接続説明があるため置換のみとは言えず減点せず。talent_axis1『世界観構築』も入力『世界観を描く』に近いが3語(世界観・映像・感情)を統合し説明があるため対象外。kakuchiikiに固有対象残存なし。\nitem2: insightの『名もない人の前でシャッターを切る感覚』はQ2『名もない人たちの人生を映像に残す』とTOP5『写真』から支持され推測範囲内。捏造の断定は見当たらず。\nitem3: 各軸とも複数TOP5語・深化回答と接続あり。\nitem4: kakuchiiki『感性で人の物語を映像に残し、埋もれた声を社会に届ける作り手』は感性(価値)→映像(才能)→社会に届ける(情熱/Q3)の因果が読め、演算3問とも読み取り可能。矛盾なし。主軸(表現・世界観構築・映像表現)と対応。\nitem5: kakuchiiki中心語は『物語・映像・声・届ける』で行動・対象を伴い抽象語のみではない。\nitem9: insightは入力語句(撮れなかった物語=Q1、旅=Q2、作品を見た誰かが語り始めた=Q3)を参照。固定断定文なし。\nitem8_llm: 軸名『世界観構築・制作力・発信力・表現の自由・挑戦・共感・映像表現・旅と音楽・日常の発見』はいずれも通常語として読める。\nitem6_llm: optionsは本体と名詞・動詞の共有が7割未満で意味差あり、各案が本体・上位軸と対応。\nitem10_llm: kakuchiikiは完結した名詞句として読める。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  }
+ ]
+}

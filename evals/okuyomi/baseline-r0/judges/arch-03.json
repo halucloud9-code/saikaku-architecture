@@ -1,0 +1,42 @@
+{
+ "id": "arch-03",
+ "judgeModel": "claude-opus-4-8",
+ "elapsedMs": 16619,
+ "item1": {
+  "deductions": []
+ },
+ "item2": {
+  "deductions": [
+   {
+    "anchor": "入力から引用できない具体的属性・経験の断定",
+    "points": 5,
+    "quote_output": "設計顧問・技術研修・教材販売の収益が自動化された仕組みのように静かに回り続ける",
+    "quote_input": "（入力に根拠なし）",
+    "note": "収益モデルの具体的職種断定は入力に根拠がないが、rewardは将来提案の性質もあるためnotesにも記載。疑義寄りだが具体職業の断定として計上"
+   }
+  ]
+ },
+ "item3": {
+  "deductions": []
+ },
+ "item4": {
+  "deductions": []
+ },
+ "item5": {
+  "deductions": []
+ },
+ "item9": {
+  "deductions": []
+ },
+ "item8_llm": {
+  "deductions": []
+ },
+ "item6_llm": {
+  "deductions": []
+ },
+ "item10_llm": {
+  "deductions": []
+ },
+ "notes": "item1: 軸名（構造化・探求力・精緻化・知的誠実・自律探究・効率設計・システム構築・知識共有・没入体験）はいずれも入力複数語を束ねた機能語でありdescriptionで接続説明あり、置換のみではない。kakuchiiki『探究心で仕組みを設計して技術の土台をつくり続ける人』はvalue_core探究・talent_core仕組みを設計する・Q3の土台を統合しており置換のみではない。item4: kakuchiikiは『探究心で』（価値観=動機）『仕組みを設計して』（才能）『技術の土台をつくり続ける』（情熱の方向）で因果的接続があり掛け算が読める。演算3問いずれもYes。矛盾なし。主軸対応あり。item5: kakuchiikiは『仕組みを設計』『技術の土台をつくる』と具体行動あり抽象語のみではない。item2の減点は疑義寄り；rewardのeconomicは将来提案として書かれておりQ3『いろんな現場で当たり前に使われている』の一般的解釈範囲とも言えるため、迷った場合は減点しない方針とのバランスで疑義。厳密には推測明示がないため計上した。",
+ "invalid_deductions": []
+}

@@ -1,0 +1,108 @@
+{
+ "id": "arch-04",
+ "judgeModel": "claude-opus-4-8",
+ "runs": [
+  {
+   "run": 1,
+   "elapsedMs": 11880,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名（共感力・統率力・人間尊重・使命感・終末期ケア等）はいずれも複数入力語をまとめる機能語であり、置換のみとは言えない。kakuchiikiに固有対象の残存なし。item2: insight・what等の具体属性は全て深化回答（『ここにいてよかった』『温泉や故郷を巡る旅』『スタッフが各地で担い手に』）に接地しており捏造断定は確認できない。item3: 各軸は複数TOP5語＋深化回答と接続。item4: kakuchiikiは尊厳(価値)×寄り添い(才能)×看取り/次世代(情熱)を統合し因果的に説明、演算3問も読み取れる、矛盾なし、主軸対応あり。item5: kakuchiikiは『人生の最期と次世代のケアを育てる』と具体行動を伴い抽象語のみではない。item9: insightは深化Q1〜Q3の具体語句を参照。軸名も辞書語。options差分・完結性いずれも問題なし。減点該当なし。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  },
+  {
+   "run": 2,
+   "elapsedMs": 11611,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名は共感力・統率力・人間尊重・使命感・終末期ケア等いずれもAI生成の機能語で、単一入力語の同義置換ではなく複数語の統合。kakuchiikiは入力の固有対象（高齢者ケア等）そのままではなく抽象化されている。item2: insight/whatの断定（例『10年後、あなたが育てたスタッフが別の施設で誰かを看取る』）はQ3の回答に接地しており捏造ではない。温泉・歌・園芸療法・手芸も全て入力語。item4: kakuchiiki本体は要素の並列だが、insightで『温泉で見たいと願う笑顔と看取りの場で守りたい尊厳は同じ一本の根から来ている』と2要素間の関係を説明しており該当疑義あり→減点せず。item5: kakuchiikiは『尊厳を守りながら寄り添い、人生の最期と次世代のケアを育てる』と具体的行動・対象を伴う。item6_llm: options3案は本体と名詞・動詞が7割共有とまでは言えず意味差あり。item8_llm: 全軸名が辞書語。全体として明確なアンカー該当は確認できず。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  },
+  {
+   "run": 3,
+   "elapsedMs": 13046,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名（共感力・統率力・実行力・人間尊重・使命感・公正さ・終末期ケア・人材育成・地域づくり）はいずれも入力語の単純置換ではなくAI生成の機能語で、descriptionで複数語・深化回答との接続が示されている。kakuchiikiに固有対象の残存なし。item2: insightの『温泉で見たいと願う笑顔』はQ2、『育てたスタッフが各地で』はQ3、『ここにいてよかった』はQ1に接地しており捏造断定は見当たらない。item4: kakuchiikiは尊厳（価値観）・寄り添い（才能）・看取り/次世代育成（情熱）の3要素を含み、insightで『同じ一本の根から来ている』と統合説明がある。矛盾なし。item5: kakuchiiki・description・insightは行動/対象/場面を伴う。抽象語のみの見出しなし。item8_llm: 全軸名が一般辞書的な人物特性語。item6_llm: options 3案は本体と主要名詞を共有しつつ形容詞差分以上の意味差があり、上位軸と対応。item10_llm: kakuchiikiは完結した文。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  }
+ ]
+}

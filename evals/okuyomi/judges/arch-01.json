@@ -1,0 +1,118 @@
+{
+ "id": "arch-01",
+ "judgeModel": "claude-opus-4-8",
+ "runs": [
+  {
+   "run": 1,
+   "elapsedMs": 14665,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名（統率力・実行設計・人情力・継承責任・職人気質・地域貢献・製造現場・次世代育成・日常の喜び）はいずれもAI生成の機能語で、複数入力語を束ねる説明が各descriptionに付いており置換のみではない。kakuchiikiにも入力固有対象の残存はなく（「町工場」等の一般語は固有対象ではない）減点なし。item2: insightの「その起点にあなたの『頭を下げる』姿があった」等は入力語（頭を下げる）に接地しており捏造断定は見当たらない。item3: 各軸が複数TOP5語＋深化回答（Q1〜Q3）と接続されている。item4: kakuchiikiとcore_words（現場をまとめる×継承×後継者育成）が因果的に説明され、insightで「現場を見れば人が読め→次の手→決断」の増幅関係も述べられている。演算3問も読み取れる。矛盾なし、主軸（percentage最高の統率力・継承責任・製造現場）に人物像が対応。item5: kakuchiiki中心語は「技術・担い手・現場を守る」で行動・対象を伴い抽象語のみではない。item8_llm: 軸名はいずれも辞書的に読める。item6_llm: options3案は本体と主要名詞を共有しつつ視点差（担い手へ手渡す／伝承者／段取りで束ねる）があり、形容詞差分のみとは言えず疑義あり→減点せず。item10_llm: kakuchiikiは完結した一文。全体として明確なアンカー該当なし。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  },
+  {
+   "run": 2,
+   "elapsedMs": 12487,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名は「統率力」「実行設計」「人情力」「継承責任」「製造現場」等いずれもAI生成の機能語で、単純置換ではなく複数items・深化回答を根拠に接続説明あり（description内で複数語を束ねている）。kakuchiikiにも固有対象の生残なし。減点なし。item2: insight「あなたの体がそう動くようにできている」「無意識に回っている」等は推測明示に近く、Q2/Q3の引用に接地しており固定的捏造とまでは言えず疑義が残るため減点せず。item4: kakuchiiki「受け継いだ技術と誇りを次の担い手へつなぎ、ものづくりの現場を守り続ける人」およびinsightで価値観（継承責任）→才能（見極め・決断）→情熱（次世代育成）の因果連鎖（『現場を見れば人が読め、人が読めれば次の手が見え、次の手が見えれば決断できる』）が説明されており演算3問はいずれもYes寄り。減点なし。item6_llm: optionsは本体と主要名詞を一部共有するが『見極めて育てる』『段取りよく束ねる』等で意味差があり2案は上位軸と対応、7割共有・形容詞差分のみとまでは確信できず減点せず。全体として明確なアンカー該当の減点は検出されなかった。",
+   "invalid_deductions": [],
+   "doubtful_deductions": []
+  },
+  {
+   "run": 3,
+   "elapsedMs": 13674,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "item1: 軸名（統率力・実行設計・人情力・継承責任・職人気質・地域貢献・製造現場・次世代育成・日常の喜び）はいずれも複数入力語を束ねた機能語であり、descriptionで接続説明がある。kakuchiikiに固有対象そのまま残存なし。item2: insightの回路説明（現場を見れば人が読め…）は才能TOP5からの推測範囲内、「頭を下げる」もTOP5語、深化回答参照あり。捏造断定は見当たらず。item4: kakuchiikiは「受け継いだ技術と誇りを次の担い手へつなぎ…守り続ける」で継承(価値)×後継者育成(情熱)×束ねる(才能)の因果的接続あり、演算3問も概ね読み取れる。矛盾なし。item5: kakuchiikiは職人・技術・現場など具体対象を伴い抽象語のみではない。item9: insightは深化Q1/Q2/Q3の具体語句を参照しており一般助言段落なし。item6_llm: optionsは本体と語彙差・視点差があり形容詞差分のみではない。",
+   "invalid_deductions": [],
+   "doubtful_deductions": [
+    {
+     "item": "item8_llm",
+     "anchor": "軸名が独自連結の複合語で通常の人物特性として読めない",
+     "points": 3,
+     "status": "doubtful",
+     "quote_output": "\"name\": \"実行設計\"",
+     "quote_input": "（入力に根拠なし）",
+     "note": "「実行設計」は独自複合語気味だが、実行力・設計力の意で人物特性として読めなくもないため疑義。confirmとまでは言えない"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,183 @@
+{
+ "id": "arch-06",
+ "judgeModel": "claude-opus-4-8",
+ "runs": [
+  {
+   "run": 1,
+   "elapsedMs": 14944,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "kakuchiiki『誠実に本音を引き出し、人との縁で家族の安心を守り続ける人』は誠実(価値axis1)・本音を引き出す(才能core)・人との縁(情熱axis1)・家族の安心(情熱axis2)を統合し、複数入力語を接続しているためitem1は減点なし。演算3問（価値観の制約・才能の具体化・統合人物像）はinsightおよびkakuchiikiで説明されており該当なし。軸名（傾聴力・継続力・伝達力・誠実さ・貢献心等）はいずれも通常の人物特性語でitem8_llm該当なし。options3案は本体と主要名詞の差が十分ありitem6_llm該当なし。深化Q1〜Q3（心残り・感謝の会・10年後）はinsightとrewardで参照されている。",
+   "invalid_deductions": [],
+   "doubtful_deductions": [
+    {
+     "item": "item2",
+     "anchor": "入力から引用できる語句のいずれにも支えられない具体的属性・経験・職業の断定",
+     "points": 5,
+     "status": "doubtful",
+     "quote_output": "あなたはただの営業マンではなく、人生のセーフティネットそのものになる",
+     "quote_input": "■情熱TOP5: 営業",
+     "note": "「営業マン」は情熱『営業』から接地し推測範囲内とも読めるため疑義。断定的な職業属性化とも取れるが確信できずdoubtful"
+    },
+    {
+     "item": "item5",
+     "anchor": "入力根拠にない小道具で映像性を偽装",
+     "points": 4,
+     "status": "doubtful",
+     "quote_output": "「記憶ノート」を続ける",
+     "quote_input": "■才能TOP5: 記憶する（入力に「ノート」の根拠なし）",
+     "note": "『記憶する』からの具体化として推測範囲とも読め、映像性偽装とまでは言えずdoubtful"
+    }
+   ]
+  },
+  {
+   "run": 2,
+   "elapsedMs": 13972,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "kakuchiiki『誠実に本音を引き出し、人との縁で家族の安心を守り続ける人』は誠実（価値axis1）・本音を引き出す（才能axis1）・人との縁（情熱axis1）・家族の安心を主軸と対応させ、掛け算の因果（誠実に本音を引き出す→縁→安心を守る）も1文で説明されており主要アンカーの明確な該当なし。core_wordsも入力の機能語的抽象化で固有対象残存なし。全体に捏造・映像偽装の疑義は残るが確信に至らずdoubtful止まり。",
+   "invalid_deductions": [],
+   "doubtful_deductions": [
+    {
+     "item": "item2",
+     "anchor": "入力から引用できない具体的属性・経験の断定",
+     "points": 5,
+     "status": "doubtful",
+     "quote_output": "あなたはただの営業マンではなく、人生のセーフティネットそのものになる",
+     "quote_input": "■情熱TOP5: 営業",
+     "note": "営業は入力にあるが「営業マン」という職業断定は解釈範囲内とも読め、捏造とまでは言えない"
+    },
+    {
+     "item": "item2",
+     "anchor": "入力から引用できない具体的経験の断定",
+     "points": 5,
+     "status": "doubtful",
+     "quote_output": "10年後、誰かの葬儀の席で「あなたのおかげで家族が安心できた」と子どもから言われる",
+     "quote_input": "その子どもたちの代まで「あの人がいてよかった」と続いている",
+     "note": "入力Q3の一般的解釈範囲に収まる推測とも読め、断定的捏造とまでは言い切れない"
+    },
+    {
+     "item": "item5",
+     "anchor": "入力根拠にない場面・小道具で映像性を偽装",
+     "points": 4,
+     "status": "doubtful",
+     "quote_output": "何年も通い続けた先に相手が初めて本音を話してくれた、あの静かな瞬間だ",
+     "quote_input": "相手の本音を引き出す／諦めずに通う",
+     "note": "入力語の組み合わせから導ける範囲とも読め、偽装とまでは断定できない"
+    }
+   ]
+  },
+  {
+   "run": 3,
+   "elapsedMs": 14448,
+   "item1": {
+    "deductions": []
+   },
+   "item2": {
+    "deductions": []
+   },
+   "item3": {
+    "deductions": []
+   },
+   "item4": {
+    "deductions": []
+   },
+   "item5": {
+    "deductions": []
+   },
+   "item9": {
+    "deductions": []
+   },
+   "item8_llm": {
+    "deductions": []
+   },
+   "item6_llm": {
+    "deductions": []
+   },
+   "item10_llm": {
+    "deductions": []
+   },
+   "notes": "kakuchiiki『誠実に本音を引き出し、人との縁で家族の安心を守り続ける人』は3要素の因果的つながり（誠実→本音→縁→安心）が示されており掛け算演算・横断統合は満たすと判断。options各案は本体と語を共有しつつ意味差があり減点対象外。軸名はすべて一般語で読める。item2の職業・場面断定は入力の『営業』『子ども』『万一』に接地しうるため confirmed にせず doubtful とした。",
+   "invalid_deductions": [],
+   "doubtful_deductions": [
+    {
+     "item": "item2",
+     "anchor": "入力から引用できる語句のいずれにも支えられない具体的属性・経験・職業の断定",
+     "points": 5,
+     "status": "doubtful",
+     "quote_output": "あなたはただの営業マンではなく",
+     "quote_input": "営業",
+     "note": "「営業マン」という職業断定だが情熱TOP5に『営業』があるため一般的解釈範囲に収まる可能性が高く、疑義が残る"
+    },
+    {
+     "item": "item2",
+     "anchor": "入力から引用できない具体的場面の断定",
+     "points": 5,
+     "status": "doubtful",
+     "quote_output": "10年後、誰かの葬儀の席で「あなたのおかげで家族が安心できた」と子どもから言われる",
+     "quote_input": "その子どもたちの代まで「あの人がいてよかった」と続いている",
+     "note": "Q3の子ども・安心の記述を映像化したもので推測範囲内とも読め、捏造断定と断ずるには疑義が残る"
+    },
+    {
+     "item": "item5",
+     "anchor": "入力根拠にない場面・小道具で映像性を偽装",
+     "points": 4,
+     "status": "doubtful",
+     "quote_output": "誰かの葬儀の席で",
+     "quote_input": "（入力に根拠なし）",
+     "note": "葬儀という小道具は入力になく映像性の偽装とも取れるが、Q1『万一』Q3の連続性から連想可能とも読め疑義が残る"
+    }
+   ]
+  }
+ ]
+}

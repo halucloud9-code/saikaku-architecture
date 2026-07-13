@@ -1,0 +1,34 @@
+{
+ "id": "arch-04",
+ "judgeModel": "claude-opus-4-8",
+ "elapsedMs": 22722,
+ "item1": {
+  "deductions": []
+ },
+ "item2": {
+  "deductions": []
+ },
+ "item3": {
+  "deductions": []
+ },
+ "item4": {
+  "deductions": []
+ },
+ "item5": {
+  "deductions": []
+ },
+ "item9": {
+  "deductions": []
+ },
+ "item8_llm": {
+  "deductions": []
+ },
+ "item6_llm": {
+  "deductions": []
+ },
+ "item10_llm": {
+  "deductions": []
+ },
+ "notes": "item1: 軸名（共感力・統率力・実行力・人間尊重・誠実さ・命に寄り添う等）はいずれもAI生成の機能語で入力語の単純置換ではなく、descriptionで接続説明あり。kakuchiikiに入力固有対象の残存なし。item2: insightの具体的描写（握った手の温度、初めて一人で決断した夜等）はQ1・才能語からの一般的解釈範囲に収まり、断定的な捏造属性とまでは言えないため疑義として非減点。item4: kakuchiiki『尊厳を守りながら命に寄り添い看取りの場を育てる人』は尊厳（価値）→命に寄り添い（才能・情熱）→育てる（スタッフ育成）の因果的接続が読め、演算3問も概ね充足。item5: 中心語は看取り・場・尊厳など具体的場面を伴い、抽象語のみではない。options本体との意味差あり。全項目でアンカー該当の明確な欠陥を認めず、疑義は減点しない方針により無減点。",
+ "invalid_deductions": []
+}
