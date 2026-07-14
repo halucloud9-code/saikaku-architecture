@@ -19,7 +19,7 @@
 
 1. **まっさら起動**: 毎回 fresh context。改善履歴・前回スコアを渡さない（絶対評価）
 2. **基準書換不可**: 本採点表は required schema で焼き込み。項目の増減 = 採点無効
-3. **Makerと別の頭**: 生成 = claude-sonnet-4-6（本番同一設定）、採点 = claude-opus-4-8（temperature 0）
+3. **Makerと別の頭**: 生成 = claude-sonnet-4-6（本番同一設定）、採点 = claude-opus-4-8（temperature 非送信 — このモデルは temperature パラメータを受け付けない）
 4. **実測強制**: 減点ごとに「断定文（出力引用）」と「不足している入力根拠」を引用。引用なき減点は無効
 
 ## 項目定義（10項目×10点）
