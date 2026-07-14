@@ -24,6 +24,8 @@ import UAAMResultScreen from './screens/uaam/UAAMResultScreen';
 import LoadingOverlay from './components/LoadingOverlay';
 import NavigationGuardDialog from './components/NavigationGuardDialog';
 import RequireAdmin from './components/RequireAdmin';
+import CompatScreen from './compat/CompatScreen';
+import CompatShareScreen from './compat/CompatShareScreen';
 import { normalizeScores } from './utils/normalize';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
@@ -142,6 +144,7 @@ function useAppContext() {
 
 function AppShell() {
   const navigate = useNavigate();
+  const location = useLocation();
   const initialLegacyRedirectHandledRef = useRef(false);
   const [user, setUser] = useState(devMode === 'uaam' ? { displayName: 'Dev User', photoURL: null, email: 'dev@test.com' } : null);
   const [authLoading, setAuthLoading] = useState(devMode ? false : true);
@@ -411,6 +414,12 @@ function AppShell() {
     handleScoresRestored,
   };
 
+  const isPublicCompatShare = /^\/compat\/share\/[^/]+\/?$/iu.test(location.pathname);
+
+  if (isPublicCompatShare) {
+    return <Outlet context={context} />;
+  }
+
   if (authLoading) {
     return <CenteredSpinner />;
   }
@@ -663,6 +672,19 @@ function AdminRoute() {
   );
 }
 
+function CompatRoute() {
+  const { user, handleLogout } = useAppContext();
+  const navigate = useNavigate();
+
+  return (
+    <CompatScreen
+      user={user}
+      onBack={() => navigate('/admin')}
+      onLogout={handleLogout}
+    />
+  );
+}
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -677,11 +699,13 @@ const router = createBrowserRouter([
       { path: 'history/saikaku/:attemptId', element: <HistoryDetailRoute kind="saikaku" /> },
       { path: 'history/uaam', element: <HistoryRoute kind="uaam" /> },
       { path: 'history/uaam/:attemptId', element: <HistoryDetailRoute kind="uaam" /> },
+      { path: 'compat/share/:shareId', element: <CompatShareScreen /> },
       {
         path: 'admin',
         element: <RequireAdmin />,
         children: [
           { index: true, element: <AdminRoute /> },
+          { path: 'compat', element: <CompatRoute /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

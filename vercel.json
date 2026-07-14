@@ -14,8 +14,29 @@
     },
     "api/admin/restore-scores.js": {
       "maxDuration": 30
+    },
+    "api/admin/compat-analyze.js": {
+      "maxDuration": 120
     }
   },
+  "headers": [
+    {
+      "source": "/compat/share/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+      ]
+    },
+    {
+      "source": "/api/compat-share",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/((?!api/).*)",

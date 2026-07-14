@@ -20,6 +20,8 @@
 | `/history/uaam` | `HistoryScreen kind="uaam"` | 認証必須 | — |
 | `/history/uaam/:attemptId` | `UAAMResultScreen` (履歴閲覧モード) | 認証必須 + API 取得成功 | API 失敗 (403/404) → `/history/uaam` redirect + alert |
 | `/admin` | `AdminScreen` | `<RequireAdmin>` 経由で `isAdmin` 判定 | 非管理者は `<Navigate to="/" replace>` |
+| `/admin/compat` | `CompatScreen` | `<RequireAdmin>` 経由で `isAdmin` 判定。API側も確認済みメール + `ADMIN_EMAILS` を要求 | 取得失敗は画面内エラー。非管理者は `<Navigate to="/" replace>` |
+| `/compat/share/:shareId` | `CompatShareScreen` + `CompatReport` | 認証不要。UUID v4のbearer URL、30日で期限切れ、発行者が失効可能。`noindex` / `no-store` / `no-referrer` | 不明・期限切れ・失効済みは同じ「閲覧不可」表示 |
 | `*` (それ以外) | — | — | `<Navigate to="/" replace>` |
 
 `loading` は **URL に存在しない**。`isLLMInflight=true` の間、現在 URL の上に `<LoadingOverlay>` (fixed overlay) を被せて表示する。詳細は下記「LLM-inflight ガード」を参照。
@@ -35,6 +37,8 @@ authLoading === true      → <CenteredSpinner />        // Firebase auth 確定
 !user                     → <LoginScreen onLogin={…}/> // Routes の外で render
 otherwise                 → <Outlet context={…} />     // 各 *Route がここで描画される
 ```
+
+例外として `/compat/share/:shareId` は対象者向けの期限付き共有routeなので、`AppShell` のログイン分岐より先に `<Outlet>` を返す。管理画面の `/admin/compat` と、発行・失効APIの管理者ガードは変わらない。
 
 - `onAuthStateChanged` で `setAuthLoading(false)` を呼ぶまでは Routes を一切 render しない (Outlet を返す前にスピナーで break)。これにより認証確定前の `useNavigate` 競合・redirect ループを防ぐ
 - メール認証ユーザーで `emailVerified === false` の場合は `setUser(null)` で LoginScreen に留める (Firebase の sign-out はしない)
@@ -121,6 +125,11 @@ useEffect → fetch /api/me/history/<id>?kind=<kind> with idToken
 | [`src/main.jsx`](../src/main.jsx) | `<ErrorBoundary>` + `<StrictMode>` の中で `<AppRouter />` (= `RouterProvider`) をマウント |
 | [`src/App.jsx`](../src/App.jsx) | `createBrowserRouter` の route 定義 (676-699 行目)。`AppShell` (auth bootstrap + global state + useBlocker + beforeunload + LoadingOverlay + NavigationGuardDialog) と各 `*Route` ラッパー |
 | [`src/components/RequireAdmin.jsx`](../src/components/RequireAdmin.jsx) | `/admin` 配下のガード。`authLoading` 中はスピナー、非管理者は `<Navigate to="/" replace>` |
+| [`src/compat/CompatScreen.jsx`](../src/compat/CompatScreen.jsx) | `/admin/compat` のペア/チーム選択、同意確認、公開共有URL取込、結果表示 |
+| [`src/compat/CompatReport.jsx`](../src/compat/CompatReport.jsx) | 管理画面と共有画面が共用する相性レポート描画 |
+| [`src/compat/CompatShareScreen.jsx`](../src/compat/CompatShareScreen.jsx) | `/compat/share/:shareId` の公開取得、共有上の注意、`noindex` meta管理 |
+| [`api/admin/compat-share.js`](../api/admin/compat-share.js) | 管理者限定の共有URL発行・失効。共有同意とレポート再検証を要求 |
+| [`api/compat-share.js`](../api/compat-share.js) | 認証不要の単一UUID取得。期限切れ・失効・不明を同じ404で返す |
 | [`src/components/NavigationGuardDialog.jsx`](../src/components/NavigationGuardDialog.jsx) | LLM-inflight 中のルート遷移確認モーダル (a11y 対応済み) |
 | [`src/components/LoadingOverlay.jsx`](../src/components/LoadingOverlay.jsx) | 解析中のフルスクリーンオーバーレイ。`kind` ('saikaku'/'uaam') で `LoadingScreen` か `UaamLoadingScreen` を切り替え + キャンセルボタン |
 | [`tests/e2e/history-api-flow.spec.js`](../tests/e2e/history-api-flow.spec.js) | URL 直接アクセス・戻る/進む・モーダル・redirect の 7 シナリオ E2E (Playwright) |

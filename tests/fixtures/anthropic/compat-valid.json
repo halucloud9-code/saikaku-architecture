@@ -1,0 +1,20 @@
+{
+  "dataSufficiency": {
+    "summary": "利用できる診断データの範囲内で分析します。",
+    "limitations": []
+  },
+  "lenses": [
+    {
+      "id": "similarity",
+      "status": "not_detected",
+      "summary": "この診断データでは同質性を示す証拠は不検出です。",
+      "claims": []
+    },
+    {
+      "id": "complementarity",
+      "status": "not_detected",
+      "summary": "この診断データでは補完性を示す証拠は不検出です。",
+      "claims": []
+    }
+  ]
+}
