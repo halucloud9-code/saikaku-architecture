@@ -125,9 +125,10 @@ useEffect → fetch /api/me/history/<id>?kind=<kind> with idToken
 | [`src/main.jsx`](../src/main.jsx) | `<ErrorBoundary>` + `<StrictMode>` の中で `<AppRouter />` (= `RouterProvider`) をマウント |
 | [`src/App.jsx`](../src/App.jsx) | `createBrowserRouter` の route 定義 (676-699 行目)。`AppShell` (auth bootstrap + global state + useBlocker + beforeunload + LoadingOverlay + NavigationGuardDialog) と各 `*Route` ラッパー |
 | [`src/components/RequireAdmin.jsx`](../src/components/RequireAdmin.jsx) | `/admin` 配下のガード。`authLoading` 中はスピナー、非管理者は `<Navigate to="/" replace>` |
-| [`src/compat/CompatScreen.jsx`](../src/compat/CompatScreen.jsx) | `/admin/compat` のペア/チーム選択、同意確認、公開共有URL取込、結果表示 |
-| [`src/compat/CompatReport.jsx`](../src/compat/CompatReport.jsx) | 管理画面と共有画面が共用する相性レポート描画 |
-| [`src/compat/CompatShareScreen.jsx`](../src/compat/CompatShareScreen.jsx) | `/compat/share/:shareId` の公開取得、共有上の注意、`noindex` meta管理 |
+| [`src/compat/CompatScreen.jsx`](../src/compat/CompatScreen.jsx) | `/admin/compat` のペア/チーム選択、表示名編集、同意確認、公開共有URL取込、結果表示 |
+| [`src/compat/CompatReport.jsx`](../src/compat/CompatReport.jsx) | 管理画面と共有画面が共用する、§0・マンダラ・主張・根拠foldの相性レポート描画 |
+| [`src/compat/CompatMandala.jsx`](../src/compat/CompatMandala.jsx) | v2の決定論的 `visual` ブロックから、生成軸・完全一致語・全16 UAAM分布を描画 |
+| [`src/compat/CompatShareScreen.jsx`](../src/compat/CompatShareScreen.jsx) | `/compat/share/:shareId` の公開取得、共有上の注意、`noindex` meta管理。v1はテキストのみ、v2かつ一致語がある場合だけ一致語の同意・LLM送信境界を表示 |
 | [`api/admin/compat-share.js`](../api/admin/compat-share.js) | 管理者限定の共有URL発行・失効。共有同意とレポート再検証を要求 |
 | [`api/compat-share.js`](../api/compat-share.js) | 認証不要の単一UUID取得。期限切れ・失効・不明を同じ404で返す |
 | [`src/components/NavigationGuardDialog.jsx`](../src/components/NavigationGuardDialog.jsx) | LLM-inflight 中のルート遷移確認モーダル (a11y 対応済み) |

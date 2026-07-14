@@ -16,5 +16,6 @@
       "summary": "この診断データでは補完性を示す証拠は不検出です。",
       "claims": []
     }
-  ]
+  ],
+  "unmetFunctionCandidate": null
 }

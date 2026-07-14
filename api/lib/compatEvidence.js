@@ -4,6 +4,27 @@ const SOURCE_KINDS = ['user_top5', 'generated_axis'];
 const UAAM_MIN_COHORT = 30;
 const UAAM_SIMILAR_MAX_GAP = 15;
 const UAAM_COMPLEMENT_MIN_GAP = 30;
+const VISUAL_CATEGORY_ORDER = ['value', 'talent', 'passion'];
+const VISUAL_SOURCE_ORDER = ['user_top5', 'generated_axis'];
+
+const UAAM_VISUAL_AXES = [
+  ['meaning', '基軸力'],
+  ['mindfulness', '認知力'],
+  ['mindshift', '転換力'],
+  ['mastery', '熟達力'],
+  ['learning', '謙学力'],
+  ['logical', '論理力'],
+  ['life', '活用力'],
+  ['leadership', '統率力'],
+  ['critical', '本質力'],
+  ['creativity', '創造力'],
+  ['communication', '伝達力'],
+  ['collaboration', '協働力'],
+  ['idea', '構想力'],
+  ['innovation', '変革力'],
+  ['implementation', '実装力'],
+  ['influence', '影響力'],
+];
 
 function percentile(values, target) {
   if (values.length < UAAM_MIN_COHORT || !Number.isFinite(target)) return null;
@@ -95,7 +116,7 @@ function exactMatchEvidence(profiles, ledger) {
             ledger,
             'similarity',
             'exact_nfkc_match',
-            `${left.alias} と ${right.alias} の ${category} で、${sourceKind} のNFKC完全一致が ${matches.length} 件ある。語そのものは外部LLMへ送らない。`,
+            `${left.alias} と ${right.alias} の ${category} で、${sourceKind} のNFKC完全一致が ${matches.length} 件ある。本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る。`,
             { aliases: [left.alias, right.alias], category, sourceKind, matches },
           );
         }
@@ -187,8 +208,65 @@ export function buildCompatEvidence(rawProfiles, uaamDocs, mode) {
   };
 }
 
+export function buildCompatVisual({ profiles, ledger, uaamDocs, uaamEligible }) {
+  const cohort = cohortBySubscore(uaamDocs);
+  const members = profiles.map((profile) => ({
+    alias: profile.alias,
+    axes: Object.fromEntries(COMPAT_CATEGORIES.map((category) => [
+      category,
+      profile.categories[category].generated_axis.map((axis) => axis.name).filter(Boolean),
+    ])),
+  }));
+  const matches = ledger
+    .filter((item) => item.kind === 'exact_nfkc_match')
+    .map((item) => ({
+      aliases: item.details.aliases,
+      category: item.details.category,
+      sourceKind: item.details.sourceKind,
+      terms: item.details.matches,
+    }))
+    .sort((left, right) => (
+      VISUAL_CATEGORY_ORDER.indexOf(left.category) - VISUAL_CATEGORY_ORDER.indexOf(right.category)
+      || left.aliases.join('|').localeCompare(right.aliases.join('|'))
+      || VISUAL_SOURCE_ORDER.indexOf(left.sourceKind) - VISUAL_SOURCE_ORDER.indexOf(right.sourceKind)
+    ));
+  const axes = UAAM_VISUAL_AXES.map(([key, label]) => {
+    const cohortValues = cohort[key] || [];
+    const points = profiles
+      .map((profile) => ({ alias: profile.alias, percentile: percentile(cohortValues, profile.uaam?.[key]) }))
+      .filter((point) => point.percentile !== null);
+    const values = points.map((point) => point.percentile);
+    const gap = values.length >= 2 ? Math.max(...values) - Math.min(...values) : null;
+    let signal = 'insufficient';
+    if (uaamEligible && gap !== null) {
+      if (gap <= UAAM_SIMILAR_MAX_GAP) signal = 'similarity';
+      else if (gap >= UAAM_COMPLEMENT_MIN_GAP) signal = 'complementarity';
+      else signal = 'neutral';
+    }
+    return {
+      key,
+      label,
+      cohortSize: cohortValues.length,
+      signal,
+      points,
+    };
+  });
+
+  return {
+    schemaVersion: 2,
+    members,
+    matches,
+    uaam: {
+      eligible: uaamEligible,
+      axes,
+    },
+  };
+}
+
 export const COMPAT_EVIDENCE_THRESHOLDS = {
   uaamMinCohort: UAAM_MIN_COHORT,
   uaamSimilarMaxGap: UAAM_SIMILAR_MAX_GAP,
   uaamComplementMinGap: UAAM_COMPLEMENT_MIN_GAP,
 };
+
+export const COMPAT_VISUAL_UAAM_AXES = UAAM_VISUAL_AXES.map(([key, label]) => ({ key, label }));

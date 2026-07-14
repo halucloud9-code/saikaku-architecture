@@ -1,6 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebaseAdmin.js';
-import { buildCompatEvidence } from '../lib/compatEvidence.js';
+import { buildCompatEvidence, buildCompatVisual } from '../lib/compatEvidence.js';
 import { normalizeInternalProfile } from '../lib/compatProfiles.js';
 import { COMPAT_MODEL, generateCompatOutput } from '../lib/compatPrompt.js';
 import { COMPAT_ETHICS_NOTICE } from '../lib/compatShare.js';
@@ -59,7 +59,7 @@ async function loadProfiles(members) {
 }
 
 function redactText(value, identifiers) {
-  let text = value;
+  let text = value.normalize('NFKC');
   for (const identifier of identifiers) {
     if (identifier.length < 2) continue;
     text = text.split(identifier).join('[識別子]');
@@ -101,7 +101,10 @@ export default async function handler(req, res) {
     const uaamSnapshot = await db.collection('uaam_results').get();
     const uaamDocs = uaamSnapshot.docs.map((doc) => doc.data());
     const evidence = buildCompatEvidence(profiles, uaamDocs, input.mode);
-    const identifiers = [...new Set(profiles.flatMap((profile) => profile.identifiers).filter(Boolean))]
+    const identifiers = [...new Set(profiles
+      .flatMap((profile) => profile.identifiers)
+      .filter(Boolean)
+      .map((identifier) => identifier.normalize('NFKC')))]
       .sort((left, right) => right.length - left.length);
     const promptEvidence = redactDeep(evidence.promptEvidence, identifiers);
     const promptSufficiency = redactDeep(evidence.dataSufficiency, identifiers);
@@ -113,13 +116,23 @@ export default async function handler(req, res) {
       dataSufficiency: promptSufficiency,
       evidenceLedger: evidence.ledger,
     });
+    // 表示専用の一致語・全16軸はLLM呼び出し後に決定論的に組み立てる。
+    // 本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る。
+    const visual = buildCompatVisual({
+      profiles: evidence.profiles,
+      ledger: evidence.ledger,
+      uaamDocs,
+      uaamEligible: evidence.dataSufficiency.uaam.eligible,
+    });
 
     const result = {
       dataSufficiency: evidence.dataSufficiency,
       lenses: generated.lenses,
+      unmetFunctionCandidate: generated.unmetFunctionCandidate,
       evidence: evidence.promptEvidence,
       ethicsNotice: COMPAT_ETHICS_NOTICE,
       model: COMPAT_MODEL,
+      visual,
     };
     await writeAudit(admin, input, 'completed');
     return res.status(200).json(result);

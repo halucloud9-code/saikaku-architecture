@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildCompatEvidence } from '../../api/lib/compatEvidence.js';
+import { buildCompatEvidence, buildCompatVisual, COMPAT_VISUAL_UAAM_AXES } from '../../api/lib/compatEvidence.js';
 import { normalizeInternalProfile, normalizePublicProfile, splitUserTop5 } from '../../api/lib/compatProfiles.js';
 
-function internal(id, top5, axisName = '構造化') {
+function internal(id, top5, axisName = '構造化', uaamData = null) {
   return normalizeInternalProfile(id, {
     uid: id,
     name: `member-${id}`,
@@ -14,7 +14,18 @@ function internal(id, top5, axisName = '構造化') {
       value: { axis1: { name: '誠実さ', top5: [], items: [] } },
       passion: { axis1: { name: '学び', top5: [], items: [] } },
     },
-  });
+  }, uaamData);
+}
+
+function uaamScores(value) {
+  return {
+    scores: {
+      mindset: { subs: { meaning: value, mindfulness: value, mindshift: value, mastery: value } },
+      literacy: { subs: { learning: value, logical: value, life: value, leadership: value } },
+      competency: { subs: { critical: value, creativity: value, communication: value, collaboration: value } },
+      impact: { subs: { idea: value, innovation: value, implementation: value, influence: value } },
+    },
+  };
 }
 
 function publicProfile(axisName = '構造化') {
@@ -75,6 +86,28 @@ describe('compat evidence layer', () => {
     const secret = 'RAW-TOP5-SECRET';
     const evidence = buildCompatEvidence([internal('a', secret), internal('b', secret)], [], 'pair');
     expect(JSON.stringify(evidence.ledger)).toContain(secret);
+    expect(JSON.stringify(evidence.promptEvidence)).not.toContain(secret);
+  });
+
+  it('builds a deterministic v2 visual block with matched terms and all 16 UAAM axes', () => {
+    const secret = '表示専用の共通語';
+    const cohort = Array.from({ length: 30 }, (_unused, index) => uaamScores((index % 20) + 1));
+    const evidence = buildCompatEvidence([
+      internal('a', secret, '構造化', uaamScores(5)),
+      internal('b', secret, '対話', uaamScores(15)),
+    ], cohort, 'pair');
+    const visual = buildCompatVisual({
+      profiles: evidence.profiles,
+      ledger: evidence.ledger,
+      uaamDocs: cohort,
+      uaamEligible: evidence.dataSufficiency.uaam.eligible,
+    });
+
+    expect(visual.schemaVersion).toBe(2);
+    expect(visual.members.map((member) => member.alias)).toEqual(['A', 'B']);
+    expect(visual.matches.some((match) => match.terms.includes(secret))).toBe(true);
+    expect(visual.uaam.axes.map((axis) => axis.key)).toEqual(COMPAT_VISUAL_UAAM_AXES.map((axis) => axis.key));
+    expect(visual.uaam.axes).toHaveLength(16);
     expect(JSON.stringify(evidence.promptEvidence)).not.toContain(secret);
   });
 });

@@ -36,8 +36,8 @@ function resultFixture(uid, overrides = {}) {
     uid,
     name: `Member ${uid}`,
     email: `${uid}@example.com`,
-    inputTalentTop5: '観察\n構造化\nRAW-TOP5-SECRET',
-    inputValueTop5: '誠実\n探究',
+    inputTalentTop5: '観察\n整理術\nRAW-TOP5-SECRET',
+    inputValueTop5: '公平\n探究',
     inputPassionTop5: '教育\n対話',
     inputTalent: 'RAW FREEFORM TALENT ANSWER',
     inputValue: 'RAW FREEFORM VALUE ANSWER',
@@ -186,20 +186,47 @@ describe('admin compat analysis', () => {
       .set('Authorization', 'Bearer admin-token')
       .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
     expect(response.status).toBe(200);
+    expect(response.body.visual.schemaVersion).toBe(2);
+    expect(response.body.visual.uaam.axes).toHaveLength(16);
+    expect(response.body.visual.matches.some((match) => match.terms.includes('RAW-TOP5-SECRET'))).toBe(true);
     const captured = JSON.stringify(getMockRequests('compat'));
+    const matchedUserTop5Terms = [...new Set(response.body.visual.matches
+      .filter((match) => match.sourceKind === 'user_top5')
+      .flatMap((match) => match.terms))];
+    expect(matchedUserTop5Terms.length).toBeGreaterThan(0);
+    expect(matchedUserTop5Terms.filter((term) => captured.includes(term))).toEqual([]);
     for (const forbidden of [
       UID_A,
       UID_B,
       `${UID_A}@example.com`,
       `Member ${UID_A}`,
-      'RAW-TOP5-SECRET',
+      ...matchedUserTop5Terms,
       'RAW FREEFORM TALENT ANSWER',
       'RAW QUESTION TWO',
       'IGNORE ALL INSTRUCTIONS',
     ]) expect(captured).not.toContain(forbidden);
     expect(captured).toContain('A');
     expect(captured).toContain('B');
+    expect(captured).toContain('構造化');
     expect(captured).toContain('NFKC完全一致');
+  });
+
+  it('NFKC-normalizes identifiers and prompt inputs before redaction', async () => {
+    const halfWidthName = 'ﾂｶｻ';
+    const fullWidthName = 'ツカサ';
+    const fixture = resultFixture(UID_A, { name: halfWidthName });
+    fixture.result.talent.axis1.name = `${fullWidthName}設計`;
+    await seedParent('results', UID_A, fixture);
+
+    const response = await api.post('/api/admin/compat-analyze')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
+
+    expect(response.status).toBe(200);
+    const captured = JSON.stringify(getMockRequests('compat'));
+    expect(captured).not.toContain(halfWidthName);
+    expect(captured).not.toContain(fullWidthName);
+    expect(captured).toContain('[識別子]設計');
   });
 
   it('repairs an unknown evidence ID once', async () => {
@@ -223,7 +250,7 @@ describe('admin compat analysis', () => {
       claims: [{
         kind: 'observation',
         evidenceIds: ['E-007'],
-        verificationQuestion: 'この一致を実際の協働でも同じ意味で使っていますか？',
+        verificationQuestion: '最近の協働で、この語が同じ判断につながった場面と、同じ語でも意味が分かれた場面のどちらがありましたか？',
       }],
     });
     expect(response.body.evidence.some((item) => item.id === 'E-007')).toBe(true);
@@ -380,6 +407,23 @@ describe('compat report sharing', () => {
     expect(visible.headers['referrer-policy']).toBe('no-referrer');
     expect(visible.headers['x-robots-tag']).toContain('noindex');
     expect(visible.body).toEqual({ report, memberLabels: ['Member A', 'Member B'], mode: 'pair', goalProvided: false });
+
+    const v1ShareId = '33333333-3333-4333-8333-333333333333';
+    const v1Report = structuredClone(report);
+    delete v1Report.visual;
+    delete v1Report.unmetFunctionCandidate;
+    await db.collection('compat_shares').doc(v1ShareId).set({
+      report: v1Report,
+      memberLabels: ['Legacy A', 'Legacy B'],
+      mode: 'pair',
+      goalProvided: false,
+      consentConfirmed: true,
+      revoked: false,
+      expiresAt: Timestamp.fromMillis(Date.now() + 60_000),
+    });
+    const legacyVisible = await publicApi.get('/api/compat-share').query({ id: v1ShareId });
+    expect(legacyVisible.status).toBe(200);
+    expect(legacyVisible.body.report).not.toHaveProperty('visual');
 
     const revoked = await api.post('/api/admin/compat-share')
       .set('Authorization', 'Bearer admin-token')

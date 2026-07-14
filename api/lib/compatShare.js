@@ -1,15 +1,18 @@
 import { validateCompatOutput } from './validateCompatOutput.js';
+import { COMPAT_EVIDENCE_THRESHOLDS, COMPAT_VISUAL_UAAM_AXES } from './compatEvidence.js';
 
 export const COMPAT_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 export const COMPAT_ETHICS_NOTICE = '本結果は相互理解のための対話素材です。人事評価・採用評価には流用しません。';
 
 const SHARE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/iu;
-const REPORT_KEYS = ['dataSufficiency', 'lenses', 'evidence', 'ethicsNotice', 'model'];
+const REPORT_KEYS_V1 = ['dataSufficiency', 'lenses', 'evidence', 'ethicsNotice', 'model'];
+const REPORT_KEYS_V2 = [...REPORT_KEYS_V1, 'unmetFunctionCandidate', 'visual'];
 const SUFFICIENCY_KEYS = ['summary', 'memberAvailability', 'limitations', 'uaam'];
 const CATEGORY_KEYS = ['talent', 'value', 'passion'];
 const EVIDENCE_LENSES = ['both', 'similarity', 'complementarity'];
 const EVIDENCE_KINDS = ['generated_axis', 'exact_nfkc_match', 'uaam_percentile_similarity', 'uaam_percentile_complement'];
+const VISUAL_SIGNALS = ['similarity', 'complementarity', 'neutral', 'insufficient'];
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -88,13 +91,145 @@ function validateEvidence(value, errors) {
   return safeEvidence;
 }
 
+function validateVisualMembers(value, availability, errors) {
+  if (!Array.isArray(value) || value.length < 2 || value.length > 10) {
+    errors.push('report.visual.members: 2〜10名が必要です');
+    return [];
+  }
+  const aliases = [];
+  value.forEach((member, index) => {
+    const path = `report.visual.members[${index}]`;
+    if (!hasExactKeys(member, ['alias', 'axes'])) {
+      errors.push(`${path}: フィールドが契約と一致しません`);
+      return;
+    }
+    if (!/^(?:A|B|M(?:[1-9]|10))$/u.test(member.alias)) errors.push(`${path}.alias: 不正です`);
+    aliases.push(member.alias);
+    if (!hasExactKeys(member.axes, CATEGORY_KEYS)) {
+      errors.push(`${path}.axes: 才能・価値観・情熱が必要です`);
+      return;
+    }
+    for (const category of CATEGORY_KEYS) {
+      const axes = member.axes[category];
+      if (!Array.isArray(axes)
+        || axes.length > 10
+        || !axes.every((axis) => boundedString(axis, 1, 160))) {
+        errors.push(`${path}.axes.${category}: 最大10件・各160文字以内が必要です`);
+      }
+    }
+  });
+  if (new Set(aliases).size !== aliases.length) errors.push('report.visual.members: aliasが重複しています');
+  const availabilityAliases = Array.isArray(availability) ? availability.map((member) => member?.alias) : [];
+  if (aliases.length !== availabilityAliases.length
+    || aliases.some((alias, index) => alias !== availabilityAliases[index])) {
+    errors.push('report.visual.members: データ充足度の対象者と一致しません');
+  }
+  return aliases;
+}
+
+function validateVisualMatches(value, aliases, errors) {
+  if (!Array.isArray(value) || value.length > 600) {
+    errors.push('report.visual.matches: 最大600件の配列が必要です');
+    return;
+  }
+  value.forEach((match, index) => {
+    const path = `report.visual.matches[${index}]`;
+    if (!hasExactKeys(match, ['aliases', 'category', 'sourceKind', 'terms'])) {
+      errors.push(`${path}: フィールドが契約と一致しません`);
+      return;
+    }
+    if (!Array.isArray(match.aliases)
+      || match.aliases.length !== 2
+      || match.aliases[0] === match.aliases[1]
+      || match.aliases.some((alias) => !aliases.includes(alias))) {
+      errors.push(`${path}.aliases: 対象者2名が必要です`);
+    }
+    if (!CATEGORY_KEYS.includes(match.category)) errors.push(`${path}.category: 不正です`);
+    if (!['user_top5', 'generated_axis'].includes(match.sourceKind)) errors.push(`${path}.sourceKind: 不正です`);
+    if (!Array.isArray(match.terms)
+      || match.terms.length < 1
+      || match.terms.length > 100
+      || new Set(match.terms).size !== match.terms.length
+      || !match.terms.every((term) => boundedString(term, 1, 80))) {
+      errors.push(`${path}.terms: 重複のない1〜100件・各80文字以内が必要です`);
+    }
+  });
+}
+
+function validateVisualUaam(value, aliases, expectedEligibility, errors) {
+  if (!hasExactKeys(value, ['eligible', 'axes'])) {
+    errors.push('report.visual.uaam: フィールドが契約と一致しません');
+    return;
+  }
+  if (typeof value.eligible !== 'boolean' || value.eligible !== expectedEligibility) {
+    errors.push('report.visual.uaam.eligible: データ充足度と一致しません');
+  }
+  if (!Array.isArray(value.axes) || value.axes.length !== COMPAT_VISUAL_UAAM_AXES.length) {
+    errors.push('report.visual.uaam.axes: 全16軸が必要です');
+    return;
+  }
+  value.axes.forEach((axis, index) => {
+    const path = `report.visual.uaam.axes[${index}]`;
+    const expected = COMPAT_VISUAL_UAAM_AXES[index];
+    if (!hasExactKeys(axis, ['key', 'label', 'cohortSize', 'signal', 'points'])) {
+      errors.push(`${path}: フィールドが契約と一致しません`);
+      return;
+    }
+    if (axis.key !== expected.key || axis.label !== expected.label) errors.push(`${path}: 軸名または順序が不正です`);
+    if (!Number.isInteger(axis.cohortSize) || axis.cohortSize < 0 || axis.cohortSize > 100_000) {
+      errors.push(`${path}.cohortSize: 整数が必要です`);
+    }
+    if (!VISUAL_SIGNALS.includes(axis.signal)) errors.push(`${path}.signal: 不正です`);
+    if (!Array.isArray(axis.points) || axis.points.length > aliases.length) {
+      errors.push(`${path}.points: 対象人数以内の配列が必要です`);
+      return;
+    }
+    const pointAliases = [];
+    axis.points.forEach((point, pointIndex) => {
+      const pointPath = `${path}.points[${pointIndex}]`;
+      if (!hasExactKeys(point, ['alias', 'percentile'])) {
+        errors.push(`${pointPath}: フィールドが契約と一致しません`);
+        return;
+      }
+      pointAliases.push(point.alias);
+      if (!aliases.includes(point.alias)) errors.push(`${pointPath}.alias: 対象者と一致しません`);
+      if (!Number.isInteger(point.percentile) || point.percentile < 0 || point.percentile > 100) {
+        errors.push(`${pointPath}.percentile: 0〜100の整数が必要です`);
+      }
+    });
+    if (new Set(pointAliases).size !== pointAliases.length) errors.push(`${path}.points: aliasが重複しています`);
+
+    const percentiles = axis.points.map((point) => point?.percentile).filter(Number.isFinite);
+    const gap = percentiles.length >= 2 ? Math.max(...percentiles) - Math.min(...percentiles) : null;
+    let expectedSignal = 'insufficient';
+    if (value.eligible && axis.cohortSize >= COMPAT_EVIDENCE_THRESHOLDS.uaamMinCohort && gap !== null) {
+      if (gap <= COMPAT_EVIDENCE_THRESHOLDS.uaamSimilarMaxGap) expectedSignal = 'similarity';
+      else if (gap >= COMPAT_EVIDENCE_THRESHOLDS.uaamComplementMinGap) expectedSignal = 'complementarity';
+      else expectedSignal = 'neutral';
+    }
+    if (axis.signal !== expectedSignal) errors.push(`${path}.signal: 点分布の決定論的判定と一致しません`);
+  });
+}
+
+function validateVisual(value, sufficiency, errors) {
+  if (!hasExactKeys(value, ['schemaVersion', 'members', 'matches', 'uaam']) || value.schemaVersion !== 2) {
+    errors.push('report.visual: schemaVersion 2 の表示契約が必要です');
+    return;
+  }
+  const aliases = validateVisualMembers(value.members, sufficiency?.memberAvailability, errors);
+  validateVisualMatches(value.matches, aliases, errors);
+  validateVisualUaam(value.uaam, aliases, sufficiency?.uaam?.eligible, errors);
+}
+
 export function isCompatShareId(value) {
   return typeof value === 'string' && SHARE_ID_RE.test(value);
 }
 
-export function validateCompatShareReport(report) {
+export function validateCompatShareReport(report, options = {}) {
   const errors = [];
-  if (!hasExactKeys(report, REPORT_KEYS)) {
+  const schemaVersion = report?.visual?.schemaVersion === 2 ? 2 : 1;
+  const reportKeys = schemaVersion === 2 ? REPORT_KEYS_V2 : REPORT_KEYS_V1;
+  if (!hasExactKeys(report, reportKeys)) {
     return { ok: false, errors: ['report: 分析レスポンスのフィールドと一致しません'] };
   }
 
@@ -123,6 +258,7 @@ export function validateCompatShareReport(report) {
   const evidence = validateEvidence(report.evidence, errors);
   if (report.ethicsNotice !== COMPAT_ETHICS_NOTICE) errors.push('report.ethicsNotice: 倫理注記が契約と一致しません');
   if (!boundedString(report.model, 1, 100)) errors.push('report.model: 1〜100文字が必要です');
+  if (schemaVersion === 2) validateVisual(report.visual, sufficiency, errors);
 
   if (hasExactKeys(sufficiency, SUFFICIENCY_KEYS)) {
     const outputValidation = validateCompatOutput({
@@ -131,7 +267,8 @@ export function validateCompatShareReport(report) {
         limitations: sufficiency.limitations,
       },
       lenses: report.lenses,
-    }, evidence);
+      ...(schemaVersion === 2 ? { unmetFunctionCandidate: report.unmetFunctionCandidate } : {}),
+    }, evidence, { schemaVersion, goalProvided: options.goalProvided === true });
     errors.push(...outputValidation.errors.map((error) => `report.${error}`));
   }
 
@@ -171,7 +308,7 @@ export function validateCompatShareIssueInput(body) {
     return { ok: false, status: 400, code: 'INVALID_REQUEST', error: '対象者ラベルは氏名など80文字以内で入力してください（メールアドレス不可）' };
   }
 
-  const reportValidation = validateCompatShareReport(body.report);
+  const reportValidation = validateCompatShareReport(body.report, { goalProvided: body.mode === 'team' });
   if (!reportValidation.ok) {
     return { ok: false, status: 422, code: 'REPORT_INVALID', error: '共有する分析結果の安全性を確認できませんでした', details: reportValidation.errors };
   }
