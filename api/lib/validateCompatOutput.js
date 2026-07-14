@@ -34,6 +34,12 @@ function walk(value, path, errors, rejectVacancy) {
   }
 }
 
+export function validateCompatForbiddenLanguage(value, options = {}) {
+  const errors = [];
+  walk(value, options.path ?? 'root', errors, options.rejectVacancy === true);
+  return errors;
+}
+
 function exactKeys(value, expected) {
   return isPlainObject(value) && Object.keys(value).sort().join('|') === [...expected].sort().join('|');
 }
@@ -115,6 +121,6 @@ export function validateCompatOutput(raw, evidenceLedger, options = {}) {
     }
   }
 
-  walk(raw, 'root', errors, schemaVersion === 2);
+  errors.push(...validateCompatForbiddenLanguage(raw, { rejectVacancy: schemaVersion === 2 }));
   return errors.length === 0 ? { ok: true, value: raw, errors: [] } : { ok: false, errors };
 }

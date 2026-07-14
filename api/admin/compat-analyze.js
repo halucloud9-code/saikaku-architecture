@@ -118,12 +118,12 @@ export default async function handler(req, res) {
     });
     // 表示専用の一致語・全16軸はLLM呼び出し後に決定論的に組み立てる。
     // 本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る。
-    const visual = buildCompatVisual({
+    const visual = redactDeep(buildCompatVisual({
       profiles: evidence.profiles,
       ledger: evidence.ledger,
       uaamDocs,
       uaamEligible: evidence.dataSufficiency.uaam.eligible,
-    });
+    }), identifiers);
 
     const result = {
       dataSufficiency: evidence.dataSufficiency,

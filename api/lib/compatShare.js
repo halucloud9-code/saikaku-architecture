@@ -1,4 +1,4 @@
-import { validateCompatOutput } from './validateCompatOutput.js';
+import { validateCompatForbiddenLanguage, validateCompatOutput } from './validateCompatOutput.js';
 import { COMPAT_EVIDENCE_THRESHOLDS, COMPAT_VISUAL_UAAM_AXES } from './compatEvidence.js';
 
 export const COMPAT_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -308,9 +308,33 @@ export function validateCompatShareIssueInput(body) {
     return { ok: false, status: 400, code: 'INVALID_REQUEST', error: '対象者ラベルは氏名など80文字以内で入力してください（メールアドレス不可）' };
   }
 
+  // v1 は既存保存docの読取専用。新規共有は表示用データを含むv2だけを受け付ける。
+  if (body.report?.visual?.schemaVersion !== 2) {
+    return { ok: false, status: 422, code: 'REPORT_INVALID', error: '共有する分析結果の安全性を確認できませんでした' };
+  }
+
   const reportValidation = validateCompatShareReport(body.report, { goalProvided: body.mode === 'team' });
   if (!reportValidation.ok) {
     return { ok: false, status: 422, code: 'REPORT_INVALID', error: '共有する分析結果の安全性を確認できませんでした', details: reportValidation.errors };
+  }
+  const submittedTextErrors = [
+    ...validateCompatForbiddenLanguage(body.report.visual.matches.map((match) => match.terms), {
+      path: 'report.visual.matches[].terms',
+      rejectVacancy: true,
+    }),
+    ...validateCompatForbiddenLanguage(body.report.evidence.map((item) => item.text), {
+      path: 'report.evidence[].text',
+      rejectVacancy: true,
+    }),
+  ];
+  if (submittedTextErrors.length > 0) {
+    return {
+      ok: false,
+      status: 422,
+      code: 'REPORT_INVALID',
+      error: '共有する分析結果の安全性を確認できませんでした',
+      details: submittedTextErrors,
+    };
   }
   if (body.report.dataSufficiency.memberAvailability.length !== memberLabels.length) {
     return { ok: false, status: 400, code: 'INVALID_REQUEST', error: '分析結果と対象者ラベルの人数が一致しません' };

@@ -227,6 +227,9 @@ describe('admin compat analysis', () => {
     expect(captured).not.toContain(halfWidthName);
     expect(captured).not.toContain(fullWidthName);
     expect(captured).toContain('[識別子]設計');
+    expect(JSON.stringify(response.body.visual)).not.toContain(halfWidthName);
+    expect(JSON.stringify(response.body.visual)).not.toContain(fullWidthName);
+    expect(JSON.stringify(response.body.visual)).toContain('[識別子]設計');
   });
 
   it('repairs an unknown evidence ID once', async () => {
@@ -375,6 +378,37 @@ describe('compat report sharing', () => {
       .map((doc) => doc.data())
       .filter((audit) => audit.action?.startsWith('share_'));
     expect(shareAudits).toEqual([]);
+  });
+
+  it.each([
+    ['visual matched terms', (report) => { report.visual.matches[0].terms[0] = '相性スコア: 95点'; }],
+    ['evidence text', (report) => { report.evidence[0].text = '採用すべき人材です'; }],
+    ['evidence vacancy text', (report) => { report.evidence[0].text = '対外発信の欠員があります'; }],
+  ])('rejects forbidden language injected into %s at share issuance', async (_name, tamper) => {
+    const report = await analyzePairReport();
+    tamper(report);
+
+    const response = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody(report));
+
+    expect(response.status).toBe(422);
+    expect(response.body.code).toBe('REPORT_INVALID');
+    expect((await db.collection('compat_shares').get()).empty).toBe(true);
+  });
+
+  it('rejects a newly submitted v1 report while keeping stored v1 reads compatible', async () => {
+    const report = await analyzePairReport();
+    delete report.visual;
+    delete report.unmetFunctionCandidate;
+
+    const response = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody(report));
+
+    expect(response.status).toBe(422);
+    expect(response.body.code).toBe('REPORT_INVALID');
+    expect((await db.collection('compat_shares').get()).empty).toBe(true);
   });
 
   it('issues, serves, audits, revokes, and hides expired/revoked/unknown shares uniformly', async () => {
