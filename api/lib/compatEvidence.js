@@ -232,9 +232,11 @@ export function buildCompatVisual({ profiles, ledger, uaamDocs, uaamEligible }) 
     ));
   const axes = UAAM_VISUAL_AXES.map(([key, label]) => {
     const cohortValues = cohort[key] || [];
-    const points = profiles
-      .map((profile) => ({ alias: profile.alias, percentile: percentile(cohortValues, profile.uaam?.[key]) }))
-      .filter((point) => point.percentile !== null);
+    const points = uaamEligible
+      ? profiles
+        .map((profile) => ({ alias: profile.alias, percentile: percentile(cohortValues, profile.uaam?.[key]) }))
+        .filter((point) => point.percentile !== null)
+      : [];
     const values = points.map((point) => point.percentile);
     const gap = values.length >= 2 ? Math.max(...values) - Math.min(...values) : null;
     let signal = 'insufficient';

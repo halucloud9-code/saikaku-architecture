@@ -124,12 +124,16 @@ export default async function handler(req, res) {
       uaamDocs,
       uaamEligible: evidence.dataSufficiency.uaam.eligible,
     }), identifiers);
+    visual.matches = visual.matches.map((match) => ({
+      ...match,
+      terms: [...new Set(match.terms)],
+    }));
 
     const result = {
       dataSufficiency: evidence.dataSufficiency,
       lenses: generated.lenses,
       unmetFunctionCandidate: generated.unmetFunctionCandidate,
-      evidence: evidence.promptEvidence,
+      evidence: promptEvidence,
       ethicsNotice: COMPAT_ETHICS_NOTICE,
       model: COMPAT_MODEL,
       visual,

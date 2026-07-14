@@ -157,6 +157,7 @@ describe('admin compat analysis', () => {
     expect(response.status).toBe(200);
     expect(response.body.dataSufficiency.uaam.eligible).toBe(false);
     expect(response.body.dataSufficiency.limitations.join(' ')).toContain('UAAM数値比較はデータ不足');
+    expect(response.body.visual.uaam.axes.every((axis) => axis.points.length === 0)).toBe(true);
     expect(response.body).not.toHaveProperty('score');
 
     const audits = await db.collection('compat_audits').get();
@@ -230,6 +231,30 @@ describe('admin compat analysis', () => {
     expect(JSON.stringify(response.body.visual)).not.toContain(halfWidthName);
     expect(JSON.stringify(response.body.visual)).not.toContain(fullWidthName);
     expect(JSON.stringify(response.body.visual)).toContain('[識別子]設計');
+    expect(JSON.stringify(response.body.evidence)).not.toContain(halfWidthName);
+    expect(JSON.stringify(response.body.evidence)).not.toContain(fullWidthName);
+    expect(JSON.stringify(response.body.evidence)).toContain('[識別子]設計');
+  });
+
+  it('deduplicates visual terms that collapse to the same redaction placeholder', async () => {
+    const leftName = '識別者甲';
+    const rightName = '識別者乙';
+    const sharedTerms = `${leftName}連携\n${rightName}連携`;
+    await Promise.all([
+      seedParent('results', UID_A, resultFixture(UID_A, { name: leftName, inputTalentTop5: sharedTerms })),
+      seedParent('results', UID_B, resultFixture(UID_B, { name: rightName, inputTalentTop5: sharedTerms })),
+    ]);
+
+    const response = await api.post('/api/admin/compat-analyze')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
+
+    expect(response.status).toBe(200);
+    const talentMatch = response.body.visual.matches.find((match) => (
+      match.category === 'talent' && match.sourceKind === 'user_top5'
+    ));
+    expect(talentMatch.terms).toEqual(['[識別子]連携']);
+    expect(new Set(talentMatch.terms).size).toBe(talentMatch.terms.length);
   });
 
   it('repairs an unknown evidence ID once', async () => {

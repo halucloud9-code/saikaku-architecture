@@ -77,9 +77,22 @@ describe('compat evidence layer', () => {
   });
 
   it('treats thin UAAM coverage as a first-class insufficient result', () => {
-    const evidence = buildCompatEvidence([internal('a', '観察'), internal('b', '対話')], [], 'pair');
+    const cohort = Array.from({ length: 30 }, (_unused, index) => uaamScores((index % 20) + 1));
+    const evidence = buildCompatEvidence([
+      internal('a', '観察', '構造化', uaamScores(5)),
+      internal('b', '対話'),
+    ], cohort, 'pair');
     expect(evidence.dataSufficiency.uaam.eligible).toBe(false);
     expect(evidence.dataSufficiency.limitations.join(' ')).toContain('UAAM数値比較はデータ不足');
+
+    const visual = buildCompatVisual({
+      profiles: evidence.profiles,
+      ledger: evidence.ledger,
+      uaamDocs: cohort,
+      uaamEligible: evidence.dataSufficiency.uaam.eligible,
+    });
+    expect(visual.uaam.eligible).toBe(false);
+    expect(visual.uaam.axes.every((axis) => axis.signal === 'insufficient' && axis.points.length === 0)).toBe(true);
   });
 
   it('never includes raw exact-match terms in the prompt projection', () => {
