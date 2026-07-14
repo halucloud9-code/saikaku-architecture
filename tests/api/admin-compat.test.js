@@ -211,14 +211,45 @@ describe('admin compat analysis', () => {
     expect(getMockCallCount('compat')).toBe(2);
   });
 
-  it('fails closed when the repair retry remains invalid', async () => {
-    process.env.MOCK_COMPAT_FIXTURES = 'compat-invalid-evidence.json,compat-invalid-evidence.json';
+  it('accepts fenced real-content claims with existing evidence through the endpoint', async () => {
+    process.env.MOCK_COMPAT_FIXTURES = 'compat-fenced-valid-claim.txt';
     const response = await api.post('/api/admin/compat-analyze')
       .set('Authorization', 'Bearer admin-token')
       .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
-    expect(response.status).toBe(502);
-    expect(response.body.code).toBe('COMPAT_OUTPUT_INVALID');
-    expect(getMockCallCount('compat')).toBe(2);
+    expect(response.status).toBe(200);
+    expect(response.body.lenses[0]).toMatchObject({
+      id: 'similarity',
+      status: 'detected',
+      claims: [{
+        kind: 'observation',
+        evidenceIds: ['E-007'],
+        verificationQuestion: 'この一致を実際の協働でも同じ意味で使っていますか？',
+      }],
+    });
+    expect(response.body.evidence.some((item) => item.id === 'E-007')).toBe(true);
+    expect(getMockCallCount('compat')).toBe(1);
+  });
+
+  it('fails closed when the repair retry remains invalid', async () => {
+    process.env.MOCK_COMPAT_FIXTURES = 'compat-invalid-evidence.json,compat-invalid-evidence.json';
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const response = await api.post('/api/admin/compat-analyze')
+        .set('Authorization', 'Bearer admin-token')
+        .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
+      expect(response.status).toBe(502);
+      expect(response.body.code).toBe('COMPAT_OUTPUT_INVALID');
+      expect(getMockCallCount('compat')).toBe(2);
+
+      const logs = errorSpy.mock.calls.flat().join(' ');
+      expect(logs).toContain('[compat-prompt] initial output rejected:');
+      expect(logs).toContain('[compat-prompt] repair output rejected:');
+      expect(logs).toContain('[compat-analyze] invalid output:');
+      expect(logs).toContain('compat output invalid after repair:');
+      expect(logs).not.toContain('E-DOES-NOT-EXIST');
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
 

@@ -1,0 +1,31 @@
+以下が契約JSONです。
+```json
+{
+  "dataSufficiency": {
+    "summary": "利用できる診断データの範囲内で分析します。",
+    "limitations": ["UAAM数値比較はデータ不足です。"]
+  },
+  "lenses": [
+    {
+      "id": "similarity",
+      "status": "detected",
+      "summary": "本人入力Top5にNFKC完全一致があります。",
+      "claims": [
+        {
+          "text": "AとBの才能に、本人入力Top5のNFKC完全一致があります。",
+          "kind": "observation",
+          "evidenceIds": ["E-007"],
+          "verificationQuestion": "この一致を実際の協働でも同じ意味で使っていますか？"
+        }
+      ]
+    },
+    {
+      "id": "complementarity",
+      "status": "not_detected",
+      "summary": "この診断データでは補完性を示す証拠は不検出です。",
+      "claims": []
+    }
+  ]
+}
+```
+以上です。

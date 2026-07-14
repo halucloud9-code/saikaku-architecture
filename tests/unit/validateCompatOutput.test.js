@@ -31,6 +31,20 @@ describe('compat output validator', () => {
     expect(validateCompatOutput(output, evidence).errors.join(' ')).toContain('未知の証拠ID');
   });
 
+  it('keeps rejection details free of model-supplied IDs and field names', () => {
+    const unknownEvidence = validOutput();
+    unknownEvidence.lenses[0].claims[0].evidenceIds = ['RAW-MEMBER-DATA'];
+    const evidenceErrors = validateCompatOutput(unknownEvidence, evidence).errors.join(' ');
+    expect(evidenceErrors).not.toContain('RAW-MEMBER');
+    expect(evidenceErrors).toContain('未知の証拠ID');
+
+    const unknownField = validOutput();
+    unknownField.lenses[0]['RAW-MEMBER-NAME'] = '採用すべき人材です';
+    const fieldErrors = validateCompatOutput(unknownField, evidence).errors.join(' ');
+    expect(fieldErrors).not.toContain('RAW-MEMBER');
+    expect(fieldErrors).toContain('人事・採用・査定用途の表現は禁止です');
+  });
+
   it.each([
     ['scalar score', (output) => { output.lenses[0].summary = '相性スコア: 85点'; }],
     ['personnel language', (output) => { output.lenses[0].summary = '採用すべき人材です'; }],
@@ -48,4 +62,3 @@ describe('compat output validator', () => {
     expect(validateCompatOutput(output, evidence).ok).toBe(false);
   });
 });
-

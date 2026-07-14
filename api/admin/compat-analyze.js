@@ -133,6 +133,7 @@ export default async function handler(req, res) {
     }
     if (error?.status) return res.status(error.status).json({ code: error.code, error: error.message });
     if (error?.code === 'COMPAT_OUTPUT_INVALID') {
+      console.error('[compat-analyze] invalid output:', error.message);
       return res.status(502).json({ code: 'COMPAT_OUTPUT_INVALID', error: '分析結果の安全性を確認できませんでした。時間をおいて再度お試しください。' });
     }
     console.error('[compat-analyze] failed:', error?.message || error);

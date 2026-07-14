@@ -4,6 +4,10 @@ const ALLOWED_KINDS = ['observation', 'hypothesis'];
 const PERSONNEL_LANGUAGE = /(人事評価|採用評価|採用すべき|不採用|査定|処遇|昇進|降格|配属すべき|優秀な人材|劣った人材)/u;
 const SCALAR_COMPATIBILITY = /(相性|適合度|compatibility)\s*(?:(?:スコア|score|点数)\s*)?(?:[:：=]\s*)?\d+(?:\.\d+)?\s*(?:点|%|％)/iu;
 const FORBIDDEN_KEYS = /^(?:compatibility_?score|score|rating|ranking|rank)$/iu;
+const SAFE_PATH_KEYS = new Set([
+  'dataSufficiency', 'lenses', 'summary', 'limitations', 'id', 'status', 'claims',
+  'text', 'kind', 'evidenceIds', 'verificationQuestion',
+]);
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -21,8 +25,9 @@ function walk(value, path, errors) {
   }
   if (isPlainObject(value)) {
     for (const [key, child] of Object.entries(value)) {
-      if (FORBIDDEN_KEYS.test(key)) errors.push(`${path}.${key}: スコア・ランク系フィールドは禁止です`);
-      walk(child, `${path}.${key}`, errors);
+      if (FORBIDDEN_KEYS.test(key)) errors.push(`${path}.[forbidden-key]: スコア・ランク系フィールドは禁止です`);
+      const childPath = SAFE_PATH_KEYS.has(key) ? `${path}.${key}` : `${path}.[field]`;
+      walk(child, childPath, errors);
     }
   }
 }
@@ -43,8 +48,8 @@ function validateClaim(claim, path, evidenceIds, lens, errors) {
   } else {
     for (const id of claim.evidenceIds) {
       const evidence = evidenceIds.get(id);
-      if (!evidence) errors.push(`${path}.evidenceIds: 未知の証拠ID ${id}`);
-      else if (evidence.lens !== 'both' && evidence.lens !== lens) errors.push(`${path}.evidenceIds: ${id} は ${lens} レンズの証拠ではありません`);
+      if (!evidence) errors.push(`${path}.evidenceIds: 未知の証拠IDは禁止です`);
+      else if (evidence.lens !== 'both' && evidence.lens !== lens) errors.push(`${path}.evidenceIds: 証拠IDが対象レンズと一致しません`);
     }
   }
   if (typeof claim.verificationQuestion !== 'string' || !claim.verificationQuestion.trim() || claim.verificationQuestion.length > 400) {
