@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import CompatMandala, { firstGrapheme, stackUaamPoints } from '../../src/compat/CompatMandala.jsx';
@@ -59,5 +60,10 @@ describe('CompatMandala', () => {
       expect(svg.querySelector('title')).not.toBeNull();
       expect(svg.querySelector('desc')).not.toBeNull();
     }
+  });
+
+  it('keeps UAAM point initials on the point-ink token with the specific selector', () => {
+    const css = readFileSync('src/compat/compat.css', 'utf8');
+    expect(css).toMatch(/\.compat-uaam-plot\s+\.compat-uaam-point\s+text\s*\{[^}]*fill:\s*var\(--compat-point-ink\)\s*!important;/u);
   });
 });

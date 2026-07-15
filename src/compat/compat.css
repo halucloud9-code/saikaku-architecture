@@ -166,7 +166,8 @@
 .compat-uaam-tick { stroke: var(--compat-line-strong); stroke-width: 1; }
 .compat-uaam-tick-label { fill: var(--compat-muted) !important; font-family: ui-monospace, monospace !important; font-size: 11px; }
 .compat-uaam-point circle { fill: var(--compat-member-color); stroke: var(--compat-card); stroke-width: 3; }
-.compat-uaam-point text { fill: var(--compat-point-ink) !important; font-size: 13px; font-weight: 800; }
+/* .compat-uaam-plot svg text (specificity 0,1,2) より高い特異度で点の初期文字色を確定させる */
+.compat-uaam-plot .compat-uaam-point text { fill: var(--compat-point-ink) !important; font-size: 13px; font-weight: 800; }
 .compat-uaam-mobile-points { display: none; }
 
 .compat-claims-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
