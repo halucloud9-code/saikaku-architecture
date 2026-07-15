@@ -6,6 +6,9 @@ const UAAM_SIMILAR_MAX_GAP = 15;
 const UAAM_COMPLEMENT_MIN_GAP = 30;
 const VISUAL_CATEGORY_ORDER = ['value', 'talent', 'passion'];
 const VISUAL_SOURCE_ORDER = ['user_top5', 'generated_axis'];
+// 共有契約（compatShare.js: 一致語は最大100件・各80文字）を build 時点で必ず満たす。
+const VISUAL_MATCH_TERMS_MAX = 100;
+const VISUAL_TERM_CHARS_MAX = 80;
 
 const UAAM_VISUAL_AXES = [
   ['meaning', '基軸力'],
@@ -223,7 +226,9 @@ export function buildCompatVisual({ profiles, ledger, uaamDocs, uaamEligible }) 
       aliases: item.details.aliases,
       category: item.details.category,
       sourceKind: item.details.sourceKind,
-      terms: item.details.matches,
+      terms: [...new Set(item.details.matches
+        .map((term) => term.slice(0, VISUAL_TERM_CHARS_MAX)))]
+        .slice(0, VISUAL_MATCH_TERMS_MAX),
     }))
     .sort((left, right) => (
       VISUAL_CATEGORY_ORDER.indexOf(left.category) - VISUAL_CATEGORY_ORDER.indexOf(right.category)

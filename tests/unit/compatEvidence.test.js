@@ -123,4 +123,35 @@ describe('compat evidence layer', () => {
     expect(visual.uaam.axes).toHaveLength(16);
     expect(JSON.stringify(evidence.promptEvidence)).not.toContain(secret);
   });
+
+  it('caps same-category visual matches at 100 unique terms and truncates each term to 80 characters', () => {
+    const longStem = '長'.repeat(80);
+    const sharedTerms = [
+      `${longStem}A`,
+      `${longStem}B`,
+      ...Array.from({ length: 100 }, (_unused, index) => `共通語${String(index).padStart(3, '0')}`),
+    ];
+    const profiles = [internal('a', '観察'), internal('b', '対話')].map((profile) => ({
+      ...profile,
+      categories: {
+        ...profile.categories,
+        talent: { ...profile.categories.talent, user_top5: sharedTerms },
+      },
+    }));
+    const evidence = buildCompatEvidence(profiles, [], 'pair');
+    const visual = buildCompatVisual({
+      profiles: evidence.profiles,
+      ledger: evidence.ledger,
+      uaamDocs: [],
+      uaamEligible: false,
+    });
+    const talentMatch = visual.matches.find((match) => (
+      match.category === 'talent' && match.sourceKind === 'user_top5'
+    ));
+
+    expect(talentMatch.terms).toHaveLength(100);
+    expect(talentMatch.terms[0]).toBe(longStem);
+    expect(talentMatch.terms.every((term) => term.length <= 80)).toBe(true);
+    expect(new Set(talentMatch.terms).size).toBe(100);
+  });
 });
