@@ -3,6 +3,8 @@ import { COMPAT_EVIDENCE_THRESHOLDS, COMPAT_VISUAL_UAAM_AXES } from './compatEvi
 
 export const COMPAT_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 export const COMPAT_ETHICS_NOTICE = '本結果は相互理解のための対話素材です。人事評価・採用評価には流用しません。';
+export const COMPAT_VISUAL_TERM_MAX_LENGTH = 80;
+export const COMPAT_VISUAL_AXIS_MAX_LENGTH = 160;
 
 const SHARE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/iu;
@@ -113,7 +115,7 @@ function validateVisualMembers(value, availability, errors) {
       const axes = member.axes[category];
       if (!Array.isArray(axes)
         || axes.length > 10
-        || !axes.every((axis) => boundedString(axis, 1, 160))) {
+        || !axes.every((axis) => boundedString(axis, 1, COMPAT_VISUAL_AXIS_MAX_LENGTH))) {
         errors.push(`${path}.axes.${category}: 最大10件・各160文字以内が必要です`);
       }
     }
@@ -150,7 +152,7 @@ function validateVisualMatches(value, aliases, errors) {
       || match.terms.length < 1
       || match.terms.length > 100
       || new Set(match.terms).size !== match.terms.length
-      || !match.terms.every((term) => boundedString(term, 1, 80))) {
+      || !match.terms.every((term) => boundedString(term, 1, COMPAT_VISUAL_TERM_MAX_LENGTH))) {
       errors.push(`${path}.terms: 重複のない1〜100件・各80文字以内が必要です`);
     }
   });
@@ -320,6 +322,12 @@ export function validateCompatShareIssueInput(body) {
   const submittedTextErrors = [
     ...validateCompatForbiddenLanguage(body.report.visual.matches.map((match) => match.terms), {
       path: 'report.visual.matches[].terms',
+      rejectVacancy: true,
+    }),
+    ...validateCompatForbiddenLanguage(body.report.visual.members.flatMap((member) => (
+      CATEGORY_KEYS.flatMap((category) => member.axes[category])
+    )), {
+      path: 'report.visual.members[].axes',
       rejectVacancy: true,
     }),
     ...validateCompatForbiddenLanguage(body.report.evidence.map((item) => item.text), {

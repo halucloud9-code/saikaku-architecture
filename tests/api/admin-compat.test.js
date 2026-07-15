@@ -257,6 +257,41 @@ describe('admin compat analysis', () => {
     expect(new Set(talentMatch.terms).size).toBe(talentMatch.terms.length);
   });
 
+  it('clamps visual terms and axes to the share contract after redaction expands them', async () => {
+    const shortIdentifier = '短名';
+    const nearLimitTerm = `${shortIdentifier}${'語'.repeat(78)}`;
+    const nearLimitAxis = `${shortIdentifier}${'軸'.repeat(158)}`;
+    const left = resultFixture(UID_A, { name: shortIdentifier });
+    const right = resultFixture(UID_B);
+    left.result.talent.axis1.name = nearLimitTerm;
+    right.result.talent.axis1.name = nearLimitTerm;
+    left.result.value.axis1.name = nearLimitAxis;
+    right.result.value.axis1.name = nearLimitAxis;
+    await Promise.all([
+      seedParent('results', UID_A, left),
+      seedParent('results', UID_B, right),
+    ]);
+
+    const response = await api.post('/api/admin/compat-analyze')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
+
+    expect(response.status).toBe(200);
+    const visualTerms = response.body.visual.matches.flatMap((match) => match.terms);
+    const visualAxes = response.body.visual.members.flatMap((visualMember) => (
+      Object.values(visualMember.axes).flat()
+    ));
+    expect(visualTerms).toContain(`[識別子]${'語'.repeat(75)}`);
+    expect(visualAxes).toContain(`[識別子]${'軸'.repeat(155)}`);
+    expect(visualTerms.every((term) => term.length <= 80)).toBe(true);
+    expect(visualAxes.every((axis) => axis.length <= 160)).toBe(true);
+
+    const issued = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody(response.body));
+    expect(issued.status).toBe(201);
+  });
+
   it('repairs an unknown evidence ID once', async () => {
     process.env.MOCK_COMPAT_FIXTURES = 'compat-invalid-evidence.json,compat-valid.json';
     const response = await api.post('/api/admin/compat-analyze')
@@ -407,6 +442,9 @@ describe('compat report sharing', () => {
 
   it.each([
     ['visual matched terms', (report) => { report.visual.matches[0].terms[0] = '相性スコア: 95点'; }],
+    ['visual talent axis score', (report) => { report.visual.members[0].axes.talent[0] = '相性スコア: 95点'; }],
+    ['visual value axis personnel', (report) => { report.visual.members[0].axes.value[0] = '採用すべき人材です'; }],
+    ['visual passion axis vacancy', (report) => { report.visual.members[0].axes.passion[0] = '対外発信の欠員があります'; }],
     ['evidence text', (report) => { report.evidence[0].text = '採用すべき人材です'; }],
     ['evidence vacancy text', (report) => { report.evidence[0].text = '対外発信の欠員があります'; }],
   ])('rejects forbidden language injected into %s at share issuance', async (_name, tamper) => {

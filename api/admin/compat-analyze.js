@@ -3,7 +3,11 @@ import { db } from '../lib/firebaseAdmin.js';
 import { buildCompatEvidence, buildCompatVisual } from '../lib/compatEvidence.js';
 import { normalizeInternalProfile } from '../lib/compatProfiles.js';
 import { COMPAT_MODEL, generateCompatOutput } from '../lib/compatPrompt.js';
-import { COMPAT_ETHICS_NOTICE } from '../lib/compatShare.js';
+import {
+  COMPAT_ETHICS_NOTICE,
+  COMPAT_VISUAL_AXIS_MAX_LENGTH,
+  COMPAT_VISUAL_TERM_MAX_LENGTH,
+} from '../lib/compatShare.js';
 import { fetchPublicCompatProfile } from '../lib/publicCompatImport.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
@@ -74,6 +78,25 @@ function redactDeep(value, identifiers) {
   return value;
 }
 
+function clampVisualStrings(visual) {
+  return {
+    ...visual,
+    members: visual.members.map((member) => ({
+      ...member,
+      axes: Object.fromEntries(Object.entries(member.axes).map(([category, axes]) => [
+        category,
+        axes.map((axis) => axis.slice(0, COMPAT_VISUAL_AXIS_MAX_LENGTH)),
+      ])),
+    })),
+    matches: visual.matches.map((match) => ({
+      ...match,
+      terms: [...new Set(
+        [...new Set(match.terms)].map((term) => term.slice(0, COMPAT_VISUAL_TERM_MAX_LENGTH)),
+      )],
+    })),
+  };
+}
+
 async function writeAudit(admin, input, status, errorCode = null) {
   await db.collection('compat_audits').add({
     actorUid: admin.uid,
@@ -118,16 +141,12 @@ export default async function handler(req, res) {
     });
     // 表示専用の一致語・全16軸はLLM呼び出し後に決定論的に組み立てる。
     // 本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る。
-    const visual = redactDeep(buildCompatVisual({
+    const visual = clampVisualStrings(redactDeep(buildCompatVisual({
       profiles: evidence.profiles,
       ledger: evidence.ledger,
       uaamDocs,
       uaamEligible: evidence.dataSufficiency.uaam.eligible,
-    }), identifiers);
-    visual.matches = visual.matches.map((match) => ({
-      ...match,
-      terms: [...new Set(match.terms)],
-    }));
+    }), identifiers));
 
     const result = {
       dataSufficiency: evidence.dataSufficiency,
