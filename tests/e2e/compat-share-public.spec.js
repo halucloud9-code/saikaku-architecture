@@ -107,7 +107,7 @@ test('public v1 share fetches and renders without visual-only matched-term guida
 
   await expect(page.getByText('共有された診断データの範囲です。')).toBeVisible();
   await expect(page.getByRole('heading', { name: '相性マンダラ' })).toHaveCount(0);
-  await expect(page.getByText(/本人が入力したTop5の語はLLMに送信されない/)).toHaveCount(0);
+  await expect(page.getByText(/本人が入力したトップ5の言葉はAI（LLM）には送られません/)).toHaveCount(0);
   await expect(page.getByText(/人事評価・採用評価には流用しません/)).toBeVisible();
 });
 
@@ -125,6 +125,6 @@ test('public compat mandala uses the simplified layout at 375px without horizont
   await expect(page.getByRole('heading', { name: '相性マンダラ' })).toBeVisible();
   await expect(page.locator('.compat-mandala-mobile-network')).toBeVisible();
   await expect(page.locator('.compat-mandala-network')).toBeHidden();
-  await expect(page.getByText(/本人が入力したTop5の語はLLMに送信されない/)).toBeVisible();
+  await expect(page.getByText(/本人が入力したトップ5の言葉はAI（LLM）には送られません/)).toBeVisible();
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

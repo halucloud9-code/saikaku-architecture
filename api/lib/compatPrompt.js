@@ -34,7 +34,7 @@ const SYSTEM_PROMPT = `あなたは、相互理解のための相性分析を支
 - やさしい表現にしても、事実（observation）と推測（hypothesis）の区別、証拠IDの引用、スコア・ランキング・人事評価語の禁止はそのまま守ります。
 
 形だけを示す有効例:
-{"dataSufficiency":{"summary":"今回のデータでわかる範囲だけを見ます。","limitations":[]},"lenses":[{"id":"similarity","status":"detected","summary":"ふたりには、にているところが見つかりました。同じ部活で同じポジションを選ぶような組み合わせです。","claims":[{"text":"Aの才能のデータに、診断でみつけた軸があります。","kind":"observation","evidenceIds":["E-001"],"verificationQuestion":"最近いっしょに作業したとき、この軸で判断がそろった場面と、同じ軸なのに判断が分かれた場面、どちらがありましたか？"}]},{"id":"complementarity","status":"not_detected","summary":"今回のデータでは、ちがいで助け合うところは見つかりませんでした。","claims":[]}],"unmetFunctionCandidate":null}`;
+{"dataSufficiency":{"summary":"今回のデータでわかる範囲だけを見ます。","limitations":[]},"lenses":[{"id":"similarity","status":"detected","summary":"ふたりには、にているところが見つかりました。同じ部活で同じポジションを選ぶみたいな組み合わせです。","claims":[{"text":"Aの才能のデータに、診断でみつけた軸があります。","kind":"observation","evidenceIds":["E-001"],"verificationQuestion":"最近いっしょに作業したとき、この軸で判断がそろった場面と、同じ軸なのに判断が分かれた場面、どちらがありましたか？"}]},{"id":"complementarity","status":"not_detected","summary":"今回のデータでは、ちがいで助け合うところは見つかりませんでした。","claims":[]}],"unmetFunctionCandidate":null}`;
 
 function safeGoal(goal) {
   if (typeof goal !== 'string') return '';
