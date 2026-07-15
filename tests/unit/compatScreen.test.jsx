@@ -49,6 +49,15 @@ const reportFixture = {
   evidence: [],
   ethicsNotice: '本結果は相互理解のための対話素材です。人事評価・採用評価には流用しません。',
   model: 'claude-sonnet-4-6',
+  visual: {
+    schemaVersion: 2,
+    members: [
+      { alias: 'A', axes: { talent: ['構造化'], value: [], passion: [] } },
+      { alias: 'B', axes: { talent: ['対話'], value: [], passion: [] } },
+    ],
+    matches: [{ aliases: ['A', 'B'], category: 'talent', sourceKind: 'user_top5', terms: ['観察'] }],
+    uaam: { eligible: false, axes: [] },
+  },
 };
 
 afterEach(() => {
@@ -125,12 +134,14 @@ describe('CompatScreen', () => {
     const checkboxes = screen.getAllByRole('checkbox');
     fireEvent.click(checkboxes[0]);
     fireEvent.click(checkboxes[1]);
+    fireEvent.change(screen.getByRole('textbox', { name: 'A レポート表示名' }), { target: { value: 'つかさ' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'B レポート表示名' }), { target: { value: '野田健一' } });
     fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
     fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
 
     const issueButton = await screen.findByRole('button', { name: '共有URLを発行' });
     expect(issueButton).toBeDisabled();
-    fireEvent.click(screen.getByText('本結果の共有について、対象者全員の同意を確認しました').closest('label').querySelector('input'));
+    fireEvent.click(screen.getByText(/本人が入力したTop5の語はLLMに送信されない/).closest('label').querySelector('input'));
     expect(issueButton).toBeEnabled();
     fireEvent.click(issueButton);
 
@@ -143,5 +154,6 @@ describe('CompatScreen', () => {
       path === '/api/admin/compat-share' && JSON.parse(options.body).consentConfirmed === true
     ));
     expect(issueRequest).toBeTruthy();
+    expect(JSON.parse(issueRequest[1].body).memberLabels).toEqual(['つかさ', '野田健一']);
   });
 });

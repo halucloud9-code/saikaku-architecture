@@ -25,7 +25,6 @@ export default async function handler(req, res) {
     const data = snapshot.data();
     if (!isCompatShareActive(data)) return notFound(res);
 
-    const reportValidation = validateCompatShareReport(data.report);
     const validMetadata = ['pair', 'team'].includes(data.mode)
       && Array.isArray(data.memberLabels)
       && data.memberLabels.length >= 2
@@ -35,7 +34,9 @@ export default async function handler(req, res) {
       && data.memberLabels.length === data.report?.dataSufficiency?.memberAvailability?.length
       && (data.mode === 'pair' ? data.memberLabels.length === 2 : data.memberLabels.length >= 3)
       && data.goalProvided === (data.mode === 'team');
-    if (!reportValidation.ok || !validMetadata) return notFound(res);
+    if (!validMetadata) return notFound(res);
+    const reportValidation = validateCompatShareReport(data.report, { goalProvided: data.goalProvided });
+    if (!reportValidation.ok) return notFound(res);
 
     return res.status(200).json({
       report: reportValidation.value,

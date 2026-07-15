@@ -40,6 +40,9 @@ export default function CompatShareScreen() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const hasMatchedTerms = data?.report?.visual?.schemaVersion === 2
+    && Array.isArray(data.report.visual.matches)
+    && data.report.visual.matches.length > 0;
   usePrivateDocumentMetadata();
 
   useEffect(() => {
@@ -78,6 +81,9 @@ export default function CompatShareScreen() {
         <>
           <section className="compat-share-guidance" aria-label="共有時の注意">
             <p>このURLは対象者本人への限定共有です。本人全員の同意なく再共有しないでください。</p>
+            {hasMatchedTerms && (
+              <p>完全一致語は、対象者全員の共有同意に基づいて表示されています。本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る。</p>
+            )}
             <p>内容の訂正または共有停止を希望する場合は、URLを送った発行者へ連絡してください。</p>
           </section>
           <CompatReport result={data.report} memberLabels={data.memberLabels} />

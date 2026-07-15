@@ -55,6 +55,13 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     && consent
     && (mode === 'pair' ? selected.length === 2 : selected.length >= 3)
     && (mode !== 'team' || goal.trim().length > 0);
+  const reportLabels = selected.map((member) => member.displayName.trim());
+  const hasMatchedTerms = result?.visual?.schemaVersion === 2
+    && Array.isArray(result.visual.matches)
+    && result.visual.matches.length > 0;
+  const canIssueShare = shareConsent
+    && !sharing
+    && reportLabels.every((label) => label.length >= 1 && label.length <= 80);
 
   const switchMode = (nextMode) => {
     setMode(nextMode);
@@ -89,6 +96,12 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setShare(null);
     setCopied(false);
     setShareError('');
+  };
+
+  const updateDisplayName = (member, displayName) => {
+    setSelected((current) => current.map((item) => (
+      item === member ? { ...item, displayName } : item
+    )));
   };
 
   const importProfile = async () => {
@@ -153,7 +166,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           report: result,
           mode,
           goal: mode === 'team' ? goal.trim() : '',
-          memberLabels: selected.map((member) => member.displayName),
+          memberLabels: reportLabels,
           consentConfirmed: shareConsent,
         }),
       });
@@ -257,10 +270,21 @@ export default function CompatScreen({ user, onBack, onLogout }) {
             <h2>選択中（{selected.length}名）</h2>
             {selected.map((member, index) => (
               <div className="compat-selected-row" key={member.source === 'internal' ? member.id : member.shareUrl}>
-                <span><b>{mode === 'pair' ? (index === 0 ? 'A' : 'B') : `M${index + 1}`}</b> {member.displayName}</span>
+                <label className="compat-display-name">
+                  <span><b>{mode === 'pair' ? (index === 0 ? 'A' : 'B') : `M${index + 1}`}</b> レポート表示名</span>
+                  <input
+                    aria-label={`${mode === 'pair' ? (index === 0 ? 'A' : 'B') : `M${index + 1}`} レポート表示名`}
+                    type="text"
+                    value={member.displayName}
+                    maxLength={80}
+                    disabled={!!share}
+                    onChange={(event) => updateDisplayName(member, event.target.value)}
+                  />
+                </label>
                 <button type="button" onClick={() => removeMember(member)}>外す</button>
               </div>
             ))}
+            <p className="compat-selected-note">表示名は分析用データやLLMには送られず、レポートと共有ページにだけ使われます。</p>
           </div>
         )}
 
@@ -275,7 +299,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         </button>
       </section>
 
-      <CompatReport result={result} />
+      <CompatReport result={result} memberLabels={reportLabels} />
 
       {result && (
         <section className="compat-share-controls" aria-label="分析結果の共有">
@@ -284,11 +308,14 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           <p>URLを知る人が閲覧できます。有効期間は発行から30日で、いつでも失効できます。</p>
           <label className="compat-consent">
             <input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} disabled={!!share} />
-            <span>本結果の共有について、対象者全員の同意を確認しました</span>
+            <span>
+              本結果の共有について、対象者全員の同意を確認しました
+              {hasMatchedTerms && '（完全一致語が対象者間に表示されます。本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る）'}
+            </span>
           </label>
           {shareError && <p className="compat-error" role="alert">{shareError}</p>}
           {!share && (
-            <button type="button" className="compat-button primary" onClick={issueShare} disabled={!shareConsent || sharing}>
+            <button type="button" className="compat-button primary" onClick={issueShare} disabled={!canIssueShare}>
               {sharing ? '発行しています…' : '共有URLを発行'}
             </button>
           )}

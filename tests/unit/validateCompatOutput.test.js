@@ -20,9 +20,14 @@ function validOutput() {
   };
 }
 
+function validV2Output() {
+  return { ...validOutput(), unmetFunctionCandidate: null };
+}
+
 describe('compat output validator', () => {
   it('accepts the strict claim contract', () => {
     expect(validateCompatOutput(validOutput(), evidence).ok).toBe(true);
+    expect(validateCompatOutput(validV2Output(), evidence, { schemaVersion: 2, goalProvided: false }).ok).toBe(true);
   });
 
   it('rejects unknown evidence IDs', () => {
@@ -60,5 +65,23 @@ describe('compat output validator', () => {
     output.lenses[0].claims[0].kind = 'hypothesis';
     output.lenses[0].claims[0].verificationQuestion = '';
     expect(validateCompatOutput(output, evidence).ok).toBe(false);
+  });
+
+  it('allows at most one goal-conditional unmet function hypothesis', () => {
+    const output = validV2Output();
+    output.unmetFunctionCandidate = {
+      text: '目的達成に必要な対外説明の機能が、この診断データでは未充足の可能性があります。',
+      kind: 'hypothesis',
+      evidenceIds: ['E-001'],
+      verificationQuestion: '直近の発信が止まった場面では、説明役が定まらなかったことと、時間不足のどちらが主因でしたか？',
+    };
+    expect(validateCompatOutput(output, evidence, { schemaVersion: 2, goalProvided: true }).ok).toBe(true);
+    expect(validateCompatOutput(output, evidence, { schemaVersion: 2, goalProvided: false }).errors.join(' ')).toContain('チーム目的');
+  });
+
+  it('rejects 欠員 vocabulary in every v2 output field', () => {
+    const output = validV2Output();
+    output.lenses[0].summary = '対外説明の欠員があります。';
+    expect(validateCompatOutput(output, evidence, { schemaVersion: 2, goalProvided: false }).errors.join(' ')).toContain('「欠員」表現は禁止');
   });
 });

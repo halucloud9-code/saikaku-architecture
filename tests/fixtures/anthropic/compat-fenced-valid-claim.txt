@@ -15,7 +15,7 @@
           "text": "AとBの才能に、本人入力Top5のNFKC完全一致があります。",
           "kind": "observation",
           "evidenceIds": ["E-007"],
-          "verificationQuestion": "この一致を実際の協働でも同じ意味で使っていますか？"
+          "verificationQuestion": "最近の協働で、この語が同じ判断につながった場面と、同じ語でも意味が分かれた場面のどちらがありましたか？"
         }
       ]
     },
@@ -25,7 +25,8 @@
       "summary": "この診断データでは補完性を示す証拠は不検出です。",
       "claims": []
     }
-  ]
+  ],
+  "unmetFunctionCandidate": null
 }
 ```
 以上です。
