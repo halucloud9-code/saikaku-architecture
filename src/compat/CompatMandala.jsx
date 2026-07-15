@@ -1,12 +1,12 @@
 import { useId } from 'react';
 
 const CATEGORY_LABELS = { value: '価値観', talent: '才能', passion: '情熱' };
-const SOURCE_LABELS = { user_top5: '本人Top5', generated_axis: '生成軸' };
+const SOURCE_LABELS = { user_top5: '本人がえらんだ分', generated_axis: '診断でみつけた分' };
 const SIGNAL_LABELS = {
-  similarity: '相対位置が近接',
-  complementarity: '相対位置に幅あり',
-  neutral: '閾値外の分布',
-  insufficient: '比較データ不足',
+  similarity: '近い位置にいる',
+  complementarity: 'はなれた位置にいる（助け合えるかも）',
+  neutral: 'どちらともいえない',
+  insufficient: 'くらべるデータが足りない',
 };
 const MEMBER_COLORS = Array.from({ length: 10 }, (_unused, index) => `var(--compat-member-${index + 1})`);
 
@@ -79,8 +79,8 @@ function NetworkMandala({ visual, memberLabels }) {
   const positionByAlias = new Map(visual.members.map((member, index) => [member.alias, positions[index]]));
   const edges = combinedEdges(visual.matches);
   const description = edges.length > 0
-    ? edges.map((edge) => `${edge.aliases.map((alias) => labelFor(alias, visual.members, memberLabels)).join('と')}に完全一致${edge.count}件`).join('。')
-    : '対象者間のNFKC完全一致は、この診断データでは不検出です。';
+    ? edges.map((edge) => `${edge.aliases.map((alias) => labelFor(alias, visual.members, memberLabels)).join('と')}に同じ言葉が${edge.count}個`).join('。')
+    : 'まったく同じ言葉は、今回のデータでは見つかりませんでした。';
 
   return (
     <>
@@ -91,8 +91,8 @@ function NetworkMandala({ visual, memberLabels }) {
         aria-labelledby={titleId}
         aria-describedby={descId}
       >
-        <title id={titleId}>対象者の生成軸と完全一致の接点</title>
-        <desc id={descId}>{description} 円の距離や配置に相性の強さという意味はありません。</desc>
+        <title id={titleId}>メンバーの、診断でみつけた軸と同じ言葉のつながり</title>
+        <desc id={descId}>{description} 丸の位置やきょりに、仲の良さという意味はありません。</desc>
         <circle className="compat-mandala-guide" cx="300" cy="300" r="242" />
         {edges.map((edge) => {
           const left = positionByAlias.get(edge.aliases[0]);
@@ -102,7 +102,7 @@ function NetworkMandala({ visual, memberLabels }) {
             <g key={[...edge.aliases].sort().join('-')}>
               <line className="compat-mandala-edge" x1={left.x} y1={left.y} x2={right.x} y2={right.y} />
               <text className="compat-mandala-edge-label" x={(left.x + right.x) / 2} y={(left.y + right.y) / 2 - 8} textAnchor="middle">
-                完全一致 {edge.count}件
+                同じ言葉 {edge.count}個
               </text>
             </g>
           );
@@ -110,7 +110,7 @@ function NetworkMandala({ visual, memberLabels }) {
         <g className="compat-mandala-center">
           <circle cx="300" cy="300" r="66" />
           <text x="300" y="294" textAnchor="middle">相性マンダラ</text>
-          <text className="compat-mandala-center-sub" x="300" y="319" textAnchor="middle">完全一致の接点</text>
+          <text className="compat-mandala-center-sub" x="300" y="319" textAnchor="middle">同じ言葉のつながり</text>
         </g>
         {visual.members.map((member, index) => {
           const point = positions[index];
@@ -123,14 +123,14 @@ function NetworkMandala({ visual, memberLabels }) {
             </g>
           );
         })}
-        <text className="compat-mandala-layout-note" x="300" y="587" textAnchor="middle">配置・距離は見やすさのため。強さや優劣を示しません。</text>
+        <text className="compat-mandala-layout-note" x="300" y="587" textAnchor="middle">ならべ方やきょりは見やすくするためです。強い・弱いという意味はありません。</text>
       </svg>
-      <div className="compat-mandala-mobile-network" aria-label="完全一致の接点">
+      <div className="compat-mandala-mobile-network" aria-label="同じ言葉のつながり">
         {edges.length > 0 ? edges.map((edge) => (
           <p key={[...edge.aliases].sort().join('-')}>
-            {edge.aliases.map((alias) => labelFor(alias, visual.members, memberLabels)).join(' × ')}：NFKC完全一致 {edge.count}件
+            {edge.aliases.map((alias) => labelFor(alias, visual.members, memberLabels)).join(' × ')}：同じ言葉が{edge.count}個
           </p>
-        )) : <p>この診断データでは完全一致は不検出です。</p>}
+        )) : <p>今回のデータでは、まったく同じ言葉は見つかりませんでした。</p>}
       </div>
     </>
   );
@@ -138,20 +138,20 @@ function NetworkMandala({ visual, memberLabels }) {
 
 function MemberCards({ visual, memberLabels }) {
   return (
-    <div className="compat-mandala-members" aria-label="対象者ごとの生成軸">
+    <div className="compat-mandala-members" aria-label="メンバーごとにみつかった軸">
       {visual.members.map((member, index) => (
         <article className="compat-mandala-member" key={member.alias} style={{ '--compat-member-color': MEMBER_COLORS[index % MEMBER_COLORS.length] }}>
           <header>
             <span className="compat-mandala-initial" aria-hidden="true">{firstGrapheme(memberLabels[index] || member.alias)}</span>
             <div>
               <h3>{memberLabels[index]?.trim() || member.alias}</h3>
-              <p>生成軸</p>
+              <p>診断でみつけた分</p>
             </div>
           </header>
           {Object.entries(CATEGORY_LABELS).map(([category, categoryLabel]) => (
             <div className="compat-member-axis" key={category}>
               <strong>{categoryLabel}</strong>
-              <span>{member.axes[category]?.length > 0 ? member.axes[category].join(' / ') : 'この診断データでは不検出'}</span>
+              <span>{member.axes[category]?.length > 0 ? member.axes[category].join(' / ') : 'データなし'}</span>
             </div>
           ))}
         </article>
@@ -165,23 +165,23 @@ function MatchedTerms({ visual, memberLabels }) {
   return (
     <section className="compat-matched-terms" aria-labelledby={titleId}>
       <div className="compat-mandala-subhead">
-        <p className="compat-kicker">NFKC EXACT MATCH</p>
-        <h3 id={titleId}>完全一致した語</h3>
-        <p>同じ表記が確認できた事実です。同じ意味・関係性の強さまでは示しません。</p>
+        <p className="compat-kicker">✨ 同じ言葉さがし</p>
+        <h3 id={titleId}>まったく同じだった言葉</h3>
+        <p>同じ書き方の言葉が見つかった、という事実です。仲の良さの強さを表すものではありません。</p>
       </div>
       {visual.matches.length > 0 ? (
         <div className="compat-match-grid">
           {visual.matches.map((match, index) => (
             <article className="compat-match-card" key={`${match.aliases.join('-')}-${match.category}-${match.sourceKind}-${index}`}>
               <p className="compat-match-pair">{match.aliases.map((alias) => labelFor(alias, visual.members, memberLabels)).join(' × ')}</p>
-              <p className="compat-match-meta">{CATEGORY_LABELS[match.category]} · {SOURCE_LABELS[match.sourceKind]} · NFKC完全一致</p>
+              <p className="compat-match-meta">{CATEGORY_LABELS[match.category]} · {SOURCE_LABELS[match.sourceKind]} · まったく同じ言葉</p>
               <div className="compat-term-list">
                 {match.terms.map((term) => <span key={term}>{term}</span>)}
               </div>
             </article>
           ))}
         </div>
-      ) : <p className="compat-empty-state">この診断データでは完全一致した語は不検出です。</p>}
+      ) : <p className="compat-empty-state">今回のデータでは、まったく同じ言葉は見つかりませんでした。</p>}
     </section>
   );
 }
@@ -197,18 +197,18 @@ function UaamPlot({ axis, visual, memberLabels }) {
   const centerY = (height - 20) / 2;
   const toX = (percentile) => padding + ((width - (padding * 2)) * percentile / 100);
   const pointDescription = laidOut.length > 0
-    ? laidOut.map((point) => `${labelFor(point.alias, visual.members, memberLabels)}は第${point.percentile}パーセンタイル`).join('、')
-    : '比較できる点はありません';
+    ? laidOut.map((point) => `${labelFor(point.alias, visual.members, memberLabels)}は、みんなの中で${point.percentile}番目くらいの位置です`).join('、')
+    : 'くらべられるデータがありません';
 
   return (
     <article className="compat-uaam-plot" data-signal={axis.signal}>
       <header>
         <strong>{axis.label}</strong>
-        <span>{SIGNAL_LABELS[axis.signal]} · cohort n={axis.cohortSize}</span>
+        <span>{SIGNAL_LABELS[axis.signal]} · くらべた人数 {axis.cohortSize}人</span>
       </header>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby={titleId} aria-describedby={descId}>
-        <title id={titleId}>{axis.label}の自己申告相対位置</title>
-        <desc id={descId}>{pointDescription}。横位置はpercentileそのもので、同値や近接点は横へずらさず縦に重ねています。</desc>
+        <title id={titleId}>{axis.label}で、じぶんが思う立ち位置</title>
+        <desc id={descId}>{pointDescription}。横のいちは、みんなの中でのじゅんい（パーセンタイル）です。おなじ場所や近い場所の点は、たてに重ねて表示しています。</desc>
         <line className="compat-uaam-axis-line" x1={padding} y1={centerY} x2={width - padding} y2={centerY} />
         {[0, 50, 100].map((tick) => (
           <g key={tick}>
@@ -230,7 +230,7 @@ function UaamPlot({ axis, visual, memberLabels }) {
               data-percentile={point.percentile}
               data-x={point.x}
               data-lane={point.lane}
-              aria-label={`${label} 第${point.percentile}パーセンタイル`}
+              aria-label={`${label} ${point.percentile}番目くらいの位置`}
             >
               <circle cx="0" cy="0" r="14" style={{ '--compat-member-color': MEMBER_COLORS[index % MEMBER_COLORS.length] }} />
               <text x="0" y="5" textAnchor="middle" data-dot-initial={firstGrapheme(label)}>{firstGrapheme(label)}</text>
@@ -238,16 +238,16 @@ function UaamPlot({ axis, visual, memberLabels }) {
           );
         })}
       </svg>
-      <div className="compat-uaam-mobile-points" aria-label={`${axis.label}の自己申告相対位置`}>
+      <div className="compat-uaam-mobile-points" aria-label={`${axis.label}で、じぶんが思う立ち位置`}>
         {laidOut.length > 0 ? laidOut.map((point) => {
           const label = labelFor(point.alias, visual.members, memberLabels);
           const index = visual.members.findIndex((member) => member.alias === point.alias);
           return (
             <span key={point.alias} style={{ '--compat-member-color': MEMBER_COLORS[index % MEMBER_COLORS.length] }}>
-              <b aria-hidden="true">{firstGrapheme(label)}</b>{label} 第{point.percentile}パーセンタイル
+              <b aria-hidden="true">{firstGrapheme(label)}</b>{label} {point.percentile}番目くらいの位置
             </span>
           );
-        }) : <span>比較できるデータがありません。</span>}
+        }) : <span>くらべられるデータがありません。</span>}
       </div>
     </article>
   );
@@ -259,19 +259,19 @@ function UaamOverview({ visual, memberLabels }) {
   return (
     <section className="compat-uaam-overview" aria-labelledby={titleId}>
       <div className="compat-mandala-subhead">
-        <p className="compat-kicker">UAAM / ALL 16 AXES</p>
-        <h3 id={titleId}>16才覚の自己申告相対位置</h3>
-        <p>診断参加者コホート内の位置です。客観能力や人物の優劣ではありません。</p>
+        <p className="compat-kicker">UAAM・16この軸</p>
+        <h3 id={titleId}>16この力を、じぶんでどう思っているか</h3>
+        <p>診断を受けた人たちの中でのくらべっこです。どちらが上か下か、という意味ではありません。</p>
       </div>
       {highlighted.length > 0 && (
-        <div className="compat-uaam-signals" aria-label="閾値を越えた分布">
+        <div className="compat-uaam-signals" aria-label="とくに目立つ軸">
           {highlighted.map((axis) => (
             <span key={axis.key}><b>{axis.label}</b>{SIGNAL_LABELS[axis.signal]}</span>
           ))}
         </div>
       )}
       <details className="compat-uaam-details">
-        <summary>16軸の分布を見る</summary>
+        <summary>16この軸をぜんぶ見る</summary>
         <div className="compat-uaam-grid">
           {visual.uaam.axes.map((axis) => (
             <UaamPlot key={axis.key} axis={axis} visual={visual} memberLabels={memberLabels} />
@@ -288,9 +288,9 @@ export default function CompatMandala({ visual, memberLabels = [] }) {
   return (
     <section className="compat-mandala" aria-labelledby={titleId}>
       <header className="compat-mandala-heading">
-        <p className="compat-kicker">COMPATIBILITY MANDALA</p>
+        <p className="compat-kicker">🧭 図でみてみよう</p>
         <h2 id={titleId}>相性マンダラ</h2>
-        <p>生成軸・完全一致語・自己申告相対位置を、結論ではなく読み合わせの地図として表示します。</p>
+        <p>診断でみつけた軸や、同じ言葉、UAAMのアンケート結果を、結論ではなく「話すきっかけの地図」として見せます。</p>
       </header>
       <NetworkMandala visual={visual} memberLabels={memberLabels} />
       <MemberCards visual={visual} memberLabels={memberLabels} />

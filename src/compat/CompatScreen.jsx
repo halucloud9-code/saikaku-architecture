@@ -210,7 +210,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         <div>
           <p className="compat-kicker">ADMIN / COMPATIBILITY</p>
           <h1>相性診断</h1>
-          <p>相性を採点せず、同質と補完の証拠を、対話できる仮説にします。</p>
+          <p>点数はつけません。「にているところ」と「ちがうから助け合えるところ」を見つけて、話すきっかけにします。</p>
         </div>
         <div className="compat-header-actions">
           <button type="button" className="compat-button secondary" onClick={onBack}>管理画面へ</button>

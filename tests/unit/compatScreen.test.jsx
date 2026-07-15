@@ -93,7 +93,7 @@ describe('CompatScreen', () => {
     expect(screen.getByRole('button', { name: '相性を分析する' })).toBeEnabled();
   });
 
-  it('renders [仮説] from claim.kind', () => {
+  it('renders 💡 もしかして？ from claim.kind', () => {
     render(<CompatReport result={{
       dataSufficiency: { summary: '範囲', memberAvailability: [], limitations: [] },
       lenses: [
@@ -102,7 +102,7 @@ describe('CompatScreen', () => {
       ],
       ethicsNotice: '人事評価・採用評価には流用しません。',
     }} />);
-    expect(screen.getByText('[仮説]')).toBeInTheDocument();
+    expect(screen.getByText('💡 もしかして？')).toBeInTheDocument();
   });
 
   it('gates share issuance by separate consent and shows the URL and revoke action', async () => {

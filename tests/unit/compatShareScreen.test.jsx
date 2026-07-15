@@ -55,7 +55,7 @@ describe('CompatShareScreen', () => {
     expect(screen.getByText('Aさん')).toBeInTheDocument();
     expect(screen.getByText(/対象者本人への限定共有/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '相性マンダラ' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/本人が入力したTop5の語はLLMに送信されない/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/本人が入力したトップ5の言葉はAI（LLM）には送られません/)).not.toBeInTheDocument();
     expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow, noarchive');
     expect(document.querySelector('meta[name="referrer"]')).toHaveAttribute('content', 'no-referrer');
     expect(document.title).toBe('共有された相性診断');
@@ -82,6 +82,6 @@ describe('CompatShareScreen', () => {
     renderShare();
 
     expect(await screen.findByRole('heading', { name: '相性マンダラ' })).toBeInTheDocument();
-    expect(screen.getByText(/本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る。/)).toBeInTheDocument();
+    expect(screen.getByText(/本人が入力したトップ5の言葉はAI（LLM）には送られません。診断でみつけた軸の名前は、名前をふせたプロフィールの一部としてAIに渡ります。/)).toBeInTheDocument();
   });
 });

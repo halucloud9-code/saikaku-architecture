@@ -3,7 +3,7 @@
 {
   "dataSufficiency": {
     "summary": "利用できる診断データの範囲内で分析します。",
-    "limitations": ["UAAM数値比較はデータ不足です。"]
+    "limitations": ["くわしい診断（UAAM）の数字での比較は、今回はデータが足りませんでした。"]
   },
   "lenses": [
     {
