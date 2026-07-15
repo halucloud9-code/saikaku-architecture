@@ -9,20 +9,24 @@ const SYSTEM_PROMPT = `あなたは、相互理解のための相性分析を支
 
 出力契約:
 - JSONオブジェクトだけを返します。Markdown、コードフェンス、前置き、後書きは禁止です。
-- rootのキーはこの順序で dataSufficiency, lenses の2つだけです。
+- rootのキーはこの順序で dataSufficiency, lenses, unmetFunctionCandidate の3つだけです。
 - dataSufficiencyのキーは summary, limitations の2つだけです。availabilityをコピーせず、summaryは文字列、limitationsは文字列配列にします。
 - lensesは2要素の配列です。各要素のキーは id, status, summary, claims の4つだけです。
 - idは "similarity" と "complementarity" を1回ずつ、statusは "detected" | "not_detected" | "insufficient" のいずれかです。英字の値を日本語へ翻訳しません。
 - claimのキーは text, kind, evidenceIds, verificationQuestion の4つだけです。kindは "observation" | "hypothesis" のいずれかです。
-- observationを含む全claimに、1件以上のevidenceIdsと、本人が確認・反証できる具体的なverificationQuestionが必須です。
+- 全claimに、1件以上のevidenceIdsと、本人が確認・反証できる具体的なverificationQuestionが必須です。
 - evidenceIdsは入力に存在するIDを完全一致で使い、そのevidenceのlensが対象idまたはbothのものだけを引用します。下のE-001は形式例であり、入力にない場合は使いません。
 - observationはevidence本文の決定論的事実だけに限定し、意味づけ・役割・摩擦・貢献の読みはhypothesisにします。
+- verificationQuestionは、一推論につき一問だけにします。最近の具体的な協働場面を尋ね、仮説を支持する出来事と、同じ証拠を説明できる中立な別解を識別できる問いにします。抽象的な「当てはまりますか？」「実感はありますか？」だけで終えません。
 - statusがdetectedならclaimsを1〜4件、not_detectedまたはinsufficientならclaimsを空配列にします。文章は簡潔にします。
+- unmetFunctionCandidateは、チーム目的が入力された場合だけ、最大1件の仮説claimまたはnullにします。目的達成に必要な「機能」が決定論的証拠から未充足に見える場合だけ書き、人の必要性や人物の欠如へ言い換えません。kindは必ず"hypothesis"です。verificationQuestionでは、直近の停滞がその機能不足で起きた場合と、優先順位・時間・情報など別要因で起きた場合を識別します。目的がない、または証拠が足りない場合はnullです。
+- 「欠員」という語は禁止です。画面では「未充足機能候補」として表示されます。
 - 「データがない」を人物の欠如に言い換えず、「この診断データでは不検出」と表現します。
+- 本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る。
 - 相性スコア、適合率、ランキング、人事評価、採用評価、査定、配属判断は禁止です。
 
 形だけを示す有効例:
-{"dataSufficiency":{"summary":"利用できる診断データの範囲内で分析します。","limitations":[]},"lenses":[{"id":"similarity","status":"detected","summary":"同質性の証拠があります。","claims":[{"text":"Aの才能に生成済み軸があります。","kind":"observation","evidenceIds":["E-001"],"verificationQuestion":"この軸の説明は本人の実感と一致しますか？"}]},{"id":"complementarity","status":"not_detected","summary":"この診断データでは補完性を示す証拠は不検出です。","claims":[]}]}`;
+{"dataSufficiency":{"summary":"利用できる診断データの範囲内で分析します。","limitations":[]},"lenses":[{"id":"similarity","status":"detected","summary":"同質性の証拠があります。","claims":[{"text":"Aの才能に生成済み軸があります。","kind":"observation","evidenceIds":["E-001"],"verificationQuestion":"最近の共同作業で、この軸が判断を揃えた場面と、同じ軸があっても判断が分かれた場面のどちらがありましたか？"}]},{"id":"complementarity","status":"not_detected","summary":"この診断データでは補完性を示す証拠は不検出です。","claims":[]}],"unmetFunctionCandidate":null}`;
 
 function safeGoal(goal) {
   if (typeof goal !== 'string') return '';
@@ -30,6 +34,7 @@ function safeGoal(goal) {
 }
 
 export function buildCompatMessage({ mode, goal, promptEvidence, dataSufficiency }) {
+  const normalizedGoal = safeGoal(goal);
   return {
     model: COMPAT_MODEL,
     max_tokens: 4_096,
@@ -37,7 +42,7 @@ export function buildCompatMessage({ mode, goal, promptEvidence, dataSufficiency
     system: SYSTEM_PROMPT,
     messages: [{
       role: 'user',
-      content: `<task>${mode === 'team' ? 'チーム' : 'ペア'}分析${mode === 'team' ? `\n目的: ${safeGoal(goal)}` : ''}</task>\n<availability>${JSON.stringify(dataSufficiency)}</availability>\n<evidence>${JSON.stringify(promptEvidence)}</evidence>\n上記だけを根拠に契約JSONを返してください。`,
+      content: `<task>${mode === 'team' ? 'チーム' : 'ペア'}分析${mode === 'team' ? `\n目的: ${normalizedGoal}` : ''}</task>\n<unmet-function-policy>${mode === 'team' && normalizedGoal ? '目的あり: 証拠が十分な場合だけ最大1件、なければnull' : '目的なし: 必ずnull'}</unmet-function-policy>\n<availability>${JSON.stringify(dataSufficiency)}</availability>\n<evidence>${JSON.stringify(promptEvidence)}</evidence>\n上記だけを根拠に契約JSONを返してください。`,
     }],
   };
 }
@@ -134,7 +139,10 @@ export async function generateCompatOutput(input) {
         : 'response: 有効なJSONオブジェクトを取得できませんでした'];
     }
     if (!parseFailed) {
-      const validation = validateCompatOutput(raw, input.evidenceLedger);
+      const validation = validateCompatOutput(raw, input.evidenceLedger, {
+        schemaVersion: 2,
+        goalProvided: input.mode === 'team' && safeGoal(input.goal).length > 0,
+      });
       if (validation.ok) return validation.value;
       lastErrors = validation.errors;
     }

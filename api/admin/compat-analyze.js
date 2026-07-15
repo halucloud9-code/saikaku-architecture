@@ -1,9 +1,13 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebaseAdmin.js';
-import { buildCompatEvidence } from '../lib/compatEvidence.js';
+import { buildCompatEvidence, buildCompatVisual } from '../lib/compatEvidence.js';
 import { normalizeInternalProfile } from '../lib/compatProfiles.js';
 import { COMPAT_MODEL, generateCompatOutput } from '../lib/compatPrompt.js';
-import { COMPAT_ETHICS_NOTICE } from '../lib/compatShare.js';
+import {
+  COMPAT_ETHICS_NOTICE,
+  COMPAT_VISUAL_AXIS_MAX_LENGTH,
+  COMPAT_VISUAL_TERM_MAX_LENGTH,
+} from '../lib/compatShare.js';
 import { fetchPublicCompatProfile } from '../lib/publicCompatImport.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
@@ -59,7 +63,7 @@ async function loadProfiles(members) {
 }
 
 function redactText(value, identifiers) {
-  let text = value;
+  let text = value.normalize('NFKC');
   for (const identifier of identifiers) {
     if (identifier.length < 2) continue;
     text = text.split(identifier).join('[識別子]');
@@ -72,6 +76,25 @@ function redactDeep(value, identifiers) {
   if (Array.isArray(value)) return value.map((item) => redactDeep(item, identifiers));
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redactDeep(child, identifiers)]));
   return value;
+}
+
+function clampVisualStrings(visual) {
+  return {
+    ...visual,
+    members: visual.members.map((member) => ({
+      ...member,
+      axes: Object.fromEntries(Object.entries(member.axes).map(([category, axes]) => [
+        category,
+        axes.map((axis) => axis.slice(0, COMPAT_VISUAL_AXIS_MAX_LENGTH)),
+      ])),
+    })),
+    matches: visual.matches.map((match) => ({
+      ...match,
+      terms: [...new Set(
+        [...new Set(match.terms)].map((term) => term.slice(0, COMPAT_VISUAL_TERM_MAX_LENGTH)),
+      )],
+    })),
+  };
 }
 
 async function writeAudit(admin, input, status, errorCode = null) {
@@ -101,7 +124,10 @@ export default async function handler(req, res) {
     const uaamSnapshot = await db.collection('uaam_results').get();
     const uaamDocs = uaamSnapshot.docs.map((doc) => doc.data());
     const evidence = buildCompatEvidence(profiles, uaamDocs, input.mode);
-    const identifiers = [...new Set(profiles.flatMap((profile) => profile.identifiers).filter(Boolean))]
+    const identifiers = [...new Set(profiles
+      .flatMap((profile) => profile.identifiers)
+      .filter(Boolean)
+      .map((identifier) => identifier.normalize('NFKC')))]
       .sort((left, right) => right.length - left.length);
     const promptEvidence = redactDeep(evidence.promptEvidence, identifiers);
     const promptSufficiency = redactDeep(evidence.dataSufficiency, identifiers);
@@ -113,13 +139,23 @@ export default async function handler(req, res) {
       dataSufficiency: promptSufficiency,
       evidenceLedger: evidence.ledger,
     });
+    // 表示専用の一致語・全16軸はLLM呼び出し後に決定論的に組み立てる。
+    // 本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る。
+    const visual = clampVisualStrings(redactDeep(buildCompatVisual({
+      profiles: evidence.profiles,
+      ledger: evidence.ledger,
+      uaamDocs,
+      uaamEligible: evidence.dataSufficiency.uaam.eligible,
+    }), identifiers));
 
     const result = {
       dataSufficiency: evidence.dataSufficiency,
       lenses: generated.lenses,
-      evidence: evidence.promptEvidence,
+      unmetFunctionCandidate: generated.unmetFunctionCandidate,
+      evidence: promptEvidence,
       ethicsNotice: COMPAT_ETHICS_NOTICE,
       model: COMPAT_MODEL,
+      visual,
     };
     await writeAudit(admin, input, 'completed');
     return res.status(200).json(result);

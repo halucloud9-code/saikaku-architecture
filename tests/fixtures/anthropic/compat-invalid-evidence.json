@@ -23,5 +23,6 @@
       "summary": "この診断データでは不検出です。",
       "claims": []
     }
-  ]
+  ],
+  "unmetFunctionCandidate": null
 }

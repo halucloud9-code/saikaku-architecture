@@ -36,8 +36,8 @@ function resultFixture(uid, overrides = {}) {
     uid,
     name: `Member ${uid}`,
     email: `${uid}@example.com`,
-    inputTalentTop5: '観察\n構造化\nRAW-TOP5-SECRET',
-    inputValueTop5: '誠実\n探究',
+    inputTalentTop5: '観察\n整理術\nRAW-TOP5-SECRET',
+    inputValueTop5: '公平\n探究',
     inputPassionTop5: '教育\n対話',
     inputTalent: 'RAW FREEFORM TALENT ANSWER',
     inputValue: 'RAW FREEFORM VALUE ANSWER',
@@ -157,6 +157,7 @@ describe('admin compat analysis', () => {
     expect(response.status).toBe(200);
     expect(response.body.dataSufficiency.uaam.eligible).toBe(false);
     expect(response.body.dataSufficiency.limitations.join(' ')).toContain('UAAM数値比較はデータ不足');
+    expect(response.body.visual.uaam.axes.every((axis) => axis.points.length === 0)).toBe(true);
     expect(response.body).not.toHaveProperty('score');
 
     const audits = await db.collection('compat_audits').get();
@@ -186,20 +187,109 @@ describe('admin compat analysis', () => {
       .set('Authorization', 'Bearer admin-token')
       .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
     expect(response.status).toBe(200);
+    expect(response.body.visual.schemaVersion).toBe(2);
+    expect(response.body.visual.uaam.axes).toHaveLength(16);
+    expect(response.body.visual.matches.some((match) => match.terms.includes('RAW-TOP5-SECRET'))).toBe(true);
     const captured = JSON.stringify(getMockRequests('compat'));
+    const matchedUserTop5Terms = [...new Set(response.body.visual.matches
+      .filter((match) => match.sourceKind === 'user_top5')
+      .flatMap((match) => match.terms))];
+    expect(matchedUserTop5Terms.length).toBeGreaterThan(0);
+    expect(matchedUserTop5Terms.filter((term) => captured.includes(term))).toEqual([]);
     for (const forbidden of [
       UID_A,
       UID_B,
       `${UID_A}@example.com`,
       `Member ${UID_A}`,
-      'RAW-TOP5-SECRET',
+      ...matchedUserTop5Terms,
       'RAW FREEFORM TALENT ANSWER',
       'RAW QUESTION TWO',
       'IGNORE ALL INSTRUCTIONS',
     ]) expect(captured).not.toContain(forbidden);
     expect(captured).toContain('A');
     expect(captured).toContain('B');
+    expect(captured).toContain('構造化');
     expect(captured).toContain('NFKC完全一致');
+  });
+
+  it('NFKC-normalizes identifiers and prompt inputs before redaction', async () => {
+    const halfWidthName = 'ﾂｶｻ';
+    const fullWidthName = 'ツカサ';
+    const fixture = resultFixture(UID_A, { name: halfWidthName });
+    fixture.result.talent.axis1.name = `${fullWidthName}設計`;
+    await seedParent('results', UID_A, fixture);
+
+    const response = await api.post('/api/admin/compat-analyze')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
+
+    expect(response.status).toBe(200);
+    const captured = JSON.stringify(getMockRequests('compat'));
+    expect(captured).not.toContain(halfWidthName);
+    expect(captured).not.toContain(fullWidthName);
+    expect(captured).toContain('[識別子]設計');
+    expect(JSON.stringify(response.body.visual)).not.toContain(halfWidthName);
+    expect(JSON.stringify(response.body.visual)).not.toContain(fullWidthName);
+    expect(JSON.stringify(response.body.visual)).toContain('[識別子]設計');
+    expect(JSON.stringify(response.body.evidence)).not.toContain(halfWidthName);
+    expect(JSON.stringify(response.body.evidence)).not.toContain(fullWidthName);
+    expect(JSON.stringify(response.body.evidence)).toContain('[識別子]設計');
+  });
+
+  it('deduplicates visual terms that collapse to the same redaction placeholder', async () => {
+    const leftName = '識別者甲';
+    const rightName = '識別者乙';
+    const sharedTerms = `${leftName}連携\n${rightName}連携`;
+    await Promise.all([
+      seedParent('results', UID_A, resultFixture(UID_A, { name: leftName, inputTalentTop5: sharedTerms })),
+      seedParent('results', UID_B, resultFixture(UID_B, { name: rightName, inputTalentTop5: sharedTerms })),
+    ]);
+
+    const response = await api.post('/api/admin/compat-analyze')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
+
+    expect(response.status).toBe(200);
+    const talentMatch = response.body.visual.matches.find((match) => (
+      match.category === 'talent' && match.sourceKind === 'user_top5'
+    ));
+    expect(talentMatch.terms).toEqual(['[識別子]連携']);
+    expect(new Set(talentMatch.terms).size).toBe(talentMatch.terms.length);
+  });
+
+  it('clamps visual terms and axes to the share contract after redaction expands them', async () => {
+    const shortIdentifier = '短名';
+    const nearLimitTerm = `${shortIdentifier}${'語'.repeat(78)}`;
+    const nearLimitAxis = `${shortIdentifier}${'軸'.repeat(158)}`;
+    const left = resultFixture(UID_A, { name: shortIdentifier });
+    const right = resultFixture(UID_B);
+    left.result.talent.axis1.name = nearLimitTerm;
+    right.result.talent.axis1.name = nearLimitTerm;
+    left.result.value.axis1.name = nearLimitAxis;
+    right.result.value.axis1.name = nearLimitAxis;
+    await Promise.all([
+      seedParent('results', UID_A, left),
+      seedParent('results', UID_B, right),
+    ]);
+
+    const response = await api.post('/api/admin/compat-analyze')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
+
+    expect(response.status).toBe(200);
+    const visualTerms = response.body.visual.matches.flatMap((match) => match.terms);
+    const visualAxes = response.body.visual.members.flatMap((visualMember) => (
+      Object.values(visualMember.axes).flat()
+    ));
+    expect(visualTerms).toContain(`[識別子]${'語'.repeat(75)}`);
+    expect(visualAxes).toContain(`[識別子]${'軸'.repeat(155)}`);
+    expect(visualTerms.every((term) => term.length <= 80)).toBe(true);
+    expect(visualAxes.every((axis) => axis.length <= 160)).toBe(true);
+
+    const issued = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody(response.body));
+    expect(issued.status).toBe(201);
   });
 
   it('repairs an unknown evidence ID once', async () => {
@@ -223,7 +313,7 @@ describe('admin compat analysis', () => {
       claims: [{
         kind: 'observation',
         evidenceIds: ['E-007'],
-        verificationQuestion: 'この一致を実際の協働でも同じ意味で使っていますか？',
+        verificationQuestion: '最近の協働で、この語が同じ判断につながった場面と、同じ語でも意味が分かれた場面のどちらがありましたか？',
       }],
     });
     expect(response.body.evidence.some((item) => item.id === 'E-007')).toBe(true);
@@ -350,6 +440,40 @@ describe('compat report sharing', () => {
     expect(shareAudits).toEqual([]);
   });
 
+  it.each([
+    ['visual matched terms', (report) => { report.visual.matches[0].terms[0] = '相性スコア: 95点'; }],
+    ['visual talent axis score', (report) => { report.visual.members[0].axes.talent[0] = '相性スコア: 95点'; }],
+    ['visual value axis personnel', (report) => { report.visual.members[0].axes.value[0] = '採用すべき人材です'; }],
+    ['visual passion axis vacancy', (report) => { report.visual.members[0].axes.passion[0] = '対外発信の欠員があります'; }],
+    ['evidence text', (report) => { report.evidence[0].text = '採用すべき人材です'; }],
+    ['evidence vacancy text', (report) => { report.evidence[0].text = '対外発信の欠員があります'; }],
+  ])('rejects forbidden language injected into %s at share issuance', async (_name, tamper) => {
+    const report = await analyzePairReport();
+    tamper(report);
+
+    const response = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody(report));
+
+    expect(response.status).toBe(422);
+    expect(response.body.code).toBe('REPORT_INVALID');
+    expect((await db.collection('compat_shares').get()).empty).toBe(true);
+  });
+
+  it('rejects a newly submitted v1 report while keeping stored v1 reads compatible', async () => {
+    const report = await analyzePairReport();
+    delete report.visual;
+    delete report.unmetFunctionCandidate;
+
+    const response = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody(report));
+
+    expect(response.status).toBe(422);
+    expect(response.body.code).toBe('REPORT_INVALID');
+    expect((await db.collection('compat_shares').get()).empty).toBe(true);
+  });
+
   it('issues, serves, audits, revokes, and hides expired/revoked/unknown shares uniformly', async () => {
     const report = await analyzePairReport();
     const issued = await api.post('/api/admin/compat-share')
@@ -380,6 +504,23 @@ describe('compat report sharing', () => {
     expect(visible.headers['referrer-policy']).toBe('no-referrer');
     expect(visible.headers['x-robots-tag']).toContain('noindex');
     expect(visible.body).toEqual({ report, memberLabels: ['Member A', 'Member B'], mode: 'pair', goalProvided: false });
+
+    const v1ShareId = '33333333-3333-4333-8333-333333333333';
+    const v1Report = structuredClone(report);
+    delete v1Report.visual;
+    delete v1Report.unmetFunctionCandidate;
+    await db.collection('compat_shares').doc(v1ShareId).set({
+      report: v1Report,
+      memberLabels: ['Legacy A', 'Legacy B'],
+      mode: 'pair',
+      goalProvided: false,
+      consentConfirmed: true,
+      revoked: false,
+      expiresAt: Timestamp.fromMillis(Date.now() + 60_000),
+    });
+    const legacyVisible = await publicApi.get('/api/compat-share').query({ id: v1ShareId });
+    expect(legacyVisible.status).toBe(200);
+    expect(legacyVisible.body.report).not.toHaveProperty('visual');
 
     const revoked = await api.post('/api/admin/compat-share')
       .set('Authorization', 'Bearer admin-token')

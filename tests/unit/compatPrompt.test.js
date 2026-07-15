@@ -5,11 +5,14 @@ describe('compat prompt response parsing', () => {
   it('states the exact root, lens, claim, and enum contract with a bounded output', () => {
     const params = buildCompatMessage({ mode: 'team', goal: '共通目的', promptEvidence: [], dataSufficiency: {} });
     expect(params.max_tokens).toBe(4_096);
-    expect(params.system).toContain('rootのキーはこの順序で dataSufficiency, lenses の2つだけ');
+    expect(params.system).toContain('rootのキーはこの順序で dataSufficiency, lenses, unmetFunctionCandidate の3つだけ');
     expect(params.system).toContain('id, status, summary, claims の4つだけ');
     expect(params.system).toContain('text, kind, evidenceIds, verificationQuestion の4つだけ');
     expect(params.system).toContain('英字の値を日本語へ翻訳しません');
     expect(params.system).toContain('"evidenceIds":["E-001"]');
+    expect(params.system).toContain('中立な別解を識別できる問い');
+    expect(params.system).toContain('「欠員」という語は禁止');
+    expect(params.messages[0].content).toContain('目的あり: 証拠が十分な場合だけ最大1件');
   });
 
   it('extracts a fenced JSON object surrounded by prose', () => {
