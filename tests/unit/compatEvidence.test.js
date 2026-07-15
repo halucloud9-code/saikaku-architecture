@@ -53,7 +53,7 @@ describe('compat evidence layer', () => {
     const matches = evidence.ledger.filter((item) => item.kind === 'exact_nfkc_match');
     expect(matches.length).toBeGreaterThan(0);
     expect(matches.every((item) => item.details.sourceKind === 'generated_axis')).toBe(true);
-    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('公開プロフィールには生Top5');
+    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('公開アプリから追加したメンバーは');
   });
 
   it('uses the public-compatible surface for every pair in a mixed team', () => {
@@ -68,7 +68,7 @@ describe('compat evidence layer', () => {
   it('treats thin UAAM coverage as a first-class insufficient result', () => {
     const evidence = buildCompatEvidence([internal('a', '観察'), internal('b', '対話')], [], 'pair');
     expect(evidence.dataSufficiency.uaam.eligible).toBe(false);
-    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('UAAM数値比較はデータ不足');
+    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('くわしい診断（UAAM）の数字での比較は');
   });
 
   it('never includes raw exact-match terms in the prompt projection', () => {

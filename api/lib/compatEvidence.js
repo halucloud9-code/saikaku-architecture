@@ -117,7 +117,7 @@ function uaamEvidence(profiles, uaamDocs, mode, ledger) {
       availableProfiles: eligibleProfiles.length,
       requiredProfiles,
       minimumCohort: UAAM_MIN_COHORT,
-      reason: `UAAMは ${eligibleProfiles.length}/${profiles.length} 名。必要人数 ${requiredProfiles} 名、各サブ指標のコホート最低 ${UAAM_MIN_COHORT} 件。`,
+      reason: `そろっているのは ${eligibleProfiles.length}/${profiles.length} 名（必要 ${requiredProfiles} 名）。また、正しくくらべるには同じ診断を受けた人が全体で ${UAAM_MIN_COHORT} 人以上必要です。`,
     };
   }
 
@@ -168,18 +168,18 @@ export function buildCompatEvidence(rawProfiles, uaamDocs, mode) {
   }));
   const limitations = [];
   if (profiles.some((profile) => profile.source === 'public')) {
-    limitations.push('公開プロフィールには生Top5・core_words・UAAMがないため、共通する生成済み軸だけを比較します。欠落は「この診断データでは不検出」と扱います。');
+    limitations.push('公開アプリから追加したメンバーは、くわしいデータ（本人がえらんだ言葉・アンケート結果）を受け取らないため、診断でみつけた軸だけをくらべます。足りない分は「今回のデータでは見つからなかった」と扱います。');
   }
-  if (!uaam.eligible) limitations.push(`UAAM数値比較はデータ不足です。${uaam.reason}`);
-  if (!ledger.some((item) => item.lens === 'similarity')) limitations.push('同質レンズの決定論的証拠は、この診断データでは不検出です。');
-  if (!ledger.some((item) => item.lens === 'complementarity')) limitations.push('補完レンズの決定論的証拠は、この診断データでは不検出です。');
+  if (!uaam.eligible) limitations.push(`くわしい診断（UAAM）の数字での比較は、今回はデータが足りませんでした。${uaam.reason}`);
+  if (!ledger.some((item) => item.lens === 'similarity')) limitations.push('「にているところ」を示すはっきりしたデータは、今回は見つかりませんでした。');
+  if (!ledger.some((item) => item.lens === 'complementarity')) limitations.push('「ちがうから助け合えるところ」を示すはっきりしたデータは、今回は見つかりませんでした。');
 
   return {
     profiles,
     ledger,
     promptEvidence: ledger.map(({ id, lens, kind, promptText }) => ({ id, lens, kind, text: promptText })),
     dataSufficiency: {
-      summary: limitations.length === 0 ? '両レンズを検討できる診断データがあります。' : '利用できる診断データの範囲内で分析します。',
+      summary: limitations.length === 0 ? '「にているところ」と「ちがうから助け合えるところ」の両方を調べられるデータがそろっています。' : '今あるデータでわかる範囲だけを見ていきます。',
       memberAvailability,
       limitations,
       uaam,

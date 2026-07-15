@@ -58,7 +58,7 @@
 .compat-claim-kind { display: inline-block; margin: 0; padding: 3px 8px; border-radius: 5px; font-size: .75rem; font-weight: 700; }
 .compat-claim-kind.observation { color: #2e6251; background: #e3f0e9; }
 .compat-claim-kind.hypothesis { color: #75531a; background: #f5e9c9; }
-.compat-evidence-ids { color: var(--compat-muted); font-family: ui-monospace, monospace; font-size: .78rem; }
+.compat-evidence-ids { color: var(--compat-muted); font-family: ui-monospace, monospace; font-size: .75rem; opacity: .7; }
 .compat-question { padding-left: 12px; border-left: 3px solid var(--compat-gold); }
 .compat-ethics { color: var(--compat-muted); text-align: center; padding: 12px; font-size: .84rem; }
 .compat-share-controls, .compat-share-guidance, .compat-share-state { max-width: 1180px; margin: 24px auto 0; }

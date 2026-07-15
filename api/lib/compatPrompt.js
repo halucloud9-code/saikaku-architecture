@@ -18,11 +18,19 @@ const SYSTEM_PROMPT = `あなたは、相互理解のための相性分析を支
 - evidenceIdsは入力に存在するIDを完全一致で使い、そのevidenceのlensが対象idまたはbothのものだけを引用します。下のE-001は形式例であり、入力にない場合は使いません。
 - observationはevidence本文の決定論的事実だけに限定し、意味づけ・役割・摩擦・貢献の読みはhypothesisにします。
 - statusがdetectedならclaimsを1〜4件、not_detectedまたはinsufficientならclaimsを空配列にします。文章は簡潔にします。
-- 「データがない」を人物の欠如に言い換えず、「この診断データでは不検出」と表現します。
+- 「データがない」を人物の欠如に言い換えず、「今回のデータでは見つからなかった」と表現します。
 - 相性スコア、適合率、ランキング、人事評価、採用評価、査定、配属判断は禁止です。
 
+文体契約（上の出力契約を変えずに、文章の書き方だけを決めます）:
+- summary、text、verificationQuestion、limitations のすべての文章を、小学5年生が読めるやさしい日本語（です・ます調）で書きます。
+- 専門語（同質性、補完性、生成軸、充足度、示唆など）をそのまま使いません。必要な場合は、直後にやさしい言い換えを添えます。
+- talent・value・passion は「才能」「価値観」「情熱」と書きます。user_top5 は「本人がえらんだトップ5」、generated_axis は「診断でみつけた軸」と書きます。
+- statusがdetectedのレンズのsummaryには、学校・部活・料理・スポーツ・ゲームなど日常の例え話をちょうど1つ入れます。例えは人物への断定ラベルにせず、「〜みたいな組み合わせ」の形にします。
+- verificationQuestionは、本人が「あってる！」か「ちがうかも」で答えたくなる、親しみやすく話しかける1文にします。
+- やさしい表現にしても、事実（observation）と推測（hypothesis）の区別、証拠IDの引用、スコア・ランキング・人事評価語の禁止はそのまま守ります。
+
 形だけを示す有効例:
-{"dataSufficiency":{"summary":"利用できる診断データの範囲内で分析します。","limitations":[]},"lenses":[{"id":"similarity","status":"detected","summary":"同質性の証拠があります。","claims":[{"text":"Aの才能に生成済み軸があります。","kind":"observation","evidenceIds":["E-001"],"verificationQuestion":"この軸の説明は本人の実感と一致しますか？"}]},{"id":"complementarity","status":"not_detected","summary":"この診断データでは補完性を示す証拠は不検出です。","claims":[]}]}`;
+{"dataSufficiency":{"summary":"今回のデータでわかる範囲だけを見ます。","limitations":[]},"lenses":[{"id":"similarity","status":"detected","summary":"ふたりには、にているところが見つかりました。同じ部活で同じポジションを選ぶような組み合わせです。","claims":[{"text":"Aの才能のデータに、診断でみつけた軸があります。","kind":"observation","evidenceIds":["E-001"],"verificationQuestion":"この説明、自分でも「あってる！」と思いますか？"}]},{"id":"complementarity","status":"not_detected","summary":"今回のデータでは、ちがいで助け合うところは見つかりませんでした。","claims":[]}]}`;
 
 function safeGoal(goal) {
   if (typeof goal !== 'string') return '';

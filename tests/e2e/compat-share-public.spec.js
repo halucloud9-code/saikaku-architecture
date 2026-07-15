@@ -18,7 +18,7 @@ function sharedReport() {
       dataSufficiency: {
         summary: '共有された診断データの範囲です。',
         memberAvailability: [availability('A'), availability('B')],
-        limitations: ['UAAM数値比較はデータ不足です。'],
+        limitations: ['くわしい診断（UAAM）の数字での比較は、今回はデータが足りませんでした。'],
       },
       lenses: [
         { id: 'similarity', status: 'not_detected', summary: 'この診断データでは同質性は不検出です。', claims: [] },

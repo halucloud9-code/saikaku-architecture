@@ -156,7 +156,7 @@ describe('admin compat analysis', () => {
       .send({ mode: 'pair', members: [member(UID_A), member(UID_B)], consent: true });
     expect(response.status).toBe(200);
     expect(response.body.dataSufficiency.uaam.eligible).toBe(false);
-    expect(response.body.dataSufficiency.limitations.join(' ')).toContain('UAAM数値比較はデータ不足');
+    expect(response.body.dataSufficiency.limitations.join(' ')).toContain('くわしい診断（UAAM）の数字での比較は');
     expect(response.body).not.toHaveProperty('score');
 
     const audits = await db.collection('compat_audits').get();
