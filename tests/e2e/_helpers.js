@@ -5,6 +5,7 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { expect } from '@playwright/test';
+import { UAAM_QUESTION_VERSION } from '../../shared/uaamQuestions.js';
 
 const AUTH_BASE = 'http://localhost:9099/identitytoolkit.googleapis.com/v1';
 const API_KEY = 'fake-api-key';
@@ -183,6 +184,7 @@ export function uaamAttempt(overrides = {}) {
   return {
     status: 'committed',
     createdAt: Timestamp.now(),
+    questionVersion: UAAM_QUESTION_VERSION,
     summary: {
       typeName: 'E2Eタイプ',
       createdAt: Timestamp.now(),

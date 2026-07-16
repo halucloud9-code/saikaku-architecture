@@ -4,11 +4,11 @@
 
 | 層 | コマンド | カバレッジ | 所要時間 |
 |----|----------|------------|----------|
-| Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter / AdminScreen 統合分析タブ / UAAMResultScreen 最近の統合分析リスト / `adminSummaryCounts` JST 境界 (95 tests) | < 10 秒 |
-| UI | `npm test` (vitest.ui.config.js) | LoginScreen / AllPairsTriangle / coaching-answers-client / normalize-question-text + **CSV エクスポート (exportCsv / uaamExportFields / integrationsExportFields, #87 / #88 / #97)** (69 tests) | 〜3 秒 |
-| Rules | `npm run test:rules` | Firestore rules 21 シナリオ (`/api/me/*` 経由化で attempts/uaam_results parent の read deny を反転検証) | 〜2 秒 |
-| API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF + `/api/admin/integrations` + **`/api/admin/summary-counts` (#94)** (143 tests) | 〜30 秒 |
-| E2E | `npm run test:e2e` | Playwright 42 tests / 16 spec ファイル (badge/history/limit/admin-integrations/uaam-recent-integrations + **admin-uaam-export (#87) / admin-integrations-export (#88) / admin-integrations-search (#89)**) | 〜240 秒 |
+| Unit | `npm run test:unit` | バッジ表示ロジック / attemptAdapter / AdminScreen 統合分析タブ / UAAMResultScreen 最近の統合分析リスト / `adminSummaryCounts` JST 境界 + **UAAM他者評価: peer回答へのcalculateScores適用・V除外シャッフルの原文一致・propゲート** (153 tests) | < 10 秒 |
+| UI | `npm test` (vitest.ui.config.js) | LoginScreen / AllPairsTriangle / coaching-answers-client / normalize-question-text + **CSV エクスポート (exportCsv / uaamExportFields / integrationsExportFields, #87 / #88 / #97)** + **他者評価UI (評価者ページ / 結果画面overlay)** (84 tests) | 〜3 秒 |
+| Rules | `npm run test:rules` | Firestore rules シナリオ (`/api/me/*` 経由化で attempts/uaam_results parent の read deny を反転検証) + **`uaam_peer_*` 全コレクションのクライアント直アクセス deny** (41 tests) | 〜2 秒 |
+| API | `npm run test:api` | Reservation / Commit / Rollback / migration / concurrency + `/api/me/*` BFF + `/api/admin/integrations` + `/api/admin/summary-counts` (#94) + **他者評価4本のライフサイクル・無認証公開・並行issue原子性・提出上限(transaction内counter)・wave切替・匿名保存・削除連動(uid/email両経路・部分失敗)** (185 tests) | 〜30 秒 |
+| E2E | `npm run test:e2e` | Playwright / spec ファイル (badge/history/limit/admin-integrations/uaam-recent-integrations + admin-uaam-export (#87) / admin-integrations-export (#88) / admin-integrations-search (#89)) + **uaam-peer-assessment (実招待→未ログイン2窓64問回答→本人overlay表示)** (48 tests) | 〜240 秒 |
 | **All** | `npm run test:all` | Unit → UI → Rules → API → E2E を直列実行 (PR #96 で UI 層を追加、CSV エクスポート regression が CI で漏れない) | 〜225 秒 |
 
 ## 前提

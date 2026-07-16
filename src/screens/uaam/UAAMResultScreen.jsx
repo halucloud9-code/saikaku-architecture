@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { signOutUser } from '../../firebase';
 import {
   UAAM_AXES,
@@ -1185,7 +1185,13 @@ function ActivityDomainChart({ scores }) {
  * 16軸レーダーチャート（才覚発動領域マトリクス連動）
  * — 世界最高峰UI —
  * ============================================================ */
-function RadarChart16({ scores }) {
+function RadarChart16({
+  scores,
+  comparisonScores = null,
+  title = '才覚発動領域マトリクス — 16軸レーダー',
+  subtitle = 'Unique Ability Activation Matrix — 16-Axis Radar',
+  comparisonLegend = '',
+}) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -1234,6 +1240,9 @@ function RadarChart16({ scores }) {
     };
 
     const data = axes.map(a => (scores[a.group]?.subs?.[a.key]) || 0);
+    const comparisonData = comparisonScores
+      ? axes.map(a => (comparisonScores[a.group]?.subs?.[a.key]) || 0)
+      : null;
     const n = 16;
     // === 花びら型レーダー角度設定 ===
     const subStep   = 20 * Math.PI / 180;   // グループ内スポーク間隔 20°
@@ -1437,6 +1446,40 @@ function RadarChart16({ scores }) {
       ctx.fill();
     }
 
+    // === 比較系列（他者評価平均）===
+    // 既存の自己評価ペタルを残し、異なる線種・色で重ねる。
+    if (comparisonData) {
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const p = getPoint(i, comparisonData[i]);
+        i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(245,178,66,0.13)';
+      ctx.fill();
+      ctx.setLineDash([10, 7]);
+      ctx.strokeStyle = '#F5B242';
+      ctx.lineWidth = 4;
+      ctx.shadowColor = 'rgba(245,178,66,0.75)';
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
+
+      for (let i = 0; i < n; i++) {
+        const p = getPoint(i, comparisonData[i]);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = '#F5B242';
+        ctx.fill();
+        ctx.strokeStyle = '#241708';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     // === ラベル ===
     for (let i = 0; i < n; i++) {
       const angle = getAngle(i);
@@ -1518,7 +1561,7 @@ function RadarChart16({ scores }) {
     ctx.fillText('ARCHITECTURE', cx, cy + 6);
     ctx.restore();
 
-  }, [scores]);
+  }, [scores, comparisonScores]);
 
   // 合計スコア計算
   const totalScore = (() => {
@@ -1533,7 +1576,7 @@ function RadarChart16({ scores }) {
 
   return (
     <Section>
-      <SectionHeader title="才覚発動領域マトリクス — 16軸レーダー" subtitle="Unique Ability Activation Matrix — 16-Axis Radar" />
+      <SectionHeader title={title} subtitle={subtitle} />
       <div style={{
         background: 'linear-gradient(180deg, #08080C 0%, #0C0C14 50%, #08080C 100%)',
         borderRadius: 16,
@@ -1558,19 +1601,43 @@ function RadarChart16({ scores }) {
           }} />
         ))}
 
-        {/* 合計スコアバッジ */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 10,
-          background: 'rgba(255,215,0,0.08)',
-          border: '1px solid rgba(255,215,0,0.2)',
-          borderRadius: 20, padding: '6px 20px', marginBottom: 16,
-        }}>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, letterSpacing: '0.08em' }}>TOTAL SCORE</span>
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#FFD700', fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif" }}>{totalScore}</span>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>/ 240</span>
-        </div>
+        {/* 比較時は単一系列だけの合計を出さない */}
+        {!comparisonScores && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            background: 'rgba(255,215,0,0.08)',
+            border: '1px solid rgba(255,215,0,0.2)',
+            borderRadius: 20, padding: '6px 20px', marginBottom: 16,
+          }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, letterSpacing: '0.08em' }}>TOTAL SCORE</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: '#FFD700', fontFamily: "'DM Sans', 'Helvetica Neue', Arial, sans-serif" }}>{totalScore}</span>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>/ 240</span>
+          </div>
+        )}
 
-        <canvas ref={canvasRef} style={{ display: 'block', margin: '0 auto' }} />
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label={comparisonScores ? '自己回答と他者評価平均の16軸比較レーダー' : '16軸レーダー'}
+          aria-describedby={comparisonScores ? 'uaam-peer-comparison-data' : undefined}
+          style={{ display: 'block', margin: '0 auto' }}
+        />
+
+        {comparisonScores && (
+          <div style={{
+            display: 'flex', justifyContent: 'center', gap: 18,
+            marginTop: 14, flexWrap: 'wrap', color: '#FFFFFF',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 700 }}>
+              <span style={{ width: 24, height: 4, borderRadius: 4, background: 'linear-gradient(90deg, #5B9BD5, #3DAA6D, #D4AA50, #D46A50)' }} />
+              発行時点の自己回答
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 700 }}>
+              <span style={{ width: 24, borderTop: '3px dashed #F5B242' }} />
+              他者評価平均
+            </div>
+          </div>
+        )}
 
         {/* 凡例 */}
         <div style={{
@@ -1592,16 +1659,473 @@ function RadarChart16({ scores }) {
                 boxShadow: `0 0 6px ${g.color}80`,
               }} />
               <span style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 700 }}>{g.jp}</span>
-              <span style={{ fontSize: 10, color: g.color, fontWeight: 600 }}>{g.en}</span>
+              <span style={{ fontSize: 10, color: '#FFFFFF', fontWeight: 600 }}>{g.en}</span>
             </div>
           ))}
         </div>
 
-        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 12, letterSpacing: '0.05em' }}>
-          ※ 外周が15点満点（各軸）・合計240点満点　面積の欠落は改善ポイントを示します
+        {comparisonLegend && (
+          <p style={{ fontSize: 11, color: '#E6E6E6', margin: '14px 0 0', lineHeight: 1.7 }}>
+            {comparisonLegend}
+          </p>
+        )}
+        <p style={{ fontSize: 10, color: '#CFCFCF', marginTop: 10, letterSpacing: '0.05em' }}>
+          {comparisonScores
+            ? '※ 外周が20点満点（各サブ項目）'
+            : '※ 外周が15点満点（各軸）・合計240点満点　面積の欠落は改善ポイントを示します'}
         </p>
       </div>
     </Section>
+  );
+}
+
+async function uaamPeerApi(user, path, options = {}) {
+  const idToken = await user?.getIdToken?.();
+  if (!idToken) {
+    const error = new Error('ログインセッションを確認できませんでした');
+    error.status = 401;
+    throw error;
+  }
+
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || '他者評価の通信に失敗しました');
+    error.status = response.status;
+    error.code = data.code;
+    throw error;
+  }
+  return data;
+}
+
+function formatPeerScore(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/u, '').replace(/\.$/u, '');
+}
+
+function formatSignedPeerGap(peerValue, selfValue) {
+  if (peerValue === null || peerValue === undefined || selfValue === null || selfValue === undefined) return '—';
+  const peer = Number(peerValue);
+  const self = Number(selfValue);
+  if (!Number.isFinite(peer) || !Number.isFinite(self)) return '—';
+  const gap = Math.round((peer - self) * 100) / 100;
+  if (gap === 0) return '±0';
+  return `${gap > 0 ? '+' : ''}${formatPeerScore(gap)}`;
+}
+
+function scoreTotal(axisScore) {
+  if (Number.isFinite(Number(axisScore?.total))) return Number(axisScore.total);
+  return Object.values(axisScore?.subs ?? {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+}
+
+function PeerGapDisplay({ selfScores, peerScores }) {
+  return (
+    <Section>
+      <SectionHeader title="軸・サブ項目ごとの差" subtitle="差 = 他者評価平均 − 発行時点の自己回答" />
+      <div id="uaam-peer-comparison-data" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {FOUR_AXES.map((axis) => {
+          const selfAxis = selfScores?.[axis.key] ?? {};
+          const peerAxis = peerScores?.[axis.key] ?? {};
+          const selfTotal = scoreTotal(selfAxis);
+          const peerTotal = scoreTotal(peerAxis);
+          const axisGap = formatSignedPeerGap(peerTotal, selfTotal);
+          return (
+            <div key={axis.key} style={{
+              border: `1px solid ${axis.color}30`,
+              borderRadius: 12,
+              overflow: 'hidden',
+              background: `${axis.color}05`,
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: 12 }}>
+                <caption style={{
+                  padding: '12px 14px',
+                  background: `${axis.color}10`,
+                  borderBottom: `1px solid ${axis.color}25`,
+                  textAlign: 'left',
+                }}>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: TEXT_PRIMARY }}>{axis.jp}</span>
+                  <span style={{ marginLeft: 6, fontSize: 11, color: TEXT_SECONDARY }}>{axis.en}</span>
+                </caption>
+                <colgroup>
+                  <col style={{ width: '40%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
+                </colgroup>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <th scope="col" style={{ padding: '8px 14px', textAlign: 'left', color: TEXT_MUTED, fontSize: 10 }}>項目</th>
+                    <th scope="col" style={{ padding: '8px 6px', textAlign: 'right', color: TEXT_MUTED, fontSize: 10 }}>自己</th>
+                    <th scope="col" style={{ padding: '8px 6px', textAlign: 'right', color: TEXT_MUTED, fontSize: 10 }}>他者平均</th>
+                    <th scope="col" style={{ padding: '8px 14px 8px 6px', textAlign: 'right', color: TEXT_MUTED, fontSize: 10 }}>差</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <th scope="row" style={{ padding: '9px 14px', textAlign: 'left', color: TEXT_PRIMARY, fontWeight: 800 }}>軸合計</th>
+                    <td style={{ padding: '9px 6px', textAlign: 'right', color: TEXT_PRIMARY, fontFamily: NUM_FONT, fontWeight: 800 }}>{formatPeerScore(selfTotal)}</td>
+                    <td style={{ padding: '9px 6px', textAlign: 'right', color: '#6D4600', fontFamily: NUM_FONT, fontWeight: 800 }}>{formatPeerScore(peerTotal)}</td>
+                    <td style={{
+                      padding: '9px 14px 9px 6px', textAlign: 'right',
+                      color: axisGap.startsWith('+') ? '#1E6A43' : axisGap.startsWith('-') ? '#8B3A28' : TEXT_MUTED,
+                      fontFamily: NUM_FONT, fontWeight: 800,
+                    }}>{axisGap}</td>
+                  </tr>
+                  {axis.subs.map((subKey, index) => {
+                    const selfValue = selfAxis?.subs?.[subKey];
+                    const peerValue = peerAxis?.subs?.[subKey];
+                    const gap = formatSignedPeerGap(peerValue, selfValue);
+                    return (
+                      <tr key={subKey} style={{ borderBottom: index < axis.subs.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                        <th scope="row" style={{ padding: '9px 14px', textAlign: 'left', color: TEXT_SECONDARY, fontWeight: 700 }}>{axis.subJp[index]}</th>
+                        <td style={{ padding: '9px 6px', textAlign: 'right', color: TEXT_PRIMARY, fontFamily: NUM_FONT }}>{formatPeerScore(selfValue)}</td>
+                        <td style={{ padding: '9px 6px', textAlign: 'right', color: '#6D4600', fontFamily: NUM_FONT }}>{formatPeerScore(peerValue)}</td>
+                        <td style={{
+                          padding: '9px 14px 9px 6px', textAlign: 'right',
+                          color: gap.startsWith('+') ? '#1E6A43' : gap.startsWith('-') ? '#8B3A28' : TEXT_MUTED,
+                          fontWeight: 800, fontFamily: NUM_FONT,
+                        }}>{gap}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+export function PeerAssessmentSection({ user }) {
+  const [summaryState, setSummaryState] = useState('loading');
+  const [summary, setSummary] = useState(null);
+  const [invite, setInvite] = useState(null);
+  const [inviteLifecycle, setInviteLifecycle] = useState('unknown');
+  const [action, setAction] = useState('');
+  const [summaryError, setSummaryError] = useState('');
+  const [managementError, setManagementError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [issueUnavailable, setIssueUnavailable] = useState(false);
+  const [wasRevoked, setWasRevoked] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [focusAfterAction, setFocusAfterAction] = useState('');
+  const issueButtonRef = useRef(null);
+  const copyButtonRef = useRef(null);
+
+  const loadSummary = useCallback(async (announce = false) => {
+    setSummaryState('loading');
+    setSummaryError('');
+    try {
+      const data = await uaamPeerApi(user, '/api/me/uaam-peer-summary');
+      if (data?.status !== 'insufficient' && data?.status !== 'ready') {
+        throw new Error('集計データの形式を確認できませんでした');
+      }
+      setSummary(data);
+      setSummaryState(data.status);
+      setInviteLifecycle('active');
+      setStatusMessage(data.status === 'ready'
+        ? `集計を${announce ? '更新' : '確認'}しました。回答数は${data.n}件です。`
+        : `集計を${announce ? '更新' : '確認'}しました。回答が2件以上揃うと表示されます。`);
+    } catch (error) {
+      setSummary(null);
+      if (error.status === 404) {
+        setSummaryState('inactive');
+        setInviteLifecycle((current) => (current === 'revoked' ? current : 'inactive'));
+        setStatusMessage(announce
+          ? '集計を更新しました。有効な招待URLはありません。'
+          : '有効な招待URLはありません。');
+        return;
+      }
+      setSummaryState('error');
+      setSummaryError(error.code === 'question_version_mismatch'
+        ? '診断内容が更新されたため、この招待URLの集計は表示できません。招待を再発行してください。'
+        : error.message);
+      setStatusMessage(announce ? '集計を更新できませんでした。' : '集計を確認できませんでした。');
+    }
+  }, [user]);
+
+  useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
+
+  useEffect(() => {
+    if (focusAfterAction === 'copy' && invite?.url) {
+      copyButtonRef.current?.focus();
+      setFocusAfterAction('');
+    } else if (focusAfterAction === 'issue' && !invite?.url) {
+      issueButtonRef.current?.focus();
+      setFocusAfterAction('');
+    }
+  }, [focusAfterAction, invite]);
+
+  const issueInvite = async () => {
+    setAction('issue');
+    setManagementError('');
+    setCopied(false);
+    try {
+      const nextInvite = await uaamPeerApi(user, '/api/me/uaam-peer-invite', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'issue' }),
+      });
+      setInvite(nextInvite);
+      setInviteLifecycle('active');
+      setWasRevoked(false);
+      await loadSummary();
+      setStatusMessage(nextInvite.reused
+        ? '有効な招待URLを表示しました。URLをコピーできます。'
+        : '招待URLを発行しました。URLをコピーできます。');
+      setFocusAfterAction('copy');
+    } catch (error) {
+      if (error.code === 'self_question_version_unknown') {
+        setIssueUnavailable(true);
+        setInviteLifecycle('inactive');
+        setManagementError('最新の診断内容で受け直すと、他者評価の招待を発行できます。');
+      } else if (error.status === 404) {
+        setIssueUnavailable(true);
+        setInviteLifecycle('inactive');
+        setManagementError('UAAM診断の確定結果がないため、招待URLを発行できません。');
+      } else {
+        setManagementError(error.message);
+      }
+    } finally {
+      setAction('');
+    }
+  };
+
+  const revokeInvite = async () => {
+    if (!window.confirm('この招待URLを失効させますか？ 現在の集計は表示されなくなります。')) return;
+    setAction('revoke');
+    setManagementError('');
+    try {
+      await uaamPeerApi(user, '/api/me/uaam-peer-invite', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'revoke' }),
+      });
+      setInvite(null);
+      setInviteLifecycle('revoked');
+      setWasRevoked(true);
+      setCopied(false);
+      setSummary(null);
+      setSummaryState('inactive');
+      setStatusMessage('招待URLを失効しました。新しい招待URLを再発行できます。');
+      setFocusAfterAction('issue');
+    } catch (error) {
+      setManagementError(error.message);
+    } finally {
+      setAction('');
+    }
+  };
+
+  const copyInviteUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(invite.url);
+      setCopied(true);
+      setManagementError('');
+      setStatusMessage('招待URLをコピーしました。');
+    } catch {
+      setManagementError('URLをコピーできませんでした。URL欄から手動でコピーしてください。');
+    }
+  };
+
+  const activeInvite = inviteLifecycle === 'active';
+  const ready = summaryState === 'ready' && summary?.status === 'ready';
+
+  return (
+    <div data-testid="uaam-peer-assessment">
+      <Section>
+        <SectionHeader title="他者評価" subtitle="匿名回答の招待と、自己回答との比較" />
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          style={{
+            position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
+            overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0,
+          }}
+        >
+          {statusMessage}
+        </div>
+
+        <div style={{
+          background: LIGHT_BG,
+          border: `1px solid ${BORDER}`,
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 18,
+        }}>
+          {invite?.url ? (
+            <div className="no-print">
+              <label htmlFor="uaam-peer-invite-url" style={{ display: 'block', color: TEXT_PRIMARY, fontSize: 12, fontWeight: 800, marginBottom: 8 }}>
+                共有用URL
+              </label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  id="uaam-peer-invite-url"
+                  readOnly
+                  value={invite.url}
+                  onFocus={(event) => event.currentTarget.select()}
+                  style={{
+                    flex: '1 1 280px', minWidth: 0, border: `1px solid ${BORDER}`,
+                    borderRadius: 8, padding: '10px 12px', background: WHITE,
+                    color: TEXT_PRIMARY, fontSize: 12,
+                  }}
+                />
+                <button ref={copyButtonRef} type="button" onClick={copyInviteUrl} style={{
+                  border: 'none', borderRadius: 8, padding: '10px 16px',
+                  background: TEXT_PRIMARY, color: WHITE, fontWeight: 800, cursor: 'pointer',
+                }}>
+                  {copied ? 'コピー済み' : 'URLをコピー'}
+                </button>
+              </div>
+              <div style={{ marginTop: 12, color: TEXT_SECONDARY, fontSize: 12, lineHeight: 1.8 }}>
+                <div>URLを知っている人は誰でも回答できます</div>
+                <div>再発行すると集計がリセットされます</div>
+              </div>
+            </div>
+          ) : (
+            <p style={{ margin: 0, color: TEXT_SECONDARY, fontSize: 13, lineHeight: 1.8 }}>
+              {wasRevoked
+                ? '招待URLは失効しました。再発行すると新しい集計が始まります。'
+                : activeInvite
+                  ? '有効な招待があります。URLを確認すると共有できます。'
+                  : '招待URLを発行して、他者から匿名の回答を集められます。'}
+            </p>
+          )}
+
+          {managementError && (
+            <p role="alert" style={{ color: '#922B21', fontSize: 12, margin: '10px 0 0', lineHeight: 1.7 }}>
+              {managementError}
+            </p>
+          )}
+
+          <div className="no-print" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+            {!invite?.url && (
+              <button
+                type="button"
+                ref={issueButtonRef}
+                onClick={issueInvite}
+                disabled={!!action || issueUnavailable || summaryState === 'loading'}
+                style={{
+                  border: 'none', borderRadius: 8, padding: '10px 15px',
+                  background: issueUnavailable ? BORDER : '#1A3A52',
+                  color: issueUnavailable ? TEXT_MUTED : WHITE,
+                  fontWeight: 800,
+                  cursor: action || issueUnavailable || summaryState === 'loading' ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {action === 'issue'
+                  ? '処理中...'
+                  : activeInvite
+                    ? '招待URLを確認する'
+                    : wasRevoked
+                      ? '招待URLを再発行する'
+                      : '招待URLを発行する'}
+              </button>
+            )}
+            {activeInvite && (
+              <button
+                type="button"
+                onClick={revokeInvite}
+                disabled={!!action}
+                style={{
+                  border: '1px solid #B95A4A', borderRadius: 8, padding: '9px 15px',
+                  background: WHITE, color: '#922B21', fontWeight: 800,
+                  cursor: action ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {action === 'revoke' ? '失効中...' : '招待URLを失効する'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 12, marginBottom: 12,
+        }}>
+          <h3 style={{ margin: 0, color: TEXT_PRIMARY, fontSize: 15 }}>集計結果</h3>
+          {activeInvite && (
+            <button
+              className="no-print"
+              type="button"
+              onClick={() => loadSummary(true)}
+              disabled={summaryState === 'loading'}
+              style={{
+                border: `1px solid ${BORDER}`, borderRadius: 8, padding: '7px 11px',
+                background: WHITE, color: TEXT_SECONDARY, fontSize: 11, fontWeight: 800,
+                cursor: summaryState === 'loading' ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {summaryState === 'loading' ? '更新中...' : '集計を更新'}
+            </button>
+          )}
+        </div>
+
+        {summaryState === 'loading' && (
+          <p style={{ margin: 0, color: TEXT_MUTED, fontSize: 13 }}>集計を確認しています...</p>
+        )}
+        {summaryState === 'inactive' && (
+          <p style={{ margin: 0, color: TEXT_MUTED, fontSize: 13 }}>
+            有効な招待URLを発行すると、ここに集計状態が表示されます。
+          </p>
+        )}
+        {summaryState === 'insufficient' && (
+          <div data-testid="uaam-peer-insufficient" style={{
+            border: '1px solid rgba(184,150,12,0.28)',
+            background: '#FFF8E6', borderRadius: 10, padding: '14px 16px',
+            color: '#6D5600', fontSize: 13, fontWeight: 800,
+          }}>
+            回答が2件以上揃うと表示されます
+          </div>
+        )}
+        {summaryState === 'error' && (
+          <p role="alert" style={{ margin: 0, color: '#922B21', fontSize: 12 }}>
+            {summaryError || '集計の読み込みに失敗しました'}
+          </p>
+        )}
+        {ready && (
+          <div data-testid="uaam-peer-ready" style={{
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10,
+          }}>
+            <div style={{ border: `1px solid ${BORDER}`, borderRadius: 10, padding: 13, background: LIGHT_BG }}>
+              <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 4 }}>回答数</div>
+              <div style={{ fontFamily: NUM_FONT, fontSize: 24, fontWeight: 800, color: TEXT_PRIMARY }}>{summary.n}</div>
+              <div style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 3 }}>回答数であり人数ではありません</div>
+            </div>
+            <div style={{ border: `1px solid ${BORDER}`, borderRadius: 10, padding: 13, background: LIGHT_BG }}>
+              <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 7 }}>比較する自己回答日</div>
+              <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 800, color: TEXT_PRIMARY }}>
+                {formatIntegrationDate(summary.selfSnapshot?.answeredAt)}
+              </div>
+            </div>
+          </div>
+        )}
+      </Section>
+
+      {ready && (
+        <>
+          <RadarChart16
+            scores={summary.selfSnapshot.scores}
+            comparisonScores={summary.aggregate}
+            title="自己回答と他者評価の比較"
+            subtitle="Self snapshot vs peer aggregate — 16-Axis Overlay"
+            comparisonLegend="同一の64問・発行時点の自己回答との比較"
+          />
+          <PeerGapDisplay selfScores={summary.selfSnapshot.scores} peerScores={summary.aggregate} />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1880,7 +2404,17 @@ function ThreeElementCard({ threeElements, leadershipStage, scores }) {
 /* ============================================================
  * メインコンポーネント
  * ============================================================ */
-export default function UAAMResultScreen({ user, result, attemptData, isAdmin, onReset, onAdmin, onLogout, onScoresRestored }) {
+export default function UAAMResultScreen({
+  user,
+  result,
+  attemptData,
+  enablePeerAssessment = false,
+  isAdmin,
+  onReset,
+  onAdmin,
+  onLogout,
+  onScoresRestored,
+}) {
   const attemptProps = useMemo(
     () => (attemptData ? attemptToResultProps(attemptData, 'uaam') : null),
     [attemptData],
@@ -2220,6 +2754,8 @@ export default function UAAMResultScreen({ user, result, attemptData, isAdmin, o
 
         {/* ===== 16軸レーダーチャート（Activation Matrix） ===== */}
         <ActivationMatrix scores={scores} maxSub={MAX_SUB} />
+
+        {enablePeerAssessment && <PeerAssessmentSection user={user} />}
 
         {/* ===== ✅ 今、発動している力（再展開：MLCI直下） ===== */}
         <ActivationPanel scores={
