@@ -26,6 +26,7 @@ import NavigationGuardDialog from './components/NavigationGuardDialog';
 import RequireAdmin from './components/RequireAdmin';
 import CompatScreen from './compat/CompatScreen';
 import CompatShareScreen from './compat/CompatShareScreen';
+import PeerAssessScreen from './peer/PeerAssessScreen';
 import { normalizeScores } from './utils/normalize';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
@@ -415,8 +416,9 @@ function AppShell() {
   };
 
   const isPublicCompatShare = /^\/compat\/share\/[^/]+\/?$/iu.test(location.pathname);
+  const isPublicPeerAssessment = /^\/peer\/[^/]+\/?$/iu.test(location.pathname);
 
-  if (isPublicCompatShare) {
+  if (isPublicCompatShare || isPublicPeerAssessment) {
     return <Outlet context={context} />;
   }
 
@@ -700,6 +702,7 @@ const router = createBrowserRouter([
       { path: 'history/uaam', element: <HistoryRoute kind="uaam" /> },
       { path: 'history/uaam/:attemptId', element: <HistoryDetailRoute kind="uaam" /> },
       { path: 'compat/share/:shareId', element: <CompatShareScreen /> },
+      { path: 'peer/:inviteId', element: <PeerAssessScreen /> },
       {
         path: 'admin',
         element: <RequireAdmin />,
