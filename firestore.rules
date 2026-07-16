@@ -2,16 +2,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // results コレクション：本人のみ読み書き可
-    // 管理者の読み取りは firebase-admin（バックエンド）経由のため
-    // フロントからの直接アクセスは本人分のみに制限する
-    match /results/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    // Client writes are restricted to consentAt and selectedKakuchiiki.
+    // Diagnostic results and every subcollection are Admin SDK only.
+    function signedInAs(uid) {
+      return request.auth != null && request.auth.uid == uid;
     }
 
-    // uaam_results コレクション：本人のみ読み書き可
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    match /results/{uid} {
+      allow read: if signedInAs(uid);
+
+      allow create: if signedInAs(uid)
+        && request.resource.data.keys().hasOnly(['consentAt'])
+        && request.resource.data.consentAt is timestamp;
+
+      allow update: if signedInAs(uid)
+        && changedKeys().hasOnly(['consentAt', 'selectedKakuchiiki'])
+        && (!changedKeys().hasAny(['consentAt'])
+             || request.resource.data.consentAt is timestamp)
+        && (!changedKeys().hasAny(['selectedKakuchiiki'])
+             || (request.resource.data.selectedKakuchiiki is string
+                 && request.resource.data.selectedKakuchiiki.size() < 200));
+
+      allow delete: if false;
+    }
+
     match /uaam_results/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if false;
     }
 
     // alpha_events: 認証済みユーザーが自分のfromUidを持つresonanceを書き込める
