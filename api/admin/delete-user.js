@@ -5,6 +5,7 @@ import { db } from '../lib/firebaseAdmin.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
 const FIRESTORE_DOCUMENT_ID_MAX_BYTES = 1500;
+const FIREBASE_AUTH_UID_MAX_BYTES = 128;
 const ASCII_CONTROL_RE = /[\u0000-\u001F\u007F]/u;
 
 // One guard is shared by Auth UIDs and Firestore-derived document IDs. Auth
@@ -222,8 +223,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // Firebase Auth のユーザーを削除
+    // Firebase Auth のユーザーを削除。Auth UID は最大128バイトなので、それを超える
+    // Firestore 由来 ID には対応する Auth ユーザーが存在しない。invalid-uid を
+    // partial_failure に計上せず、Auth 削除自体をスキップする。
     for (const authUid of deletionReadyUids) {
+      if (Buffer.byteLength(authUid, 'utf8') > FIREBASE_AUTH_UID_MAX_BYTES) continue;
       await attemptDeletion(failures, 'auth_user_delete', authUid, () => getAuth().deleteUser(authUid));
     }
 
