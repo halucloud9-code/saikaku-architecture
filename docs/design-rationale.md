@@ -880,3 +880,48 @@ v2のLLM出力には、チーム目的がある時だけ `unmetFunctionCandidate
 ### profileVersionの競合検査を延期した理由
 
 クライアントpayloadには将来の楽観ロック用に `profileVersion` を必須で残す。一方、MVPは単一運営者で、共有保存するのは分析後に確定・再検証した出力であり、共有時にプロフィールを再取得して上書きしない。選択から生成までの競合影響は限定的なため、変更時409 (`PROFILE_CHANGED`) のhard checkは引き続き延期する。複数運営者化、または保存レポートを元プロフィール更新へ追随させる時点で再評価する。
+
+
+## 18. UAAM 他者評価（ピアアセスメント）
+
+UAAM診断（自己評価）に「他者からの評価」を追加し、**完全同一の64問・発行時点スナップショット**で自己認識と他者認識のズレを可視化する。ハルbot構想（2026-06-12頭出し）のsaikaku/UAAM版。
+
+### なぜ共通URL1本・ログイン不要にしたか（Option B）
+
+配布容易性と回答障壁ゼロを最優先した。評価者にアカウントを要求すると、AIチーム4人の相互評価や経営塾への一般展開で「登録の壁」がボトルネックになる。共通URLをSlack等に1回貼るだけで回答が集まる体験（`/compat/share/` と同じ公開routeパターン）を選んだ。
+
+代償として、認証前提だった担保3点（1人1票の技術的強制／自己評価の技術的封じ／評価者個別の削除依頼）は**信頼ベース＋開示**に緩和した。中間案（チケット式=1人1URL）も提示したが、4人が同じグループでURLを見る運用では訂正・失効が複雑化する割に実効差が小さく、つかさ裁定でOption Bを採用。多重投票・本人回答は「隠す」のではなく「限界をUIで明示」する方針とし、集計は「人数」ではなく「回答数」と表記する。
+
+### なぜ評価者の身元を一切保存しないか
+
+Option Bの帰結として、submissionsには評価者のuid・氏名・メール・IP・UAを**一切保存しない**（`{inviteId, answers, scores, createdAt}` のみ）。監査（`uaam_peer_audits`）も `{type, inviteId, subjectUid, at}` のみで、submit時にactor情報を持たせない。身元を持たない設計はPII最小化であると同時に、「評価者個別の削除依頼」を識別不能にする（回答は対象者本人の削除と運命共同体、と評価者ページに明記）。認証由来の匿名性担保を失う代わりに、そもそも身元データを収集しない匿名性を得た。
+
+### なぜ発行時点で自己スコアを固定するか（selfSnapshot）
+
+自己回答日と他者回答日がずれると「時点差の交絡」が生じる（本人がその間に自己評価を更新すると、比較対象が動く）。招待発行時に本人の最新committed attemptの正規スコアを招待docに `selfSnapshot` として固定し、その招待（wave）に紐づく提出の平均%と比較する。同じ `calculateScores`（`shared/uaamQuestions.js`）を自己・他者の双方に適用し、完全同一項目での比較を保証する。
+
+### wave（集計単位）の意味論
+
+集計は現行 invite に紐づく提出のみを対象とする。revoke→再発行で新waveを開始し、旧waveの提出は表示対象外になる（データは対象者本人の削除連動まで保持）。これにより「再発行＝集計リセット」という直感的な運用を、旧データを物理削除せずに実現する。招待のポインタdoc（`uaam_peer_invite_index/{subjectUid}`）をtransactionで読み書きするべき等発行にし、並行issueでもactive inviteが常に1つになる。
+
+### なぜ n<2 で正確なnを返さないか
+
+少人数では「自分の回答が誰のものか」が推測されやすい。回答数が1のとき正確なnを返すと「今の回答者は自分だけ」という情報が漏れる。サーバーは n<2 で `{status:'insufficient'}` のみを返し（n・レーダー・凡例を一切含めない）、n≥2 で初めて集計を開示する。少人数の推測可能性そのものは開示（「回答人数が少ない場合、誰の回答かが推測される可能性があります」）で対処する。
+
+### 無認証WRITEの防御（リポ初）
+
+公開WRITEはこのリポで初めてなので、`compat-share` の公開GET防御をWRITEへ拡張した:
+- **入力検証をFirestoreアクセス前に実施**（コスト攻撃面の縮小）: 64問(qid1-64)全問1-5の厳格検証、V問混入/余分キー/欠損キーは400
+- **提出上限をtransaction内counterで強制**: 招待docの `submissionCount` を同一transactionで読み取り・判定・increment。上限到達で429。プレtransactionの `count()` チェックは並行送信で破れるため廃止（並列10件でcap=3に対し3保存/7×429を実測）
+- **削除バリア（tombstone）を全4経路で検査**: issue/公開GET/公開POST/summary が対象者の `uaam_peer_deletions` を検査して410
+- UUIDv4形式検証・TTL 30日・no-store/noindex（vercel.json のプラットフォームヘッダ＋クライアント注入meta）・監査（inviteId・時刻のみ、PIIなし）
+
+レート制限・WAF・App Check等のインフラ層防御はリポ外のため本実装のスコープ外とし、別issueで扱う（既知の残留リスクとして記録）。
+
+### 削除連動（evaluation-ethics 準拠）
+
+`api/admin/delete-user.js` に他者評価データの削除を統合した。順序は tombstone → invites/pointer → results(recursiveDelete) → audits。**招待docは revoke保持ではなく完全削除**し、tombstoneに削除済みinviteId配列（UUIDのみ・個人データゼロ）を `arrayUnion` で記録して410バリアを維持する（当初の revoke保持案は subjectName/selfSnapshot が残置され evaluation-ethics と不整合だった）。email指定でtargetUid不明時は `results`/`uaam_results` のemail一致docからuidを導出し、Authユーザーが存在しても孤立Firestore UIDを含む全UIDを掃引する。削除の部分失敗は握り潰さず、requestId付き `500 partial_failure`（`failedUids` 付き）で可視化する。
+
+### 既存 firestore.rules 退行の復元
+
+本実装の過程で、`origin/main` の `test:rules` が既に8件失敗していることが判明した。原因は `2b4a89d`（α共鳴シートPhase1-3）で `results`/`uaam_results` の制限ルールが本人無条件read/writeへ退行していたこと。他者評価の完了条件「test:all全パス」を満たすため、退行前のテスト済み契約（consentAt/selectedKakuchiiki限定、alpha_events保持）へ復元した。`uaam_peer_*` はデフォルトdeny（Admin SDK専用）を維持し、クライアント直アクセスdenyテストを追加した。

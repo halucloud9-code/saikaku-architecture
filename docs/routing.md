@@ -22,6 +22,7 @@
 | `/admin` | `AdminScreen` | `<RequireAdmin>` 経由で `isAdmin` 判定 | 非管理者は `<Navigate to="/" replace>` |
 | `/admin/compat` | `CompatScreen` | `<RequireAdmin>` 経由で `isAdmin` 判定。API側も確認済みメール + `ADMIN_EMAILS` を要求 | 取得失敗は画面内エラー。非管理者は `<Navigate to="/" replace>` |
 | `/compat/share/:shareId` | `CompatShareScreen` + `CompatReport` | 認証不要。UUID v4のbearer URL、30日で期限切れ、発行者が失効可能。`noindex` / `no-store` / `no-referrer` | 不明・期限切れ・失効済みは同じ「閲覧不可」表示 |
+| `/peer/:inviteId` | `PeerAssessScreen` | 認証不要。UAAM他者評価の共通共有URL（対象者本人が発行）。UUID v4、30日で期限切れ、本人が失効可能。`noindex` / `no-store` / `no-referrer`。回答は匿名（評価者の身元を一切保存しない） | 不明・期限切れ・失効済みは404、対象者削除中は410。catch-allに飲まれず専用エラー画面 |
 | `*` (それ以外) | — | — | `<Navigate to="/" replace>` |
 
 `loading` は **URL に存在しない**。`isLLMInflight=true` の間、現在 URL の上に `<LoadingOverlay>` (fixed overlay) を被せて表示する。詳細は下記「LLM-inflight ガード」を参照。
@@ -38,7 +39,7 @@ authLoading === true      → <CenteredSpinner />        // Firebase auth 確定
 otherwise                 → <Outlet context={…} />     // 各 *Route がここで描画される
 ```
 
-例外として `/compat/share/:shareId` は対象者向けの期限付き共有routeなので、`AppShell` のログイン分岐より先に `<Outlet>` を返す。管理画面の `/admin/compat` と、発行・失効APIの管理者ガードは変わらない。
+例外として `/compat/share/:shareId` と `/peer/:inviteId` は対象者向け・評価者向けの期限付き公開routeなので、`AppShell` のログイン分岐より先に `<Outlet>` を返す（それぞれ `isPublicCompatShare` / `isPublicPeerAssessment` の regex 判定）。管理画面の `/admin/compat` と、発行・失効APIの管理者ガードは変わらない。
 
 - `onAuthStateChanged` で `setAuthLoading(false)` を呼ぶまでは Routes を一切 render しない (Outlet を返す前にスピナーで break)。これにより認証確定前の `useNavigate` 競合・redirect ループを防ぐ
 - メール認証ユーザーで `emailVerified === false` の場合は `setUser(null)` で LoginScreen に留める (Firebase の sign-out はしない)
@@ -131,6 +132,12 @@ useEffect → fetch /api/me/history/<id>?kind=<kind> with idToken
 | [`src/compat/CompatShareScreen.jsx`](../src/compat/CompatShareScreen.jsx) | `/compat/share/:shareId` の公開取得、共有上の注意、`noindex` meta管理。v1はテキストのみ、v2かつ一致語がある場合だけ一致語の同意・LLM送信境界を表示 |
 | [`api/admin/compat-share.js`](../api/admin/compat-share.js) | 管理者限定の共有URL発行・失効。共有同意とレポート再検証を要求 |
 | [`api/compat-share.js`](../api/compat-share.js) | 認証不要の単一UUID取得。期限切れ・失効・不明を同じ404で返す |
+| [`src/peer/PeerAssessScreen.jsx`](../src/peer/PeerAssessScreen.jsx) | `/peer/:inviteId` の公開64問回答画面。`UAAM_QUESTIONS` を文言不変で提示（V問除外シャッフル）、匿名送信、回答下書きのlocalStorage保存/復元、倫理開示フッター、`noindex`/`no-referrer` meta管理 |
+| [`api/me/uaam-peer-invite.js`](../api/me/uaam-peer-invite.js) | 本人限定の招待URL発行/失効。transactionでべき等発行（active既存なら再利用）、発行時に自己スコアを`selfSnapshot`固定、tombstone検査 |
+| [`api/me/uaam-peer-summary.js`](../api/me/uaam-peer-summary.js) | 本人限定の集計取得。現行wave（active invite）のみ集計、n<2は`{status:'insufficient'}`のみ（nを開示しない）、tombstone→410 |
+| [`api/uaam-peer-invite.js`](../api/uaam-peer-invite.js) | 認証不要の招待メタ取得（対象者名・期限）。失効/期限/不明→404、削除中→410 |
+| [`api/uaam-peer-assess.js`](../api/uaam-peer-assess.js) | 認証不要の匿名回答受付。64問厳格検証（Firestoreアクセス前）、提出上限をtransaction内counterで強制、既存`calculateScores`でスコア化、身元情報を保存しない |
+| [`api/lib/uaamPeer.js`](../api/lib/uaamPeer.js) | 他者評価の共通ライフサイクル層（UUID検証・TTL・active判定・回答検証・スコア集計・no-storeヘッダ・招待URL生成・tombstone照会） |
 | [`src/components/NavigationGuardDialog.jsx`](../src/components/NavigationGuardDialog.jsx) | LLM-inflight 中のルート遷移確認モーダル (a11y 対応済み) |
 | [`src/components/LoadingOverlay.jsx`](../src/components/LoadingOverlay.jsx) | 解析中のフルスクリーンオーバーレイ。`kind` ('saikaku'/'uaam') で `LoadingScreen` か `UaamLoadingScreen` を切り替え + キャンセルボタン |
 | [`tests/e2e/history-api-flow.spec.js`](../tests/e2e/history-api-flow.spec.js) | URL 直接アクセス・戻る/進む・モーダル・redirect の 7 シナリオ E2E (Playwright) |
