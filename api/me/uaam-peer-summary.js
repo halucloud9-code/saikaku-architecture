@@ -12,6 +12,10 @@ function notFound(res) {
   return res.status(404).json({ code: 'not_found', error: '集計対象が見つかりません' });
 }
 
+function gone(res) {
+  return res.status(410).json({ code: 'gone', error: '削除済みのユーザーです' });
+}
+
 function validSelfSnapshot(value) {
   return !!value
     && typeof value === 'object'
@@ -28,6 +32,9 @@ export default withMeHandler(async function handler(req, res) {
 
   const decoded = await authenticateMeRequest(req, res);
   if (!decoded) return undefined;
+
+  const tombstoneSnapshot = await db.collection('uaam_peer_deletions').doc(decoded.uid).get();
+  if (tombstoneSnapshot.exists) return gone(res);
 
   const pointerSnapshot = await db.collection('uaam_peer_invite_index').doc(decoded.uid).get();
   const inviteId = pointerSnapshot.data()?.activeInviteId;

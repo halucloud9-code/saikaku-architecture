@@ -180,7 +180,10 @@ describe('UAAMResultScreen peer assessment section', () => {
     render(<PeerAssessmentSection user={user} />);
 
     await ui.click(await screen.findByRole('button', { name: '招待URLを発行する' }));
-    expect(await screen.findByDisplayValue(firstInvite.url)).toBeInTheDocument();
+    const inviteUrlInput = await screen.findByDisplayValue(firstInvite.url);
+    expect(inviteUrlInput).toBeInTheDocument();
+    expect(inviteUrlInput.closest('.no-print')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'URLをコピー' }).closest('.no-print')).not.toBeNull();
     await waitFor(() => expect(screen.getByRole('button', { name: 'URLをコピー' })).toHaveFocus());
     expect(screen.getByRole('status')).toHaveTextContent('招待URLを発行しました');
     expect(screen.getByText('URLを知っている人は誰でも回答できます')).toBeInTheDocument();

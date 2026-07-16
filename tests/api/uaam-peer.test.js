@@ -138,6 +138,9 @@ describe('UAAM peer assessment APIs', () => {
 
     await db.collection('uaam_peer_deletions').doc(uid).set({ requestedAt: Timestamp.now(), requestedBy: 'admin' });
     expect((await issue()).status).toBe(410);
+    const tombstonedSummary = await summary();
+    expect(tombstonedSummary.status).toBe(410);
+    expect(tombstonedSummary.body).toMatchObject({ code: 'gone' });
     expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(410);
     expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers })).status).toBe(410);
   });

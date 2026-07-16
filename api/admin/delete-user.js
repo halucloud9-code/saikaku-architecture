@@ -41,6 +41,12 @@ function failureDetails(operation, target, error) {
   };
 }
 
+function failedUidsFromFailures(failures, targetUids) {
+  return [...targetUids].filter((uid) => failures.some(({ target }) => (
+    target === uid || target.startsWith(`${uid}/`)
+  )));
+}
+
 async function attemptDeletion(failures, operation, target, task) {
   try {
     return { ok: true, value: await task() };
@@ -64,7 +70,7 @@ async function deleteUaamPeerData(uid, requestedBy, failures) {
     db.collection('uaam_peer_deletions').doc(uid).set({
       requestedAt: FieldValue.serverTimestamp(),
       requestedBy,
-    })
+    }, { merge: true })
   ));
   if (!tombstone.ok) return false;
 
@@ -78,7 +84,9 @@ async function deleteUaamPeerData(uid, requestedBy, failures) {
     const inviteIds = invitesResult.value.docs.map((document) => document.id);
     if (inviteIds.length > 0) {
       await attemptDeletion(failures, 'peer_tombstone_invites', uid, () => (
-        db.collection('uaam_peer_deletions').doc(uid).set({ inviteIds }, { merge: true })
+        db.collection('uaam_peer_deletions').doc(uid).set({
+          inviteIds: FieldValue.arrayUnion(...inviteIds),
+        }, { merge: true })
       ));
     }
     await deleteDocuments(failures, 'peer_invite_delete', uid, invitesResult.value.docs);
@@ -123,9 +131,9 @@ export default async function handler(req, res) {
 
   const requestId = randomUUID();
   const failures = [];
+  const targetUids = new Set();
 
   try {
-    const targetUids = new Set();
     const deletionReadyUids = new Set();
     let targetUid = uid || null;
     let emailUidLookupComplete = true;
@@ -205,6 +213,7 @@ export default async function handler(req, res) {
         success: false,
         code: 'partial_failure',
         requestId,
+        failedUids: failedUidsFromFailures(failures, targetUids),
         error: '削除を完了できませんでした',
       });
     }
@@ -216,6 +225,7 @@ export default async function handler(req, res) {
       success: false,
       code: 'partial_failure',
       requestId,
+      failedUids: failedUidsFromFailures(failures, targetUids),
       error: '削除を完了できませんでした',
     });
   }

@@ -20,12 +20,14 @@ const MULTI_AUTH_UID = 'uaam-peer-delete-auth-uid';
 const MULTI_ORPHAN_UID = 'uaam-peer-delete-orphan-uid';
 const MULTI_EMAIL = 'uaam-peer-multi@example.com';
 const PARTIAL_FAILURE_UID = 'uaam-peer-delete-partial';
+const RETRY_UID = 'uaam-peer-delete-retry';
 const SUBJECT_UIDS = [
   UID_PATH_SUBJECT,
   EMAIL_PATH_SUBJECT,
   MULTI_AUTH_UID,
   MULTI_ORPHAN_UID,
   PARTIAL_FAILURE_UID,
+  RETRY_UID,
 ];
 const answers = Object.fromEntries(Array.from({ length: 64 }, (_value, index) => [String(index + 1), 4]));
 const scores = calculateScores(answers);
@@ -282,6 +284,7 @@ describe('UAAM peer deletion cascade', () => {
       success: false,
       code: 'partial_failure',
       requestId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+      failedUids: [PARTIAL_FAILURE_UID],
     });
     expect(consoleError).toHaveBeenCalledWith(
       '[delete-user] partial failure',
@@ -290,5 +293,47 @@ describe('UAAM peer deletion cascade', () => {
     expect((await db.collection('results').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(true);
     expect((await db.collection('uaam_results').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(false);
     expect((await db.collection('uaam_peer_deletions').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(true);
+  });
+
+  it('preserves every tombstoned invite id across a partial-failure retry', async () => {
+    await seedSubject(RETRY_UID, 'retry@example.com');
+    const firstInviteId = await issueAndSubmit(RETRY_UID);
+    expect((await api.post('/api/me/uaam-peer-invite')
+      .set('x-test-uid', RETRY_UID)
+      .send({ action: 'revoke' })).status).toBe(200);
+    const secondInviteId = (await api.post('/api/me/uaam-peer-invite')
+      .set('x-test-uid', RETRY_UID)
+      .send({ action: 'issue' })).body.inviteId;
+
+    const referencePrototype = Object.getPrototypeOf(db.collection('uaam_peer_invites').doc(firstInviteId));
+    const originalDelete = referencePrototype.delete;
+    let failedOnce = false;
+    vi.spyOn(referencePrototype, 'delete').mockImplementation(function deleteWithInjectedFailure(...args) {
+      if (!failedOnce && this.path === `uaam_peer_invites/${firstInviteId}`) {
+        failedOnce = true;
+        return Promise.reject(Object.assign(new Error('forced invite deletion failure'), { code: 'internal' }));
+      }
+      return originalDelete.apply(this, args);
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const firstAttempt = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ uid: RETRY_UID });
+    expect(firstAttempt.status).toBe(500);
+    expect(firstAttempt.body.failedUids).toEqual([RETRY_UID]);
+    expect((await db.collection('uaam_peer_deletions').doc(RETRY_UID).get()).data().inviteIds.sort())
+      .toEqual([firstInviteId, secondInviteId].sort());
+
+    vi.restoreAllMocks();
+    const retry = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ uid: RETRY_UID });
+    expect(retry.status).toBe(200);
+
+    const tombstone = await db.collection('uaam_peer_deletions').doc(RETRY_UID).get();
+    expect(tombstone.data().inviteIds.sort()).toEqual([firstInviteId, secondInviteId].sort());
+    expect((await api.get(`/api/uaam-peer-invite?id=${firstInviteId}`)).status).toBe(410);
+    expect((await api.get(`/api/uaam-peer-invite?id=${secondInviteId}`)).status).toBe(410);
   });
 });

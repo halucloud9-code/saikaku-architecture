@@ -1959,7 +1959,7 @@ export function PeerAssessmentSection({ user }) {
           marginBottom: 18,
         }}>
           {invite?.url ? (
-            <>
+            <div className="no-print">
               <label htmlFor="uaam-peer-invite-url" style={{ display: 'block', color: TEXT_PRIMARY, fontSize: 12, fontWeight: 800, marginBottom: 8 }}>
                 共有用URL
               </label>
@@ -1986,7 +1986,7 @@ export function PeerAssessmentSection({ user }) {
                 <div>URLを知っている人は誰でも回答できます</div>
                 <div>再発行すると集計がリセットされます</div>
               </div>
-            </>
+            </div>
           ) : (
             <p style={{ margin: 0, color: TEXT_SECONDARY, fontSize: 13, lineHeight: 1.8 }}>
               {wasRevoked
