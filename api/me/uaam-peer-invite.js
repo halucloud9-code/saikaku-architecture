@@ -123,6 +123,7 @@ async function issueInvite(req, decoded) {
       createdAt: FieldValue.serverTimestamp(),
       expiresAt,
       revoked: false,
+      submissionCount: 0,
       selfSnapshot: {
         attemptId: attempt.id,
         answeredAt,

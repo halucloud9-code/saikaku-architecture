@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-process.env.ADMIN_EMAILS = 'admin@example.com';
+process.env.ADMIN_EMAILS = 'admin@example.com,unverified-admin@example.com';
 vi.resetModules();
 
 const { api, Timestamp } = await import('./_helpers.js');
@@ -10,11 +10,23 @@ const { calculateScores } = await import('../../shared/uaamQuestions.js');
 
 const ADMIN_UID = 'uaam-peer-delete-admin';
 const ADMIN_EMAIL = 'admin@example.com';
+const UNVERIFIED_ADMIN_UID = 'uaam-peer-delete-unverified-admin';
+const UNVERIFIED_ADMIN_EMAIL = 'unverified-admin@example.com';
 const ADMIN_PASSWORD = 'password123';
 const UID_PATH_SUBJECT = 'uaam-peer-delete-by-uid';
 const EMAIL_PATH_SUBJECT = 'uaam-peer-delete-by-email';
 const EMAIL_PATH_ADDRESS = 'uaam-peer-orphan@example.com';
-const SUBJECT_UIDS = [UID_PATH_SUBJECT, EMAIL_PATH_SUBJECT];
+const MULTI_AUTH_UID = 'uaam-peer-delete-auth-uid';
+const MULTI_ORPHAN_UID = 'uaam-peer-delete-orphan-uid';
+const MULTI_EMAIL = 'uaam-peer-multi@example.com';
+const PARTIAL_FAILURE_UID = 'uaam-peer-delete-partial';
+const SUBJECT_UIDS = [
+  UID_PATH_SUBJECT,
+  EMAIL_PATH_SUBJECT,
+  MULTI_AUTH_UID,
+  MULTI_ORPHAN_UID,
+  PARTIAL_FAILURE_UID,
+];
 const answers = Object.fromEntries(Array.from({ length: 64 }, (_value, index) => [String(index + 1), 4]));
 const scores = calculateScores(answers);
 let adminToken;
@@ -109,14 +121,14 @@ async function assertCascade(uid, inviteId) {
   expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers })).status).toBe(410);
 }
 
-async function signInAdmin() {
+async function signInAdmin(email = ADMIN_EMAIL) {
   const host = process.env.FIREBASE_AUTH_EMULATOR_HOST;
   const response = await fetch(
     `http://${host}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, returnSecureToken: true }),
+      body: JSON.stringify({ email, password: ADMIN_PASSWORD, returnSecureToken: true }),
     },
   );
   const body = await response.json();
@@ -126,22 +138,37 @@ async function signInAdmin() {
 
 beforeAll(async () => {
   await Promise.all(SUBJECT_UIDS.map(cleanupSubject));
-  await getAuth().deleteUser(ADMIN_UID).catch(() => {});
+  await Promise.all([
+    getAuth().deleteUser(ADMIN_UID).catch(() => {}),
+    getAuth().deleteUser(UNVERIFIED_ADMIN_UID).catch(() => {}),
+    ...SUBJECT_UIDS.map((subjectUid) => getAuth().deleteUser(subjectUid).catch(() => {})),
+  ]);
   await getAuth().createUser({
     uid: ADMIN_UID,
     email: ADMIN_EMAIL,
     password: ADMIN_PASSWORD,
     emailVerified: true,
   });
+  await getAuth().createUser({
+    uid: UNVERIFIED_ADMIN_UID,
+    email: UNVERIFIED_ADMIN_EMAIL,
+    password: ADMIN_PASSWORD,
+    emailVerified: false,
+  });
   adminToken = await signInAdmin();
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(SUBJECT_UIDS.map(cleanupSubject));
+  await Promise.all(SUBJECT_UIDS.map((subjectUid) => getAuth().deleteUser(subjectUid).catch(() => {})));
 });
 
 afterAll(async () => {
-  await getAuth().deleteUser(ADMIN_UID).catch(() => {});
+  await Promise.all([
+    getAuth().deleteUser(ADMIN_UID).catch(() => {}),
+    getAuth().deleteUser(UNVERIFIED_ADMIN_UID).catch(() => {}),
+  ]);
 });
 
 describe('UAAM peer deletion cascade', () => {
@@ -170,5 +197,98 @@ describe('UAAM peer deletion cascade', () => {
     expect(deleted.status).toBe(200);
     expect(deleted.body).toMatchObject({ success: true, deletedUid: EMAIL_PATH_SUBJECT });
     await assertCascade(EMAIL_PATH_SUBJECT, inviteId);
+  });
+
+  it('rejects unverified admin email tokens through the shared admin guard', async () => {
+    const unverifiedToken = await signInAdmin(UNVERIFIED_ADMIN_EMAIL);
+
+    const denied = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${unverifiedToken}`)
+      .send({ uid: UID_PATH_SUBJECT });
+
+    expect(denied.status).toBe(403);
+    expect(denied.body).toMatchObject({ code: 'EMAIL_UNVERIFIED' });
+    expect((await db.collection('uaam_peer_deletions').doc(UID_PATH_SUBJECT).get()).exists).toBe(false);
+  });
+
+  it('requires exactly one of uid or email', async () => {
+    const [neither, both] = await Promise.all([
+      api.delete('/api/admin/delete-user')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({}),
+      api.delete('/api/admin/delete-user')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ uid: UID_PATH_SUBJECT, email: 'same@example.com' }),
+    ]);
+
+    for (const response of [neither, both]) {
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('どちらか一方だけ');
+    }
+  });
+
+  it('sweeps both the Auth uid and every Firestore uid derived from the same email', async () => {
+    await getAuth().createUser({
+      uid: MULTI_AUTH_UID,
+      email: MULTI_EMAIL,
+      password: ADMIN_PASSWORD,
+      emailVerified: true,
+    });
+    await Promise.all([
+      seedSubject(MULTI_AUTH_UID, MULTI_EMAIL),
+      seedSubject(MULTI_ORPHAN_UID, MULTI_EMAIL),
+    ]);
+    const [authInviteId, orphanInviteId] = await Promise.all([
+      issueAndSubmit(MULTI_AUTH_UID),
+      issueAndSubmit(MULTI_ORPHAN_UID),
+    ]);
+
+    const deleted = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: MULTI_EMAIL });
+
+    expect(deleted.status).toBe(200);
+    expect(deleted.body).toMatchObject({ success: true, deletedUid: MULTI_AUTH_UID });
+    await Promise.all([
+      assertCascade(MULTI_AUTH_UID, authInviteId),
+      assertCascade(MULTI_ORPHAN_UID, orphanInviteId),
+    ]);
+    await expect(getAuth().getUser(MULTI_AUTH_UID)).rejects.toMatchObject({ code: 'auth/user-not-found' });
+  });
+
+  it('reports a requestId partial_failure and continues independent deletion steps', async () => {
+    await seedSubject(PARTIAL_FAILURE_UID, 'partial-failure@example.com');
+    await db.collection('results').doc(PARTIAL_FAILURE_UID).set({
+      uid: PARTIAL_FAILURE_UID,
+      email: 'partial-failure@example.com',
+    });
+
+    const referencePrototype = Object.getPrototypeOf(db.collection('results').doc(PARTIAL_FAILURE_UID));
+    const originalDelete = referencePrototype.delete;
+    vi.spyOn(referencePrototype, 'delete').mockImplementation(function deleteWithInjectedFailure(...args) {
+      if (this.path === `results/${PARTIAL_FAILURE_UID}`) {
+        return Promise.reject(Object.assign(new Error('forced emulator deletion failure'), { code: 'internal' }));
+      }
+      return originalDelete.apply(this, args);
+    });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const deleted = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ uid: PARTIAL_FAILURE_UID });
+
+    expect(deleted.status).toBe(500);
+    expect(deleted.body).toMatchObject({
+      success: false,
+      code: 'partial_failure',
+      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+    });
+    expect(consoleError).toHaveBeenCalledWith(
+      '[delete-user] partial failure',
+      expect.objectContaining({ requestId: deleted.body.requestId }),
+    );
+    expect((await db.collection('results').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(true);
+    expect((await db.collection('uaam_results').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(false);
+    expect((await db.collection('uaam_peer_deletions').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(true);
   });
 });

@@ -59,13 +59,17 @@ describe('UAAM peer assessment APIs', () => {
     expect(first.body.inviteId).toBe(second.body.inviteId);
     expect(new Set([first.body.reused, second.body.reused])).toEqual(new Set([false, true]));
     const inviteId = first.body.inviteId;
+    expect(first.body).not.toHaveProperty('submissionCount');
+    expect(second.body).not.toHaveProperty('submissionCount');
     const subjectInvites = await db.collection('uaam_peer_invites').where('subjectUid', '==', uid).get();
     expect(subjectInvites.docs.filter((document) => document.data().revoked === false)).toHaveLength(1);
+    expect(subjectInvites.docs[0].data().submissionCount).toBe(0);
 
     // No Authorization or test-bypass identity header: both endpoints are public.
     const publicGet = await api.get(`/api/uaam-peer-invite?id=${inviteId}`);
     expect(publicGet.status).toBe(200);
     expect(publicGet.body.subjectName).toBe('Peer Subject');
+    expect(publicGet.body).not.toHaveProperty('submissionCount');
     expect(publicGet.headers['cache-control']).toContain('no-store');
     expect(publicGet.headers['x-robots-tag']).toContain('noindex');
 
@@ -83,6 +87,7 @@ describe('UAAM peer assessment APIs', () => {
       aggregate: scores,
       selfSnapshot: { attemptId: 'attempt-latest', scores },
     });
+    expect((await db.collection('uaam_peer_invites').doc(inviteId).get()).data().submissionCount).toBe(2);
 
     const submissions = await db.collection('uaam_peer_results').doc(uid).collection('submissions').get();
     for (const document of submissions.docs) {
@@ -110,6 +115,10 @@ describe('UAAM peer assessment APIs', () => {
     expect((await api.get(`/api/uaam-peer-invite?id=${unknownInviteId}`)).status).toBe(404);
     expect((await api.post('/api/uaam-peer-assess').send({ inviteId: unknownInviteId, answers })).status).toBe(404);
     expect((await api.post('/api/uaam-peer-assess').send({
+      inviteId: unknownInviteId,
+      answers: { 1: 3 },
+    })).status).toBe(400);
+    expect((await api.post('/api/uaam-peer-assess').send({
       inviteId,
       answers: Object.fromEntries(Object.entries(answers).filter(([id]) => id !== '64')),
     })).status).toBe(400);
@@ -131,5 +140,31 @@ describe('UAAM peer assessment APIs', () => {
     expect((await issue()).status).toBe(410);
     expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(410);
     expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers })).status).toBe(410);
+  });
+
+  it('holds the submission cap under parallel anonymous posts', async () => {
+    await seedSelfResult();
+    const issued = await issue();
+    const inviteId = issued.body.inviteId;
+    const cap = 3;
+    const requestCount = 10;
+    process.env.UAAM_PEER_SUBMISSION_CAP = String(cap);
+
+    const responses = await Promise.all(Array.from({ length: requestCount }, () => (
+      api.post('/api/uaam-peer-assess').send({ inviteId, answers })
+    )));
+
+    expect(responses.filter((response) => response.status === 201)).toHaveLength(cap);
+    expect(responses.filter((response) => response.status === 429)).toHaveLength(requestCount - cap);
+    expect(new Set(responses.map((response) => response.status))).toEqual(new Set([201, 429]));
+
+    const [invite, submissions, audits] = await Promise.all([
+      db.collection('uaam_peer_invites').doc(inviteId).get(),
+      db.collection('uaam_peer_results').doc(uid).collection('submissions').get(),
+      db.collection('uaam_peer_audits').where('subjectUid', '==', uid).get(),
+    ]);
+    expect(invite.data().submissionCount).toBe(cap);
+    expect(submissions.size).toBe(cap);
+    expect(audits.docs.filter((document) => document.data().type === 'submit')).toHaveLength(cap);
   });
 });

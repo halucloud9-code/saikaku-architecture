@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import UAAMResultScreen, { PeerAssessmentSection } from '../../../src/screens/uaam/UAAMResultScreen.jsx';
 
@@ -123,6 +123,7 @@ describe('UAAMResultScreen peer assessment section', () => {
 
   it('shows n, snapshot date, overlay legend, and signed axis/sub gaps only when ready', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => response(200, readySummary())));
+    const ui = userEvent.setup();
 
     render(<PeerAssessmentSection user={user} />);
 
@@ -130,12 +131,20 @@ describe('UAAMResultScreen peer assessment section', () => {
     expect(within(ready).getByText('2')).toBeInTheDocument();
     expect(screen.getByText('回答数であり人数ではありません')).toBeInTheDocument();
     expect(screen.getByText('2026/07/15')).toBeInTheDocument();
-    expect(screen.getByLabelText('自己回答と他者評価平均の16軸比較レーダー')).toBeInTheDocument();
+    const radar = screen.getByRole('img', { name: '自己回答と他者評価平均の16軸比較レーダー' });
+    expect(radar).toHaveAttribute('aria-describedby', 'uaam-peer-comparison-data');
     expect(screen.getByText('発行時点の自己回答')).toBeInTheDocument();
     expect(screen.getByText('他者評価平均')).toBeInTheDocument();
     expect(screen.getByText('同一の64問・発行時点の自己回答との比較')).toBeInTheDocument();
     expect(screen.getAllByText('+10')).toHaveLength(4);
     expect(screen.getAllByText('+2.5')).toHaveLength(16);
+    expect(screen.getAllByRole('table')).toHaveLength(4);
+    expect(screen.getAllByRole('columnheader', { name: '自己' })).toHaveLength(4);
+    expect(screen.getAllByRole('columnheader', { name: '他者平均' })).toHaveLength(4);
+    expect(screen.getAllByRole('columnheader', { name: '差' })).toHaveLength(4);
+
+    await ui.click(screen.getByRole('button', { name: '集計を更新' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('集計を更新しました。回答数は2件です。'));
   });
 
   it('issues, revokes with confirmation, and reissues into an insufficient fresh wave', async () => {
@@ -172,17 +181,22 @@ describe('UAAMResultScreen peer assessment section', () => {
 
     await ui.click(await screen.findByRole('button', { name: '招待URLを発行する' }));
     expect(await screen.findByDisplayValue(firstInvite.url)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'URLをコピー' })).toHaveFocus());
+    expect(screen.getByRole('status')).toHaveTextContent('招待URLを発行しました');
     expect(screen.getByText('URLを知っている人は誰でも回答できます')).toBeInTheDocument();
     expect(screen.getByText('再発行すると集計がリセットされます')).toBeInTheDocument();
     expect(screen.getByText('回答が2件以上揃うと表示されます')).toBeInTheDocument();
 
     await ui.click(screen.getByRole('button', { name: '招待URLを失効する' }));
     expect(window.confirm).toHaveBeenCalledOnce();
-    expect(await screen.findByRole('button', { name: '招待URLを再発行する' })).toBeInTheDocument();
+    const reissueButton = await screen.findByRole('button', { name: '招待URLを再発行する' });
+    await waitFor(() => expect(reissueButton).toHaveFocus());
+    expect(screen.getByRole('status')).toHaveTextContent('招待URLを失効しました');
     expect(screen.queryByDisplayValue(firstInvite.url)).not.toBeInTheDocument();
 
     await ui.click(screen.getByRole('button', { name: '招待URLを再発行する' }));
     expect(await screen.findByDisplayValue(secondInvite.url)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'URLをコピー' })).toHaveFocus());
     expect(screen.getByText('回答が2件以上揃うと表示されます')).toBeInTheDocument();
     expect(actions).toEqual(['issue', 'revoke', 'issue']);
   });

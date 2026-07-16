@@ -3,8 +3,10 @@ import { useParams } from 'react-router-dom';
 import { LIKERT_LABELS, UAAM_QUESTIONS } from '../data/uaam_questions';
 
 const QUESTIONS_PER_PAGE = 10;
-const ACCENT = '#B8960C';
+const ACCENT = '#6D5600';
 const SUBMITTED_STORAGE_PREFIX = 'uaam-peer-submitted:';
+const DRAFT_STORAGE_PREFIX = 'uaam-peer-draft:';
+const PEER_QUESTION_BY_ID = new Map(UAAM_QUESTIONS.map((question) => [String(question.id), question]));
 
 const DISCLOSURES = [
   '本評価は人事評価・採用評価には使用されません',
@@ -69,6 +71,55 @@ export function getShuffledPeerQuestions(random = Math.random) {
     [questions[index], questions[swapIndex]] = [questions[swapIndex], questions[index]];
   }
   return questions;
+}
+
+function emptyDraft() {
+  return { answers: {}, currentPage: 0, questionIds: null };
+}
+
+function readPeerDraft(inviteId) {
+  if (!inviteId) return emptyDraft();
+  try {
+    const stored = JSON.parse(localStorage.getItem(`${DRAFT_STORAGE_PREFIX}${inviteId}`) || 'null');
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return emptyDraft();
+
+    const answers = {};
+    if (stored.answers && typeof stored.answers === 'object' && !Array.isArray(stored.answers)) {
+      for (const [questionId, value] of Object.entries(stored.answers)) {
+        if (PEER_QUESTION_BY_ID.has(questionId) && Number.isInteger(value) && value >= 1 && value <= 5) {
+          answers[questionId] = value;
+        }
+      }
+    }
+
+    const questionIds = Array.isArray(stored.questionIds)
+      && stored.questionIds.length === UAAM_QUESTIONS.length
+      && new Set(stored.questionIds.map(String)).size === UAAM_QUESTIONS.length
+      && stored.questionIds.every((questionId) => PEER_QUESTION_BY_ID.has(String(questionId)))
+      ? stored.questionIds.map(String)
+      : null;
+    const totalPages = Math.ceil(UAAM_QUESTIONS.length / QUESTIONS_PER_PAGE);
+    const currentPage = Number.isInteger(stored.currentPage)
+      ? Math.max(0, Math.min(stored.currentPage, totalPages - 1))
+      : 0;
+
+    return { answers, currentPage, questionIds };
+  } catch {
+    return emptyDraft();
+  }
+}
+
+function writePeerDraft(inviteId, draft) {
+  if (!inviteId) return;
+  try {
+    if (Object.keys(draft.answers).length === 0) {
+      localStorage.removeItem(`${DRAFT_STORAGE_PREFIX}${inviteId}`);
+      return;
+    }
+    localStorage.setItem(`${DRAFT_STORAGE_PREFIX}${inviteId}`, JSON.stringify(draft));
+  } catch {
+    // Storage may be unavailable in privacy-restricted browsers. The form remains usable.
+  }
 }
 
 function DisclosureFooter() {
@@ -149,24 +200,31 @@ function getSubmitError(status) {
 
 export default function PeerAssessScreen() {
   const { inviteId } = useParams();
+  const restoredDraft = useMemo(() => readPeerDraft(inviteId), [inviteId]);
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [answers, setAnswers] = useState({});
-  const [currentPage, setCurrentPage] = useState(0);
-  const [visitedPages, setVisitedPages] = useState(() => new Set([0]));
+  const [answers, setAnswers] = useState(() => restoredDraft.answers);
+  const [currentPage, setCurrentPage] = useState(() => restoredDraft.currentPage);
+  const [visitedPages, setVisitedPages] = useState(() => new Set([0, restoredDraft.currentPage]));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [answeredInBrowser, setAnsweredInBrowser] = useState(false);
   const previousPageRef = useRef(currentPage);
-  const shuffledQuestions = useMemo(() => getShuffledPeerQuestions(), [inviteId]);
+  const pageHeadingRef = useRef(null);
+  const shuffledQuestions = useMemo(() => (
+    restoredDraft.questionIds
+      ? restoredDraft.questionIds.map((questionId) => PEER_QUESTION_BY_ID.get(questionId))
+      : getShuffledPeerQuestions()
+  ), [inviteId, restoredDraft]);
   usePrivateDocumentMetadata();
 
   useEffect(() => {
-    setAnswers({});
-    setCurrentPage(0);
-    setVisitedPages(new Set([0]));
+    setAnswers(restoredDraft.answers);
+    setCurrentPage(restoredDraft.currentPage);
+    setVisitedPages(new Set([0, restoredDraft.currentPage]));
+    previousPageRef.current = restoredDraft.currentPage;
     setSubmitError('');
     setSubmitted(false);
     setInvite(null);
@@ -206,7 +264,7 @@ export default function PeerAssessScreen() {
     }
     loadInvite();
     return () => controller.abort();
-  }, [inviteId]);
+  }, [inviteId, restoredDraft]);
 
   const totalQuestions = shuffledQuestions.length;
   const totalPages = Math.ceil(totalQuestions / QUESTIONS_PER_PAGE);
@@ -233,13 +291,24 @@ export default function PeerAssessScreen() {
 
   useEffect(() => {
     if (previousPageRef.current !== currentPage) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+      pageHeadingRef.current?.focus();
       previousPageRef.current = currentPage;
     }
   }, [currentPage]);
 
+  const persistDraft = (nextAnswers, nextPage = currentPage) => {
+    writePeerDraft(inviteId, {
+      answers: nextAnswers,
+      currentPage: nextPage,
+      questionIds: shuffledQuestions.map((question) => String(question.id)),
+    });
+  };
+
   const handlePageChange = (targetPage) => {
     const nextPage = Math.min(targetPage, maxReachablePage);
+    persistDraft(answers, nextPage);
     setVisitedPages((previous) => new Set(previous).add(nextPage));
     setCurrentPage(nextPage);
 
@@ -280,6 +349,7 @@ export default function PeerAssessScreen() {
 
       try {
         localStorage.setItem(`${SUBMITTED_STORAGE_PREFIX}${inviteId}`, new Date().toISOString());
+        localStorage.removeItem(`${DRAFT_STORAGE_PREFIX}${inviteId}`);
       } catch {
         // Storage may be unavailable in privacy-restricted browsers. Submission still succeeded.
       }
@@ -389,9 +459,10 @@ export default function PeerAssessScreen() {
               <button
                 key={page}
                 type="button"
-                aria-label={`${page + 1}ページ目${complete ? '（回答済み）' : ''}`}
+                aria-label={reachable
+                  ? `${page + 1}ページ目${complete ? '（回答済み）' : ''}`
+                  : `${page + 1}ページ目へ進む前に未回答の質問へ移動`}
                 aria-current={active ? 'page' : undefined}
-                aria-disabled={!reachable}
                 onClick={() => handlePageChange(page)}
                 style={{
                   width: 36,
@@ -403,9 +474,8 @@ export default function PeerAssessScreen() {
                       ? '2px solid #A84432'
                       : '1px solid #D4C9B0',
                   background: complete ? '#EAF5EE' : active ? '#FFF9E8' : '#FDFCFA',
-                  color: complete ? '#2E6E4D' : active ? '#80670A' : '#62594D',
-                  opacity: reachable ? 1 : 0.42,
-                  cursor: reachable ? 'pointer' : 'not-allowed',
+                  color: complete ? '#2E6E4D' : active ? ACCENT : '#62594D',
+                  cursor: 'pointer',
                   fontSize: 13,
                   fontWeight: 700,
                 }}
@@ -416,7 +486,15 @@ export default function PeerAssessScreen() {
           })}
         </nav>
 
-        <section aria-label={`質問 ${currentPage + 1}ページ目`}>
+        <section aria-labelledby="peer-question-page-heading">
+          <h2
+            id="peer-question-page-heading"
+            ref={pageHeadingRef}
+            tabIndex={-1}
+            style={{ margin: '0 0 12px', color: '#2A2520', fontSize: 16, lineHeight: 1.5 }}
+          >
+            質問 {currentPage * QUESTIONS_PER_PAGE + 1}〜{Math.min((currentPage + 1) * QUESTIONS_PER_PAGE, totalQuestions)} / {totalQuestions}
+          </h2>
           {pageQuestions.map((question, pageIndex) => {
             const displayNumber = currentPage * QUESTIONS_PER_PAGE + pageIndex + 1;
             const selectedValue = answers[question.id];
@@ -463,7 +541,11 @@ export default function PeerAssessScreen() {
                         type="button"
                         data-peer-answer-value={option.value}
                         aria-pressed={selected}
-                        onClick={() => setAnswers((previous) => ({ ...previous, [question.id]: option.value }))}
+                        onClick={() => setAnswers((previous) => {
+                          const nextAnswers = { ...previous, [question.id]: option.value };
+                          persistDraft(nextAnswers);
+                          return nextAnswers;
+                        })}
                         style={{
                           flex: '1 1 56px',
                           minWidth: 48,
@@ -511,16 +593,15 @@ export default function PeerAssessScreen() {
           {currentPage < totalPages - 1 && (
             <button
               type="button"
-              aria-disabled={currentPage >= maxReachablePage}
               onClick={() => handlePageChange(currentPage + 1)}
               style={{
                 flex: 1,
                 padding: '14px 18px',
                 border: 0,
                 borderRadius: 10,
-                background: currentPage < maxReachablePage ? ACCENT : '#C9C0AE',
+                background: currentPage < maxReachablePage ? ACCENT : '#62594D',
                 color: '#fff',
-                cursor: currentPage < maxReachablePage ? 'pointer' : 'not-allowed',
+                cursor: 'pointer',
                 fontSize: 15,
                 fontWeight: 700,
               }}
@@ -544,7 +625,7 @@ export default function PeerAssessScreen() {
                 border: 0,
                 borderRadius: 12,
                 background: allAnswered && !submitting
-                  ? 'linear-gradient(135deg, #4A6FA5, #2E8B57, #C4922A, #A84432)'
+                  ? '#1A3A52'
                   : '#C9C0AE',
                 color: '#fff',
                 cursor: allAnswered && !submitting ? 'pointer' : 'not-allowed',

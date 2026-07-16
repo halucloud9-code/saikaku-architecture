@@ -7,6 +7,7 @@ import { UAAM_QUESTIONS, VALIDITY_QUESTIONS } from '../../src/data/uaam_question
 
 const INVITE_ID = '11111111-1111-4111-8111-111111111111';
 const STORAGE_KEY = `uaam-peer-submitted:${INVITE_ID}`;
+const DRAFT_KEY = `uaam-peer-draft:${INVITE_ID}`;
 
 function jsonResponse(status, body) {
   return {
@@ -93,11 +94,53 @@ describe('PeerAssessScreen', () => {
     expect(Object.keys(payload.answers)).toHaveLength(64);
     expect(new Set(Object.values(payload.answers))).toEqual(new Set([3]));
     expect(localStorage.getItem(STORAGE_KEY)).toBeTruthy();
+    expect(localStorage.getItem(DRAFT_KEY)).toBeNull();
 
     firstView.unmount();
     renderPeer();
     expect(await screen.findByText('このブラウザからは回答済みです。再回答すると新しい回答として追加されます')).toBeInTheDocument();
     expect(document.querySelector('[data-peer-question-text]')).toBeInTheDocument();
+  });
+
+  it('restores draft answers, question order, and page, then focuses the new page heading', async () => {
+    vi.stubGlobal('scrollTo', vi.fn());
+    vi.stubGlobal('fetch', vi.fn(async () => (
+      jsonResponse(200, { subjectName: '下書き確認', expiresAt: '2026-08-01T00:00:00.000Z' })
+    )));
+
+    const firstView = renderPeer();
+    await screen.findByText('下書き確認さんの直近1ヶ月に当てはまるかでお答えください');
+    const firstPageIds = Array.from(
+      document.querySelectorAll('[data-peer-question-id]'),
+      (element) => element.getAttribute('data-peer-question-id'),
+    );
+    document.querySelectorAll('[data-peer-answer-value="3"]').forEach((button) => fireEvent.click(button));
+
+    const nextButton = screen.getByRole('button', { name: /^次へ/ });
+    expect(nextButton).not.toHaveAttribute('aria-disabled');
+    expect(nextButton).toBeEnabled();
+    fireEvent.click(nextButton);
+
+    const secondPageHeading = await screen.findByRole('heading', { name: '質問 11〜20 / 64' });
+    await waitFor(() => expect(secondPageHeading).toHaveFocus());
+    const secondPageIds = Array.from(
+      document.querySelectorAll('[data-peer-question-id]'),
+      (element) => element.getAttribute('data-peer-question-id'),
+    );
+    const storedDraft = JSON.parse(localStorage.getItem(DRAFT_KEY));
+    expect(Object.keys(storedDraft.answers)).toHaveLength(10);
+    expect(storedDraft.currentPage).toBe(1);
+    expect(storedDraft.questionIds.slice(0, 10)).toEqual(firstPageIds);
+    expect(storedDraft.questionIds.slice(10, 20)).toEqual(secondPageIds);
+
+    firstView.unmount();
+    renderPeer();
+    expect(await screen.findByRole('heading', { name: '質問 11〜20 / 64' })).toBeInTheDocument();
+    expect(screen.getByText('全体進捗：10/64問')).toBeInTheDocument();
+    expect(Array.from(
+      document.querySelectorAll('[data-peer-question-id]'),
+      (element) => element.getAttribute('data-peer-question-id'),
+    )).toEqual(secondPageIds);
   });
 
   it.each([

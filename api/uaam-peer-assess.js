@@ -19,18 +19,11 @@ function gone(res) {
 }
 
 function requestError(status) {
-  const error = new Error(status === 410 ? 'gone' : 'not_found');
+  const error = new Error(
+    status === 410 ? 'gone' : status === 429 ? 'submission_cap_reached' : 'not_found',
+  );
   error.status = status;
   return error;
-}
-
-async function countSubmissions(query) {
-  if (typeof query.count === 'function') {
-    const aggregate = await query.count().get();
-    return aggregate.data().count ?? 0;
-  }
-  const snapshot = await query.get();
-  return snapshot.size;
 }
 
 export default async function handler(req, res) {
@@ -39,15 +32,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ code: 'method_not_allowed', error: 'POSTのみ対応しています' });
   }
 
+  const { inviteId, answers } = req.body ?? {};
+  if (!isUaamPeerInviteId(inviteId)) return notFound(res);
+
   const bodyKeys = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
     ? Object.keys(req.body).sort()
     : [];
   if (bodyKeys.join('|') !== 'answers|inviteId') {
     return res.status(400).json({ code: 'invalid_request', error: '入力形式が不正です' });
   }
-
-  const { inviteId, answers } = req.body;
-  if (!isUaamPeerInviteId(inviteId)) return notFound(res);
+  if (!validateUaamPeerAnswers(answers)) {
+    return res.status(400).json({ code: 'invalid_answers', error: '回答は設問1〜64の1〜5の整数で入力してください' });
+  }
 
   try {
     const inviteSnapshot = await db.collection('uaam_peer_invites').doc(inviteId).get();
@@ -65,15 +61,6 @@ export default async function handler(req, res) {
       .collection('uaam_peer_results')
       .doc(invite.subjectUid)
       .collection('submissions');
-    const inviteSubmissions = submissionsRef.where('inviteId', '==', inviteId);
-    const submissionCount = await countSubmissions(inviteSubmissions);
-    if (submissionCount >= getUaamPeerSubmissionCap()) {
-      return res.status(429).json({ code: 'submission_cap_reached', error: '回答上限に達しました' });
-    }
-
-    if (!validateUaamPeerAnswers(answers)) {
-      return res.status(400).json({ code: 'invalid_answers', error: '回答は設問1〜64の1〜5の整数で入力してください' });
-    }
 
     const inviteRef = db.collection('uaam_peer_invites').doc(inviteId);
     const tombstoneRef = db.collection('uaam_peer_deletions').doc(invite.subjectUid);
@@ -96,7 +83,11 @@ export default async function handler(req, res) {
         || !isUaamPeerInviteActive(currentInvite)) {
         throw requestError(404);
       }
+      if ((currentInvite.submissionCount ?? 0) >= getUaamPeerSubmissionCap()) {
+        throw requestError(429);
+      }
 
+      transaction.update(inviteRef, { submissionCount: FieldValue.increment(1) });
       transaction.create(submissionRef, {
         inviteId,
         answers,
@@ -115,6 +106,9 @@ export default async function handler(req, res) {
   } catch (error) {
     if (error?.status === 410) return gone(res);
     if (error?.status === 404) return notFound(res);
+    if (error?.status === 429) {
+      return res.status(429).json({ code: 'submission_cap_reached', error: '回答上限に達しました' });
+    }
     console.error('[uaam-peer-assess] failed:', error?.message || error);
     return res.status(500).json({ code: 'internal_error', error: '回答を保存できませんでした' });
   }

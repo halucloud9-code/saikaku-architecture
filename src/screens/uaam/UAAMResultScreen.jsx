@@ -1617,7 +1617,9 @@ function RadarChart16({
 
         <canvas
           ref={canvasRef}
+          role="img"
           aria-label={comparisonScores ? '自己回答と他者評価平均の16軸比較レーダー' : '16軸レーダー'}
+          aria-describedby={comparisonScores ? 'uaam-peer-comparison-data' : undefined}
           style={{ display: 'block', margin: '0 auto' }}
         />
 
@@ -1657,17 +1659,17 @@ function RadarChart16({
                 boxShadow: `0 0 6px ${g.color}80`,
               }} />
               <span style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 700 }}>{g.jp}</span>
-              <span style={{ fontSize: 10, color: g.color, fontWeight: 600 }}>{g.en}</span>
+              <span style={{ fontSize: 10, color: '#FFFFFF', fontWeight: 600 }}>{g.en}</span>
             </div>
           ))}
         </div>
 
         {comparisonLegend && (
-          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.72)', margin: '14px 0 0', lineHeight: 1.7 }}>
+          <p style={{ fontSize: 11, color: '#E6E6E6', margin: '14px 0 0', lineHeight: 1.7 }}>
             {comparisonLegend}
           </p>
         )}
-        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 10, letterSpacing: '0.05em' }}>
+        <p style={{ fontSize: 10, color: '#CFCFCF', marginTop: 10, letterSpacing: '0.05em' }}>
           {comparisonScores
             ? '※ 外周が20点満点（各サブ項目）'
             : '※ 外周が15点満点（各軸）・合計240点満点　面積の欠落は改善ポイントを示します'}
@@ -1729,7 +1731,7 @@ function PeerGapDisplay({ selfScores, peerScores }) {
   return (
     <Section>
       <SectionHeader title="軸・サブ項目ごとの差" subtitle="差 = 他者評価平均 − 発行時点の自己回答" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div id="uaam-peer-comparison-data" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {FOUR_AXES.map((axis) => {
           const selfAxis = selfScores?.[axis.key] ?? {};
           const peerAxis = peerScores?.[axis.key] ?? {};
@@ -1743,65 +1745,60 @@ function PeerGapDisplay({ selfScores, peerScores }) {
               overflow: 'hidden',
               background: `${axis.color}05`,
             }}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(60px, 1fr) repeat(3, minmax(45px, 0.65fr))',
-                gap: 6,
-                alignItems: 'center',
-                padding: '12px 14px',
-                background: `${axis.color}10`,
-                borderBottom: `1px solid ${axis.color}25`,
-              }}>
-                <div>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: axis.color }}>{axis.jp}</span>
-                  <span style={{ marginLeft: 6, fontSize: 11, color: axis.color, opacity: 0.75 }}>{axis.en}</span>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 9, color: TEXT_MUTED }}>自己</div>
-                  <strong style={{ color: TEXT_PRIMARY, fontFamily: NUM_FONT }}>{formatPeerScore(selfTotal)}</strong>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 9, color: TEXT_MUTED }}>他者平均</div>
-                  <strong style={{ color: '#A85F00', fontFamily: NUM_FONT }}>{formatPeerScore(peerTotal)}</strong>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 9, color: TEXT_MUTED }}>差</div>
-                  <strong style={{
-                    color: axisGap.startsWith('+') ? '#1E7A4A' : axisGap.startsWith('-') ? '#8B3A28' : TEXT_MUTED,
-                    fontFamily: NUM_FONT,
-                  }}>
-                    {axisGap}
-                  </strong>
-                </div>
-              </div>
-              <div style={{ padding: '4px 14px 8px' }}>
-                {axis.subs.map((subKey, index) => {
-                  const selfValue = selfAxis?.subs?.[subKey];
-                  const peerValue = peerAxis?.subs?.[subKey];
-                  const gap = formatSignedPeerGap(peerValue, selfValue);
-                  return (
-                    <div key={subKey} style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(60px, 1fr) repeat(3, minmax(45px, 0.65fr))',
-                      gap: 6,
-                      alignItems: 'center',
-                      padding: '9px 0',
-                      borderBottom: index < axis.subs.length - 1 ? `1px solid ${BORDER}` : 'none',
-                      fontSize: 12,
-                    }}>
-                      <span style={{ color: TEXT_SECONDARY, fontWeight: 700 }}>{axis.subJp[index]}</span>
-                      <span style={{ textAlign: 'right', color: TEXT_PRIMARY, fontFamily: NUM_FONT }}>{formatPeerScore(selfValue)}</span>
-                      <span style={{ textAlign: 'right', color: '#A85F00', fontFamily: NUM_FONT }}>{formatPeerScore(peerValue)}</span>
-                      <span style={{
-                        textAlign: 'right',
-                        color: gap.startsWith('+') ? '#1E7A4A' : gap.startsWith('-') ? '#8B3A28' : TEXT_MUTED,
-                        fontWeight: 800,
-                        fontFamily: NUM_FONT,
-                      }}>{gap}</span>
-                    </div>
-                  );
-                })}
-              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: 12 }}>
+                <caption style={{
+                  padding: '12px 14px',
+                  background: `${axis.color}10`,
+                  borderBottom: `1px solid ${axis.color}25`,
+                  textAlign: 'left',
+                }}>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: TEXT_PRIMARY }}>{axis.jp}</span>
+                  <span style={{ marginLeft: 6, fontSize: 11, color: TEXT_SECONDARY }}>{axis.en}</span>
+                </caption>
+                <colgroup>
+                  <col style={{ width: '40%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
+                </colgroup>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <th scope="col" style={{ padding: '8px 14px', textAlign: 'left', color: TEXT_MUTED, fontSize: 10 }}>項目</th>
+                    <th scope="col" style={{ padding: '8px 6px', textAlign: 'right', color: TEXT_MUTED, fontSize: 10 }}>自己</th>
+                    <th scope="col" style={{ padding: '8px 6px', textAlign: 'right', color: TEXT_MUTED, fontSize: 10 }}>他者平均</th>
+                    <th scope="col" style={{ padding: '8px 14px 8px 6px', textAlign: 'right', color: TEXT_MUTED, fontSize: 10 }}>差</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <th scope="row" style={{ padding: '9px 14px', textAlign: 'left', color: TEXT_PRIMARY, fontWeight: 800 }}>軸合計</th>
+                    <td style={{ padding: '9px 6px', textAlign: 'right', color: TEXT_PRIMARY, fontFamily: NUM_FONT, fontWeight: 800 }}>{formatPeerScore(selfTotal)}</td>
+                    <td style={{ padding: '9px 6px', textAlign: 'right', color: '#6D4600', fontFamily: NUM_FONT, fontWeight: 800 }}>{formatPeerScore(peerTotal)}</td>
+                    <td style={{
+                      padding: '9px 14px 9px 6px', textAlign: 'right',
+                      color: axisGap.startsWith('+') ? '#1E6A43' : axisGap.startsWith('-') ? '#8B3A28' : TEXT_MUTED,
+                      fontFamily: NUM_FONT, fontWeight: 800,
+                    }}>{axisGap}</td>
+                  </tr>
+                  {axis.subs.map((subKey, index) => {
+                    const selfValue = selfAxis?.subs?.[subKey];
+                    const peerValue = peerAxis?.subs?.[subKey];
+                    const gap = formatSignedPeerGap(peerValue, selfValue);
+                    return (
+                      <tr key={subKey} style={{ borderBottom: index < axis.subs.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                        <th scope="row" style={{ padding: '9px 14px', textAlign: 'left', color: TEXT_SECONDARY, fontWeight: 700 }}>{axis.subJp[index]}</th>
+                        <td style={{ padding: '9px 6px', textAlign: 'right', color: TEXT_PRIMARY, fontFamily: NUM_FONT }}>{formatPeerScore(selfValue)}</td>
+                        <td style={{ padding: '9px 6px', textAlign: 'right', color: '#6D4600', fontFamily: NUM_FONT }}>{formatPeerScore(peerValue)}</td>
+                        <td style={{
+                          padding: '9px 14px 9px 6px', textAlign: 'right',
+                          color: gap.startsWith('+') ? '#1E6A43' : gap.startsWith('-') ? '#8B3A28' : TEXT_MUTED,
+                          fontWeight: 800, fontFamily: NUM_FONT,
+                        }}>{gap}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           );
         })}
@@ -1821,8 +1818,12 @@ export function PeerAssessmentSection({ user }) {
   const [copied, setCopied] = useState(false);
   const [issueUnavailable, setIssueUnavailable] = useState(false);
   const [wasRevoked, setWasRevoked] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [focusAfterAction, setFocusAfterAction] = useState('');
+  const issueButtonRef = useRef(null);
+  const copyButtonRef = useRef(null);
 
-  const loadSummary = useCallback(async () => {
+  const loadSummary = useCallback(async (announce = false) => {
     setSummaryState('loading');
     setSummaryError('');
     try {
@@ -1833,21 +1834,38 @@ export function PeerAssessmentSection({ user }) {
       setSummary(data);
       setSummaryState(data.status);
       setInviteLifecycle('active');
+      setStatusMessage(data.status === 'ready'
+        ? `集計を${announce ? '更新' : '確認'}しました。回答数は${data.n}件です。`
+        : `集計を${announce ? '更新' : '確認'}しました。回答が2件以上揃うと表示されます。`);
     } catch (error) {
       setSummary(null);
       if (error.status === 404) {
         setSummaryState('inactive');
         setInviteLifecycle((current) => (current === 'revoked' ? current : 'inactive'));
+        setStatusMessage(announce
+          ? '集計を更新しました。有効な招待URLはありません。'
+          : '有効な招待URLはありません。');
         return;
       }
       setSummaryState('error');
       setSummaryError(error.message);
+      setStatusMessage(announce ? '集計を更新できませんでした。' : '集計を確認できませんでした。');
     }
   }, [user]);
 
   useEffect(() => {
     void loadSummary();
   }, [loadSummary]);
+
+  useEffect(() => {
+    if (focusAfterAction === 'copy' && invite?.url) {
+      copyButtonRef.current?.focus();
+      setFocusAfterAction('');
+    } else if (focusAfterAction === 'issue' && !invite?.url) {
+      issueButtonRef.current?.focus();
+      setFocusAfterAction('');
+    }
+  }, [focusAfterAction, invite]);
 
   const issueInvite = async () => {
     setAction('issue');
@@ -1862,6 +1880,10 @@ export function PeerAssessmentSection({ user }) {
       setInviteLifecycle('active');
       setWasRevoked(false);
       await loadSummary();
+      setStatusMessage(nextInvite.reused
+        ? '有効な招待URLを表示しました。URLをコピーできます。'
+        : '招待URLを発行しました。URLをコピーできます。');
+      setFocusAfterAction('copy');
     } catch (error) {
       if (error.status === 404) {
         setIssueUnavailable(true);
@@ -1890,6 +1912,8 @@ export function PeerAssessmentSection({ user }) {
       setCopied(false);
       setSummary(null);
       setSummaryState('inactive');
+      setStatusMessage('招待URLを失効しました。新しい招待URLを再発行できます。');
+      setFocusAfterAction('issue');
     } catch (error) {
       setManagementError(error.message);
     } finally {
@@ -1902,6 +1926,7 @@ export function PeerAssessmentSection({ user }) {
       await navigator.clipboard.writeText(invite.url);
       setCopied(true);
       setManagementError('');
+      setStatusMessage('招待URLをコピーしました。');
     } catch {
       setManagementError('URLをコピーできませんでした。URL欄から手動でコピーしてください。');
     }
@@ -1914,6 +1939,17 @@ export function PeerAssessmentSection({ user }) {
     <div data-testid="uaam-peer-assessment">
       <Section>
         <SectionHeader title="他者評価" subtitle="匿名回答の招待と、自己回答との比較" />
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          style={{
+            position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
+            overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0,
+          }}
+        >
+          {statusMessage}
+        </div>
 
         <div style={{
           background: LIGHT_BG,
@@ -1939,7 +1975,7 @@ export function PeerAssessmentSection({ user }) {
                     color: TEXT_PRIMARY, fontSize: 12,
                   }}
                 />
-                <button type="button" onClick={copyInviteUrl} style={{
+                <button ref={copyButtonRef} type="button" onClick={copyInviteUrl} style={{
                   border: 'none', borderRadius: 8, padding: '10px 16px',
                   background: TEXT_PRIMARY, color: WHITE, fontWeight: 800, cursor: 'pointer',
                 }}>
@@ -1971,6 +2007,7 @@ export function PeerAssessmentSection({ user }) {
             {!invite?.url && (
               <button
                 type="button"
+                ref={issueButtonRef}
                 onClick={issueInvite}
                 disabled={!!action || issueUnavailable || summaryState === 'loading'}
                 style={{
@@ -2016,7 +2053,7 @@ export function PeerAssessmentSection({ user }) {
             <button
               className="no-print"
               type="button"
-              onClick={loadSummary}
+              onClick={() => loadSummary(true)}
               disabled={summaryState === 'loading'}
               style={{
                 border: `1px solid ${BORDER}`, borderRadius: 8, padding: '7px 11px',
