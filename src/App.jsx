@@ -545,6 +545,7 @@ function UaamResultRoute() {
       user={user}
       result={attemptData ? null : uaamResult}
       attemptData={attemptData}
+      enablePeerAssessment
       isAdmin={isAdmin}
       onReset={() => {
         if (attemptData) {
