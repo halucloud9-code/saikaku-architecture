@@ -12,6 +12,7 @@ import {
   setMockDelay,
   uaamRequest,
 } from './_helpers.js';
+import { UAAM_QUESTION_VERSION } from '../../shared/uaamQuestions.js';
 
 describe('API /api/uaam basic reservation coverage', () => {
   beforeEach(() => {
@@ -30,6 +31,9 @@ describe('API /api/uaam basic reservation coverage', () => {
     expect(fourth.status).toBe(429);
     expect(fourth.body.code).toBe('LIMIT_EXCEEDED');
     expect((await getParent('uaam_results', uid)).attemptCount).toBe(3);
+    expect(await listAttempts('uaam_results', uid)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ status: 'committed', questionVersion: UAAM_QUESTION_VERSION }),
+    ]));
     expect(getMockCallCount('uaam')).toBe(3);
   });
 

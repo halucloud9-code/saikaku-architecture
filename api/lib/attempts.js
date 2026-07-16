@@ -1,6 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebaseAdmin.js';
 import { MAX_DIAGNOSIS_ATTEMPTS } from '../../shared/attemptLogic.js';
+import { UAAM_QUESTION_VERSION } from '../../shared/uaamQuestions.js';
 
 export class LimitExceededError extends Error {
   constructor(message = `診断は最大${MAX_DIAGNOSIS_ATTEMPTS}回までです`) {
@@ -116,6 +117,7 @@ export async function commitAttempt({ collection, uid, attemptId, summary, full,
         full,
         raw,
         status: 'committed',
+        ...(collection === 'uaam_results' ? { questionVersion: UAAM_QUESTION_VERSION } : {}),
       },
       { merge: true }
     );

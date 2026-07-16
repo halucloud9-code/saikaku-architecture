@@ -6,7 +6,7 @@ vi.resetModules();
 const { api, Timestamp } = await import('./_helpers.js');
 const { db } = await import('../../api/lib/firebaseAdmin.js');
 const { getAuth } = await import('firebase-admin/auth');
-const { calculateScores } = await import('../../shared/uaamQuestions.js');
+const { calculateScores, UAAM_QUESTION_VERSION } = await import('../../shared/uaamQuestions.js');
 
 const ADMIN_UID = 'uaam-peer-delete-admin';
 const ADMIN_EMAIL = 'admin@example.com';
@@ -69,6 +69,7 @@ async function seedSubject(uid, email) {
   await db.collection('uaam_results').doc(uid).collection('attempts').doc('attempt-latest').set({
     status: 'committed',
     createdAt: answeredAt,
+    questionVersion: UAAM_QUESTION_VERSION,
     full: { scores },
   });
 }

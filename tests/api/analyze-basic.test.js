@@ -21,7 +21,9 @@ describe('API /api/analyze basic reservation flow', () => {
     expect(first.status).toBe(200);
     expect(first.body.kakuchiiki).toBeTruthy();
     expect((await getParent('results', uid)).attemptCount).toBe(1);
-    expect(await listAttempts('results', uid)).toHaveLength(1);
+    const firstAttempts = await listAttempts('results', uid);
+    expect(firstAttempts).toHaveLength(1);
+    expect(firstAttempts[0]).not.toHaveProperty('questionVersion');
     expect(getMockCallCount('saikaku')).toBe(1);
 
     const second = await analyzeRequest(uid);

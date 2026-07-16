@@ -1885,7 +1885,11 @@ export function PeerAssessmentSection({ user }) {
         : '招待URLを発行しました。URLをコピーできます。');
       setFocusAfterAction('copy');
     } catch (error) {
-      if (error.status === 404) {
+      if (error.code === 'self_question_version_unknown') {
+        setIssueUnavailable(true);
+        setInviteLifecycle('inactive');
+        setManagementError('最新の診断内容で受け直すと、他者評価の招待を発行できます。');
+      } else if (error.status === 404) {
         setIssueUnavailable(true);
         setInviteLifecycle('inactive');
         setManagementError('UAAM診断の確定結果がないため、招待URLを発行できません。');

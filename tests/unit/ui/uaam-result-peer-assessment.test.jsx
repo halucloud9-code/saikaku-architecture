@@ -221,4 +221,25 @@ describe('UAAMResultScreen peer assessment section', () => {
     expect(await screen.findByText('UAAM診断の確定結果がないため、招待URLを発行できません。')).toBeInTheDocument();
     expect(issueButton).toBeDisabled();
   });
+
+  it('tells the owner to retake when the self question version cannot be verified', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (url === '/api/me/uaam-peer-summary') {
+        return response(404, { code: 'not_found', error: '集計対象が見つかりません' });
+      }
+      return response(409, {
+        code: 'self_question_version_unknown',
+        error: 'UAAM診断結果の質問版を確認できません',
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const ui = userEvent.setup();
+
+    render(<PeerAssessmentSection user={user} />);
+    const issueButton = await screen.findByRole('button', { name: '招待URLを発行する' });
+    await ui.click(issueButton);
+
+    expect(await screen.findByText('最新の診断内容で受け直すと、他者評価の招待を発行できます。')).toBeInTheDocument();
+    expect(issueButton).toBeDisabled();
+  });
 });

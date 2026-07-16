@@ -5,6 +5,7 @@ import {
   buildUaamPeerInviteUrl,
   isUaamPeerInviteActive,
   isUaamPeerInviteId,
+  isUaamPeerQuestionVersionMismatch,
   makeInviteExpiry,
   setUaamPeerNoStoreHeaders,
   timestampIso,
@@ -89,7 +90,8 @@ async function issueInvite(req, decoded) {
       const activeData = activeSnapshot.data();
       if (activeSnapshot.exists
         && activeData?.subjectUid === subjectUid
-        && isUaamPeerInviteActive(activeData)) {
+        && isUaamPeerInviteActive(activeData)
+        && !isUaamPeerQuestionVersionMismatch(activeData)) {
         return {
           inviteId: activeSnapshot.id,
           expiresAt: activeData.expiresAt,
@@ -105,10 +107,24 @@ async function issueInvite(req, decoded) {
     const parentData = parentSnapshot.data() ?? {};
     const attempt = latestCommittedAttempt(attemptsSnapshot, parentData.latestAttemptId);
     if (!attempt) {
+      if (parentSnapshot.exists && isScores(parentData.scores)) {
+        throw apiError(
+          409,
+          'self_question_version_unknown',
+          'UAAM診断結果の質問版を確認できません。最新の診断を受け直してください'
+        );
+      }
       throw apiError(404, 'self_result_not_found', 'UAAM診断結果が見つかりません');
     }
+    if (attempt.data?.questionVersion !== UAAM_QUESTION_VERSION) {
+      throw apiError(
+        409,
+        'self_question_version_unknown',
+        'UAAM診断結果の質問版を確認できません。最新の診断を受け直してください'
+      );
+    }
 
-    const scores = attempt.data?.full?.scores ?? parentData.scores;
+    const scores = attempt.data?.full?.scores;
     const answeredAt = attempt.data?.answeredAt
       ?? attempt.data?.summary?.createdAt
       ?? attempt.data?.createdAt
@@ -120,7 +136,9 @@ async function issueInvite(req, decoded) {
 
     transaction.create(newInviteRef, {
       subjectUid,
-      subjectName: typeof parentData.name === 'string' ? parentData.name : (decoded.name || ''),
+      subjectName: typeof parentData.name === 'string' && parentData.name.trim()
+        ? parentData.name
+        : (decoded.name || ''),
       createdAt: FieldValue.serverTimestamp(),
       expiresAt,
       revoked: false,

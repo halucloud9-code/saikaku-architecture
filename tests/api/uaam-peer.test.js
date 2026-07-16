@@ -36,6 +36,7 @@ async function seedSelfResult() {
   await db.collection('uaam_results').doc(uid).collection('attempts').doc('attempt-latest').set({
     status: 'committed',
     createdAt: answeredAt,
+    questionVersion: UAAM_QUESTION_VERSION,
     full: { scores },
   });
 }
@@ -137,6 +138,53 @@ describe('UAAM peer assessment APIs', () => {
     await inviteRef.update({ questionVersion: FieldValue.delete() });
     expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(200);
     expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers })).status).toBe(201);
+  });
+
+  it('does not reuse a stale-version invite and falls back to the token name for a blank parent name', async () => {
+    await seedSelfResult();
+    await db.collection('uaam_results').doc(uid).update({ name: '   ' });
+
+    const first = await issue();
+    expect(first.status).toBe(201);
+    const firstInviteRef = db.collection('uaam_peer_invites').doc(first.body.inviteId);
+    expect((await firstInviteRef.get()).data().subjectName).toBe('Test');
+
+    await firstInviteRef.update({ questionVersion: 'stale-question-version' });
+    const fresh = await issue();
+    expect(fresh.status).toBe(201);
+    expect(fresh.body).toMatchObject({ reused: false });
+    expect(fresh.body.inviteId).not.toBe(first.body.inviteId);
+    expect((await db.collection('uaam_peer_invites').doc(fresh.body.inviteId).get()).data())
+      .toMatchObject({ subjectName: 'Test', questionVersion: UAAM_QUESTION_VERSION });
+  });
+
+  it('rejects stale, version-unknown, and parent-only self results at issuance', async () => {
+    await seedSelfResult();
+    const attemptRef = db.collection('uaam_results').doc(uid).collection('attempts').doc('attempt-latest');
+
+    await attemptRef.update({ questionVersion: 'stale-question-version' });
+    const stale = await issue();
+    expect(stale.status).toBe(409);
+    expect(stale.body).toMatchObject({ code: 'self_question_version_unknown' });
+
+    await attemptRef.update({ questionVersion: FieldValue.delete() });
+    const unknown = await issue();
+    expect(unknown.status).toBe(409);
+    expect(unknown.body).toMatchObject({ code: 'self_question_version_unknown' });
+
+    await attemptRef.delete();
+    const parentOnly = await issue();
+    expect(parentOnly.status).toBe(409);
+    expect(parentOnly.body).toMatchObject({ code: 'self_question_version_unknown' });
+
+    const [invites, pointer, audits] = await Promise.all([
+      db.collection('uaam_peer_invites').where('subjectUid', '==', uid).get(),
+      db.collection('uaam_peer_invite_index').doc(uid).get(),
+      db.collection('uaam_peer_audits').where('subjectUid', '==', uid).get(),
+    ]);
+    expect(invites.empty).toBe(true);
+    expect(pointer.exists).toBe(false);
+    expect(audits.empty).toBe(true);
   });
 
   it('rejects malformed, capped, expired, revoked, and tombstoned requests', async () => {
