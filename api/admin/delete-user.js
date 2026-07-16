@@ -4,7 +4,21 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebaseAdmin.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
-const UID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
+const FIRESTORE_DOCUMENT_ID_MAX_BYTES = 1500;
+const ASCII_CONTROL_RE = /[\u0000-\u001F\u007F]/u;
+
+// One guard is shared by Auth UIDs and Firestore-derived document IDs. Auth
+// UIDs are limited to 128 bytes, but Firestore document IDs allow up to 1500
+// bytes, so the latter is the safe common ceiling for this deletion sweep.
+function isPathSafeId(value) {
+  return typeof value === 'string'
+    && value.length > 0
+    && Buffer.byteLength(value, 'utf8') <= FIRESTORE_DOCUMENT_ID_MAX_BYTES
+    && !value.includes('/')
+    && value !== '.'
+    && value !== '..'
+    && !ASCII_CONTROL_RE.test(value);
+}
 
 async function deriveFirestoreUidsByEmail(email) {
   const snapshots = await Promise.all([
@@ -15,10 +29,10 @@ async function deriveFirestoreUidsByEmail(email) {
   for (const snapshot of snapshots) {
     for (const document of snapshot.docs) {
       const storedUid = document.data()?.uid;
-      const candidate = typeof storedUid === 'string' && UID_RE.test(storedUid)
+      const candidate = typeof storedUid === 'string' && isPathSafeId(storedUid)
         ? storedUid
         : document.id;
-      if (UID_RE.test(candidate)) uids.add(candidate);
+      if (isPathSafeId(candidate)) uids.add(candidate);
     }
   }
   return [...uids];
@@ -131,7 +145,7 @@ export default async function handler(req, res) {
 
   const uid = hasUid && typeof body.uid === 'string' ? body.uid.trim() : '';
   const email = hasEmail && typeof body.email === 'string' ? body.email.trim() : '';
-  if ((hasUid && !UID_RE.test(uid)) || (hasEmail && !email)) {
+  if ((hasUid && !isPathSafeId(uid)) || (hasEmail && !email)) {
     return res.status(400).json({ error: 'uid または email の値が不正です' });
   }
 

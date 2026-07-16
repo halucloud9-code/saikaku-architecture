@@ -108,7 +108,7 @@ describe('UAAM peer assessment APIs', () => {
     expect((await summary()).body).toEqual({ status: 'insufficient' });
   });
 
-  it('rejects a mismatched question version on GET and POST while accepting a legacy missing version', async () => {
+  it('rejects a mismatched question version on public GET, POST, and owner summary while accepting a legacy missing version', async () => {
     await seedSelfResult();
     const issued = await issue();
     const inviteId = issued.body.inviteId;
@@ -117,14 +117,18 @@ describe('UAAM peer assessment APIs', () => {
     expect((await inviteRef.get()).data().questionVersion).toBe(UAAM_QUESTION_VERSION);
     await inviteRef.update({ questionVersion: 'bogus-question-version' });
 
-    const [publicGet, submission] = await Promise.all([
+    const [publicGet, submission, ownerSummary] = await Promise.all([
       api.get(`/api/uaam-peer-invite?id=${inviteId}`),
       api.post('/api/uaam-peer-assess').send({ inviteId, answers }),
+      summary(),
     ]);
     expect(publicGet.status).toBe(409);
     expect(publicGet.body).toMatchObject({ code: 'question_version_mismatch' });
     expect(submission.status).toBe(409);
     expect(submission.body).toMatchObject({ code: 'question_version_mismatch' });
+    expect(ownerSummary.status).toBe(409);
+    expect(ownerSummary.body).toMatchObject({ code: 'question_version_mismatch' });
+    expect(ownerSummary.body).not.toHaveProperty('status');
 
     const [unchangedInvite, submissions, audits] = await Promise.all([
       inviteRef.get(),

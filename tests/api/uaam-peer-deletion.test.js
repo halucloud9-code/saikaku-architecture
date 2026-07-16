@@ -25,6 +25,11 @@ const TOMBSTONE_WRITE_FAILURE_UID = 'uaam-peer-delete-tombstone-write-failure';
 const TOMBSTONE_WRITE_FAILURE_EMAIL = 'tombstone-write-failure@example.com';
 const EMAIL_SWEEP_FAILURE_UID = 'uaam-peer-delete-email-sweep-failure';
 const EMAIL_SWEEP_FAILURE_EMAIL = 'email-sweep-failure@example.com';
+const DOTTED_UID_SUBJECT = 'tenant.user';
+const DOTTED_UID_INVITE = '33333333-3333-4333-8333-333333333333';
+const DOTTED_EMAIL_UID = 'email.derived.user';
+const DOTTED_EMAIL_ADDRESS = 'dotted-derived@example.com';
+const DOTTED_EMAIL_INVITE = '44444444-4444-4444-8444-444444444444';
 const SUBJECT_UIDS = [
   UID_PATH_SUBJECT,
   EMAIL_PATH_SUBJECT,
@@ -34,6 +39,8 @@ const SUBJECT_UIDS = [
   RETRY_UID,
   TOMBSTONE_WRITE_FAILURE_UID,
   EMAIL_SWEEP_FAILURE_UID,
+  DOTTED_UID_SUBJECT,
+  DOTTED_EMAIL_UID,
 ];
 const answers = Object.fromEntries(Array.from({ length: 64 }, (_value, index) => [String(index + 1), 4]));
 const scores = calculateScores(answers);
@@ -74,6 +81,37 @@ async function seedSubject(uid, email) {
   });
 }
 
+async function seedPeerArtifacts(uid, email, inviteId) {
+  const answeredAt = Timestamp.fromDate(new Date('2026-07-01T00:00:00.000Z'));
+  const expiresAt = Timestamp.fromDate(new Date('2027-07-01T00:00:00.000Z'));
+  await seedSubject(uid, email);
+  await Promise.all([
+    db.collection('uaam_peer_invites').doc(inviteId).set({
+      subjectUid: uid,
+      subjectName: 'Path-safe deletion subject',
+      revoked: false,
+      expiresAt,
+      questionVersion: UAAM_QUESTION_VERSION,
+      submissionCount: 1,
+      selfSnapshot: { attemptId: 'attempt-latest', answeredAt, scores },
+    }),
+    db.collection('uaam_peer_invite_index').doc(uid).set({ activeInviteId: inviteId }),
+    db.collection('uaam_peer_results').doc(uid).set({ subjectUid: uid }),
+    db.collection('uaam_peer_results').doc(uid).collection('submissions').doc('submission').set({
+      inviteId,
+      answers,
+      scores,
+      createdAt: answeredAt,
+    }),
+    db.collection('uaam_peer_audits').doc(`${uid}-audit`).set({
+      type: 'submit',
+      inviteId,
+      subjectUid: uid,
+      at: answeredAt,
+    }),
+  ]);
+}
+
 async function issueAndSubmit(uid) {
   const issued = await api.post('/api/me/uaam-peer-invite')
     .set('x-test-uid', uid)
@@ -99,7 +137,7 @@ async function issueAndSubmit(uid) {
   return issued.body.inviteId;
 }
 
-async function assertCascade(uid, inviteId) {
+async function assertPeerStorageCascade(uid, inviteId) {
   const [
     invites,
     pointer,
@@ -123,11 +161,15 @@ async function assertCascade(uid, inviteId) {
   expect(audits.empty).toBe(true);
   expect(tombstone.exists).toBe(true);
 
+  expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(410);
+  expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers })).status).toBe(410);
+}
+
+async function assertCascade(uid, inviteId) {
+  await assertPeerStorageCascade(uid, inviteId);
   expect((await api.post('/api/me/uaam-peer-invite')
     .set('x-test-uid', uid)
     .send({ action: 'issue' })).status).toBe(410);
-  expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(410);
-  expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers })).status).toBe(410);
 }
 
 async function signInAdmin(email = ADMIN_EMAIL) {
@@ -206,6 +248,48 @@ describe('UAAM peer deletion cascade', () => {
     expect(deleted.status).toBe(200);
     expect(deleted.body).toMatchObject({ success: true, deletedUid: EMAIL_PATH_SUBJECT });
     await assertCascade(EMAIL_PATH_SUBJECT, inviteId);
+  });
+
+  it('accepts a dotted uid and sweeps its peer data', async () => {
+    await getAuth().createUser({
+      uid: DOTTED_UID_SUBJECT,
+      email: 'dotted-uid@example.com',
+      password: ADMIN_PASSWORD,
+      emailVerified: true,
+    });
+    await seedPeerArtifacts(DOTTED_UID_SUBJECT, 'dotted-uid@example.com', DOTTED_UID_INVITE);
+
+    const deleted = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ uid: DOTTED_UID_SUBJECT });
+
+    expect(deleted.status).toBe(200);
+    expect(deleted.body).toMatchObject({ success: true, deletedUid: DOTTED_UID_SUBJECT });
+    await assertPeerStorageCascade(DOTTED_UID_SUBJECT, DOTTED_UID_INVITE);
+    expect((await db.collection('uaam_results').doc(DOTTED_UID_SUBJECT).get()).exists).toBe(false);
+    await expect(getAuth().getUser(DOTTED_UID_SUBJECT)).rejects.toMatchObject({ code: 'auth/user-not-found' });
+  });
+
+  it('rejects a uid containing a slash', async () => {
+    const rejected = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ uid: 'tenant/user' });
+
+    expect(rejected.status).toBe(400);
+    expect(rejected.body.error).toContain('値が不正');
+  });
+
+  it('sweeps a dotted uid derived from a Firestore email match', async () => {
+    await seedPeerArtifacts(DOTTED_EMAIL_UID, DOTTED_EMAIL_ADDRESS, DOTTED_EMAIL_INVITE);
+
+    const deleted = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: DOTTED_EMAIL_ADDRESS });
+
+    expect(deleted.status).toBe(200);
+    expect(deleted.body).toMatchObject({ success: true, deletedUid: DOTTED_EMAIL_UID });
+    await assertPeerStorageCascade(DOTTED_EMAIL_UID, DOTTED_EMAIL_INVITE);
+    expect((await db.collection('uaam_results').doc(DOTTED_EMAIL_UID).get()).exists).toBe(false);
   });
 
   it('rejects unverified admin email tokens through the shared admin guard', async () => {

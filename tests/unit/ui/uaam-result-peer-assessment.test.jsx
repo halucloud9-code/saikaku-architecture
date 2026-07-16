@@ -121,6 +121,21 @@ describe('UAAMResultScreen peer assessment section', () => {
     }));
   });
 
+  it('asks the owner to reissue when the active invite question version is stale', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response(409, {
+      code: 'question_version_mismatch',
+      error: '診断内容が更新されたため、招待URLの再発行が必要です',
+    })));
+
+    render(<PeerAssessmentSection user={user} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '診断内容が更新されたため、この招待URLの集計は表示できません。招待を再発行してください。',
+    );
+    expect(screen.queryByTestId('uaam-peer-insufficient')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('uaam-peer-ready')).not.toBeInTheDocument();
+  });
+
   it('shows n, snapshot date, overlay legend, and signed axis/sub gaps only when ready', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => response(200, readySummary())));
     const ui = userEvent.setup();

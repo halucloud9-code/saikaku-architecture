@@ -4,6 +4,7 @@ import {
   aggregateUaamPeerScores,
   isUaamPeerInviteActive,
   isUaamPeerInviteId,
+  isUaamPeerQuestionVersionMismatch,
   setUaamPeerNoStoreHeaders,
 } from '../lib/uaamPeer.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
@@ -14,6 +15,13 @@ function notFound(res) {
 
 function gone(res) {
   return res.status(410).json({ code: 'gone', error: '削除済みのユーザーです' });
+}
+
+function questionVersionMismatch(res) {
+  return res.status(409).json({
+    code: 'question_version_mismatch',
+    error: '診断内容が更新されたため、招待URLの再発行が必要です',
+  });
 }
 
 function validSelfSnapshot(value) {
@@ -44,11 +52,11 @@ export default withMeHandler(async function handler(req, res) {
   if (!inviteSnapshot.exists) return notFound(res);
 
   const invite = inviteSnapshot.data();
-  if (invite.subjectUid !== decoded.uid
-    || !isUaamPeerInviteActive(invite)
-    || !validSelfSnapshot(invite.selfSnapshot)) {
+  if (invite.subjectUid !== decoded.uid || !isUaamPeerInviteActive(invite)) {
     return notFound(res);
   }
+  if (isUaamPeerQuestionVersionMismatch(invite)) return questionVersionMismatch(res);
+  if (!validSelfSnapshot(invite.selfSnapshot)) return notFound(res);
 
   const submissionsSnapshot = await db
     .collection('uaam_peer_results')

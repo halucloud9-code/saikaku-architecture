@@ -1848,7 +1848,9 @@ export function PeerAssessmentSection({ user }) {
         return;
       }
       setSummaryState('error');
-      setSummaryError(error.message);
+      setSummaryError(error.code === 'question_version_mismatch'
+        ? '診断内容が更新されたため、この招待URLの集計は表示できません。招待を再発行してください。'
+        : error.message);
       setStatusMessage(announce ? '集計を更新できませんでした。' : '集計を確認できませんでした。');
     }
   }, [user]);
