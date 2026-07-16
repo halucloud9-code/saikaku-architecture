@@ -64,6 +64,8 @@ async function deleteDocuments(failures, operation, target, documents) {
 }
 
 async function deleteUaamPeerData(uid, requestedBy, failures) {
+  const entryFailureCount = failures.length;
+
   // 1. Tombstone is deliberately committed before any destructive write. Public
   // and issue endpoints use it as the authoritative deletion barrier.
   const tombstone = await attemptDeletion(failures, 'peer_tombstone', uid, () => (
@@ -82,14 +84,18 @@ async function deleteUaamPeerData(uid, requestedBy, failures) {
   ));
   if (invitesResult.ok && invitesResult.value) {
     const inviteIds = invitesResult.value.docs.map((document) => document.id);
+    let inviteIdsRecorded = true;
     if (inviteIds.length > 0) {
-      await attemptDeletion(failures, 'peer_tombstone_invites', uid, () => (
+      const recorded = await attemptDeletion(failures, 'peer_tombstone_invites', uid, () => (
         db.collection('uaam_peer_deletions').doc(uid).set({
           inviteIds: FieldValue.arrayUnion(...inviteIds),
         }, { merge: true })
       ));
+      inviteIdsRecorded = recorded.ok;
     }
-    await deleteDocuments(failures, 'peer_invite_delete', uid, invitesResult.value.docs);
+    if (inviteIdsRecorded) {
+      await deleteDocuments(failures, 'peer_invite_delete', uid, invitesResult.value.docs);
+    }
   }
   await attemptDeletion(failures, 'peer_pointer_delete', uid, () => (
     db.collection('uaam_peer_invite_index').doc(uid).delete()
@@ -107,7 +113,7 @@ async function deleteUaamPeerData(uid, requestedBy, failures) {
   if (auditsResult.ok && auditsResult.value) {
     await deleteDocuments(failures, 'peer_audit_delete', uid, auditsResult.value.docs);
   }
-  return true;
+  return failures.length === entryFailureCount;
 }
 
 export default async function handler(req, res) {

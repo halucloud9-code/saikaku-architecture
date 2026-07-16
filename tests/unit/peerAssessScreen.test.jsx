@@ -144,6 +144,7 @@ describe('PeerAssessScreen', () => {
   });
 
   it.each([
+    [409, 'この診断は更新されたため、この招待URLは無効になりました'],
     [404, '招待が見つからないか、期限切れです'],
     [410, '対象者のデータは削除処理中です'],
     [500, '招待を読み込めませんでした'],
@@ -153,6 +154,26 @@ describe('PeerAssessScreen', () => {
 
     expect(await screen.findByRole('heading', { name: message })).toBeInTheDocument();
     expect(screen.queryByText(/ログイン/)).not.toBeInTheDocument();
+  });
+
+  it('replaces the form with the version-mismatch error screen after a 409 submission', async () => {
+    vi.stubGlobal('scrollTo', vi.fn());
+    vi.stubGlobal('fetch', vi.fn(async (url) => (
+      url === '/api/uaam-peer-assess'
+        ? jsonResponse(409, { code: 'question_version_mismatch' })
+        : jsonResponse(200, { subjectName: '更新確認', expiresAt: '2026-08-01T00:00:00.000Z' })
+    )));
+    renderPeer();
+    await screen.findByText('更新確認さんの直近1ヶ月に当てはまるかでお答えください');
+
+    await answerAllQuestions();
+    fireEvent.click(screen.getByRole('button', { name: '回答を送信する' }));
+
+    expect(await screen.findByRole('heading', {
+      name: 'この診断は更新されたため、この招待URLは無効になりました',
+    })).toBeInTheDocument();
+    expect(screen.getByText('対象者に新しいURLの発行を依頼してください。')).toBeInTheDocument();
+    expect(screen.queryByText('全体進捗：64/64問')).not.toBeInTheDocument();
   });
 
   it('keeps all answers after a cap response and renders the explicit 429 message', async () => {

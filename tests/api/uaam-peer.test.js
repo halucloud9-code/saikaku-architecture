@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { api, Timestamp } from './_helpers.js';
+import { api, FieldValue, Timestamp } from './_helpers.js';
 import { db } from '../../api/lib/firebaseAdmin.js';
-import { calculateScores } from '../../shared/uaamQuestions.js';
+import { calculateScores, UAAM_QUESTION_VERSION } from '../../shared/uaamQuestions.js';
 
 const uid = 'uaam-peer-api-test';
 const answers = Object.fromEntries(Array.from({ length: 64 }, (_value, index) => [String(index + 1), 3]));
@@ -64,12 +64,14 @@ describe('UAAM peer assessment APIs', () => {
     const subjectInvites = await db.collection('uaam_peer_invites').where('subjectUid', '==', uid).get();
     expect(subjectInvites.docs.filter((document) => document.data().revoked === false)).toHaveLength(1);
     expect(subjectInvites.docs[0].data().submissionCount).toBe(0);
+    expect(subjectInvites.docs[0].data().questionVersion).toBe(UAAM_QUESTION_VERSION);
 
     // No Authorization or test-bypass identity header: both endpoints are public.
     const publicGet = await api.get(`/api/uaam-peer-invite?id=${inviteId}`);
     expect(publicGet.status).toBe(200);
     expect(publicGet.body.subjectName).toBe('Peer Subject');
     expect(publicGet.body).not.toHaveProperty('submissionCount');
+    expect(publicGet.body).not.toHaveProperty('questionVersion');
     expect(publicGet.headers['cache-control']).toContain('no-store');
     expect(publicGet.headers['x-robots-tag']).toContain('noindex');
 
@@ -103,6 +105,38 @@ describe('UAAM peer assessment APIs', () => {
     expect(nextWave.status).toBe(201);
     expect(nextWave.body.inviteId).not.toBe(inviteId);
     expect((await summary()).body).toEqual({ status: 'insufficient' });
+  });
+
+  it('rejects a mismatched question version on GET and POST while accepting a legacy missing version', async () => {
+    await seedSelfResult();
+    const issued = await issue();
+    const inviteId = issued.body.inviteId;
+    const inviteRef = db.collection('uaam_peer_invites').doc(inviteId);
+
+    expect((await inviteRef.get()).data().questionVersion).toBe(UAAM_QUESTION_VERSION);
+    await inviteRef.update({ questionVersion: 'bogus-question-version' });
+
+    const [publicGet, submission] = await Promise.all([
+      api.get(`/api/uaam-peer-invite?id=${inviteId}`),
+      api.post('/api/uaam-peer-assess').send({ inviteId, answers }),
+    ]);
+    expect(publicGet.status).toBe(409);
+    expect(publicGet.body).toMatchObject({ code: 'question_version_mismatch' });
+    expect(submission.status).toBe(409);
+    expect(submission.body).toMatchObject({ code: 'question_version_mismatch' });
+
+    const [unchangedInvite, submissions, audits] = await Promise.all([
+      inviteRef.get(),
+      db.collection('uaam_peer_results').doc(uid).collection('submissions').get(),
+      db.collection('uaam_peer_audits').where('subjectUid', '==', uid).get(),
+    ]);
+    expect(unchangedInvite.data().submissionCount).toBe(0);
+    expect(submissions.empty).toBe(true);
+    expect(audits.docs.filter((document) => document.data().type === 'submit')).toHaveLength(0);
+
+    await inviteRef.update({ questionVersion: FieldValue.delete() });
+    expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(200);
+    expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers })).status).toBe(201);
   });
 
   it('rejects malformed, capped, expired, revoked, and tombstoned requests', async () => {

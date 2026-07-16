@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase-admin/firestore';
+import { UAAM_QUESTION_VERSION } from '../../shared/uaamQuestions.js';
 
 export const UAAM_PEER_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 export const UAAM_PEER_DEFAULT_SUBMISSION_CAP = 30;
@@ -44,6 +45,13 @@ export function isUaamPeerInviteActive(data, nowMs = Date.now()) {
     && Number.isFinite(timestampMillis(data.expiresAt))
     && timestampMillis(data.expiresAt) > nowMs;
 }
+
+export function isUaamPeerQuestionVersionMismatch(data) {
+  return data?.questionVersion !== undefined
+    && data.questionVersion !== UAAM_QUESTION_VERSION;
+}
+
+export { UAAM_QUESTION_VERSION };
 
 export function setUaamPeerNoStoreHeaders(res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');

@@ -2,6 +2,7 @@ import { db } from './lib/firebaseAdmin.js';
 import {
   isUaamPeerInviteActive,
   isUaamPeerInviteId,
+  isUaamPeerQuestionVersionMismatch,
   setUaamPeerNoStoreHeaders,
   timestampIso,
   wasUaamPeerInviteDeleted,
@@ -13,6 +14,13 @@ function notFound(res) {
 
 function gone(res) {
   return res.status(410).json({ code: 'gone', error: 'この招待は利用できません' });
+}
+
+function questionVersionMismatch(res) {
+  return res.status(409).json({
+    code: 'question_version_mismatch',
+    error: '診断内容が更新されたため、この招待は利用できません',
+  });
 }
 
 export default async function handler(req, res) {
@@ -35,6 +43,7 @@ export default async function handler(req, res) {
     const tombstoneSnapshot = await db.collection('uaam_peer_deletions').doc(invite.subjectUid).get();
     if (tombstoneSnapshot.exists) return gone(res);
     if (!isUaamPeerInviteActive(invite)) return notFound(res);
+    if (isUaamPeerQuestionVersionMismatch(invite)) return questionVersionMismatch(res);
     if (typeof invite.subjectName !== 'string') return notFound(res);
 
     return res.status(200).json({

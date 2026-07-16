@@ -9,6 +9,7 @@ import {
   setUaamPeerNoStoreHeaders,
   timestampIso,
   timestampMillis,
+  UAAM_QUESTION_VERSION,
 } from '../lib/uaamPeer.js';
 import { authenticateMeRequest, withMeHandler } from './_auth.js';
 
@@ -124,6 +125,7 @@ async function issueInvite(req, decoded) {
       expiresAt,
       revoked: false,
       submissionCount: 0,
+      questionVersion: UAAM_QUESTION_VERSION,
       selfSnapshot: {
         attemptId: attempt.id,
         answeredAt,

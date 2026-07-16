@@ -172,6 +172,12 @@ function StateScreen({ title, message, tone = 'neutral' }) {
 }
 
 function getLoadError(status) {
+  if (status === 409) {
+    return {
+      title: 'この診断は更新されたため、この招待URLは無効になりました',
+      message: '対象者に新しいURLの発行を依頼してください。',
+    };
+  }
   if (status === 410) {
     return {
       title: '対象者のデータは削除処理中です',
@@ -343,6 +349,10 @@ export default function PeerAssessScreen() {
       });
       await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (response.status === 409) {
+          setLoadError(getLoadError(409));
+          return;
+        }
         setSubmitError(getSubmitError(response.status));
         return;
       }

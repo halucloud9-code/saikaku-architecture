@@ -21,6 +21,10 @@ const MULTI_ORPHAN_UID = 'uaam-peer-delete-orphan-uid';
 const MULTI_EMAIL = 'uaam-peer-multi@example.com';
 const PARTIAL_FAILURE_UID = 'uaam-peer-delete-partial';
 const RETRY_UID = 'uaam-peer-delete-retry';
+const TOMBSTONE_WRITE_FAILURE_UID = 'uaam-peer-delete-tombstone-write-failure';
+const TOMBSTONE_WRITE_FAILURE_EMAIL = 'tombstone-write-failure@example.com';
+const EMAIL_SWEEP_FAILURE_UID = 'uaam-peer-delete-email-sweep-failure';
+const EMAIL_SWEEP_FAILURE_EMAIL = 'email-sweep-failure@example.com';
 const SUBJECT_UIDS = [
   UID_PATH_SUBJECT,
   EMAIL_PATH_SUBJECT,
@@ -28,6 +32,8 @@ const SUBJECT_UIDS = [
   MULTI_ORPHAN_UID,
   PARTIAL_FAILURE_UID,
   RETRY_UID,
+  TOMBSTONE_WRITE_FAILURE_UID,
+  EMAIL_SWEEP_FAILURE_UID,
 ];
 const answers = Object.fromEntries(Array.from({ length: 64 }, (_value, index) => [String(index + 1), 4]));
 const scores = calculateScores(answers);
@@ -293,6 +299,109 @@ describe('UAAM peer deletion cascade', () => {
     expect((await db.collection('results').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(true);
     expect((await db.collection('uaam_results').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(false);
     expect((await db.collection('uaam_peer_deletions').doc(PARTIAL_FAILURE_UID).get()).exists).toBe(true);
+  });
+
+  it('keeps invites and account roots when tombstone invite-id recording fails, then retries safely', async () => {
+    await getAuth().createUser({
+      uid: TOMBSTONE_WRITE_FAILURE_UID,
+      email: TOMBSTONE_WRITE_FAILURE_EMAIL,
+      password: ADMIN_PASSWORD,
+      emailVerified: true,
+    });
+    await seedSubject(TOMBSTONE_WRITE_FAILURE_UID, TOMBSTONE_WRITE_FAILURE_EMAIL);
+    await db.collection('results').doc(TOMBSTONE_WRITE_FAILURE_UID).set({
+      uid: TOMBSTONE_WRITE_FAILURE_UID,
+      email: TOMBSTONE_WRITE_FAILURE_EMAIL,
+    });
+    const inviteId = await issueAndSubmit(TOMBSTONE_WRITE_FAILURE_UID);
+
+    const referencePrototype = Object.getPrototypeOf(
+      db.collection('uaam_peer_deletions').doc(TOMBSTONE_WRITE_FAILURE_UID),
+    );
+    const originalSet = referencePrototype.set;
+    vi.spyOn(referencePrototype, 'set').mockImplementation(function setWithInjectedFailure(...args) {
+      if (this.path === `uaam_peer_deletions/${TOMBSTONE_WRITE_FAILURE_UID}`
+        && Object.prototype.hasOwnProperty.call(args[0], 'inviteIds')) {
+        return Promise.reject(Object.assign(new Error('forced tombstone invite-id failure'), { code: 'internal' }));
+      }
+      return originalSet.apply(this, args);
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const firstAttempt = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ uid: TOMBSTONE_WRITE_FAILURE_UID });
+
+    expect(firstAttempt.status).toBe(500);
+    expect(firstAttempt.body.failedUids).toEqual([TOMBSTONE_WRITE_FAILURE_UID]);
+    expect((await db.collection('uaam_peer_invites').doc(inviteId).get()).exists).toBe(true);
+    expect((await db.collection('results').doc(TOMBSTONE_WRITE_FAILURE_UID).get()).exists).toBe(true);
+    expect((await db.collection('uaam_results').doc(TOMBSTONE_WRITE_FAILURE_UID).get()).exists).toBe(true);
+    await expect(getAuth().getUser(TOMBSTONE_WRITE_FAILURE_UID)).resolves.toMatchObject({
+      uid: TOMBSTONE_WRITE_FAILURE_UID,
+    });
+
+    vi.restoreAllMocks();
+    const retry = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ uid: TOMBSTONE_WRITE_FAILURE_UID });
+    expect(retry.status).toBe(200);
+    expect((await db.collection('uaam_peer_invites').doc(inviteId).get()).exists).toBe(false);
+    expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(410);
+    await expect(getAuth().getUser(TOMBSTONE_WRITE_FAILURE_UID)).rejects.toMatchObject({
+      code: 'auth/user-not-found',
+    });
+  });
+
+  it('keeps result roots and Auth discoverable after an email-path peer sweep failure', async () => {
+    await getAuth().createUser({
+      uid: EMAIL_SWEEP_FAILURE_UID,
+      email: EMAIL_SWEEP_FAILURE_EMAIL,
+      password: ADMIN_PASSWORD,
+      emailVerified: true,
+    });
+    await seedSubject(EMAIL_SWEEP_FAILURE_UID, EMAIL_SWEEP_FAILURE_EMAIL);
+    await db.collection('results').doc(EMAIL_SWEEP_FAILURE_UID).set({
+      uid: EMAIL_SWEEP_FAILURE_UID,
+      email: EMAIL_SWEEP_FAILURE_EMAIL,
+    });
+    const inviteId = await issueAndSubmit(EMAIL_SWEEP_FAILURE_UID);
+
+    const referencePrototype = Object.getPrototypeOf(
+      db.collection('uaam_peer_invite_index').doc(EMAIL_SWEEP_FAILURE_UID),
+    );
+    const originalDelete = referencePrototype.delete;
+    vi.spyOn(referencePrototype, 'delete').mockImplementation(function deleteWithInjectedFailure(...args) {
+      if (this.path === `uaam_peer_invite_index/${EMAIL_SWEEP_FAILURE_UID}`) {
+        return Promise.reject(Object.assign(new Error('forced peer pointer failure'), { code: 'internal' }));
+      }
+      return originalDelete.apply(this, args);
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const firstAttempt = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: EMAIL_SWEEP_FAILURE_EMAIL });
+
+    expect(firstAttempt.status).toBe(500);
+    expect(firstAttempt.body.failedUids).toEqual([EMAIL_SWEEP_FAILURE_UID]);
+    expect((await db.collection('results').doc(EMAIL_SWEEP_FAILURE_UID).get()).exists).toBe(true);
+    expect((await db.collection('uaam_results').doc(EMAIL_SWEEP_FAILURE_UID).get()).exists).toBe(true);
+    await expect(getAuth().getUserByEmail(EMAIL_SWEEP_FAILURE_EMAIL)).resolves.toMatchObject({
+      uid: EMAIL_SWEEP_FAILURE_UID,
+    });
+
+    vi.restoreAllMocks();
+    const retry = await api.delete('/api/admin/delete-user')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: EMAIL_SWEEP_FAILURE_EMAIL });
+    expect(retry.status).toBe(200);
+    expect((await db.collection('results').doc(EMAIL_SWEEP_FAILURE_UID).get()).exists).toBe(false);
+    expect((await db.collection('uaam_results').doc(EMAIL_SWEEP_FAILURE_UID).get()).exists).toBe(false);
+    expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(410);
+    await expect(getAuth().getUserByEmail(EMAIL_SWEEP_FAILURE_EMAIL)).rejects.toMatchObject({
+      code: 'auth/user-not-found',
+    });
   });
 
   it('preserves every tombstoned invite id across a partial-failure retry', async () => {

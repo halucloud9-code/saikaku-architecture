@@ -4,6 +4,7 @@ import {
   getUaamPeerSubmissionCap,
   isUaamPeerInviteActive,
   isUaamPeerInviteId,
+  isUaamPeerQuestionVersionMismatch,
   setUaamPeerNoStoreHeaders,
   validateUaamPeerAnswers,
   wasUaamPeerInviteDeleted,
@@ -18,9 +19,22 @@ function gone(res) {
   return res.status(410).json({ code: 'gone', error: 'この招待は利用できません' });
 }
 
+function questionVersionMismatch(res) {
+  return res.status(409).json({
+    code: 'question_version_mismatch',
+    error: '診断内容が更新されたため、この招待は利用できません',
+  });
+}
+
 function requestError(status) {
   const error = new Error(
-    status === 410 ? 'gone' : status === 429 ? 'submission_cap_reached' : 'not_found',
+    status === 410
+      ? 'gone'
+      : status === 409
+        ? 'question_version_mismatch'
+        : status === 429
+          ? 'submission_cap_reached'
+          : 'not_found',
   );
   error.status = status;
   return error;
@@ -56,6 +70,7 @@ export default async function handler(req, res) {
     const tombstoneSnapshot = await db.collection('uaam_peer_deletions').doc(invite.subjectUid).get();
     if (tombstoneSnapshot.exists) return gone(res);
     if (!isUaamPeerInviteActive(invite)) return notFound(res);
+    if (isUaamPeerQuestionVersionMismatch(invite)) return questionVersionMismatch(res);
 
     const submissionsRef = db
       .collection('uaam_peer_results')
@@ -83,6 +98,7 @@ export default async function handler(req, res) {
         || !isUaamPeerInviteActive(currentInvite)) {
         throw requestError(404);
       }
+      if (isUaamPeerQuestionVersionMismatch(currentInvite)) throw requestError(409);
       if ((currentInvite.submissionCount ?? 0) >= getUaamPeerSubmissionCap()) {
         throw requestError(429);
       }
@@ -105,6 +121,7 @@ export default async function handler(req, res) {
     return res.status(201).json({ success: true });
   } catch (error) {
     if (error?.status === 410) return gone(res);
+    if (error?.status === 409) return questionVersionMismatch(res);
     if (error?.status === 404) return notFound(res);
     if (error?.status === 429) {
       return res.status(429).json({ code: 'submission_cap_reached', error: '回答上限に達しました' });
