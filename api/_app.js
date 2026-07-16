@@ -16,6 +16,8 @@ const uaamHandler = await import('./uaam.js');
 const integrateHandler = await import('./integrate.js');
 const sendVerificationEmailHandler = await import('./send-verification-email.js');
 const compatShareHandler = await import('./compat-share.js');
+const uaamPeerInviteHandler = await import('./uaam-peer-invite.js');
+const uaamPeerAssessHandler = await import('./uaam-peer-assess.js');
 
 let adminHandlers = {};
 let meHandlers = {};
@@ -90,6 +92,16 @@ app.all('/api/send-verification-email', (req, res) => {
 
 app.all('/api/compat-share', (req, res) => {
   const handler = compatShareHandler.default || compatShareHandler;
+  return handler(req, res);
+});
+
+app.all('/api/uaam-peer-invite', (req, res) => {
+  const handler = uaamPeerInviteHandler.default || uaamPeerInviteHandler;
+  return handler(req, res);
+});
+
+app.all('/api/uaam-peer-assess', (req, res) => {
+  const handler = uaamPeerAssessHandler.default || uaamPeerAssessHandler;
   return handler(req, res);
 });
 
