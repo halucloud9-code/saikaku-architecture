@@ -28,6 +28,26 @@ function expectFiniteScores(scores) {
 }
 
 describe('UAAM shared/client scoring', () => {
+  it('aggregates peer answers by axis and subcategory with every reverse item scored in the correct direction', () => {
+    const peerAnswers = Object.fromEntries(
+      QUESTIONS.map((question) => [String(question.id), question.reverse ? 1 : 5]),
+    );
+
+    const scores = sharedCalculateScores(peerAnswers);
+
+    for (const axis of Object.values(scores)) {
+      expect(axis).toMatchObject({ total: 80, max: 80, percentage: 100 });
+      expect(Object.values(axis.subs)).toEqual([20, 20, 20, 20]);
+    }
+
+    peerAnswers['1'] = 1;
+    peerAnswers['2'] = 5;
+    const lowerMeaning = sharedCalculateScores(peerAnswers);
+    expect(lowerMeaning.mindset.subs.meaning).toBe(12);
+    expect(lowerMeaning.mindset.total).toBe(72);
+    expect(lowerMeaning.mindset.percentage).toBe(90);
+  });
+
   it('calculates the shared baseline when all answers are 3', () => {
     const scores = sharedCalculateScores(answersWithDefault(3));
 

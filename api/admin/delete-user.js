@@ -30,10 +30,16 @@ async function deleteUaamPeerData(uid, requestedBy) {
     requestedBy,
   });
 
-  // 2. Revoke every historical/current invite and remove the active pointer.
+  // 2. Record the deleted invite IDs in the tombstone, remove every invite,
+  // and clear the active pointer. The compact ID list lets public endpoints
+  // preserve the 410 deletion barrier without retaining subject invite data.
   const invites = await db.collection('uaam_peer_invites').where('subjectUid', '==', uid).get();
+  const inviteIds = invites.docs.map((document) => document.id);
+  if (inviteIds.length > 0) {
+    await db.collection('uaam_peer_deletions').doc(uid).set({ inviteIds }, { merge: true });
+  }
   await Promise.all([
-    ...invites.docs.map((document) => document.ref.update({ revoked: true })),
+    ...invites.docs.map((document) => document.ref.delete()),
     db.collection('uaam_peer_invite_index').doc(uid).delete(),
   ]);
 

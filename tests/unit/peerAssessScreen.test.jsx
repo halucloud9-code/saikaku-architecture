@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import PeerAssessScreen from '../../src/peer/PeerAssessScreen.jsx';
+import PeerAssessScreen, { getShuffledPeerQuestions } from '../../src/peer/PeerAssessScreen.jsx';
 import { UAAM_QUESTIONS, VALIDITY_QUESTIONS } from '../../src/data/uaam_questions.js';
 
 const INVITE_ID = '11111111-1111-4111-8111-111111111111';
@@ -46,6 +46,20 @@ afterEach(() => {
 });
 
 describe('PeerAssessScreen', () => {
+  it('shuffles exactly the 64 canonical main questions without validity questions or text changes', () => {
+    const shuffled = getShuffledPeerQuestions(() => 0);
+    const canonicalById = new Map(UAAM_QUESTIONS.map((question) => [question.id, question.text]));
+
+    expect(shuffled).toHaveLength(64);
+    expect(shuffled.map((question) => question.id)).not.toEqual(UAAM_QUESTIONS.map((question) => question.id));
+    expect(new Set(shuffled.map((question) => question.id))).toEqual(
+      new Set(UAAM_QUESTIONS.map((question) => question.id)),
+    );
+    expect(shuffled.every((question) => canonicalById.get(question.id) === question.text)).toBe(true);
+    expect(shuffled.some((question) => /^V[1-3]$/u.test(String(question.id)))).toBe(false);
+    expect(shuffled.some((question) => VALIDITY_QUESTIONS.some((validity) => validity.text === question.text))).toBe(false);
+  });
+
   it('renders only the 64 verbatim main questions, submits anonymously, and preserves a non-blocking revisit notice', async () => {
     vi.stubGlobal('scrollTo', vi.fn());
     const fetchMock = vi.fn(async (url, options = {}) => {

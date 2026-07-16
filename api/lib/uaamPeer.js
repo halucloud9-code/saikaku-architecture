@@ -27,6 +27,16 @@ export function isUaamPeerInviteId(value) {
   return typeof value === 'string' && INVITE_ID_RE.test(value);
 }
 
+export async function wasUaamPeerInviteDeleted(db, inviteId) {
+  if (!isUaamPeerInviteId(inviteId)) return false;
+  const snapshot = await db
+    .collection('uaam_peer_deletions')
+    .where('inviteIds', 'array-contains', inviteId)
+    .limit(1)
+    .get();
+  return !snapshot.empty;
+}
+
 export function isUaamPeerInviteActive(data, nowMs = Date.now()) {
   return isPlainObject(data)
     && data.revoked === false

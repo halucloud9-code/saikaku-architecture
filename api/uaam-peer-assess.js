@@ -6,6 +6,7 @@ import {
   isUaamPeerInviteId,
   setUaamPeerNoStoreHeaders,
   validateUaamPeerAnswers,
+  wasUaamPeerInviteDeleted,
 } from './lib/uaamPeer.js';
 import { calculateScores } from '../shared/uaamQuestions.js';
 
@@ -50,7 +51,9 @@ export default async function handler(req, res) {
 
   try {
     const inviteSnapshot = await db.collection('uaam_peer_invites').doc(inviteId).get();
-    if (!inviteSnapshot.exists) return notFound(res);
+    if (!inviteSnapshot.exists) {
+      return (await wasUaamPeerInviteDeleted(db, inviteId)) ? gone(res) : notFound(res);
+    }
 
     const invite = inviteSnapshot.data();
     if (typeof invite.subjectUid !== 'string' || !invite.subjectUid) return notFound(res);

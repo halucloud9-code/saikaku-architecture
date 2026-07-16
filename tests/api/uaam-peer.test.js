@@ -59,7 +59,10 @@ describe('UAAM peer assessment APIs', () => {
     expect(first.body.inviteId).toBe(second.body.inviteId);
     expect(new Set([first.body.reused, second.body.reused])).toEqual(new Set([false, true]));
     const inviteId = first.body.inviteId;
+    const subjectInvites = await db.collection('uaam_peer_invites').where('subjectUid', '==', uid).get();
+    expect(subjectInvites.docs.filter((document) => document.data().revoked === false)).toHaveLength(1);
 
+    // No Authorization or test-bypass identity header: both endpoints are public.
     const publicGet = await api.get(`/api/uaam-peer-invite?id=${inviteId}`);
     expect(publicGet.status).toBe(200);
     expect(publicGet.body.subjectName).toBe('Peer Subject');
@@ -89,6 +92,7 @@ describe('UAAM peer assessment APIs', () => {
     const revoked = await api.post('/api/me/uaam-peer-invite').set('x-test-uid', uid).send({ action: 'revoke' });
     expect(revoked.status).toBe(200);
     expect((await api.get(`/api/uaam-peer-invite?id=${inviteId}`)).status).toBe(404);
+    expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers })).status).toBe(404);
 
     const nextWave = await issue();
     expect(nextWave.status).toBe(201);
@@ -100,8 +104,16 @@ describe('UAAM peer assessment APIs', () => {
     await seedSelfResult();
     const issued = await issue();
     const inviteId = issued.body.inviteId;
+    const unknownInviteId = '99999999-9999-4999-8999-999999999999';
 
     expect((await api.get('/api/uaam-peer-invite?id=bad-id')).status).toBe(404);
+    expect((await api.get(`/api/uaam-peer-invite?id=${unknownInviteId}`)).status).toBe(404);
+    expect((await api.post('/api/uaam-peer-assess').send({ inviteId: unknownInviteId, answers })).status).toBe(404);
+    expect((await api.post('/api/uaam-peer-assess').send({
+      inviteId,
+      answers: Object.fromEntries(Object.entries(answers).filter(([id]) => id !== '64')),
+    })).status).toBe(400);
+    expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers: { ...answers, V1: 3 } })).status).toBe(400);
     expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers: { ...answers, extra: 3 } })).status).toBe(400);
     expect((await api.post('/api/uaam-peer-assess').send({ inviteId, answers: { ...answers, 64: 6 } })).status).toBe(400);
 
