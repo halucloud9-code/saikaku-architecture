@@ -115,19 +115,19 @@
 
 ## Phase 1: 実装 `depends-on: setup`
 
-- [x] [id:impl-1] ゾーン共通化＋uaamMatrix＋チーム力マップUI＋共有非搬送（一式）
+- [x] [id:impl-1] ゾーン共通化＋uaamMatrix＋チーム力マップUI＋共有非搬送（一式）（コミット319682a。Fable実測: unit143/UI84/API176/E2E47全green。E2Eのuaam-recent-integrations specに環境起因flakyあり=失敗は全てcreateAuthUserのfetch failed即死でアプリassert失敗ゼロ、クリーン再実行で47/47）
   - **Goal**: `src/lib/uaamZones.js` 抽出（AllPairsTriangle.jsx は import 置換・挙動不変）。compat-analyze レスポンスにトップレベル `uaamMatrix.memberScores`（visual 無変更）。`src/compat/CompatMatrix.jsx` 新設（D1: 個人ペアゾーン集約・担い手数バッジ・データなし軸区別・凡例注記・サマリ・4グループカバレッジ）。CompatReport は専用 prop `uaamMatrix` からのみ描画し CompatScreen だけが渡す。`api/admin/compat-share.js` issueShare 冒頭（validate 前）で `uaamMatrix`/`visual?.uaam?.memberScores` を deep clone 上で削除＋CompatScreen も POST 前に除外
   - **Success**: 既存全テスト green（visual/共有契約無変更の証明）/ 新unit: ゾーン同値21×21・個人ペアゾーン集約・担い手数・部分軸・データなし軸 / 共有: 発行後の**保存doc実体**に uaamMatrix/memberScores が無い（tests/api/admin-compat.test.js:487 の stored-doc 検証パターン踏襲）/ UIテスト: 管理画面で描画・共有画面で非描画・memberScores混入reportをCompatShareScreenに渡しても非描画・v1レガシーdoc無害
   - **Constraints**: ゾーン閾値の数値変更禁止。visual・schemaVersion・共有検証キー表の変更禁止（hasExactKeys への memberScores 追加は禁止）。lookbehind regex 禁止
   - **Verify**: `npm run test:unit` / `npm test` / `npm run test:api` / `npm run test:e2e` すべて green
   - **Assignee**: codex (reasoning: xhigh)
-- [ ] [id:impl-2] 受講者さがし（API＋UI一式）`depends-on: impl-1`
+- [x] [id:impl-2] 受講者さがし（API＋UI一式）`depends-on: impl-1`（コミットbb04217。Fable実測: unit148/UI84/API180全green。第1段階レスポンスに氏名なし・noData/missing分離・localeCompare順・share形監査・vercel.json maxDuration60 を実コード確認）
   - **Goal**: `api/lib/compatRecommend.js`（不足軸=チーム軸最高<12 または担い手ゼロ、一致=候補が16+。マップと同一ルール）＋ `api/admin/compat-recommend.js`（同一パターン＋監査。実名開示の実行も監査記録）＋ vercel.json functions 追加（maxDuration 60）＋ CompatScreen さがしパネル（D2: 二段階開示・同意文言・機械的基準表示・照合順）
   - **Success**: unit: 一致判定境界（同点・UAAM無し除外・選択済み除外・部分軸・**全員データなし軸**）/ emulator: 認可・consent必須・監査書込み（第1段階/実名開示の両方）・照合順 / UI: 既定=集計のみ→個別同意チェック→実名カード・注記常時表示・数値バッジ無し
   - **Constraints**: 順位付け・有用度ソート・集計数値表示・評価コピー禁止。スコア/ランク系フィールド名禁止。LLM呼び出し禁止
   - **Verify**: `npm run test:api` green
   - **Assignee**: codex (reasoning: xhigh)
-- [ ] [id:impl-3] 実名表示＋別名M統一＋文体刷新（表示層一式）`depends-on: impl-1`
+- [x] [id:impl-3] 実名表示＋別名M統一＋文体刷新（表示層一式）`depends-on: impl-1`（コミットe058175。Fable実測: unit154/UI84/API180全green。memberNames.jsのlookbehind 0件・M限定置換・読取側regex不変・SYSTEM_PROMPT差分は文体契約と形式例のみを実コード確認）
   - **Goal**: pair別名 A/B→M1/M2 統一（aliasFor・発行時期待値・ラベル・SYSTEM_PROMPT形式例・テスト追随）。`src/compat/memberNames.js`（Mトークン境界置換・lookbehind禁止・レガシーA/B非置換）＋ CompatReport/EvidenceFold/共有画面適用。compatPrompt.js 文体契約・compatEvidence.js サーバー文字列・compat系UI文言を自然な日本語へ（D4）。README に旧A/B共有の注記
   - **Success**: unit: 置換境界（M1/M10・英字混在・行頭行末）・レガシーA/B非置換 / 旧A/B共有docの読取・表示回帰テスト / 既存テスト文言追随 / validator構造契約 green
   - **Constraints**: LLM入力への実名混入禁止（capture fixture grep）。validateCompatOutput.js の禁止語・構造契約は変更しない
@@ -137,11 +137,11 @@
 ## Phase 2: 品質ゲート（ローカル）`depends-on: impl-1, impl-2, impl-3`
 
 - [ ] [id:quality] 品質検証
-  - [ ] [id:codex-review] [required] `/codex-code-review`（reasoning: high）
-  - [ ] [id:codex-fix] 重大/重要指摘の解消 `depends-on: codex-review`（Assignee: codex xhigh）
-  - [ ] [id:opus-review] [required] Fable差分レビュー（設計整合性・倫理不変条件・PII非送信・共有非搬送・二段階開示・順不同性の grep 確認）`depends-on: codex-fix`
-  - [ ] [id:e2e] [required] `npm run test:all`＋実LLM canary 1回（チームモード・新文体）`depends-on: opus-review`
-  - [ ] [id:screenshots] 管理画面スクショ（力マップ／さがしパネル二段階／実名レポート）`depends-on: e2e`
+  - [x] [id:codex-review] [required] 実施済み（sol 8観点並列・つかさ指示でsol使用。7観点完走・best-practicesタイムアウト。findings: worktree codex/code-review-findings.md）
+  - [x] [id:codex-fix] 新規実欠陥6クラスタ修正（コミット2804871: さがし内部限定化+profileId除去/分析レーススナップショット/レガシーA/Bラベル回復/丸め統一/a11y非button化・コントラスト12.46:1/JSON破損エラー化）。main既存指摘はissue化、H-7はつかさ判断へ
+  - [x] [id:opus-review] [required] Fable差分レビュー完了（LLM入力への実名参照ゼロ・uaamMatrix出現面5ファイル限定・レスポンスprofileId除去・残buttonはフィルターのみ、を全てgrep/実読で確認）
+  - [ ] [id:e2e] [required] スイート実測: unit161/UI84/API181 green（修正後にFable再実行）。実LLM canary 2回成功（契約1発通過・稚拙表現ゼロ・軸名日本語化）。test:rules の8件failは**mainでも同一再現＝既存破損**（本ブランチ無関係）。E2E最終実行中
+  - [x] [id:screenshots] 取得済み（実canary出力ベース。a11y改修後に再取得。worktree screenshots/compat-matrix-names/）
 
 ## Phase 3: ドキュメント同期 `depends-on: quality`
 
@@ -167,6 +167,12 @@
 - 実装（Codex sol 3タスク・自律）: 合計4〜6時間（R2 Kimi指摘で上方修正）
 - レビュー・emulator/E2E・canary・スクショ・PR: 1〜2時間
 - 実LLM canary: Anthropic API 1回（数円規模）
+
+## Deviations
+
+- [impl-3] プランは「READMEに旧A/B共有の注記」→ リポ規約（READMEは現状記述のみ・WHYはdesign-rationale）に従い `docs/design-rationale.md:841` に注記（保守的: 規約との衝突回避）
+- [e2e] `npm run test:all` は tests/rules の8件failで停止 → **mainでも同一8件failを実測**（本ブランチはrules・rulesテストに触れていない＝既存破損。PR #115の懸案「rules退行復元」と符合）。本ブランチのゲートは unit/UI/API/E2E の個別実行green＋canaryで判定
+- [検証] E2Eの `uaam-recent-integrations.spec.js` に環境起因flaky（Authエミュレータへの `fetch failed` 即死がテスト準備ヘルパーで発生、アプリassert失敗はゼロ。同一コミットでクリーン47/47を確認）。今回の変更起因ではないが、別issueでの追跡候補
 
 ## リスク・留保（つかさへ明示する残留論点）
 
