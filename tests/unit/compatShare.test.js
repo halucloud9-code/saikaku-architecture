@@ -195,8 +195,8 @@ describe('compat shared matrix', () => {
     expect(sharedMatrix.cells[0]).toEqual({
       rowKey: 'meaning',
       colKey: 'mindfulness',
-      zone: 'natural',
-      carrierAliases: ['M1'],
+      zone: 'pro',
+      carrierAliases: ['M1', 'M2'],
     });
     expect(sharedMatrix.cells.at(-1)).toMatchObject({
       rowKey: 'implementation',
@@ -206,33 +206,65 @@ describe('compat shared matrix', () => {
     });
     expect(sharedMatrix.topPairs).toEqual([
       { rowKey: 'meaning', colKey: 'mindfulness' },
-      { rowKey: 'meaning', colKey: 'mindshift' },
-      { rowKey: 'mindfulness', colKey: 'mindshift' },
     ]);
-    expect(JSON.stringify(sharedMatrix)).not.toMatch(/score|sum|memberScores|uaamMatrix|carrierCount/iu);
+    expect(JSON.stringify(sharedMatrix)).not.toMatch(
+      /"(?:score|scoreA|scoreB|sum|sumA|sumB|average|averageScoreA|averageScoreB|mean|memberScores|uaamMatrix|carrierCount)"\s*:/iu,
+    );
     expect(validateCompatSharedMatrix(sharedMatrix, aliases).ok).toBe(true);
   });
 
-  it('ranks topPairs by server-side zone and sum while exposing only canonical pair keys', () => {
+  it('ranks topPairs by server-side team-average zone and strength while exposing only pair keys', () => {
     const sharedMatrix = buildCompatSharedMatrix({
       memberScores: {
-        M1: {
-          meaning: 16,
-          mindfulness: 16,
-          mindshift: 20,
-          mastery: 20,
-        },
+        M1: { meaning: 20, mindfulness: 20, mindshift: 16 },
+        M2: { meaning: 12, mindfulness: 12, mindshift: 20 },
       },
-    }, ['M1']);
+    }, ['M1', 'M2']);
 
     expect(sharedMatrix.topPairs).toEqual([
-      { rowKey: 'mindshift', colKey: 'mastery' },
       { rowKey: 'meaning', colKey: 'mindshift' },
-      { rowKey: 'meaning', colKey: 'mastery' },
       { rowKey: 'mindfulness', colKey: 'mindshift' },
-      { rowKey: 'mindfulness', colKey: 'mastery' },
+      { rowKey: 'meaning', colKey: 'mindfulness' },
     ]);
-    expect(JSON.stringify(sharedMatrix.topPairs)).not.toMatch(/score|sum/iu);
+    expect(JSON.stringify(sharedMatrix.topPairs)).not.toMatch(
+      /"(?:score|scoreA|scoreB|sum|sumA|sumB|average|averageScoreA|averageScoreB|mean)"\s*:/iu,
+    );
+  });
+
+  it('uses axis-specific data counts, strict NATURAL, and personal ACTIVE-or-higher carriers', () => {
+    const partial = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 20 },
+        M2: { mindfulness: 20 },
+      },
+    }, aliases);
+    expect(partial.cells[0]).toEqual({
+      rowKey: 'meaning',
+      colKey: 'mindfulness',
+      zone: 'pro',
+      carrierAliases: [],
+    });
+    expect(validateCompatSharedMatrix(partial, aliases).ok).toBe(true);
+
+    const notNatural = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 20, mindfulness: 20 },
+        M2: { meaning: 20 },
+      },
+    }, aliases);
+    expect(notNatural.cells[0].zone).toBe('pro');
+
+    const dormantWithCarrier = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 20, mindfulness: 20 },
+        M2: { meaning: 0, mindfulness: 0 },
+      },
+    }, aliases);
+    expect(dormantWithCarrier.cells[0]).toMatchObject({
+      zone: 'dormant',
+      carrierAliases: ['M1'],
+    });
+    expect(validateCompatSharedMatrix(dormantWithCarrier, aliases).ok).toBe(true);
   });
 
   it('validates the issuance matrix against member aliases, 16-axis keys, and 0-20 integers', () => {

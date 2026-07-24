@@ -685,8 +685,18 @@ describe('compat report sharing', () => {
     expect(stored.data()).not.toHaveProperty('uaamMatrix');
     expect(stored.data()).toHaveProperty('sharedMatrix');
     expect(stored.data().sharedMatrix.cells).toHaveLength(120);
-    expect(stored.data().sharedMatrix.topPairs).toHaveLength(1);
-    expect(JSON.stringify(stored.data().sharedMatrix)).not.toMatch(/score|sum|memberScores|carrierCount/iu);
+    expect(stored.data().sharedMatrix.cells[0]).toEqual({
+      rowKey: 'meaning',
+      colKey: 'mindfulness',
+      zone: 'pro',
+      carrierAliases: ['M1', 'M2'],
+    });
+    expect(stored.data().sharedMatrix.topPairs).toEqual([
+      { rowKey: 'meaning', colKey: 'mindfulness' },
+    ]);
+    expect(JSON.stringify(stored.data().sharedMatrix)).not.toMatch(
+      /"(?:score|scoreA|scoreB|sum|sumA|sumB|average|averageScoreA|averageScoreB|mean|memberScores|carrierCount)"\s*:/iu,
+    );
     expect(report).toHaveProperty('uaamMatrix.memberScores.M1.meaning', 20);
     expect(report).toHaveProperty('visual.uaam.memberScores.M1.meaning', 20);
   });

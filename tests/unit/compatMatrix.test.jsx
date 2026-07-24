@@ -7,6 +7,7 @@ import CompatMatrix, {
   COMPAT_MATRIX_AXES,
 } from '../../src/compat/CompatMatrix.jsx';
 import { buildCompatSharedMatrix } from '../../api/lib/compatShare.js';
+import { zAlpha } from '../../src/lib/uaamZones.js';
 
 function pair(model, axisA, axisB) {
   return model.cells.find((_row, index) => model.diagonal[index].axis.key === axisA)
@@ -14,7 +15,7 @@ function pair(model, axisA, axisB) {
 }
 
 describe('compat UAAM matrix model', () => {
-  it('aggregates personal pair zones and counts only people carrying the maximum non-dormant zone', () => {
+  it('uses the team average for the cell while keeping personal ACTIVE-or-higher carriers', () => {
     const model = buildCompatMatrixModel({
       memberScores: {
         M1: { meaning: 20, mindfulness: 20 },
@@ -24,49 +25,58 @@ describe('compat UAAM matrix model', () => {
     });
     const cell = pair(model, 'meaning', 'mindfulness');
 
-    expect(cell.zone).toBe('natural');
-    expect(cell.carrierAliases).toEqual(['M1', 'M2']);
-    expect(cell.carrierCount).toBe(2);
+    expect(cell.zone).toBe('pro');
+    expect(cell.carrierAliases).toEqual(['M1', 'M2', 'M3']);
+    expect(cell.carrierCount).toBe(3);
     expect(cell.details.map((detail) => detail.zone)).toEqual(['natural', 'natural', 'pro']);
+    expect(cell.averageScoreA).toBeCloseTo(56 / 3);
+    expect(cell.averageScoreB).toBeCloseTo(56 / 3);
+    expect(cell.alpha).toBe(zAlpha('pro', 56 / 3, 56 / 3));
   });
 
-  it('never combines one member score with another member score', () => {
+  it('averages axes independently without inventing a personal carrier', () => {
     const model = buildCompatMatrixModel({
       memberScores: {
-        M1: { meaning: 20, mindfulness: 0 },
-        M2: { meaning: 0, mindfulness: 20 },
+        M1: { meaning: 20 },
+        M2: { mindfulness: 20 },
       },
     });
     const cell = pair(model, 'meaning', 'mindfulness');
 
-    expect(cell.zone).toBe('dormant');
+    expect(cell.dataStatus).toBe('measured');
+    expect(cell.zone).toBe('pro');
+    expect(cell.averageScoreA).toBe(20);
+    expect(cell.averageScoreB).toBe(20);
     expect(cell.carrierCount).toBe(0);
-    expect(model.dormantPairs).toContain(cell);
+    expect(model.topPairs).toContain(cell);
   });
 
-  it('allows partial axes and treats a pair with no same-person two-axis data as no-data', () => {
+  it('uses each axis data-holder count without filling missing scores with zero', () => {
     const model = buildCompatMatrixModel({
       memberScores: {
-        M1: { meaning: 16 },
-        M2: { mindfulness: 16 },
+        M1: { meaning: 20, mindfulness: 12 },
+        M2: { meaning: 12 },
+        M3: { mindfulness: 16 },
       },
     }, ['M1', 'M2', 'M3']);
     const cell = pair(model, 'meaning', 'mindfulness');
 
-    expect(cell.dataStatus).toBe('no-data');
-    expect(cell.zone).toBeNull();
+    expect(cell.dataStatus).toBe('measured');
+    expect(cell.zone).toBe('active');
+    expect(cell.averageScoreA).toBe(16);
+    expect(cell.averageScoreB).toBe(14);
     expect(model.diagonal.find((item) => item.axis.key === 'meaning')).toMatchObject({
       dataStatus: 'measured',
-      highestScore: 16,
+      highestScore: 20,
       carrierAliases: ['M1'],
     });
     expect(model.diagonal.find((item) => item.axis.key === 'mindfulness')).toMatchObject({
       dataStatus: 'measured',
       highestScore: 16,
-      carrierAliases: ['M2'],
+      carrierAliases: ['M3'],
     });
     expect(model.noDataAxes.map((axis) => axis.key)).toContain('mindshift');
-    expect(model.dataAliases).toEqual(['M1', 'M2']);
+    expect(model.dataAliases).toEqual(['M1', 'M2', 'M3']);
   });
 
   it('keeps dormant and no-data cells separate and computes four-group coverage from measured axes', () => {
@@ -85,6 +95,39 @@ describe('compat UAAM matrix model', () => {
       expect.objectContaining({ group: '衝', coveredCount: 0, measuredCount: 0, totalCount: 4, percentage: 0 }),
     ]);
   });
+
+  it('requires every relevant member to have both axes at 20 for a NATURAL cell', () => {
+    const natural = buildCompatMatrixModel({
+      memberScores: {
+        M1: { meaning: 20, mindfulness: 20 },
+        M2: { meaning: 20, mindfulness: 20 },
+      },
+    });
+    const partial = buildCompatMatrixModel({
+      memberScores: {
+        M1: { meaning: 20, mindfulness: 20 },
+        M2: { meaning: 20 },
+      },
+    });
+
+    expect(pair(natural, 'meaning', 'mindfulness').zone).toBe('natural');
+    expect(pair(partial, 'meaning', 'mindfulness').zone).toBe('pro');
+  });
+
+  it('ranks TOP 5 by team-average strength within the average-based zone', () => {
+    const model = buildCompatMatrixModel({
+      memberScores: {
+        M1: { meaning: 20, mindfulness: 20, mindshift: 16 },
+        M2: { meaning: 12, mindfulness: 12, mindshift: 20 },
+      },
+    });
+
+    expect(model.topPairs.map((cell) => [cell.axisA.key, cell.axisB.key])).toEqual([
+      ['meaning', 'mindshift'],
+      ['mindfulness', 'mindshift'],
+      ['meaning', 'mindfulness'],
+    ]);
+  });
 });
 
 describe('CompatMatrix', () => {
@@ -98,6 +141,7 @@ describe('CompatMatrix', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'チーム発動領域Matrix' })).toBeInTheDocument();
+    expect(screen.getByText(/色はチーム平均での判定です/u)).toBeInTheDocument();
     expect(screen.getByText(/この図に入っていない人/).closest('p')).toHaveTextContent('野田健一');
     expect(screen.getByText(/データなしの軸/).closest('p')).toHaveTextContent('転換力');
     const pairCell = document.querySelector('[data-row="0"][data-column="1"]');
@@ -272,17 +316,18 @@ describe('CompatMatrix', () => {
   it('uses shared topPairs in their stored ranking order and omits TOP 5 for old matrices', () => {
     const sharedMatrix = buildCompatSharedMatrix({
       memberScores: {
-        M1: {
-          meaning: 16,
-          mindfulness: 16,
-          mindshift: 20,
-          mastery: 20,
-        },
+        M1: { meaning: 20, mindfulness: 20, mindshift: 16 },
+        M2: { meaning: 12, mindfulness: 12, mindshift: 20 },
       },
-    }, ['M1']);
-    const rankedModel = buildSharedCompatMatrixModel(sharedMatrix, ['M1']);
+    }, ['M1', 'M2']);
+    const rankedModel = buildSharedCompatMatrixModel(sharedMatrix, ['M1', 'M2']);
 
     expect(rankedModel.hasTopPairs).toBe(true);
+    expect(sharedMatrix.topPairs).toEqual([
+      { rowKey: 'meaning', colKey: 'mindshift' },
+      { rowKey: 'mindfulness', colKey: 'mindshift' },
+      { rowKey: 'meaning', colKey: 'mindfulness' },
+    ]);
     expect(rankedModel.topPairs.map((cell) => ({
       rowKey: cell.axisA.key,
       colKey: cell.axisB.key,
@@ -313,10 +358,10 @@ describe('CompatMatrix', () => {
 
     const pairCell = container.querySelector('[data-row="0"][data-column="1"]');
     expect(pairCell).toHaveTextContent('');
-    expect(pairCell).toHaveAccessibleName(expect.stringContaining('担い手 つかさ'));
+    expect(pairCell).toHaveAccessibleName(expect.stringContaining('担い手 つかさ、野田健一'));
     expect(pairCell.getAttribute('aria-label')).not.toMatch(/\d+点/u);
     fireEvent.mouseEnter(pairCell, { clientX: 100, clientY: 100 });
-    expect(screen.getByRole('tooltip')).toHaveTextContent('担い手つかさ');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('担い手つかさ、野田健一');
     expect(screen.getByRole('tooltip')).not.toHaveTextContent(/16点|12点/u);
 
     fireEvent.mouseLeave(pairCell);

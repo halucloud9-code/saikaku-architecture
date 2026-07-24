@@ -1,6 +1,11 @@
 import { validateCompatForbiddenLanguage, validateCompatOutput } from './validateCompatOutput.js';
 import { COMPAT_EVIDENCE_THRESHOLDS, COMPAT_VISUAL_UAAM_AXES } from './compatEvidence.js';
 import { getZone, UAAM_ZONE_THRESHOLDS } from '../../src/lib/uaamZones.js';
+import {
+  compareCompatTeamAverageStrength,
+  getCompatTeamAverageZone,
+  isCompatCarrierZone,
+} from '../../src/lib/compatTeamZones.js';
 
 export const COMPAT_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 export const COMPAT_ETHICS_NOTICE = '本結果は相互理解のための対話素材です。人事評価・採用評価には流用しません。';
@@ -125,36 +130,51 @@ export function buildCompatSharedMatrix(uaamMatrix, memberAliases) {
       : 'no-data',
   }));
   const rankedCells = COMPAT_SHARED_MATRIX_PAIRS.map(([rowKey, colKey], canonicalIndex) => {
-    const measured = aliases.flatMap((alias) => {
+    const details = aliases.map((alias) => {
       const rowScore = memberScores[alias]?.[rowKey];
       const colScore = memberScores[alias]?.[colKey];
-      return Number.isInteger(rowScore) && Number.isInteger(colScore)
-        ? [{ alias, zone: getZone(rowScore, colScore), sum: rowScore + colScore }]
-        : [];
+      return {
+        alias,
+        rowScore,
+        colScore,
+        zone: Number.isInteger(rowScore) && Number.isInteger(colScore)
+          ? getZone(rowScore, colScore)
+          : null,
+      };
     });
-    if (measured.length === 0) {
+    const measuredRow = details.filter(({ rowScore }) => Number.isInteger(rowScore));
+    const measuredCol = details.filter(({ colScore }) => Number.isInteger(colScore));
+    if (measuredRow.length === 0 || measuredCol.length === 0) {
       return {
         cell: { rowKey, colKey, zone: 'no-data', carrierAliases: [] },
-        strongestSum: null,
+        teamAggregate: null,
         canonicalIndex,
       };
     }
-    const zone = measured.reduce((best, item) => (
-      SHARED_MATRIX_ZONE_RANK[item.zone] > SHARED_MATRIX_ZONE_RANK[best]
-        ? item.zone
-        : best
-    ), measured[0].zone);
-    const zoneHolders = measured.filter((item) => item.zone === zone);
+    const teamAggregate = {
+      sumA: measuredRow.reduce((sum, item) => sum + item.rowScore, 0),
+      countA: measuredRow.length,
+      sumB: measuredCol.reduce((sum, item) => sum + item.colScore, 0),
+      countB: measuredCol.length,
+    };
+    const relevantDetails = details.filter(({ rowScore, colScore }) => (
+      Number.isInteger(rowScore) || Number.isInteger(colScore)
+    ));
+    const allMembersNatural = relevantDetails.length > 0 && relevantDetails.every((item) => (
+      item.rowScore === UAAM_ZONE_THRESHOLDS.scoreMax
+      && item.colScore === UAAM_ZONE_THRESHOLDS.scoreMax
+    ));
+    const zone = getCompatTeamAverageZone({ ...teamAggregate, allMembersNatural });
     return {
       cell: {
         rowKey,
         colKey,
         zone,
-        carrierAliases: zone === 'dormant'
-          ? []
-          : zoneHolders.map((item) => item.alias),
+        carrierAliases: details
+          .filter((item) => isCompatCarrierZone(item.zone))
+          .map((item) => item.alias),
       },
-      strongestSum: Math.max(...zoneHolders.map((item) => item.sum)),
+      teamAggregate,
       canonicalIndex,
     };
   });
@@ -163,7 +183,7 @@ export function buildCompatSharedMatrix(uaamMatrix, memberAliases) {
     .filter(({ cell }) => !['dormant', 'no-data'].includes(cell.zone))
     .sort((left, right) => (
       SHARED_MATRIX_ZONE_RANK[right.cell.zone] - SHARED_MATRIX_ZONE_RANK[left.cell.zone]
-      || right.strongestSum - left.strongestSum
+      || compareCompatTeamAverageStrength(right.teamAggregate, left.teamAggregate)
       || left.canonicalIndex - right.canonicalIndex
     ))
     .slice(0, 5)
@@ -236,11 +256,8 @@ export function validateCompatSharedMatrix(value, memberAliases) {
         if (canonicalAliases.some((alias, aliasIndex) => alias !== cell.carrierAliases[aliasIndex])) {
           errors.push(`${path}.carrierAliases: 対象者と同じ順序が必要です`);
         }
-        if (['dormant', 'no-data'].includes(cell.zone) && cell.carrierAliases.length !== 0) {
-          errors.push(`${path}.carrierAliases: このゾーンに担い手は保存できません`);
-        }
-        if (!['dormant', 'no-data'].includes(cell.zone) && cell.carrierAliases.length === 0) {
-          errors.push(`${path}.carrierAliases: 発動ゾーンには担い手が必要です`);
+        if (cell.zone === 'no-data' && cell.carrierAliases.length !== 0) {
+          errors.push(`${path}.carrierAliases: データなしセルに担い手は保存できません`);
         }
       }
     });

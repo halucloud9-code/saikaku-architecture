@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getZone, UAAM_ZONE_THRESHOLDS } from '../lib/uaamZones';
+import {
+  compareCompatTeamAverageStrength,
+  getCompatTeamAverageScores,
+  getCompatTeamAverageZone,
+  isCompatCarrierZone,
+} from '../lib/compatTeamZones';
+import { getZone, UAAM_ZONE_THRESHOLDS, zAlpha } from '../lib/uaamZones';
 import {
   AXIS_HEX,
   AXIS_LIGHT,
@@ -8,6 +14,7 @@ import {
   pairDef,
   pairShort,
   SUB_JP,
+  toRgba,
   ZONE_HEX,
   ZONE_LABEL,
 } from '../screens/uaam/AllPairsTriangle';
@@ -28,7 +35,7 @@ const ZONE_JP = {
   pro: '高い水準',
   active: '発動している',
   potential: '発動の可能性',
-  dormant: '今回の担い手なし',
+  dormant: 'チーム平均が目安未満',
   'no-data': 'データなし',
 };
 const ZONE_FILTER_LABEL = {
@@ -93,8 +100,9 @@ function buildPair(axisA, axisB, rowIndex, colIndex, aliases, scoresByAlias) {
       zone: validScore(scoreA) && validScore(scoreB) ? getZone(scoreA, scoreB) : null,
     };
   });
-  const measured = details.filter((detail) => detail.zone);
-  if (measured.length === 0) {
+  const measuredA = details.filter((detail) => validScore(detail.scoreA));
+  const measuredB = details.filter((detail) => validScore(detail.scoreB));
+  if (measuredA.length === 0 || measuredB.length === 0) {
     return {
       kind: 'pair',
       axisA,
@@ -105,15 +113,31 @@ function buildPair(axisA, axisB, rowIndex, colIndex, aliases, scoresByAlias) {
       zone: null,
       carrierAliases: [],
       carrierCount: 0,
-      strongestSum: null,
+      averageScoreA: null,
+      averageScoreB: null,
+      teamAggregate: null,
+      alpha: null,
       details,
     };
   }
-  const zone = measured.reduce((best, detail) => (
-    ZONE_RANK[detail.zone] > ZONE_RANK[best] ? detail.zone : best
-  ), measured[0].zone);
-  const zoneHolders = measured.filter((detail) => detail.zone === zone);
-  const carrierAliases = zone === 'dormant' ? [] : zoneHolders.map((detail) => detail.alias);
+  const teamAggregate = {
+    sumA: measuredA.reduce((sum, detail) => sum + detail.scoreA, 0),
+    countA: measuredA.length,
+    sumB: measuredB.reduce((sum, detail) => sum + detail.scoreB, 0),
+    countB: measuredB.length,
+  };
+  const relevantDetails = details.filter((detail) => (
+    validScore(detail.scoreA) || validScore(detail.scoreB)
+  ));
+  const allMembersNatural = relevantDetails.length > 0 && relevantDetails.every((detail) => (
+    detail.scoreA === UAAM_ZONE_THRESHOLDS.scoreMax
+    && detail.scoreB === UAAM_ZONE_THRESHOLDS.scoreMax
+  ));
+  const zone = getCompatTeamAverageZone({ ...teamAggregate, allMembersNatural });
+  const averages = getCompatTeamAverageScores(teamAggregate);
+  const carrierAliases = details
+    .filter((detail) => isCompatCarrierZone(detail.zone))
+    .map((detail) => detail.alias);
   return {
     kind: 'pair',
     axisA,
@@ -124,7 +148,10 @@ function buildPair(axisA, axisB, rowIndex, colIndex, aliases, scoresByAlias) {
     zone,
     carrierAliases,
     carrierCount: carrierAliases.length,
-    strongestSum: Math.max(...zoneHolders.map((detail) => detail.scoreA + detail.scoreB)),
+    averageScoreA: averages.scoreA,
+    averageScoreB: averages.scoreB,
+    teamAggregate,
+    alpha: zAlpha(zone, averages.scoreA, averages.scoreB),
     details,
   };
 }
@@ -137,7 +164,11 @@ function summarizeMatrix(cells, diagonal, { includeCoverage }) {
     .filter((pair) => pair.dataStatus === 'measured' && pair.zone !== 'dormant')
     .sort((left, right) => (
       ZONE_RANK[right.zone] - ZONE_RANK[left.zone]
-      || ((right.strongestSum ?? -1) - (left.strongestSum ?? -1))
+      || (
+        right.teamAggregate && left.teamAggregate
+          ? compareCompatTeamAverageStrength(right.teamAggregate, left.teamAggregate)
+          : 0
+      )
       || left.rowIndex - right.rowIndex
       || left.colIndex - right.colIndex
     ))
@@ -239,7 +270,10 @@ export function buildSharedCompatMatrixModel(sharedMatrix, preferredAliasOrder =
         zone: zone === 'no-data' ? null : zone,
         carrierAliases: Array.isArray(source?.carrierAliases) ? source.carrierAliases : [],
         carrierCount: Array.isArray(source?.carrierAliases) ? source.carrierAliases.length : 0,
-        strongestSum: null,
+        averageScoreA: null,
+        averageScoreB: null,
+        teamAggregate: null,
+        alpha: null,
         details: [],
       };
     })
@@ -706,7 +740,12 @@ export default function CompatMatrix({
       <div
         {...commonProps}
         className={`compat-matrix-cell pair ${zoneKey} ${filtered ? 'filtered' : ''}`}
-        style={{ '--matrix-zone-color': ZONE_COLOR[zoneKey] }}
+        style={{
+          '--matrix-zone-color': ZONE_COLOR[zoneKey],
+          ...(mode === 'admin' && Number.isFinite(cell.alpha)
+            ? { background: toRgba(ZONE_COLOR[zoneKey], cell.alpha) }
+            : {}),
+        }}
         data-row={rowIndex}
         data-column={colIndex}
         data-zone={zoneKey}
@@ -722,8 +761,8 @@ export default function CompatMatrix({
         <span className="compat-heading-rule" aria-hidden="true" />
         <p>
           {mode === 'share'
-            ? '発動ゾーンと、その組み合わせの担い手を表示しています。点数そのものと、対角セルの担い手は共有されません。'
-            : '本人の自己回答を、個人の結果画面と同じ絶対的な目安で見ています。セルに触れると各メンバーの2軸スコアとゾーンを確認できます。'}
+            ? '各軸のチーム平均から判定した発動ゾーンと、個人判定でACTIVE以上の担い手を表示しています。点数そのものと、対角セルの担い手は共有されません。'
+            : '色は、各軸のデータがあるメンバーのチーム平均から判定しています。セルに触れると各メンバーの2軸スコアと個人ゾーンを確認できます。'}
         </p>
       </header>
 
@@ -782,9 +821,9 @@ export default function CompatMatrix({
       />
 
       <div className="compat-matrix-legend">
-        <p><strong>読み方：</strong>色は、各メンバーを一人ずつ判定したときの最も高いゾーンです。別々の人の点数を組み合わせてはいません。</p>
-        <p><strong>大切な注意：</strong>高いゾーンの人が1人いる＝チームでいつでも発揮できる、ではありません。</p>
-        <p><strong>データなし：</strong>斜線のセルは、その2軸のデータが同じ人にそろっていない状態です。0点や待機状態としては扱いません。</p>
+        <p><strong>読み方：</strong>色はチーム平均での判定です。各軸について、その軸のデータがあるメンバーだけで平均し、2軸の平均をゾーン基準に当てはめています。</p>
+        <p><strong>大切な注意：</strong>平均はチーム全体の水準を見る目安です。個人差や役割分担を表すものではないため、担い手は各メンバーの個人判定がACTIVE以上の場合に別表示します。</p>
+        <p><strong>データなし：</strong>斜線のセルは、どちらかの軸にデータ保有メンバーがいない状態です。欠けたデータを0点や待機状態としては扱いません。</p>
       </div>
 
       {missingMembers.length > 0 ? (
@@ -812,7 +851,7 @@ export default function CompatMatrix({
 
         <section>
           <p className="compat-kicker">DORMANT WINDOW</p>
-          <h3>今回のデータでは担い手が見つからない組み合わせ</h3>
+          <h3>チーム平均が発動の目安に届かない組み合わせ</h3>
           {model.dormantPairs.length > 0 ? (
             <details className="compat-matrix-dormant-window" style={{ '--matrix-zone-color': ZONE_COLOR.dormant }}>
               <summary><span>{ZONE_LABEL.dormant}</span><b>{model.dormantPairs.length}</b></summary>
