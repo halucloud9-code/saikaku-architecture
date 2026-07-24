@@ -284,18 +284,29 @@ function scoreText(value) {
   return validScore(value) ? `${value}点` : 'データなし';
 }
 
-function MatrixTooltip({ tip, mode, memberNames }) {
+function MatrixTooltip({ tip, mode, memberNames, tooltipRef, onEscape }) {
   if (!tip) return null;
   const { cell } = tip;
   const style = {
     '--matrix-tip-x': `${tip.x + 16}px`,
     '--matrix-tip-y': `${Math.max(8, tip.y - 48)}px`,
   };
+  const interactionProps = {
+    ref: tooltipRef,
+    tabIndex: tip.pinned ? -1 : undefined,
+    onKeyDown: (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      onEscape();
+    },
+  };
   if (cell.kind === 'diagonal') {
     return (
       <aside
+        {...interactionProps}
         role="tooltip"
-        className="compat-matrix-tooltip diagonal"
+        className={`compat-matrix-tooltip diagonal ${tip.pinned ? 'pinned' : ''}`}
         style={{ ...style, '--matrix-group-color': AXIS_HEX[cell.axis.groupIndex] }}
       >
         <h3>{cell.axis.label}</h3>
@@ -324,8 +335,9 @@ function MatrixTooltip({ tip, mode, memberNames }) {
   const block = getBlock(cell.axisA.key, cell.axisB.key);
   return (
     <aside
+      {...interactionProps}
       role="tooltip"
-      className="compat-matrix-tooltip pair"
+      className={`compat-matrix-tooltip pair ${tip.pinned ? 'pinned' : ''}`}
       style={{ ...style, '--matrix-zone-color': ZONE_COLOR[zoneKey] }}
     >
       <h3>{pairName(cell)}</h3>
@@ -418,7 +430,9 @@ export default function CompatMatrix({
   const [tip, setTip] = useState(null);
   const [activeCell, setActiveCell] = useState({ rowIndex: 0, colIndex: 0 });
   const matrixRef = useRef(null);
+  const tooltipRef = useRef(null);
   const pointerTypeRef = useRef(null);
+  const suppressNextFocusTooltipRef = useRef(false);
   const memberNames = useMemo(
     () => memberNameMap(model.aliases, memberAliases, memberLabels),
     [model.aliases, memberAliases.join('|'), memberLabels.join('|')],
@@ -451,6 +465,12 @@ export default function CompatMatrix({
         ?.focus();
     }
   }, [activeZones, model, activeCell.rowIndex, activeCell.colIndex]);
+
+  useEffect(() => {
+    if (tip?.pinned) {
+      tooltipRef.current?.focus({ preventScroll: true });
+    }
+  }, [tip]);
 
   const toggleZone = (zone) => {
     setActiveZones((current) => {
@@ -491,27 +511,48 @@ export default function CompatMatrix({
     ].filter(Boolean).join('。');
   };
 
-  const tooltipFor = (cell, cellKey, element, event) => {
+  const tooltipFor = (cell, cellKey, element, event, pinned = false) => {
     const rect = element.getBoundingClientRect();
     const hasPointerPosition = Number.isFinite(event?.clientX) && Number.isFinite(event?.clientY);
     return {
       cell,
       cellKey,
+      pinned,
       x: hasPointerPosition ? event.clientX : rect.left + (rect.width / 2),
       y: hasPointerPosition ? event.clientY : rect.top + (rect.height / 2),
     };
   };
 
   const showTooltip = (cell, cellKey, element, event) => {
-    setTip(tooltipFor(cell, cellKey, element, event));
-  };
-
-  const toggleTooltip = (cell, cellKey, element, event) => {
     setTip((current) => (
-      current?.cellKey === cellKey
-        ? null
+      current?.pinned
+        ? current
         : tooltipFor(cell, cellKey, element, event)
     ));
+  };
+
+  const openPinnedTooltip = (cell, cellKey, element, event) => {
+    setTip(tooltipFor(cell, cellKey, element, event, true));
+  };
+
+  const togglePinnedTooltip = (cell, cellKey, element, event) => {
+    setTip((current) => (
+      current?.cellKey === cellKey && current.pinned
+        ? null
+        : tooltipFor(cell, cellKey, element, event, true)
+    ));
+  };
+
+  const closeTooltip = (restoreCellKey = null) => {
+    setTip(null);
+    if (!restoreCellKey) return;
+
+    const [rowIndex, colIndex] = restoreCellKey.split('-');
+    const target = matrixRef.current
+      ?.querySelector(`[data-row="${rowIndex}"][data-column="${colIndex}"]`);
+    if (!target || target === document.activeElement) return;
+    suppressNextFocusTooltipRef.current = true;
+    target.focus();
   };
 
   const focusCell = (rowIndex, colIndex) => {
@@ -523,9 +564,14 @@ export default function CompatMatrix({
   };
 
   const handleCellKeyDown = (event, cell, rowIndex, colIndex) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeTooltip();
+      return;
+    }
     if (event.key === 'Enter') {
       event.preventDefault();
-      toggleTooltip(cell, `${rowIndex}-${colIndex}`, event.currentTarget, event);
+      togglePinnedTooltip(cell, `${rowIndex}-${colIndex}`, event.currentTarget, event);
       return;
     }
     const direction = {
@@ -552,6 +598,26 @@ export default function CompatMatrix({
       nextRow += direction[0];
       nextCol += direction[1];
     }
+
+    const readingIndex = (rowIndex * COMPAT_MATRIX_AXES.length) + colIndex;
+    const visibleCells = model.cells.flatMap((row, visibleRowIndex) => (
+      row.flatMap((visibleCell, visibleColIndex) => (
+        isFiltered(visibleCell)
+          ? []
+          : [{
+            rowIndex: visibleRowIndex,
+            colIndex: visibleColIndex,
+            readingIndex: (visibleRowIndex * COMPAT_MATRIX_AXES.length) + visibleColIndex,
+          }]
+      ))
+    ));
+    const searchForward = direction[0] > 0 || direction[1] > 0;
+    const fallback = searchForward
+      ? visibleCells.find((candidate) => candidate.readingIndex > readingIndex)
+      : [...visibleCells].reverse().find((candidate) => candidate.readingIndex < readingIndex);
+    if (fallback) {
+      focusCell(fallback.rowIndex, fallback.colIndex);
+    }
   };
 
   const renderCell = (cell, rowIndex, colIndex) => {
@@ -571,11 +637,17 @@ export default function CompatMatrix({
         : -1,
       onFocus: (event) => {
         setActiveCell({ rowIndex, colIndex });
+        if (suppressNextFocusTooltipRef.current) {
+          suppressNextFocusTooltipRef.current = false;
+          return;
+        }
         if (!pointerTypeRef.current) {
           showTooltip(cell, cellKey, event.currentTarget, event);
         }
       },
-      onBlur: () => setTip((current) => (current?.cellKey === cellKey ? null : current)),
+      onBlur: () => setTip((current) => (
+        current?.cellKey === cellKey && !current.pinned ? null : current
+      )),
       onKeyDown: (event) => handleCellKeyDown(event, cell, rowIndex, colIndex),
       onPointerDown: (event) => {
         pointerTypeRef.current = event.pointerType || 'unknown';
@@ -586,15 +658,25 @@ export default function CompatMatrix({
       onClick: (event) => {
         const pointerType = pointerTypeRef.current;
         pointerTypeRef.current = null;
-        if (!pointerType || pointerType === 'touch' || pointerType === 'pen' || pointerType === 'unknown') {
-          toggleTooltip(cell, cellKey, event.currentTarget, event);
+        if (pointerType === 'touch' || pointerType === 'pen' || pointerType === 'unknown') {
+          openPinnedTooltip(cell, cellKey, event.currentTarget, event);
+        } else {
+          togglePinnedTooltip(cell, cellKey, event.currentTarget, event);
         }
       },
-      onMouseEnter: (event) => showTooltip(cell, cellKey, event.currentTarget, event),
-      onMouseMove: (event) => showTooltip(cell, cellKey, event.currentTarget, event),
+      onMouseEnter: (event) => {
+        if (pointerTypeRef.current === 'touch' || pointerTypeRef.current === 'pen') return;
+        showTooltip(cell, cellKey, event.currentTarget, event);
+      },
+      onMouseMove: (event) => {
+        if (pointerTypeRef.current === 'touch' || pointerTypeRef.current === 'pen') return;
+        showTooltip(cell, cellKey, event.currentTarget, event);
+      },
       onMouseLeave: (event) => {
         if (document.activeElement !== event.currentTarget) {
-          setTip((current) => (current?.cellKey === cellKey ? null : current));
+          setTip((current) => (
+            current?.cellKey === cellKey && !current.pinned ? null : current
+          ));
         }
       },
     };
@@ -691,7 +773,13 @@ export default function CompatMatrix({
         </table>
       </div>
 
-      <MatrixTooltip tip={tip} mode={mode} memberNames={memberNames} />
+      <MatrixTooltip
+        tip={tip}
+        mode={mode}
+        memberNames={memberNames}
+        tooltipRef={tooltipRef}
+        onEscape={() => closeTooltip(tip?.cellKey)}
+      />
 
       <div className="compat-matrix-legend">
         <p><strong>読み方：</strong>色は、各メンバーを一人ずつ判定したときの最も高いゾーンです。別々の人の点数を組み合わせてはいません。</p>

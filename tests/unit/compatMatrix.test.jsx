@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import CompatMatrix, {
   buildCompatMatrixModel,
   buildSharedCompatMatrixModel,
+  COMPAT_MATRIX_AXES,
 } from '../../src/compat/CompatMatrix.jsx';
 import { buildCompatSharedMatrix } from '../../api/lib/compatShare.js';
 
@@ -134,7 +135,7 @@ describe('CompatMatrix', () => {
     expect(screen.queryByRole('img', { name: /基軸力 × 認知力。高い水準。担い手 つかさ/u })).toBeNull();
   });
 
-  it('uses one roving tab stop, shows details on focus, skips filtered cells, and toggles with Enter or tap', () => {
+  it('uses one roving tab stop, shows details on focus, skips filtered cells, and pins details with Enter', () => {
     const { container } = render(
       <CompatMatrix
         uaamMatrix={{
@@ -166,18 +167,106 @@ describe('CompatMatrix', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('基転力');
 
     fireEvent.keyDown(proCell, { key: 'Enter' });
-    expect(screen.queryByRole('tooltip')).toBeNull();
-    fireEvent.keyDown(proCell, { key: 'Enter' });
-    expect(screen.getByRole('tooltip')).toHaveTextContent('基転力');
+    const pinnedTooltip = screen.getByRole('tooltip');
+    expect(pinnedTooltip).toHaveTextContent('基転力');
+    expect(pinnedTooltip).toHaveClass('pinned');
+    expect(pinnedTooltip).toHaveAttribute('tabindex', '-1');
+    expect(document.activeElement).toBe(pinnedTooltip);
 
-    fireEvent.blur(proCell);
+    fireEvent.keyDown(pinnedTooltip, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(document.activeElement).toBe(proCell);
+  });
+
+  it('keeps a touch tooltip pinned through synthesized mouse events and repeated taps', () => {
+    const { container } = render(
+      <CompatMatrix
+        uaamMatrix={{ memberScores: { M1: { meaning: 20, mindfulness: 20 } } }}
+        members={[{ alias: 'M1' }]}
+        memberLabels={['つかさ']}
+      />,
+    );
+    const firstCell = container.querySelector('[data-row="0"][data-column="0"]');
+
     fireEvent.pointerDown(firstCell, { pointerType: 'touch' });
-    fireEvent.focus(firstCell);
+    fireEvent.mouseEnter(firstCell, { clientX: 80, clientY: 80 });
+    fireEvent.mouseMove(firstCell, { clientX: 90, clientY: 90 });
     expect(screen.queryByRole('tooltip')).toBeNull();
-    fireEvent.click(firstCell);
+    fireEvent.click(firstCell, { clientX: 90, clientY: 90 });
     expect(screen.getByRole('tooltip')).toHaveTextContent('基軸力');
-    fireEvent.click(firstCell);
+    expect(screen.getByRole('tooltip')).toHaveClass('pinned');
+
+    fireEvent.pointerDown(firstCell, { pointerType: 'touch' });
+    fireEvent.mouseEnter(firstCell, { clientX: 80, clientY: 80 });
+    fireEvent.mouseMove(firstCell, { clientX: 90, clientY: 90 });
+    fireEvent.click(firstCell, { clientX: 90, clientY: 90 });
+    expect(screen.getByRole('tooltip')).toHaveTextContent('基軸力');
+  });
+
+  it('makes only pinned tooltips focusable and interactive until Escape closes them', () => {
+    const { container } = render(
+      <CompatMatrix
+        uaamMatrix={{ memberScores: { M1: { meaning: 16, mindfulness: 16 } } }}
+        members={[{ alias: 'M1' }]}
+        memberLabels={['つかさ']}
+      />,
+    );
+    const pairCell = container.querySelector('[data-row="0"][data-column="1"]');
+
+    fireEvent.mouseEnter(pairCell, { clientX: 100, clientY: 100 });
+    const transientTooltip = screen.getByRole('tooltip');
+    expect(transientTooltip).not.toHaveClass('pinned');
+    expect(transientTooltip).not.toHaveAttribute('tabindex');
+
+    fireEvent.click(pairCell, { clientX: 100, clientY: 100 });
+    const pinnedTooltip = screen.getByRole('tooltip');
+    expect(pinnedTooltip).toHaveClass('pinned');
+    expect(pinnedTooltip).toHaveAttribute('tabindex', '-1');
+    expect(document.activeElement).toBe(pinnedTooltip);
+    fireEvent.wheel(pinnedTooltip, { deltaY: 100 });
+    fireEvent.touchStart(pinnedTooltip, { touches: [{ clientY: 100 }] });
+    fireEvent.keyDown(pinnedTooltip, { key: 'ArrowDown' });
+    expect(screen.getByRole('tooltip')).toBe(pinnedTooltip);
+
+    fireEvent.keyDown(pinnedTooltip, { key: 'Escape' });
     expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(document.activeElement).toBe(pairCell);
+  });
+
+  it('falls back to the nearest visible cell in row-major order when filters isolate the diagonal', () => {
+    const measuredScores = Object.fromEntries(
+      COMPAT_MATRIX_AXES.map((axis) => [axis.key, 20]),
+    );
+    const { container } = render(
+      <CompatMatrix
+        uaamMatrix={{ memberScores: { M1: measuredScores } }}
+        members={[{ alias: 'M1' }]}
+        memberLabels={['つかさ']}
+      />,
+    );
+
+    for (const zone of ['NATURAL', 'PRO', 'ACTIVE', 'POTENTIAL', 'DORMANT', 'NO DATA']) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${zone}`, 'u') }));
+    }
+
+    const visibleCells = [...container.querySelectorAll('.compat-matrix-cell')]
+      .filter((cell) => cell.getAttribute('aria-hidden') !== 'true');
+    const firstDiagonal = container.querySelector('[data-row="0"][data-column="0"]');
+    const secondDiagonal = container.querySelector('[data-row="1"][data-column="1"]');
+    const thirdDiagonal = container.querySelector('[data-row="2"][data-column="2"]');
+    expect(visibleCells).toHaveLength(COMPAT_MATRIX_AXES.length);
+    expect(visibleCells.every((cell) => cell.dataset.kind === 'diagonal')).toBe(true);
+
+    fireEvent.focus(firstDiagonal);
+    fireEvent.keyDown(firstDiagonal, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(secondDiagonal);
+    expect(secondDiagonal.tabIndex).toBe(0);
+
+    fireEvent.keyDown(secondDiagonal, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(thirdDiagonal);
+
+    fireEvent.keyDown(thirdDiagonal, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(secondDiagonal);
   });
 
   it('uses shared topPairs in their stored ranking order and omits TOP 5 for old matrices', () => {
