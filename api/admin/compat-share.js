@@ -46,7 +46,14 @@ function requestOrigin(req) {
 }
 
 async function issueShare(req, res, admin) {
-  const validation = validateCompatShareIssueInput(req.body);
+  const shareInput = structuredClone(req.body);
+  if (shareInput?.report && typeof shareInput.report === 'object') {
+    delete shareInput.report.uaamMatrix;
+    if (shareInput.report.visual?.uaam && typeof shareInput.report.visual.uaam === 'object') {
+      delete shareInput.report.visual.uaam.memberScores;
+    }
+  }
+  const validation = validateCompatShareIssueInput(shareInput);
   if (!validation.ok) return errorResponse(res, validation.status, validation.code, validation.error);
 
   const shareId = randomUUID();

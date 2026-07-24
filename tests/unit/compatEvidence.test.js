@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildCompatEvidence, buildCompatVisual, COMPAT_VISUAL_UAAM_AXES } from '../../api/lib/compatEvidence.js';
+import {
+  buildCompatEvidence,
+  buildCompatUaamMatrix,
+  buildCompatVisual,
+  COMPAT_VISUAL_UAAM_AXES,
+} from '../../api/lib/compatEvidence.js';
 import { normalizeInternalProfile, normalizePublicProfile, splitUserTop5 } from '../../api/lib/compatProfiles.js';
 
 function internal(id, top5, axisName = '構造化', uaamData = null) {
@@ -64,7 +69,7 @@ describe('compat evidence layer', () => {
     const matches = evidence.ledger.filter((item) => item.kind === 'exact_nfkc_match');
     expect(matches.length).toBeGreaterThan(0);
     expect(matches.every((item) => item.details.sourceKind === 'generated_axis')).toBe(true);
-    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('公開アプリから追加したメンバーは');
+    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('公開アプリから追加したメンバーについては');
   });
 
   it('uses the public-compatible surface for every pair in a mixed team', () => {
@@ -83,7 +88,8 @@ describe('compat evidence layer', () => {
       internal('b', '対話'),
     ], cohort, 'pair');
     expect(evidence.dataSufficiency.uaam.eligible).toBe(false);
-    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('くわしい診断（UAAM）の数字での比較は');
+    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('パーセンタイル比較は、今回はデータが不足');
+    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('16×16の力の地図とは別');
 
     const visual = buildCompatVisual({
       profiles: evidence.profiles,
@@ -117,11 +123,49 @@ describe('compat evidence layer', () => {
     });
 
     expect(visual.schemaVersion).toBe(2);
-    expect(visual.members.map((member) => member.alias)).toEqual(['A', 'B']);
+    expect(visual.members.map((member) => member.alias)).toEqual(['M1', 'M2']);
     expect(visual.matches.some((match) => match.terms.includes(secret))).toBe(true);
     expect(visual.uaam.axes.map((axis) => axis.key)).toEqual(COMPAT_VISUAL_UAAM_AXES.map((axis) => axis.key));
     expect(visual.uaam.axes).toHaveLength(16);
     expect(JSON.stringify(evidence.promptEvidence)).not.toContain(secret);
+  });
+
+  it('uses the canonical Japanese UAAM axis labels in every prompt evidence string', () => {
+    const cohort = Array.from({ length: 30 }, (_unused, index) => uaamScores(index < 15 ? 1 : 20));
+    const evidence = buildCompatEvidence([
+      internal('a', '観察', '構造化', uaamScores(1)),
+      internal('b', '対話', '発想', uaamScores(20)),
+    ], cohort, 'pair');
+    const uaamPromptEvidence = evidence.promptEvidence.filter((item) => item.kind.startsWith('uaam_percentile_'));
+    const promptText = uaamPromptEvidence.map((item) => item.text).join('\n');
+
+    expect(uaamPromptEvidence).toHaveLength(COMPAT_VISUAL_UAAM_AXES.length);
+    for (const { key, label } of COMPAT_VISUAL_UAAM_AXES) {
+      expect(promptText).toContain(`UAAM「${label}」`);
+      expect(promptText).not.toMatch(new RegExp(`\\b${key}\\b`));
+    }
+    expect(evidence.ledger.every((item) => (
+      !item.kind.startsWith('uaam_percentile_')
+      || COMPAT_VISUAL_UAAM_AXES.some(({ key }) => item.details.sub === key)
+    ))).toBe(true);
+  });
+
+  it('projects integer UAAM member scores by alias without changing the visual contract', () => {
+    const evidence = buildCompatEvidence([
+      internal('a', '観察', '構造化', {
+        scores: {
+          mindset: { subs: { meaning: 11.6 } },
+          literacy: { subs: { logical: 19, rogue: 20 } },
+        },
+      }),
+      internal('b', '対話'),
+    ], [], 'pair');
+
+    expect(buildCompatUaamMatrix(evidence.profiles)).toEqual({
+      memberScores: {
+        M1: { meaning: 12, logical: 19 },
+      },
+    });
   });
 
   it('caps same-category visual matches at 100 unique terms and truncates each term to 80 characters', () => {

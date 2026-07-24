@@ -347,9 +347,7 @@ export function validateCompatShareIssueInput(body) {
   if (body.report.dataSufficiency.memberAvailability.length !== memberLabels.length) {
     return { ok: false, status: 400, code: 'INVALID_REQUEST', error: '分析結果と対象者ラベルの人数が一致しません' };
   }
-  const expectedAliases = memberLabels.map((_label, index) => (
-    body.mode === 'pair' ? (index === 0 ? 'A' : 'B') : `M${index + 1}`
-  ));
+  const expectedAliases = memberLabels.map((_label, index) => `M${index + 1}`);
   const reportAliases = body.report.dataSufficiency.memberAvailability.map((member) => member.alias);
   if (expectedAliases.some((alias, index) => reportAliases[index] !== alias)) {
     return { ok: false, status: 400, code: 'INVALID_REQUEST', error: '分析モードと対象者aliasが一致しません' };

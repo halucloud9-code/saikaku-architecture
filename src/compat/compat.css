@@ -170,6 +170,59 @@
 .compat-uaam-plot .compat-uaam-point text { fill: var(--compat-point-ink) !important; font-size: 13px; font-weight: 800; }
 .compat-uaam-mobile-points { display: none; }
 
+.compat-matrix { display: grid; gap: 22px; min-width: 0; overflow: hidden; background: var(--compat-card); border: 1px solid var(--compat-line); border-radius: 20px; padding: clamp(22px, 4vw, 44px); }
+.compat-matrix-heading { max-width: 800px; }
+.compat-matrix-heading h2 { margin: 5px 0 10px; font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif; font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 500; letter-spacing: .06em; }
+.compat-matrix-heading > p:last-child { margin: 0; color: var(--compat-muted); line-height: 1.75; }
+.compat-matrix-filters { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.compat-matrix-filters button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--matrix-zone-color); border-radius: 999px; padding: 6px 10px; background: color-mix(in srgb, var(--matrix-zone-color) 12%, var(--compat-card)); color: var(--compat-ink); cursor: pointer; font-size: .76rem; font-weight: 700; }
+.compat-matrix-filters button[aria-pressed="false"] { border-color: var(--compat-line); background: transparent; color: var(--compat-ink); opacity: 1; }
+.compat-matrix-filters button span { width: 10px; height: 10px; border-radius: 3px; background: var(--matrix-zone-color); }
+.compat-matrix-filters small { margin-left: 4px; color: var(--compat-muted); line-height: 1.5; }
+.compat-matrix-scroll { max-width: 100%; overflow: auto; padding: 0 0 8px; }
+.compat-matrix table { width: max-content; min-width: 820px; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
+.compat-matrix th { color: var(--compat-muted); font-size: .65rem; font-weight: 700; line-height: 1.15; }
+.compat-matrix thead th { width: 42px; height: 32px; padding: 0; text-align: center; vertical-align: bottom; writing-mode: vertical-rl; }
+.compat-matrix thead th:first-child { width: 76px; }
+.compat-matrix tbody th { width: 76px; max-width: 76px; padding-right: 5px; text-align: right; white-space: nowrap; }
+.compat-matrix th span { margin-right: 3px; color: var(--compat-gold); font-size: .58rem; }
+.compat-matrix td { width: 42px; height: 42px; padding: 0; }
+.compat-matrix-cell { position: relative; display: grid; width: 42px; height: 42px; place-items: center; border: 0; border-radius: 5px; padding: 0; cursor: help; transition: opacity .15s ease, transform .15s ease; }
+.compat-matrix-cell:hover { z-index: 2; transform: scale(1.12); box-shadow: 0 3px 12px rgba(0, 0, 0, .24); }
+.compat-matrix-cell.filtered { opacity: .1; }
+.compat-matrix-cell.pair { background: var(--matrix-zone-color); color: #fff; }
+.compat-matrix-cell.pair.no-data, .compat-matrix-cell.diagonal.no-data { color: var(--compat-muted); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--compat-line) 30%, transparent) 0 4px, transparent 4px 8px); border: 1px dashed var(--compat-line); }
+.compat-matrix-cell.diagonal { background: color-mix(in srgb, var(--matrix-group-color) 20%, var(--compat-card)); border: 2px solid var(--matrix-group-color); color: var(--compat-ink); }
+.compat-matrix-cell.diagonal > strong { font-size: .92rem; line-height: 1; }
+.compat-matrix-carriers { display: grid; min-width: 22px; height: 22px; place-items: center; border-radius: 999px; background: rgba(0, 0, 0, .28); font-size: .72rem; font-weight: 900; }
+.compat-matrix-initials { position: absolute; right: 1px; bottom: 1px; display: flex; justify-content: flex-end; }
+.compat-matrix-initials i { display: grid; width: 13px; height: 13px; place-items: center; margin-left: -3px; border: 1px solid var(--compat-card); border-radius: 50%; background: var(--matrix-group-color); color: #fff; font-size: .45rem; font-style: normal; font-weight: 900; }
+.compat-matrix-legend { display: grid; gap: 6px; border-left: 4px solid var(--compat-gold); background: var(--compat-surface-2); border-radius: 10px; padding: 14px 16px; }
+.compat-matrix-legend p { margin: 0; color: var(--compat-muted); font-size: .84rem; line-height: 1.65; }
+.compat-matrix-legend strong { color: var(--compat-ink); }
+.compat-matrix-missing-members, .compat-matrix-no-data-axes { margin: 0; border: 1px dashed var(--compat-line-strong); border-radius: 10px; padding: 12px 14px; color: var(--compat-muted); line-height: 1.65; }
+.compat-matrix-missing-members strong, .compat-matrix-no-data-axes strong { color: var(--compat-ink); }
+.compat-matrix-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.compat-matrix-summary-grid > section, .compat-matrix-coverage { min-width: 0; border: 1px solid var(--compat-line); border-radius: 14px; background: var(--compat-surface-2); padding: 18px; }
+.compat-matrix-summary-grid h3, .compat-matrix-coverage h3 { margin: 0 0 6px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-size: 1.1rem; font-weight: 600; }
+.compat-matrix-summary-grid section > p, .compat-matrix-coverage > p { margin: 0 0 14px; color: var(--compat-muted); font-size: .8rem; line-height: 1.6; }
+.compat-matrix-top-pairs { display: grid; gap: 9px; margin: 14px 0 0; padding-left: 1.6rem; }
+.compat-matrix-top-pairs li { padding-left: 3px; }
+.compat-matrix-top-pairs li > div { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.compat-matrix-top-pairs li span { flex: 0 0 auto; border: 1px solid var(--matrix-zone-color); border-radius: 999px; padding: 2px 7px; color: var(--compat-ink); font-size: .66rem; font-weight: 800; }
+.compat-matrix-top-pairs small { display: block; margin-top: 3px; color: var(--compat-muted); overflow-wrap: anywhere; }
+.compat-matrix-summary-grid details summary { cursor: pointer; font-weight: 800; }
+.compat-matrix-dormant-list { display: flex; gap: 6px; flex-wrap: wrap; max-height: 230px; overflow: auto; margin-top: 12px; }
+.compat-matrix-dormant-list span { border: 1px solid var(--compat-line); border-radius: 999px; background: var(--compat-card); padding: 4px 8px; color: var(--compat-muted); font-size: .7rem; }
+.compat-matrix-data-note { margin-top: 12px !important; }
+.compat-matrix-coverage > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.compat-matrix-coverage article { min-width: 0; }
+.compat-matrix-coverage article header { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.compat-matrix-coverage article header strong { color: var(--compat-ink); font-size: 1.15rem; }
+.compat-matrix-coverage article header span, .compat-matrix-coverage small { color: var(--compat-muted); font-size: .72rem; }
+.compat-matrix-coverage-track { height: 10px; overflow: hidden; border-radius: 999px; background: var(--compat-card); border: 1px solid var(--compat-line); }
+.compat-matrix-coverage-track span { display: block; height: 100%; background: var(--matrix-group-color); }
+
 .compat-claims-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .compat-section { min-width: 0; background: var(--compat-card); border: 1px solid var(--compat-line); border-radius: 16px; padding: clamp(20px, 4vw, 34px); }
 .compat-section h2 { margin: 5px 0 14px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 500; }
@@ -191,6 +244,22 @@
 .compat-ledger-list code { color: var(--compat-gold); }
 .compat-model-meta { color: var(--compat-muted); font-family: ui-monospace, monospace; font-size: .74rem; }
 .compat-ethics { color: var(--compat-muted); text-align: center; padding: 12px; font-size: .84rem; line-height: 1.7; }
+
+.compat-recommend { max-width: 1180px; margin: 24px auto 0; background: var(--compat-card); border: 1px solid var(--compat-line); border-radius: 16px; padding: clamp(20px, 4vw, 34px); }
+.compat-recommend h2 { margin: 5px 0 10px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 500; }
+.compat-recommend-rule { margin: 0; color: var(--compat-muted); line-height: 1.75; }
+.compat-recommend-ethics { border-left: 4px solid var(--compat-gold); border-radius: 9px; background: var(--compat-surface-2); padding: 12px 14px; color: var(--compat-ink); font-weight: 700; line-height: 1.7; }
+.compat-recommend-status { min-height: 1.6em; margin-top: 14px; color: var(--compat-muted); line-height: 1.6; }
+.compat-recommend-summary { margin-top: 22px; border-top: 1px solid var(--compat-line); padding-top: 18px; }
+.compat-recommend-summary h3 { margin: 0 0 10px; font-size: 1rem; }
+.compat-recommend-summary ul { margin: 0; padding-left: 1.3rem; }
+.compat-recommend-summary li { margin: 7px 0; line-height: 1.65; }
+.compat-recommend-consent { margin-bottom: 8px; }
+.compat-recommend-candidates { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-top: 20px; }
+.compat-recommend-candidates article { min-width: 0; border: 1px solid var(--compat-line); border-top: 4px solid var(--compat-deep); border-radius: 13px; background: var(--compat-surface-2); padding: 16px; }
+.compat-recommend-candidates h3 { margin: 0 0 12px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+.compat-recommend-axis-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.compat-recommend-axis-chips span { border: 1px solid var(--compat-line-strong); border-radius: 999px; background: var(--compat-card); padding: 5px 9px; color: var(--compat-muted); font-size: .74rem; line-height: 1.45; }
 
 .compat-share-controls, .compat-share-guidance, .compat-share-state { max-width: 1180px; margin: 24px auto 0; }
 .compat-share-controls, .compat-share-guidance { background: var(--compat-card); border: 1px solid var(--compat-line); border-radius: 16px; padding: clamp(20px, 4vw, 34px); }
@@ -219,6 +288,8 @@
   .compat-mandala-mobile-network { display: grid; gap: 8px; background: var(--compat-surface-2); border: 1px solid var(--compat-line); border-radius: 12px; padding: 14px; }
   .compat-mandala-mobile-network p { margin: 0; line-height: 1.55; }
   .compat-mandala-members, .compat-match-grid, .compat-claims-grid, .compat-uaam-grid { grid-template-columns: 1fr; }
+  .compat-matrix-summary-grid { grid-template-columns: 1fr; }
+  .compat-matrix-coverage > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .compat-uaam-plot { padding-bottom: 13px; }
   .compat-uaam-plot header { display: grid; }
   .compat-uaam-plot header span { text-align: left; }

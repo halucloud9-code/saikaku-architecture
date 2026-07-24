@@ -1,4 +1,5 @@
 import { COMPAT_CATEGORIES, profileAvailability } from './compatProfiles.js';
+import { normalizeUaamZoneScore } from '../../src/lib/uaamZones.js';
 
 const SOURCE_KINDS = ['user_top5', 'generated_axis'];
 const UAAM_MIN_COHORT = 30;
@@ -28,6 +29,7 @@ const UAAM_VISUAL_AXES = [
   ['implementation', '実装力'],
   ['influence', '影響力'],
 ];
+const UAAM_AXIS_LABELS = new Map(UAAM_VISUAL_AXES);
 
 function percentile(values, target) {
   if (values.length < UAAM_MIN_COHORT || !Number.isFinite(target)) return null;
@@ -74,8 +76,7 @@ function exactMatches(left, right, category, sourceKind) {
   return [...new Set(comparableTokens(left, category, sourceKind).filter((token) => rightSet.has(token)))];
 }
 
-function aliasFor(index, mode) {
-  if (mode === 'pair') return index === 0 ? 'A' : 'B';
+function aliasFor(index) {
   return `M${index + 1}`;
 }
 
@@ -141,7 +142,7 @@ function uaamEvidence(profiles, uaamDocs, mode, ledger) {
       availableProfiles: eligibleProfiles.length,
       requiredProfiles,
       minimumCohort: UAAM_MIN_COHORT,
-      reason: `そろっているのは ${eligibleProfiles.length}/${profiles.length} 名（必要 ${requiredProfiles} 名）。また、正しくくらべるには同じ診断を受けた人が全体で ${UAAM_MIN_COHORT} 人以上必要です。`,
+      reason: `パーセンタイル比較に使えるデータがあるのは ${eligibleProfiles.length}/${profiles.length} 名です（必要人数は ${requiredProfiles} 名）。また、診断を受けた人たちの中でのおおよその位置を比べるには、同じ診断の結果が全体で ${UAAM_MIN_COHORT} 人分以上必要です。`,
     };
   }
 
@@ -157,6 +158,8 @@ function uaamEvidence(profiles, uaamDocs, mode, ledger) {
 
   const subs = new Set([...percentiles.values()].flatMap((value) => Object.keys(value)));
   for (const sub of subs) {
+    const axisLabel = UAAM_AXIS_LABELS.get(sub);
+    if (!axisLabel) continue;
     const points = eligibleProfiles
       .map((profile) => ({ alias: profile.alias, percentile: percentiles.get(profile.alias)?.[sub] }))
       .filter((point) => Number.isFinite(point.percentile));
@@ -164,9 +167,9 @@ function uaamEvidence(profiles, uaamDocs, mode, ledger) {
     const values = points.map((point) => point.percentile);
     const gap = Math.max(...values) - Math.min(...values);
     if (gap <= UAAM_SIMILAR_MAX_GAP) {
-      addEvidence(ledger, 'similarity', 'uaam_percentile_similarity', `UAAM ${sub} は対象者間のpercentile幅が ${gap}pt（${points.map((p) => `${p.alias}:${p.percentile}`).join(', ')}）。`, { sub, points, gap });
+      addEvidence(ledger, 'similarity', 'uaam_percentile_similarity', `UAAM「${axisLabel}」は対象者間のpercentile幅が ${gap}pt（${points.map((p) => `${p.alias}:${p.percentile}`).join(', ')}）。`, { sub, points, gap });
     } else if (gap >= UAAM_COMPLEMENT_MIN_GAP) {
-      addEvidence(ledger, 'complementarity', 'uaam_percentile_complement', `UAAM ${sub} は対象者間のpercentile幅が ${gap}pt（${points.map((p) => `${p.alias}:${p.percentile}`).join(', ')}）。`, { sub, points, gap });
+      addEvidence(ledger, 'complementarity', 'uaam_percentile_complement', `UAAM「${axisLabel}」は対象者間のpercentile幅が ${gap}pt（${points.map((p) => `${p.alias}:${p.percentile}`).join(', ')}）。`, { sub, points, gap });
     }
   }
 
@@ -179,7 +182,7 @@ function uaamEvidence(profiles, uaamDocs, mode, ledger) {
 }
 
 export function buildCompatEvidence(rawProfiles, uaamDocs, mode) {
-  const profiles = rawProfiles.map((profile, index) => ({ ...profile, alias: aliasFor(index, mode) }));
+  const profiles = rawProfiles.map((profile, index) => ({ ...profile, alias: aliasFor(index) }));
   const ledger = [];
   generatedAxisSignals(profiles, ledger);
   exactMatchEvidence(profiles, ledger);
@@ -192,18 +195,18 @@ export function buildCompatEvidence(rawProfiles, uaamDocs, mode) {
   }));
   const limitations = [];
   if (profiles.some((profile) => profile.source === 'public')) {
-    limitations.push('公開アプリから追加したメンバーは、くわしいデータ（本人がえらんだ言葉・アンケート結果）を受け取らないため、診断でみつけた軸だけをくらべます。足りない分は「今回のデータでは見つからなかった」と扱います。');
+    limitations.push('公開アプリから追加したメンバーについては、本人が選んだ言葉やアンケート結果などの詳しいデータを取得しません。そのため、診断で見つかった軸だけを比較します。取得できない情報は「今回のデータでは見つからなかった」と扱います。');
   }
-  if (!uaam.eligible) limitations.push(`くわしい診断（UAAM）の数字での比較は、今回はデータが足りませんでした。${uaam.reason}`);
-  if (!ledger.some((item) => item.lens === 'similarity')) limitations.push('「にているところ」を示すはっきりしたデータは、今回は見つかりませんでした。');
-  if (!ledger.some((item) => item.lens === 'complementarity')) limitations.push('「ちがうから助け合えるところ」を示すはっきりしたデータは、今回は見つかりませんでした。');
+  if (!uaam.eligible) limitations.push(`パーセンタイル比較は、今回はデータが不足しています。${uaam.reason}なお、これは本人の自己回答を絶対的な目安で示す16×16の力の地図とは別の判定です。`);
+  if (!ledger.some((item) => item.lens === 'similarity')) limitations.push('「似ているところ」を示す明確なデータは、今回は見つかりませんでした。');
+  if (!ledger.some((item) => item.lens === 'complementarity')) limitations.push('「違いで補い合えるところ」を示す明確なデータは、今回は見つかりませんでした。');
 
   return {
     profiles,
     ledger,
     promptEvidence: ledger.map(({ id, lens, kind, promptText }) => ({ id, lens, kind, text: promptText })),
     dataSufficiency: {
-      summary: limitations.length === 0 ? '「にているところ」と「ちがうから助け合えるところ」の両方を調べられるデータがそろっています。' : '今あるデータでわかる範囲だけを見ていきます。',
+      summary: limitations.length === 0 ? '「似ているところ」と「違いで補い合えるところ」の両方を検討できるデータがそろっています。' : '現在のデータで確認できる範囲を示します。',
       memberAvailability,
       limitations,
       uaam,
@@ -268,6 +271,20 @@ export function buildCompatVisual({ profiles, ledger, uaamDocs, uaamEligible }) 
       axes,
     },
   };
+}
+
+export function buildCompatUaamMatrix(profiles) {
+  const memberScores = {};
+  for (const profile of profiles) {
+    if (!profile.uaam) continue;
+    const scores = {};
+    for (const [key] of UAAM_VISUAL_AXES) {
+      const value = normalizeUaamZoneScore(profile.uaam[key]);
+      if (value !== null) scores[key] = value;
+    }
+    if (Object.keys(scores).length > 0) memberScores[profile.alias] = scores;
+  }
+  return { memberScores };
 }
 
 export const COMPAT_EVIDENCE_THRESHOLDS = {

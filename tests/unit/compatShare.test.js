@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isCompatShareActive, isCompatShareId, validateCompatShareReport } from '../../api/lib/compatShare.js';
+import {
+  isCompatShareActive,
+  isCompatShareId,
+  validateCompatShareIssueInput,
+  validateCompatShareReport,
+} from '../../api/lib/compatShare.js';
 import { COMPAT_VISUAL_UAAM_AXES } from '../../api/lib/compatEvidence.js';
 
 const ethicsNotice = '本結果は相互理解のための対話素材です。人事評価・採用評価には流用しません。';
@@ -36,16 +41,21 @@ function v1Report() {
 }
 
 function v2Report() {
+  const legacy = v1Report();
   return {
-    ...v1Report(),
+    ...legacy,
+    dataSufficiency: {
+      ...legacy.dataSufficiency,
+      memberAvailability: [availability('M1'), availability('M2')],
+    },
     unmetFunctionCandidate: null,
     visual: {
       schemaVersion: 2,
       members: [
-        { alias: 'A', axes: { talent: ['構造化'], value: ['誠実'], passion: ['教育'] } },
-        { alias: 'B', axes: { talent: ['対話'], value: ['誠実'], passion: ['学び'] } },
+        { alias: 'M1', axes: { talent: ['構造化'], value: ['誠実'], passion: ['教育'] } },
+        { alias: 'M2', axes: { talent: ['対話'], value: ['誠実'], passion: ['学び'] } },
       ],
-      matches: [{ aliases: ['A', 'B'], category: 'value', sourceKind: 'user_top5', terms: ['誠実'] }],
+      matches: [{ aliases: ['M1', 'M2'], category: 'value', sourceKind: 'user_top5', terms: ['誠実'] }],
       uaam: {
         eligible: true,
         axes: COMPAT_VISUAL_UAAM_AXES.map(({ key, label }) => ({
@@ -53,7 +63,7 @@ function v2Report() {
           label,
           cohortSize: 51,
           signal: 'complementarity',
-          points: [{ alias: 'A', percentile: 10 }, { alias: 'B', percentile: 60 }],
+          points: [{ alias: 'M1', percentile: 10 }, { alias: 'M2', percentile: 60 }],
         })),
       },
     },
@@ -103,6 +113,40 @@ describe('compat share expiry', () => {
   it('accepts stored v1 reports and deterministic v2 visual reports', () => {
     expect(validateCompatShareReport(v1Report(), { goalProvided: false }).ok).toBe(true);
     expect(validateCompatShareReport(v2Report(), { goalProvided: false }).ok).toBe(true);
+  });
+
+  it('issues new pair shares only with M aliases while retaining A/B read compatibility', () => {
+    const input = {
+      report: v2Report(),
+      mode: 'pair',
+      goal: '',
+      memberLabels: ['つかさ', '野田健一'],
+      consentConfirmed: true,
+    };
+    expect(validateCompatShareIssueInput(input).ok).toBe(true);
+
+    const legacy = v1Report();
+    expect(validateCompatShareReport(legacy, { goalProvided: false }).ok).toBe(true);
+    expect(legacy.dataSufficiency.memberAvailability.map((member) => member.alias)).toEqual(['A', 'B']);
+
+    const legacyV2 = v2Report();
+    const legacyAlias = (alias) => ({ M1: 'A', M2: 'B' })[alias] || alias;
+    legacyV2.dataSufficiency.memberAvailability.forEach((member) => {
+      member.alias = legacyAlias(member.alias);
+    });
+    legacyV2.visual.members.forEach((member) => {
+      member.alias = legacyAlias(member.alias);
+    });
+    legacyV2.visual.matches.forEach((match) => {
+      match.aliases = match.aliases.map(legacyAlias);
+    });
+    legacyV2.visual.uaam.axes.forEach((axis) => {
+      axis.points.forEach((point) => {
+        point.alias = legacyAlias(point.alias);
+      });
+    });
+    expect(validateCompatShareReport(legacyV2, { goalProvided: false }).ok).toBe(true);
+    expect(validateCompatShareIssueInput({ ...input, report: legacyV2 }).ok).toBe(false);
   });
 
   it('rejects a v2 visual block whose axis order or signal does not match its points', () => {

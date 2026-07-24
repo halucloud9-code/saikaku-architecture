@@ -17,6 +17,9 @@
     },
     "api/admin/compat-analyze.js": {
       "maxDuration": 120
+    },
+    "api/admin/compat-recommend.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
