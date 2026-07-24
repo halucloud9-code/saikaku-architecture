@@ -190,7 +190,7 @@ describe('CompatScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
 
     const issueButton = await screen.findByRole('button', { name: '共有URLを発行' });
-    expect(screen.getByRole('heading', { name: 'チームの中にある力の地図' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'チーム発動領域Matrix' })).toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'M1 レポート表示名' }), { target: { value: '分析後に入力した別人名' } });
     expect(screen.getAllByText('つかさ').length).toBeGreaterThan(0);
     expect(screen.queryByText('分析後に入力した別人名')).not.toBeInTheDocument();
@@ -210,6 +210,7 @@ describe('CompatScreen', () => {
     expect(issueRequest).toBeTruthy();
     const issueBody = JSON.parse(issueRequest[1].body);
     expect(issueBody.memberLabels).toEqual(['つかさ', '野田健一']);
+    expect(issueBody.uaamMatrix).toEqual(reportFixture.uaamMatrix);
     expect(issueBody.report).not.toHaveProperty('uaamMatrix');
     expect(issueBody.report.visual.uaam).not.toHaveProperty('memberScores');
   });

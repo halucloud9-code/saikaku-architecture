@@ -86,7 +86,11 @@ export default function CompatShareScreen() {
             )}
             <p>内容の訂正または共有停止を希望する場合は、URLを送った発行者へ連絡してください。</p>
           </section>
-          <CompatReport result={data.report} memberLabels={data.memberLabels} />
+          <CompatReport
+            result={data.report}
+            memberLabels={data.memberLabels}
+            sharedMatrix={data.sharedMatrix || null}
+          />
         </>
       )}
     </main>

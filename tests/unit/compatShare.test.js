@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCompatSharedMatrix,
+  COMPAT_SHARED_MATRIX_AXES,
   isCompatShareActive,
   isCompatShareId,
+  validateCompatSharedMatrix,
   validateCompatShareIssueInput,
   validateCompatShareReport,
+  validateCompatShareUaamMatrix,
 } from '../../api/lib/compatShare.js';
 import { COMPAT_VISUAL_UAAM_AXES } from '../../api/lib/compatEvidence.js';
 
@@ -65,6 +69,23 @@ function v2Report() {
           signal: 'complementarity',
           points: [{ alias: 'M1', percentile: 10 }, { alias: 'M2', percentile: 60 }],
         })),
+      },
+    },
+  };
+}
+
+function uaamMatrixFixture() {
+  return {
+    memberScores: {
+      M1: {
+        meaning: 20,
+        mindfulness: 20,
+        mindshift: 16,
+      },
+      M2: {
+        meaning: 16,
+        mindfulness: 16,
+        mindshift: 12,
       },
     },
   };
@@ -157,5 +178,156 @@ describe('compat share expiry', () => {
     const wrongSignal = v2Report();
     wrongSignal.visual.uaam.axes[0].signal = 'similarity';
     expect(validateCompatShareReport(wrongSignal, { goalProvided: false }).errors.join(' ')).toContain('決定論的判定');
+  });
+});
+
+describe('compat shared matrix', () => {
+  const aliases = ['M1', 'M2'];
+
+  it('builds exactly 16 axes and the canonical 120 pairs without raw scores or diagonal carriers', () => {
+    const sharedMatrix = buildCompatSharedMatrix(uaamMatrixFixture(), aliases);
+
+    expect(sharedMatrix.axes).toHaveLength(16);
+    expect(sharedMatrix.axes.map((axis) => axis.key)).toEqual(COMPAT_SHARED_MATRIX_AXES);
+    expect(sharedMatrix.axes[0]).toEqual({ key: 'meaning', dataStatus: 'measured' });
+    expect(sharedMatrix.axes[3]).toEqual({ key: 'mastery', dataStatus: 'no-data' });
+    expect(sharedMatrix.cells).toHaveLength(120);
+    expect(sharedMatrix.cells[0]).toEqual({
+      rowKey: 'meaning',
+      colKey: 'mindfulness',
+      zone: 'pro',
+      carrierAliases: ['M1', 'M2'],
+    });
+    expect(sharedMatrix.cells.at(-1)).toMatchObject({
+      rowKey: 'implementation',
+      colKey: 'influence',
+      zone: 'no-data',
+      carrierAliases: [],
+    });
+    expect(sharedMatrix.topPairs).toEqual([
+      { rowKey: 'meaning', colKey: 'mindfulness' },
+    ]);
+    expect(JSON.stringify(sharedMatrix)).not.toMatch(
+      /"(?:score|scoreA|scoreB|sum|sumA|sumB|average|averageScoreA|averageScoreB|mean|memberScores|uaamMatrix|carrierCount)"\s*:/iu,
+    );
+    expect(validateCompatSharedMatrix(sharedMatrix, aliases).ok).toBe(true);
+  });
+
+  it('ranks topPairs by server-side team-average zone and strength while exposing only pair keys', () => {
+    const sharedMatrix = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 20, mindfulness: 20, mindshift: 16 },
+        M2: { meaning: 12, mindfulness: 12, mindshift: 20 },
+      },
+    }, ['M1', 'M2']);
+
+    expect(sharedMatrix.topPairs).toEqual([
+      { rowKey: 'meaning', colKey: 'mindshift' },
+      { rowKey: 'mindfulness', colKey: 'mindshift' },
+      { rowKey: 'meaning', colKey: 'mindfulness' },
+    ]);
+    expect(JSON.stringify(sharedMatrix.topPairs)).not.toMatch(
+      /"(?:score|scoreA|scoreB|sum|sumA|sumB|average|averageScoreA|averageScoreB|mean)"\s*:/iu,
+    );
+  });
+
+  it('uses axis-specific data counts, strict NATURAL, and personal ACTIVE-or-higher carriers', () => {
+    const partial = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 20 },
+        M2: { mindfulness: 20 },
+      },
+    }, aliases);
+    expect(partial.cells[0]).toEqual({
+      rowKey: 'meaning',
+      colKey: 'mindfulness',
+      zone: 'pro',
+      carrierAliases: [],
+    });
+    expect(validateCompatSharedMatrix(partial, aliases).ok).toBe(true);
+
+    const notNatural = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 20, mindfulness: 20 },
+        M2: { meaning: 20 },
+      },
+    }, aliases);
+    expect(notNatural.cells[0].zone).toBe('pro');
+
+    const dormantWithCarrier = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 20, mindfulness: 20 },
+        M2: { meaning: 0, mindfulness: 0 },
+      },
+    }, aliases);
+    expect(dormantWithCarrier.cells[0]).toMatchObject({
+      zone: 'dormant',
+      carrierAliases: ['M1'],
+    });
+    expect(validateCompatSharedMatrix(dormantWithCarrier, aliases).ok).toBe(true);
+  });
+
+  it('validates the issuance matrix against member aliases, 16-axis keys, and 0-20 integers', () => {
+    expect(validateCompatShareUaamMatrix(uaamMatrixFixture(), aliases).ok).toBe(true);
+
+    const wrongAlias = uaamMatrixFixture();
+    wrongAlias.memberScores.M3 = wrongAlias.memberScores.M2;
+    delete wrongAlias.memberScores.M2;
+    expect(validateCompatShareUaamMatrix(wrongAlias, aliases).errors.join(' ')).toContain('対象者alias');
+
+    const wrongAxis = uaamMatrixFixture();
+    wrongAxis.memberScores.M1.unknown = 12;
+    expect(validateCompatShareUaamMatrix(wrongAxis, aliases).errors.join(' ')).toContain('軸キー');
+
+    const wrongScore = uaamMatrixFixture();
+    wrongScore.memberScores.M1.meaning = 21;
+    expect(validateCompatShareUaamMatrix(wrongScore, aliases).errors.join(' ')).toContain('0〜20');
+  });
+
+  it('rejects reordered or aliased 120-pair contracts and raw-score-shaped fields', () => {
+    const sharedMatrix = buildCompatSharedMatrix(uaamMatrixFixture(), aliases);
+
+    const reordered = structuredClone(sharedMatrix);
+    [reordered.cells[0], reordered.cells[1]] = [reordered.cells[1], reordered.cells[0]];
+    expect(validateCompatSharedMatrix(reordered, aliases).errors.join(' ')).toContain('順序');
+
+    const unknownAlias = structuredClone(sharedMatrix);
+    unknownAlias.cells[0].carrierAliases = ['M3'];
+    expect(validateCompatSharedMatrix(unknownAlias, aliases).errors.join(' ')).toContain('対象者alias');
+
+    const rawScore = structuredClone(sharedMatrix);
+    rawScore.cells[0].scoreA = 20;
+    expect(validateCompatSharedMatrix(rawScore, aliases).errors.join(' ')).toContain('生スコア');
+
+    const carrierCount = structuredClone(sharedMatrix);
+    carrierCount.cells[0].carrierCount = 1;
+    expect(validateCompatSharedMatrix(carrierCount, aliases).ok).toBe(false);
+  });
+
+  it('accepts legacy matrices without topPairs and validates topPairs as unique canonical pairs', () => {
+    const sharedMatrix = buildCompatSharedMatrix(uaamMatrixFixture(), aliases);
+    const legacy = structuredClone(sharedMatrix);
+    delete legacy.topPairs;
+    expect(validateCompatSharedMatrix(legacy, aliases).ok).toBe(true);
+
+    const duplicate = structuredClone(sharedMatrix);
+    duplicate.topPairs = [duplicate.topPairs[0], duplicate.topPairs[0]];
+    expect(validateCompatSharedMatrix(duplicate, aliases).errors.join(' ')).toContain('重複');
+
+    const nonCanonical = structuredClone(sharedMatrix);
+    nonCanonical.topPairs = [{ rowKey: 'mindfulness', colKey: 'meaning' }];
+    expect(validateCompatSharedMatrix(nonCanonical, aliases).errors.join(' ')).toContain('正規ペア');
+
+    const tooMany = structuredClone(sharedMatrix);
+    tooMany.topPairs = sharedMatrix.cells.slice(0, 6).map(({ rowKey, colKey }) => ({ rowKey, colKey }));
+    expect(validateCompatSharedMatrix(tooMany, aliases).errors.join(' ')).toContain('最大5件');
+  });
+
+  it('rejects oversized matrices before accepting any extended shape', () => {
+    const oversized = {
+      ...buildCompatSharedMatrix(uaamMatrixFixture(), aliases),
+      padding: 'x'.repeat(70_000),
+    };
+    expect(validateCompatSharedMatrix(oversized, aliases).errors).toContain('sharedMatrix: サイズ上限を超えています');
   });
 });

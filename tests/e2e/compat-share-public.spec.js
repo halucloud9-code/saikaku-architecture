@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { buildCompatSharedMatrix } from '../../api/lib/compatShare.js';
 
 const shareId = '11111111-1111-4111-8111-111111111111';
 const uaamAxes = [
@@ -57,6 +58,12 @@ function sharedReport() {
     memberLabels: ['つかさ', '野田健一'],
     mode: 'pair',
     goalProvided: false,
+    sharedMatrix: buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 16, mindfulness: 16 },
+        M2: { meaning: 12, mindfulness: 12 },
+      },
+    }, ['M1', 'M2']),
   };
 }
 
@@ -64,6 +71,7 @@ function v1SharedReport() {
   const response = sharedReport();
   delete response.report.visual;
   delete response.report.unmetFunctionCandidate;
+  delete response.sharedMatrix;
   response.report.dataSufficiency.memberAvailability = [
     { ...response.report.dataSufficiency.memberAvailability[0], alias: 'A' },
     { ...response.report.dataSufficiency.memberAvailability[1], alias: 'B' },
@@ -86,6 +94,15 @@ test('public compat share bypasses login and renders the shared report', async (
   await expect(page.getByText('共有された診断データの範囲です。')).toBeVisible();
   await expect(page.locator('.compat-mandala-member h3', { hasText: 'つかさ' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '相性マンダラ' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'チーム発動領域Matrix' })).toBeVisible();
+  const pairCell = page.locator('[data-row="0"][data-column="1"]');
+  await expect(pairCell).toBeVisible();
+  await expect(pairCell).toHaveText('');
+  await pairCell.hover();
+  await expect(page.getByRole('tooltip')).toContainText('基認力');
+  await expect(page.getByRole('tooltip')).toContainText('担い手');
+  await expect(page.getByRole('tooltip')).toContainText('つかさ');
+  await expect(page.getByRole('tooltip')).not.toContainText(/16点|12点/u);
   await expect(page.locator('.compat-term-list').getByText('AI', { exact: true })).toBeVisible();
   expect(await page.locator('.compat-mandala-node-name').first().evaluate((node) => getComputedStyle(node).fill)).not.toBe('rgb(255, 255, 255)');
   expect(await page.locator('.compat-share-guidance p').first().evaluate((node) => getComputedStyle(node).fontFamily)).toMatch(/Hiragino Sans|Yu Gothic|Noto Sans|system-ui/u);
