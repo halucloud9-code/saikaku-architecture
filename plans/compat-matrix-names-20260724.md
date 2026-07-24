@@ -149,8 +149,8 @@
 
 ## Phase 4: PR `depends-on: docs`
 
-- [ ] [id:pr] PR作成（`gh pr create`、本文にスクショ添付）
-- [ ] [id:codex-loop] [required] `/codex-review-loop` `depends-on: pr`
+- [x] [id:pr] PR #117 作成済み（スクショは screenshots/compat-matrix-names/ にコミット）。関連issue #118/#119/#120 起票済み
+- [x] [id:codex-loop] [required] 完了: 2周・採用2件（stale共有の自動失効／氏名開示のスナップショット束縛=9765c7d）・棄却0件・最終リアクション👍（05:25:57Z）・遅延コメントなしを確認
 - [ ] [id:merge] つかさがマージ判断（自動実行しない）`depends-on: codex-loop`
 
 ---
