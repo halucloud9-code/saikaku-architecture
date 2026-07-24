@@ -222,7 +222,7 @@ describe('CompatMatrix', () => {
     expect(document.activeElement).toBe(proCell);
   });
 
-  it('keeps a touch tooltip pinned through synthesized mouse events and repeated taps', () => {
+  it('keeps a touch tooltip pinned through synthesized mouse events and closes it on a second tap', () => {
     const { container } = render(
       <CompatMatrix
         uaamMatrix={{ memberScores: { M1: { meaning: 20, mindfulness: 20 } } }}
@@ -241,10 +241,52 @@ describe('CompatMatrix', () => {
     expect(screen.getByRole('tooltip')).toHaveClass('pinned');
 
     fireEvent.pointerDown(firstCell, { pointerType: 'touch' });
-    fireEvent.mouseEnter(firstCell, { clientX: 80, clientY: 80 });
-    fireEvent.mouseMove(firstCell, { clientX: 90, clientY: 90 });
     fireEvent.click(firstCell, { clientX: 90, clientY: 90 });
-    expect(screen.getByRole('tooltip')).toHaveTextContent('基軸力');
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('closes a pinned touch tooltip on an outside tap', () => {
+    const { container } = render(
+      <>
+        <button type="button">マトリックス外</button>
+        <CompatMatrix
+          uaamMatrix={{ memberScores: { M1: { meaning: 20, mindfulness: 20 } } }}
+          members={[{ alias: 'M1' }]}
+          memberLabels={['つかさ']}
+        />
+      </>,
+    );
+    const firstCell = container.querySelector('[data-row="0"][data-column="0"]');
+
+    fireEvent.pointerDown(firstCell, { pointerType: 'touch' });
+    fireEvent.click(firstCell);
+    expect(screen.getByRole('tooltip')).toHaveClass('pinned');
+
+    const outside = screen.getByRole('button', { name: 'マトリックス外' });
+    fireEvent.pointerDown(outside, { pointerType: 'touch' });
+    fireEvent.click(outside);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('provides a 44px close control on pinned tooltips and restores the cell focus', () => {
+    const { container } = render(
+      <CompatMatrix
+        uaamMatrix={{ memberScores: { M1: { meaning: 20, mindfulness: 20 } } }}
+        members={[{ alias: 'M1' }]}
+        memberLabels={['つかさ']}
+      />,
+    );
+    const firstCell = container.querySelector('[data-row="0"][data-column="0"]');
+
+    fireEvent.pointerDown(firstCell, { pointerType: 'touch' });
+    fireEvent.click(firstCell);
+    const closeButton = screen.getByRole('button', { name: 'ツールチップを閉じる' });
+    expect(closeButton).toHaveClass('compat-matrix-tooltip-close');
+
+    fireEvent.pointerDown(closeButton, { pointerType: 'touch' });
+    fireEvent.click(closeButton);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(document.activeElement).toBe(firstCell);
   });
 
   it('makes only pinned tooltips focusable and interactive until Escape closes them', () => {

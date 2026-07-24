@@ -318,7 +318,14 @@ function scoreText(value) {
   return validScore(value) ? `${value}点` : 'データなし';
 }
 
-function MatrixTooltip({ tip, mode, memberNames, tooltipRef, onEscape }) {
+function MatrixTooltip({
+  tip,
+  mode,
+  memberNames,
+  tooltipRef,
+  onClose,
+  onEscape,
+}) {
   if (!tip) return null;
   const { cell } = tip;
   const style = {
@@ -335,6 +342,16 @@ function MatrixTooltip({ tip, mode, memberNames, tooltipRef, onEscape }) {
       onEscape();
     },
   };
+  const closeButton = tip.pinned ? (
+    <button
+      type="button"
+      className="compat-matrix-tooltip-close"
+      aria-label="ツールチップを閉じる"
+      onClick={onClose}
+    >
+      <span aria-hidden="true">×</span>
+    </button>
+  ) : null;
   if (cell.kind === 'diagonal') {
     return (
       <aside
@@ -343,6 +360,7 @@ function MatrixTooltip({ tip, mode, memberNames, tooltipRef, onEscape }) {
         className={`compat-matrix-tooltip diagonal ${tip.pinned ? 'pinned' : ''}`}
         style={{ ...style, '--matrix-group-color': AXIS_HEX[cell.axis.groupIndex] }}
       >
+        {closeButton}
         <h3>{cell.axis.label}</h3>
         <span className="compat-matrix-axis-pill">{cell.axis.group} / {BLOCKS[cell.axis.groupIndex]?.name}</span>
         {mode === 'share' ? (
@@ -374,6 +392,7 @@ function MatrixTooltip({ tip, mode, memberNames, tooltipRef, onEscape }) {
       className={`compat-matrix-tooltip pair ${tip.pinned ? 'pinned' : ''}`}
       style={{ ...style, '--matrix-zone-color': ZONE_COLOR[zoneKey] }}
     >
+      {closeButton}
       <h3>{pairName(cell)}</h3>
       <p className="compat-matrix-tooltip-axes">{cell.axisA.label} × {cell.axisB.label}</p>
       <div className="compat-matrix-tooltip-meta">
@@ -506,6 +525,22 @@ export default function CompatMatrix({
     }
   }, [tip]);
 
+  useEffect(() => {
+    if (!tip?.pinned) return undefined;
+
+    const handleOutsidePointerDown = (event) => {
+      if (
+        matrixRef.current?.contains(event.target)
+        || tooltipRef.current?.contains(event.target)
+      ) return;
+      setTip(null);
+    };
+    document.addEventListener('pointerdown', handleOutsidePointerDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsidePointerDown, true);
+    };
+  }, [tip?.pinned]);
+
   const toggleZone = (zone) => {
     setActiveZones((current) => {
       const next = new Set(current);
@@ -563,10 +598,6 @@ export default function CompatMatrix({
         ? current
         : tooltipFor(cell, cellKey, element, event)
     ));
-  };
-
-  const openPinnedTooltip = (cell, cellKey, element, event) => {
-    setTip(tooltipFor(cell, cellKey, element, event, true));
   };
 
   const togglePinnedTooltip = (cell, cellKey, element, event) => {
@@ -691,12 +722,17 @@ export default function CompatMatrix({
       },
       onClick: (event) => {
         const pointerType = pointerTypeRef.current;
+        const target = event.currentTarget;
         pointerTypeRef.current = null;
-        if (pointerType === 'touch' || pointerType === 'pen' || pointerType === 'unknown') {
-          openPinnedTooltip(cell, cellKey, event.currentTarget, event);
-        } else {
-          togglePinnedTooltip(cell, cellKey, event.currentTarget, event);
+        if (pointerType === 'touch' || pointerType === 'pen') {
+          setTip((current) => (
+            current?.cellKey === cellKey && current.pinned
+              ? null
+              : tooltipFor(cell, cellKey, target, event, true)
+          ));
+          return;
         }
+        togglePinnedTooltip(cell, cellKey, target, event);
       },
       onMouseEnter: (event) => {
         if (pointerTypeRef.current === 'touch' || pointerTypeRef.current === 'pen') return;
@@ -817,6 +853,7 @@ export default function CompatMatrix({
         mode={mode}
         memberNames={memberNames}
         tooltipRef={tooltipRef}
+        onClose={() => closeTooltip(tip?.cellKey)}
         onEscape={() => closeTooltip(tip?.cellKey)}
       />
 
