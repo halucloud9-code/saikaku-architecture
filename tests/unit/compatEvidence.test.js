@@ -130,6 +130,26 @@ describe('compat evidence layer', () => {
     expect(JSON.stringify(evidence.promptEvidence)).not.toContain(secret);
   });
 
+  it('uses the canonical Japanese UAAM axis labels in every prompt evidence string', () => {
+    const cohort = Array.from({ length: 30 }, (_unused, index) => uaamScores(index < 15 ? 1 : 20));
+    const evidence = buildCompatEvidence([
+      internal('a', '観察', '構造化', uaamScores(1)),
+      internal('b', '対話', '発想', uaamScores(20)),
+    ], cohort, 'pair');
+    const uaamPromptEvidence = evidence.promptEvidence.filter((item) => item.kind.startsWith('uaam_percentile_'));
+    const promptText = uaamPromptEvidence.map((item) => item.text).join('\n');
+
+    expect(uaamPromptEvidence).toHaveLength(COMPAT_VISUAL_UAAM_AXES.length);
+    for (const { key, label } of COMPAT_VISUAL_UAAM_AXES) {
+      expect(promptText).toContain(`UAAM「${label}」`);
+      expect(promptText).not.toMatch(new RegExp(`\\b${key}\\b`));
+    }
+    expect(evidence.ledger.every((item) => (
+      !item.kind.startsWith('uaam_percentile_')
+      || COMPAT_VISUAL_UAAM_AXES.some(({ key }) => item.details.sub === key)
+    ))).toBe(true);
+  });
+
   it('projects integer UAAM member scores by alias without changing the visual contract', () => {
     const evidence = buildCompatEvidence([
       internal('a', '観察', '構造化', {

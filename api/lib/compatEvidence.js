@@ -28,6 +28,7 @@ const UAAM_VISUAL_AXES = [
   ['implementation', '実装力'],
   ['influence', '影響力'],
 ];
+const UAAM_AXIS_LABELS = new Map(UAAM_VISUAL_AXES);
 
 function percentile(values, target) {
   if (values.length < UAAM_MIN_COHORT || !Number.isFinite(target)) return null;
@@ -156,6 +157,8 @@ function uaamEvidence(profiles, uaamDocs, mode, ledger) {
 
   const subs = new Set([...percentiles.values()].flatMap((value) => Object.keys(value)));
   for (const sub of subs) {
+    const axisLabel = UAAM_AXIS_LABELS.get(sub);
+    if (!axisLabel) continue;
     const points = eligibleProfiles
       .map((profile) => ({ alias: profile.alias, percentile: percentiles.get(profile.alias)?.[sub] }))
       .filter((point) => Number.isFinite(point.percentile));
@@ -163,9 +166,9 @@ function uaamEvidence(profiles, uaamDocs, mode, ledger) {
     const values = points.map((point) => point.percentile);
     const gap = Math.max(...values) - Math.min(...values);
     if (gap <= UAAM_SIMILAR_MAX_GAP) {
-      addEvidence(ledger, 'similarity', 'uaam_percentile_similarity', `UAAM ${sub} は対象者間のpercentile幅が ${gap}pt（${points.map((p) => `${p.alias}:${p.percentile}`).join(', ')}）。`, { sub, points, gap });
+      addEvidence(ledger, 'similarity', 'uaam_percentile_similarity', `UAAM「${axisLabel}」は対象者間のpercentile幅が ${gap}pt（${points.map((p) => `${p.alias}:${p.percentile}`).join(', ')}）。`, { sub, points, gap });
     } else if (gap >= UAAM_COMPLEMENT_MIN_GAP) {
-      addEvidence(ledger, 'complementarity', 'uaam_percentile_complement', `UAAM ${sub} は対象者間のpercentile幅が ${gap}pt（${points.map((p) => `${p.alias}:${p.percentile}`).join(', ')}）。`, { sub, points, gap });
+      addEvidence(ledger, 'complementarity', 'uaam_percentile_complement', `UAAM「${axisLabel}」は対象者間のpercentile幅が ${gap}pt（${points.map((p) => `${p.alias}:${p.percentile}`).join(', ')}）。`, { sub, points, gap });
     }
   }
 
