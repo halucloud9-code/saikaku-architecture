@@ -136,16 +136,16 @@
 
 ## Phase 2: 品質ゲート（ローカル）`depends-on: impl-1, impl-2, impl-3`
 
-- [ ] [id:quality] 品質検証
+- [x] [id:quality] 品質検証
   - [x] [id:codex-review] [required] 実施済み（sol 8観点並列・つかさ指示でsol使用。7観点完走・best-practicesタイムアウト。findings: worktree codex/code-review-findings.md）
   - [x] [id:codex-fix] 新規実欠陥6クラスタ修正（コミット2804871: さがし内部限定化+profileId除去/分析レーススナップショット/レガシーA/Bラベル回復/丸め統一/a11y非button化・コントラスト12.46:1/JSON破損エラー化）。main既存指摘はissue化、H-7はつかさ判断へ
   - [x] [id:opus-review] [required] Fable差分レビュー完了（LLM入力への実名参照ゼロ・uaamMatrix出現面5ファイル限定・レスポンスprofileId除去・残buttonはフィルターのみ、を全てgrep/実読で確認）
-  - [ ] [id:e2e] [required] スイート実測: unit161/UI84/API181 green（修正後にFable再実行）。実LLM canary 2回成功（契約1発通過・稚拙表現ゼロ・軸名日本語化）。test:rules の8件failは**mainでも同一再現＝既存破損**（本ブランチ無関係）。E2E最終実行中
+  - [x] [id:e2e] [required] 最終実測（Fable実行）: unit 161/161・UI 84/84・API 181/181・**E2E 47/47（exit=0）** 全green。実LLM canary 2回成功（契約1発通過・稚拙表現ゼロ・軸名日本語化を目視確認）。test:rules の8件failはmainでも同一再現＝既存破損（本ブランチ無関係、issue化）
   - [x] [id:screenshots] 取得済み（実canary出力ベース。a11y改修後に再取得。worktree screenshots/compat-matrix-names/）
 
 ## Phase 3: ドキュメント同期 `depends-on: quality`
 
-- [ ] [id:docs] [required] `/sync-docs`（README / docs仕様への反映）
+- [x] [id:docs] [required] sync-docs 実施（テンプレ想定の .docs/spec/・CLAUDE.md は本リポに不在のため生成物3件は破棄し、リポ正本 docs/design-rationale.md に2026-07-24設計判断を追記。単発READMEは統合削除。コミット e7750ac）
 
 ## Phase 4: PR `depends-on: docs`
 
