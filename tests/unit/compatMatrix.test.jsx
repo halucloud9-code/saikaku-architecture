@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import CompatMatrix, { buildCompatMatrixModel } from '../../src/compat/CompatMatrix.jsx';
+import CompatMatrix, {
+  buildCompatMatrixModel,
+  buildSharedCompatMatrixModel,
+} from '../../src/compat/CompatMatrix.jsx';
 import { buildCompatSharedMatrix } from '../../api/lib/compatShare.js';
 
 function pair(model, axisA, axisB) {
@@ -129,6 +132,78 @@ describe('CompatMatrix', () => {
     fireEvent.click(screen.getByRole('button', { name: 'PRO' }));
     expect(pairCell).toHaveAttribute('aria-hidden', 'true');
     expect(screen.queryByRole('img', { name: /基軸力 × 認知力。高い水準。担い手 つかさ/u })).toBeNull();
+  });
+
+  it('uses one roving tab stop, shows details on focus, skips filtered cells, and toggles with Enter or tap', () => {
+    const { container } = render(
+      <CompatMatrix
+        uaamMatrix={{
+          memberScores: {
+            M1: { meaning: 20, mindfulness: 20, mindshift: 16 },
+          },
+        }}
+        members={[{ alias: 'M1' }]}
+        memberLabels={['つかさ']}
+      />,
+    );
+
+    const firstCell = container.querySelector('[data-row="0"][data-column="0"]');
+    const naturalCell = container.querySelector('[data-row="0"][data-column="1"]');
+    const proCell = container.querySelector('[data-row="0"][data-column="2"]');
+    const allCells = [...container.querySelectorAll('.compat-matrix-cell')];
+    expect(allCells.filter((cell) => cell.tabIndex === 0)).toEqual([firstCell]);
+
+    fireEvent.click(screen.getByRole('button', { name: /NATURAL/u }));
+    expect(naturalCell).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.focus(firstCell);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('基軸力');
+
+    fireEvent.keyDown(firstCell, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(proCell);
+    expect(naturalCell.tabIndex).toBe(-1);
+    expect(proCell.tabIndex).toBe(0);
+    expect(allCells.filter((cell) => cell.tabIndex === 0)).toEqual([proCell]);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('基転力');
+
+    fireEvent.keyDown(proCell, { key: 'Enter' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.keyDown(proCell, { key: 'Enter' });
+    expect(screen.getByRole('tooltip')).toHaveTextContent('基転力');
+
+    fireEvent.blur(proCell);
+    fireEvent.pointerDown(firstCell, { pointerType: 'touch' });
+    fireEvent.focus(firstCell);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.click(firstCell);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('基軸力');
+    fireEvent.click(firstCell);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('uses shared topPairs in their stored ranking order and omits TOP 5 for old matrices', () => {
+    const sharedMatrix = buildCompatSharedMatrix({
+      memberScores: {
+        M1: {
+          meaning: 16,
+          mindfulness: 16,
+          mindshift: 20,
+          mastery: 20,
+        },
+      },
+    }, ['M1']);
+    const rankedModel = buildSharedCompatMatrixModel(sharedMatrix, ['M1']);
+
+    expect(rankedModel.hasTopPairs).toBe(true);
+    expect(rankedModel.topPairs.map((cell) => ({
+      rowKey: cell.axisA.key,
+      colKey: cell.axisB.key,
+    }))).toEqual(sharedMatrix.topPairs);
+
+    const legacyMatrix = structuredClone(sharedMatrix);
+    delete legacyMatrix.topPairs;
+    const legacyModel = buildSharedCompatMatrixModel(legacyMatrix, ['M1']);
+    expect(legacyModel.hasTopPairs).toBe(false);
+    expect(legacyModel.topPairs).toEqual([]);
   });
 
   it('renders shared derived data with carrier names but no score details or diagonal carriers', () => {

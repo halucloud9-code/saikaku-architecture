@@ -204,8 +204,35 @@ describe('compat shared matrix', () => {
       zone: 'no-data',
       carrierAliases: [],
     });
-    expect(JSON.stringify(sharedMatrix)).not.toMatch(/score|memberScores|uaamMatrix|carrierCount/iu);
+    expect(sharedMatrix.topPairs).toEqual([
+      { rowKey: 'meaning', colKey: 'mindfulness' },
+      { rowKey: 'meaning', colKey: 'mindshift' },
+      { rowKey: 'mindfulness', colKey: 'mindshift' },
+    ]);
+    expect(JSON.stringify(sharedMatrix)).not.toMatch(/score|sum|memberScores|uaamMatrix|carrierCount/iu);
     expect(validateCompatSharedMatrix(sharedMatrix, aliases).ok).toBe(true);
+  });
+
+  it('ranks topPairs by server-side zone and sum while exposing only canonical pair keys', () => {
+    const sharedMatrix = buildCompatSharedMatrix({
+      memberScores: {
+        M1: {
+          meaning: 16,
+          mindfulness: 16,
+          mindshift: 20,
+          mastery: 20,
+        },
+      },
+    }, ['M1']);
+
+    expect(sharedMatrix.topPairs).toEqual([
+      { rowKey: 'mindshift', colKey: 'mastery' },
+      { rowKey: 'meaning', colKey: 'mindshift' },
+      { rowKey: 'meaning', colKey: 'mastery' },
+      { rowKey: 'mindfulness', colKey: 'mindshift' },
+      { rowKey: 'mindfulness', colKey: 'mastery' },
+    ]);
+    expect(JSON.stringify(sharedMatrix.topPairs)).not.toMatch(/score|sum/iu);
   });
 
   it('validates the issuance matrix against member aliases, 16-axis keys, and 0-20 integers', () => {
@@ -243,6 +270,25 @@ describe('compat shared matrix', () => {
     const carrierCount = structuredClone(sharedMatrix);
     carrierCount.cells[0].carrierCount = 1;
     expect(validateCompatSharedMatrix(carrierCount, aliases).ok).toBe(false);
+  });
+
+  it('accepts legacy matrices without topPairs and validates topPairs as unique canonical pairs', () => {
+    const sharedMatrix = buildCompatSharedMatrix(uaamMatrixFixture(), aliases);
+    const legacy = structuredClone(sharedMatrix);
+    delete legacy.topPairs;
+    expect(validateCompatSharedMatrix(legacy, aliases).ok).toBe(true);
+
+    const duplicate = structuredClone(sharedMatrix);
+    duplicate.topPairs = [duplicate.topPairs[0], duplicate.topPairs[0]];
+    expect(validateCompatSharedMatrix(duplicate, aliases).errors.join(' ')).toContain('重複');
+
+    const nonCanonical = structuredClone(sharedMatrix);
+    nonCanonical.topPairs = [{ rowKey: 'mindfulness', colKey: 'meaning' }];
+    expect(validateCompatSharedMatrix(nonCanonical, aliases).errors.join(' ')).toContain('正規ペア');
+
+    const tooMany = structuredClone(sharedMatrix);
+    tooMany.topPairs = sharedMatrix.cells.slice(0, 6).map(({ rowKey, colKey }) => ({ rowKey, colKey }));
+    expect(validateCompatSharedMatrix(tooMany, aliases).errors.join(' ')).toContain('最大5件');
   });
 
   it('rejects oversized matrices before accepting any extended shape', () => {

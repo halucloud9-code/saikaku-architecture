@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getZone, UAAM_ZONE_THRESHOLDS } from '../lib/uaamZones';
 import {
   AXIS_HEX,
@@ -46,6 +46,13 @@ function validScore(value) {
 
 function unique(values) {
   return [...new Set(values)];
+}
+
+function filterKeyForCell(cell) {
+  if (cell.kind === 'diagonal') {
+    return cell.dataStatus === 'no-data' ? 'no-data' : null;
+  }
+  return cell.dataStatus === 'no-data' ? 'no-data' : cell.zone;
 }
 
 function buildDiagonal(axis, aliases, scoresByAlias) {
@@ -195,6 +202,7 @@ export function buildCompatMatrixModel(uaamMatrix, preferredAliasOrder = []) {
     scoresByAlias,
     diagonal,
     cells,
+    hasTopPairs: true,
     ...summarizeMatrix(cells, diagonal, { includeCoverage: true }),
   };
 }
@@ -236,6 +244,16 @@ export function buildSharedCompatMatrixModel(sharedMatrix, preferredAliasOrder =
       };
     })
   ));
+  const summary = summarizeMatrix(cells, diagonal, { includeCoverage: false });
+  const axisIndex = new Map(COMPAT_MATRIX_AXES.map((axis, index) => [axis.key, index]));
+  const topPairs = Array.isArray(sharedMatrix?.topPairs)
+    ? sharedMatrix.topPairs.flatMap(({ rowKey, colKey }) => {
+      const rowIndex = axisIndex.get(rowKey);
+      const colIndex = axisIndex.get(colKey);
+      const cell = cells[rowIndex]?.[colIndex];
+      return cell?.kind === 'pair' ? [cell] : [];
+    })
+    : [];
 
   return {
     aliases: preferredAliasOrder,
@@ -243,7 +261,9 @@ export function buildSharedCompatMatrixModel(sharedMatrix, preferredAliasOrder =
     scoresByAlias: {},
     diagonal,
     cells,
-    ...summarizeMatrix(cells, diagonal, { includeCoverage: false }),
+    ...summary,
+    hasTopPairs: Array.isArray(sharedMatrix?.topPairs),
+    topPairs,
   };
 }
 
@@ -396,6 +416,9 @@ export default function CompatMatrix({
   );
   const [activeZones, setActiveZones] = useState(() => new Set([...ZONE_ORDER, 'no-data']));
   const [tip, setTip] = useState(null);
+  const [activeCell, setActiveCell] = useState({ rowIndex: 0, colIndex: 0 });
+  const matrixRef = useRef(null);
+  const pointerTypeRef = useRef(null);
   const memberNames = useMemo(
     () => memberNameMap(model.aliases, memberAliases, memberLabels),
     [model.aliases, memberAliases.join('|'), memberLabels.join('|')],
@@ -403,6 +426,31 @@ export default function CompatMatrix({
   const missingMembers = mode === 'admin'
     ? memberAliases.filter((alias) => !model.dataAliases.includes(alias))
     : [];
+
+  const isFiltered = (cell) => {
+    const filterKey = filterKeyForCell(cell);
+    return !!filterKey && !activeZones.has(filterKey);
+  };
+
+  useEffect(() => {
+    const currentCell = model.cells[activeCell.rowIndex]?.[activeCell.colIndex];
+    if (currentCell && !isFiltered(currentCell)) return;
+
+    const nextCell = model.cells.flatMap((row, rowIndex) => (
+      row.map((cell, colIndex) => ({ cell, rowIndex, colIndex }))
+    )).find(({ cell }) => !isFiltered(cell));
+    if (!nextCell) return;
+
+    const activeElement = document.activeElement;
+    const hadCellFocus = matrixRef.current?.contains(activeElement)
+      && activeElement?.classList?.contains('compat-matrix-cell');
+    setActiveCell({ rowIndex: nextCell.rowIndex, colIndex: nextCell.colIndex });
+    if (hadCellFocus) {
+      matrixRef.current
+        ?.querySelector(`[data-row="${nextCell.rowIndex}"][data-column="${nextCell.colIndex}"]`)
+        ?.focus();
+    }
+  }, [activeZones, model, activeCell.rowIndex, activeCell.colIndex]);
 
   const toggleZone = (zone) => {
     setActiveZones((current) => {
@@ -443,26 +491,112 @@ export default function CompatMatrix({
     ].filter(Boolean).join('。');
   };
 
+  const tooltipFor = (cell, cellKey, element, event) => {
+    const rect = element.getBoundingClientRect();
+    const hasPointerPosition = Number.isFinite(event?.clientX) && Number.isFinite(event?.clientY);
+    return {
+      cell,
+      cellKey,
+      x: hasPointerPosition ? event.clientX : rect.left + (rect.width / 2),
+      y: hasPointerPosition ? event.clientY : rect.top + (rect.height / 2),
+    };
+  };
+
+  const showTooltip = (cell, cellKey, element, event) => {
+    setTip(tooltipFor(cell, cellKey, element, event));
+  };
+
+  const toggleTooltip = (cell, cellKey, element, event) => {
+    setTip((current) => (
+      current?.cellKey === cellKey
+        ? null
+        : tooltipFor(cell, cellKey, element, event)
+    ));
+  };
+
+  const focusCell = (rowIndex, colIndex) => {
+    const target = matrixRef.current
+      ?.querySelector(`[data-row="${rowIndex}"][data-column="${colIndex}"]`);
+    if (!target) return;
+    setActiveCell({ rowIndex, colIndex });
+    target.focus();
+  };
+
+  const handleCellKeyDown = (event, cell, rowIndex, colIndex) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      toggleTooltip(cell, `${rowIndex}-${colIndex}`, event.currentTarget, event);
+      return;
+    }
+    const direction = {
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+      ArrowLeft: [0, -1],
+      ArrowRight: [0, 1],
+    }[event.key];
+    if (!direction) return;
+
+    event.preventDefault();
+    let nextRow = rowIndex + direction[0];
+    let nextCol = colIndex + direction[1];
+    while (
+      nextRow >= 0
+      && nextRow < COMPAT_MATRIX_AXES.length
+      && nextCol >= 0
+      && nextCol < COMPAT_MATRIX_AXES.length
+    ) {
+      if (!isFiltered(model.cells[nextRow][nextCol])) {
+        focusCell(nextRow, nextCol);
+        return;
+      }
+      nextRow += direction[0];
+      nextCol += direction[1];
+    }
+  };
+
   const renderCell = (cell, rowIndex, colIndex) => {
-    const filterKey = cell.kind === 'diagonal'
-      ? (cell.dataStatus === 'no-data' ? 'no-data' : null)
-      : (cell.dataStatus === 'no-data' ? 'no-data' : cell.zone);
-    const filtered = filterKey && !activeZones.has(filterKey);
+    const filtered = isFiltered(cell);
     const zoneKey = cell.kind === 'pair'
       ? (cell.dataStatus === 'no-data' ? 'no-data' : cell.zone)
       : null;
-    const setTooltip = (event) => setTip({
-      cell,
-      x: event.clientX,
-      y: event.clientY,
-    });
+    const cellKey = `${rowIndex}-${colIndex}`;
     const commonProps = {
       role: 'img',
       'aria-label': titleFor(cell),
       'aria-hidden': filtered ? 'true' : undefined,
-      onMouseEnter: setTooltip,
-      onMouseMove: setTooltip,
-      onMouseLeave: () => setTip(null),
+      tabIndex: !filtered
+        && activeCell.rowIndex === rowIndex
+        && activeCell.colIndex === colIndex
+        ? 0
+        : -1,
+      onFocus: (event) => {
+        setActiveCell({ rowIndex, colIndex });
+        if (!pointerTypeRef.current) {
+          showTooltip(cell, cellKey, event.currentTarget, event);
+        }
+      },
+      onBlur: () => setTip((current) => (current?.cellKey === cellKey ? null : current)),
+      onKeyDown: (event) => handleCellKeyDown(event, cell, rowIndex, colIndex),
+      onPointerDown: (event) => {
+        pointerTypeRef.current = event.pointerType || 'unknown';
+      },
+      onPointerCancel: () => {
+        pointerTypeRef.current = null;
+      },
+      onClick: (event) => {
+        const pointerType = pointerTypeRef.current;
+        pointerTypeRef.current = null;
+        if (!pointerType || pointerType === 'touch' || pointerType === 'pen' || pointerType === 'unknown') {
+          toggleTooltip(cell, cellKey, event.currentTarget, event);
+        }
+      },
+      onMouseEnter: (event) => showTooltip(cell, cellKey, event.currentTarget, event),
+      onMouseMove: (event) => showTooltip(cell, cellKey, event.currentTarget, event),
+      onMouseLeave: (event) => {
+        if (document.activeElement !== event.currentTarget) {
+          setTip((current) => (current?.cellKey === cellKey ? null : current));
+        }
+      },
     };
 
     if (cell.kind === 'diagonal') {
@@ -527,10 +661,10 @@ export default function CompatMatrix({
             </button>
           );
         })}
-        <small>— セルにマウスで詳細</small>
+        <small>— マウス・タッチ、または矢印キーでセル移動／Enterで詳細</small>
       </div>
 
-      <div className="compat-matrix-scroll">
+      <div className="compat-matrix-scroll" ref={matrixRef}>
         <table aria-label="UAAM 16軸のチーム発動領域マップ">
           <thead>
             <tr>
@@ -580,8 +714,10 @@ export default function CompatMatrix({
       <div className="compat-matrix-summary-grid">
         <section>
           <p className="compat-kicker">GRIFFON CODE</p>
-          <h3>厚い組み合わせ TOP 5</h3>
-          {model.topPairs.length > 0 ? (
+          <h3>{model.hasTopPairs ? '厚い組み合わせ TOP 5' : '厚い組み合わせ'}</h3>
+          {!model.hasTopPairs ? (
+            <p className="compat-empty-state">この共有結果には、TOP 5の順序データが含まれていません。</p>
+          ) : model.topPairs.length > 0 ? (
             <PairWindows pairs={model.topPairs} memberNames={memberNames} />
           ) : <p className="compat-empty-state">今回のデータでは、発動の目安に届く組み合わせは見つかりませんでした。</p>}
         </section>

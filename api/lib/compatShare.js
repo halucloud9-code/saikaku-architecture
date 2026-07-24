@@ -124,33 +124,52 @@ export function buildCompatSharedMatrix(uaamMatrix, memberAliases) {
       ? 'measured'
       : 'no-data',
   }));
-  const cells = COMPAT_SHARED_MATRIX_PAIRS.map(([rowKey, colKey]) => {
+  const rankedCells = COMPAT_SHARED_MATRIX_PAIRS.map(([rowKey, colKey], canonicalIndex) => {
     const measured = aliases.flatMap((alias) => {
       const rowScore = memberScores[alias]?.[rowKey];
       const colScore = memberScores[alias]?.[colKey];
       return Number.isInteger(rowScore) && Number.isInteger(colScore)
-        ? [{ alias, zone: getZone(rowScore, colScore) }]
+        ? [{ alias, zone: getZone(rowScore, colScore), sum: rowScore + colScore }]
         : [];
     });
     if (measured.length === 0) {
-      return { rowKey, colKey, zone: 'no-data', carrierAliases: [] };
+      return {
+        cell: { rowKey, colKey, zone: 'no-data', carrierAliases: [] },
+        strongestSum: null,
+        canonicalIndex,
+      };
     }
     const zone = measured.reduce((best, item) => (
       SHARED_MATRIX_ZONE_RANK[item.zone] > SHARED_MATRIX_ZONE_RANK[best]
         ? item.zone
         : best
     ), measured[0].zone);
+    const zoneHolders = measured.filter((item) => item.zone === zone);
     return {
-      rowKey,
-      colKey,
-      zone,
-      carrierAliases: zone === 'dormant'
-        ? []
-        : measured.filter((item) => item.zone === zone).map((item) => item.alias),
+      cell: {
+        rowKey,
+        colKey,
+        zone,
+        carrierAliases: zone === 'dormant'
+          ? []
+          : zoneHolders.map((item) => item.alias),
+      },
+      strongestSum: Math.max(...zoneHolders.map((item) => item.sum)),
+      canonicalIndex,
     };
   });
+  const cells = rankedCells.map(({ cell }) => cell);
+  const topPairs = rankedCells
+    .filter(({ cell }) => !['dormant', 'no-data'].includes(cell.zone))
+    .sort((left, right) => (
+      SHARED_MATRIX_ZONE_RANK[right.cell.zone] - SHARED_MATRIX_ZONE_RANK[left.cell.zone]
+      || right.strongestSum - left.strongestSum
+      || left.canonicalIndex - right.canonicalIndex
+    ))
+    .slice(0, 5)
+    .map(({ cell }) => ({ rowKey: cell.rowKey, colKey: cell.colKey }));
 
-  return { axes, cells };
+  return { axes, cells, topPairs };
 }
 
 export function validateCompatSharedMatrix(value, memberAliases) {
@@ -166,7 +185,9 @@ export function validateCompatSharedMatrix(value, memberAliases) {
   if (containsSharedMatrixForbiddenShape(value)) {
     errors.push('sharedMatrix: 0〜20の生スコア形フィールドを含められません');
   }
-  if (!hasExactKeys(value, ['axes', 'cells'])) {
+  const hasTopPairs = Object.prototype.hasOwnProperty.call(value, 'topPairs');
+  const expectedKeys = hasTopPairs ? ['axes', 'cells', 'topPairs'] : ['axes', 'cells'];
+  if (!hasExactKeys(value, expectedKeys)) {
     errors.push('sharedMatrix: フィールドが契約と一致しません');
     return { ok: false, errors };
   }
@@ -223,6 +244,31 @@ export function validateCompatSharedMatrix(value, memberAliases) {
         }
       }
     });
+  }
+
+  if (hasTopPairs) {
+    if (!Array.isArray(value.topPairs) || value.topPairs.length > 5) {
+      errors.push('sharedMatrix.topPairs: 最大5件の配列が必要です');
+    } else {
+      const canonicalPairSet = new Set(
+        COMPAT_SHARED_MATRIX_PAIRS.map(([rowKey, colKey]) => `${rowKey}|${colKey}`),
+      );
+      const seenPairs = new Set();
+      value.topPairs.forEach((pair, index) => {
+        const path = `sharedMatrix.topPairs[${index}]`;
+        if (!hasExactKeys(pair, ['rowKey', 'colKey'])) {
+          errors.push(`${path}: フィールドが契約と一致しません`);
+          return;
+        }
+        const pairKey = `${pair.rowKey}|${pair.colKey}`;
+        if (!canonicalPairSet.has(pairKey)) {
+          errors.push(`${path}: 正規ペアではありません`);
+        } else if (seenPairs.has(pairKey)) {
+          errors.push(`${path}: ペアが重複しています`);
+        }
+        seenPairs.add(pairKey);
+      });
+    }
   }
 
   return errors.length === 0

@@ -50,6 +50,9 @@ function requestOrigin(req) {
 
 async function issueShare(req, res, admin) {
   const shareInput = structuredClone(req.body);
+  const hasUaamMatrix = !!shareInput
+    && typeof shareInput === 'object'
+    && Object.prototype.hasOwnProperty.call(shareInput, 'uaamMatrix');
   const uaamMatrix = shareInput?.uaamMatrix;
   if (shareInput && typeof shareInput === 'object') delete shareInput.uaamMatrix;
   if (shareInput?.report && typeof shareInput.report === 'object') {
@@ -62,14 +65,18 @@ async function issueShare(req, res, admin) {
   if (!validation.ok) return errorResponse(res, validation.status, validation.code, validation.error);
   const memberAliases = validation.value.report.dataSufficiency.memberAvailability
     .map((member) => member.alias);
-  const uaamValidation = validateCompatShareUaamMatrix(uaamMatrix, memberAliases);
-  if (!uaamValidation.ok) {
-    return errorResponse(res, 422, 'UAAM_MATRIX_INVALID', '共有する地図データの安全性を確認できませんでした');
-  }
-  const sharedMatrix = buildCompatSharedMatrix(uaamValidation.value, memberAliases);
-  const sharedMatrixValidation = validateCompatSharedMatrix(sharedMatrix, memberAliases);
-  if (!sharedMatrixValidation.ok) {
-    return errorResponse(res, 422, 'SHARED_MATRIX_INVALID', '共有する地図データの安全性を確認できませんでした');
+  let sharedMatrix;
+  if (hasUaamMatrix) {
+    const uaamValidation = validateCompatShareUaamMatrix(uaamMatrix, memberAliases);
+    if (!uaamValidation.ok) {
+      return errorResponse(res, 400, 'UAAM_MATRIX_INVALID', '共有する地図データの安全性を確認できませんでした');
+    }
+    const builtSharedMatrix = buildCompatSharedMatrix(uaamValidation.value, memberAliases);
+    const sharedMatrixValidation = validateCompatSharedMatrix(builtSharedMatrix, memberAliases);
+    if (!sharedMatrixValidation.ok) {
+      return errorResponse(res, 422, 'SHARED_MATRIX_INVALID', '共有する地図データの安全性を確認できませんでした');
+    }
+    sharedMatrix = sharedMatrixValidation.value;
   }
 
   const shareId = randomUUID();
@@ -80,7 +87,7 @@ async function issueShare(req, res, admin) {
   const batch = db.batch();
   batch.create(shareRef, {
     ...validation.value,
-    sharedMatrix: sharedMatrixValidation.value,
+    ...(hasUaamMatrix ? { sharedMatrix } : {}),
     actorUid: admin.uid,
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Timestamp.fromMillis(nowMs + COMPAT_SHARE_TTL_MS),
@@ -94,7 +101,7 @@ async function issueShare(req, res, admin) {
   });
   await batch.commit();
 
-  return res.status(201).json({
+  return res.status(hasUaamMatrix ? 201 : 200).json({
     shareId,
     url,
   });

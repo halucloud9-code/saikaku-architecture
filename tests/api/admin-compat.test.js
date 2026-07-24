@@ -685,9 +685,41 @@ describe('compat report sharing', () => {
     expect(stored.data()).not.toHaveProperty('uaamMatrix');
     expect(stored.data()).toHaveProperty('sharedMatrix');
     expect(stored.data().sharedMatrix.cells).toHaveLength(120);
-    expect(JSON.stringify(stored.data().sharedMatrix)).not.toMatch(/score|memberScores|carrierCount/iu);
+    expect(stored.data().sharedMatrix.topPairs).toHaveLength(1);
+    expect(JSON.stringify(stored.data().sharedMatrix)).not.toMatch(/score|sum|memberScores|carrierCount/iu);
     expect(report).toHaveProperty('uaamMatrix.memberScores.M1.meaning', 20);
     expect(report).toHaveProperty('visual.uaam.memberScores.M1.meaning', 20);
+  });
+
+  it('keeps legacy issuance without uaamMatrix successful and stores no sharedMatrix', async () => {
+    const report = await analyzePairReport();
+    const legacyBody = shareIssueBody(report);
+    delete legacyBody.uaamMatrix;
+
+    const issued = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(legacyBody);
+
+    expect(issued.status).toBe(200);
+    const stored = await db.collection('compat_shares').doc(issued.body.shareId).get();
+    expect(stored.exists).toBe(true);
+    expect(stored.data()).not.toHaveProperty('sharedMatrix');
+    expect(stored.data()).not.toHaveProperty('uaamMatrix');
+  });
+
+  it('rejects a present invalid uaamMatrix with UAAM_MATRIX_INVALID', async () => {
+    const report = await analyzePairReport();
+    const invalidBody = shareIssueBody(report, {
+      uaamMatrix: { memberScores: { M1: { meaning: 21 } } },
+    });
+
+    const response = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(invalidBody);
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('UAAM_MATRIX_INVALID');
+    expect((await db.collection('compat_shares').get()).empty).toBe(true);
   });
 
   it('issues, serves, audits, revokes, and hides expired/revoked/unknown shares uniformly', async () => {
@@ -738,6 +770,18 @@ describe('compat report sharing', () => {
     });
     const invalidMatrixVisible = await publicApi.get('/api/compat-share').query({ id: invalidMatrixShareId });
     expect(invalidMatrixVisible.status).toBe(404);
+
+    const legacyMatrixShareId = '55555555-5555-4555-8555-555555555555';
+    const legacySharedMatrix = structuredClone(stored.data().sharedMatrix);
+    delete legacySharedMatrix.topPairs;
+    await db.collection('compat_shares').doc(legacyMatrixShareId).set({
+      ...stored.data(),
+      sharedMatrix: legacySharedMatrix,
+    });
+    const legacyMatrixVisible = await publicApi.get('/api/compat-share').query({ id: legacyMatrixShareId });
+    expect(legacyMatrixVisible.status).toBe(200);
+    expect(legacyMatrixVisible.body.sharedMatrix).toEqual(legacySharedMatrix);
+    expect(legacyMatrixVisible.body.sharedMatrix).not.toHaveProperty('topPairs');
 
     const v1ShareId = '33333333-3333-4333-8333-333333333333';
     const v1Report = structuredClone(sharedReport);
