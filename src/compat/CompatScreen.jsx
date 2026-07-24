@@ -46,6 +46,12 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   const [shareError, setShareError] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [recommendSummary, setRecommendSummary] = useState(null);
+  const [recommendLoading, setRecommendLoading] = useState(false);
+  const [recommendNamesConsent, setRecommendNamesConsent] = useState(false);
+  const [recommendNamesLoading, setRecommendNamesLoading] = useState(false);
+  const [recommendCandidates, setRecommendCandidates] = useState(null);
+  const [recommendError, setRecommendError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -73,6 +79,42 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   const canIssueShare = shareConsent
     && !sharing
     && reportLabels.every((label) => label.length >= 1 && label.length <= 80);
+  const hasRecommendationMatches = Array.isArray(recommendSummary)
+    && recommendSummary.some((axis) => axis.candidateCount > 0);
+
+  const resetRecommendation = () => {
+    setRecommendSummary(null);
+    setRecommendLoading(false);
+    setRecommendNamesConsent(false);
+    setRecommendNamesLoading(false);
+    setRecommendCandidates(null);
+    setRecommendError('');
+  };
+
+  const recommendationMembers = (members) => members.map(({ source, id, shareUrl: url }) => ({
+    source,
+    ...(source === 'internal' ? { id } : { shareUrl: url }),
+  }));
+
+  const loadRecommendationSummary = async (members) => {
+    setRecommendLoading(true);
+    setRecommendError('');
+    try {
+      const data = await apiFetch(user, '/api/admin/compat-recommend', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'search',
+          members: recommendationMembers(members),
+          consent: true,
+        }),
+      });
+      setRecommendSummary(Array.isArray(data.shortages) ? data.shortages : []);
+    } catch (cause) {
+      setRecommendError(cause.message);
+    } finally {
+      setRecommendLoading(false);
+    }
+  };
 
   const switchMode = (nextMode) => {
     setMode(nextMode);
@@ -84,6 +126,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setShare(null);
     setCopied(false);
     setShareError('');
+    resetRecommendation();
   };
 
   const toggleProfile = (profile) => {
@@ -98,6 +141,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setShare(null);
     setCopied(false);
     setShareError('');
+    resetRecommendation();
   };
 
   const removeMember = (member) => {
@@ -107,6 +151,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setShare(null);
     setCopied(false);
     setShareError('');
+    resetRecommendation();
   };
 
   const updateDisplayName = (member, displayName) => {
@@ -133,6 +178,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       setShare(null);
       setCopied(false);
       setShareError('');
+      resetRecommendation();
     } catch (cause) {
       setError(cause.message);
     } finally {
@@ -148,6 +194,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setShare(null);
     setCopied(false);
     setShareError('');
+    resetRecommendation();
     try {
       const data = await apiFetch(user, '/api/admin/compat-analyze', {
         method: 'POST',
@@ -159,10 +206,36 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         }),
       });
       setResult(data);
+      await loadRecommendationSummary(selected);
     } catch (cause) {
       setError(cause.message);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const toggleRecommendationNames = async (checked) => {
+    setRecommendNamesConsent(checked);
+    setRecommendCandidates(null);
+    setRecommendError('');
+    if (!checked) return;
+
+    setRecommendNamesLoading(true);
+    try {
+      const data = await apiFetch(user, '/api/admin/compat-recommend', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'show_names',
+          members: recommendationMembers(selected),
+          consent: true,
+        }),
+      });
+      setRecommendCandidates(Array.isArray(data.candidates) ? data.candidates : []);
+    } catch (cause) {
+      setRecommendNamesConsent(false);
+      setRecommendError(cause.message);
+    } finally {
+      setRecommendNamesLoading(false);
     }
   };
 
@@ -245,6 +318,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
               setShare(null);
               setCopied(false);
               setShareError('');
+              resetRecommendation();
             }} maxLength={500} placeholder="例：新規事業の仮説を3か月で検証する" />
           </label>
         )}
@@ -311,6 +385,73 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       </section>
 
       <CompatReport result={result} memberLabels={reportLabels} uaamMatrix={result?.uaamMatrix} />
+
+      {result && (
+        <section className="compat-recommend" aria-label="チームにない力を持つ受講者さがし">
+          <p className="compat-kicker">FIND A PARTICIPANT</p>
+          <h2>チームにない力を持つ受講者さがし</h2>
+          <p className="compat-recommend-rule">
+            チームで12点（発動の目安）未満、またはデータのない軸を、16点以上で持っている人を、名前の順で表示します。
+          </p>
+          <p className="compat-recommend-ethics">
+            この機能は相互理解のための対話相手を探す補助です。人事・採用・配属の判断には使いません。
+          </p>
+
+          {recommendLoading && <p role="status">該当人数を集計しています…</p>}
+          {recommendError && <p className="compat-error" role="alert">{recommendError}</p>}
+          {Array.isArray(recommendSummary) && recommendSummary.length === 0 && (
+            <p>現在の選択メンバーには、この基準に該当する不足軸はありません。</p>
+          )}
+          {Array.isArray(recommendSummary) && recommendSummary.length > 0 && (
+            <div className="compat-recommend-summary">
+              <h3>実名を開く前の集計</h3>
+              <ul>
+                {recommendSummary.map((axis) => (
+                  <li key={axis.axisKey}>
+                    {axis.axisLabel}
+                    {axis.noData ? '（チームにデータなし）' : '（チームで12点未満）'}
+                    を16点以上で持つ受講者が {axis.candidateCount}人 います
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {hasRecommendationMatches && (
+            <label className="compat-consent compat-recommend-consent">
+              <input
+                type="checkbox"
+                checked={recommendNamesConsent}
+                disabled={recommendNamesLoading}
+                onChange={(event) => toggleRecommendationNames(event.target.checked)}
+              />
+              <span>
+                表示される候補者それぞれについて、相互理解目的でデータを参照することの同意を個別に確認しました。人事・採用・配属の判断には使いません
+              </span>
+            </label>
+          )}
+          {recommendNamesLoading && <p role="status">実名を読み込んでいます…</p>}
+          {recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length === 0 && (
+            <p>この基準に該当する受講者はいません。</p>
+          )}
+          {recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length > 0 && (
+            <div className="compat-recommend-candidates" aria-label="実名の該当者一覧">
+              {recommendCandidates.map((candidate) => (
+                <article key={candidate.profileId}>
+                  <h3>{candidate.displayName}</h3>
+                  <div className="compat-recommend-axis-chips" aria-label={`${candidate.displayName}の該当軸`}>
+                    {candidate.matchedAxes.map((axis) => (
+                      <span key={axis.axisKey}>
+                        {axis.axisLabel}・{axis.noData ? 'チームにデータなし' : 'チームで12点未満'}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {result && (
         <section className="compat-share-controls" aria-label="分析結果の共有">

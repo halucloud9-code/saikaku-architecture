@@ -29,7 +29,9 @@ const publicApi = request(publicApp);
 const UID_A = 'compat-user-a';
 const UID_B = 'compat-user-b';
 const UID_C = 'compat-user-c';
-const FIXTURE_UIDS = [UID_A, UID_B, UID_C];
+const UID_D = 'compat-user-d';
+const UID_E = 'compat-user-e';
+const FIXTURE_UIDS = [UID_A, UID_B, UID_C, UID_D, UID_E];
 
 function resultFixture(uid, overrides = {}) {
   return {
@@ -346,6 +348,108 @@ describe('admin compat analysis', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+});
+
+describe('admin compat recommendation', () => {
+  const selectedMembers = [
+    { source: 'internal', id: UID_A },
+    { source: 'internal', id: UID_B },
+  ];
+
+  it.each([
+    ['missing token', undefined, 401, 'UNAUTHORIZED'],
+    ['non-admin', 'user-token', 403, 'FORBIDDEN'],
+  ])('rejects recommendation access by %s', async (_name, token, status, code) => {
+    let pending = api.post('/api/admin/compat-recommend')
+      .send({ action: 'search', members: selectedMembers, consent: true });
+    if (token) pending = pending.set('Authorization', `Bearer ${token}`);
+    const response = await pending;
+    expect(response.status).toBe(status);
+    expect(response.body.code).toBe(code);
+  });
+
+  it('requires consent for both disclosure stages', async () => {
+    for (const action of ['search', 'show_names']) {
+      const response = await api.post('/api/admin/compat-recommend')
+        .set('Authorization', 'Bearer admin-token')
+        .send({ action, members: selectedMembers, consent: false });
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('CONSENT_REQUIRED');
+    }
+  });
+
+  it('separates aggregate facts from names, sorts display names, and audits both events', async () => {
+    await Promise.all([
+      seedParent('results', UID_C, resultFixture(UID_C, { name: 'いとう' })),
+      seedParent('results', UID_D, resultFixture(UID_D, { name: 'あべ' })),
+      seedParent('results', UID_E, resultFixture(UID_E, { name: 'UAAMなし' })),
+      seedParent('uaam_results', UID_A, {
+        scores: {
+          mindset: { subs: { meaning: 12, mindfulness: 12, mindshift: 12, mastery: 12 } },
+          literacy: { subs: { learning: 12, logical: 11, life: 12, leadership: 12 } },
+          competency: { subs: { critical: 12, creativity: 12, communication: 12, collaboration: 12 } },
+          impact: { subs: { idea: 12, innovation: 12, implementation: 12, influence: 12 } },
+        },
+      }),
+      seedParent('uaam_results', UID_B, {
+        scores: {
+          mindset: { subs: { meaning: 12, mindfulness: 12, mindshift: 12, mastery: 12 } },
+          literacy: { subs: { learning: 12, logical: 11, life: 12, leadership: 12 } },
+          competency: { subs: { critical: 12, creativity: 12, communication: 12, collaboration: 12 } },
+          impact: { subs: { idea: 12, innovation: 12, implementation: 12, influence: 12 } },
+        },
+      }),
+      seedParent('uaam_results', UID_C, {
+        scores: { literacy: { subs: { logical: 16 } } },
+      }),
+      seedParent('uaam_results', UID_D, {
+        scores: { literacy: { subs: { logical: 17 } } },
+      }),
+    ]);
+
+    const summaryResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'search', members: selectedMembers, consent: true });
+
+    expect(summaryResponse.status).toBe(200);
+    expect(summaryResponse.body.stage).toBe('summary');
+    expect(summaryResponse.body).not.toHaveProperty('candidates');
+    expect(JSON.stringify(summaryResponse.body)).not.toContain('あべ');
+    expect(JSON.stringify(summaryResponse.body)).not.toContain('いとう');
+    expect(summaryResponse.body.shortages).toEqual([{
+      axisKey: 'logical',
+      axisLabel: '論理力',
+      missing: true,
+      noData: false,
+      candidateCount: 2,
+    }]);
+
+    const namesResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'show_names', members: selectedMembers, consent: true });
+
+    expect(namesResponse.status).toBe(200);
+    expect(namesResponse.body).not.toHaveProperty('shortages');
+    expect(namesResponse.body.candidates.map((candidate) => candidate.displayName)).toEqual(['あべ', 'いとう']);
+    expect(namesResponse.body.candidates[1].matchedAxes.map((axis) => axis.axisKey)).toEqual(['logical']);
+
+    const audits = (await db.collection('compat_audits').get()).docs.map((doc) => doc.data());
+    expect(audits).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        action: 'recommend_search',
+        actorUid: 'admin-user',
+        memberCount: 2,
+        candidateCount: 2,
+      }),
+      expect.objectContaining({
+        action: 'recommend_names_shown',
+        actorUid: 'admin-user',
+        memberCount: 2,
+        candidateCount: 2,
+      }),
+    ]));
+    expect(getMockCallCount('compat')).toBe(0);
   });
 });
 

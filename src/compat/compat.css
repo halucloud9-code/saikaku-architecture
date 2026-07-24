@@ -245,6 +245,21 @@
 .compat-model-meta { color: var(--compat-muted); font-family: ui-monospace, monospace; font-size: .74rem; }
 .compat-ethics { color: var(--compat-muted); text-align: center; padding: 12px; font-size: .84rem; line-height: 1.7; }
 
+.compat-recommend { max-width: 1180px; margin: 24px auto 0; background: var(--compat-card); border: 1px solid var(--compat-line); border-radius: 16px; padding: clamp(20px, 4vw, 34px); }
+.compat-recommend h2 { margin: 5px 0 10px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 500; }
+.compat-recommend-rule { margin: 0; color: var(--compat-muted); line-height: 1.75; }
+.compat-recommend-ethics { border-left: 4px solid var(--compat-gold); border-radius: 9px; background: var(--compat-surface-2); padding: 12px 14px; color: var(--compat-ink); font-weight: 700; line-height: 1.7; }
+.compat-recommend-summary { margin-top: 22px; border-top: 1px solid var(--compat-line); padding-top: 18px; }
+.compat-recommend-summary h3 { margin: 0 0 10px; font-size: 1rem; }
+.compat-recommend-summary ul { margin: 0; padding-left: 1.3rem; }
+.compat-recommend-summary li { margin: 7px 0; line-height: 1.65; }
+.compat-recommend-consent { margin-bottom: 8px; }
+.compat-recommend-candidates { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-top: 20px; }
+.compat-recommend-candidates article { min-width: 0; border: 1px solid var(--compat-line); border-top: 4px solid var(--compat-deep); border-radius: 13px; background: var(--compat-surface-2); padding: 16px; }
+.compat-recommend-candidates h3 { margin: 0 0 12px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+.compat-recommend-axis-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.compat-recommend-axis-chips span { border: 1px solid var(--compat-line-strong); border-radius: 999px; background: var(--compat-card); padding: 5px 9px; color: var(--compat-muted); font-size: .74rem; line-height: 1.45; }
+
 .compat-share-controls, .compat-share-guidance, .compat-share-state { max-width: 1180px; margin: 24px auto 0; }
 .compat-share-controls, .compat-share-guidance { background: var(--compat-card); border: 1px solid var(--compat-line); border-radius: 16px; padding: clamp(20px, 4vw, 34px); }
 .compat-share-controls h2 { margin: 5px 0 10px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 500; }

@@ -118,6 +118,9 @@ describe('CompatScreen', () => {
       if (path === '/api/admin/compat-analyze') {
         return { ok: true, json: async () => reportFixture };
       }
+      if (path === '/api/admin/compat-recommend') {
+        return { ok: true, json: async () => ({ stage: 'summary', shortages: [] }) };
+      }
       if (path === '/api/admin/compat-share') {
         const body = JSON.parse(options.body);
         if (body.action === 'revoke') return { ok: true, json: async () => ({ revoked: true }) };
@@ -164,5 +167,88 @@ describe('CompatScreen', () => {
     expect(issueBody.memberLabels).toEqual(['つかさ', '野田健一']);
     expect(issueBody.report).not.toHaveProperty('uaamMatrix');
     expect(issueBody.report.visual.uaam).not.toHaveProperty('memberScores');
+  });
+
+  it('shows aggregate facts first and reveals name-sorted cards only after the dedicated consent', async () => {
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return { ok: true, json: async () => reportFixture };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          return {
+            ok: true,
+            json: async () => ({
+              stage: 'summary',
+              shortages: [
+                { axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false, candidateCount: 2 },
+                { axisKey: 'logical', axisLabel: '論理力', missing: false, noData: true, candidateCount: 1 },
+              ],
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'names',
+            candidates: [
+              {
+                profileId: 'candidate-a',
+                displayName: 'あべ',
+                matchedAxes: [{ axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false }],
+              },
+              {
+                profileId: 'candidate-b',
+                displayName: 'いとう',
+                matchedAxes: [{ axisKey: 'logical', axisLabel: '論理力', missing: false, noData: true }],
+              },
+            ],
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+
+    const panel = await screen.findByRole('region', { name: 'チームにない力を持つ受講者さがし' });
+    expect(panel).toHaveTextContent('チームで12点（発動の目安）未満、またはデータのない軸を、16点以上で持っている人を、名前の順で表示します');
+    expect(panel).toHaveTextContent('人事・採用・配属の判断には使いません');
+    expect(await screen.findByText(/基軸力（チームで12点未満）を16点以上で持つ受講者が 2人 います/)).toBeInTheDocument();
+    expect(screen.getByText(/論理力（チームにデータなし）を16点以上で持つ受講者が 1人 います/)).toBeInTheDocument();
+    expect(screen.queryByText('あべ')).not.toBeInTheDocument();
+    expect(screen.queryByText('いとう')).not.toBeInTheDocument();
+
+    const namesConsent = screen.getByText(/表示される候補者それぞれについて/).closest('label').querySelector('input');
+    fireEvent.click(namesConsent);
+
+    const candidateList = await screen.findByLabelText('実名の該当者一覧');
+    expect(candidateList).toHaveTextContent('あべ');
+    expect(candidateList).toHaveTextContent('いとう');
+    expect(candidateList).toHaveTextContent('基軸力・チームで12点未満');
+    expect(candidateList).toHaveTextContent('論理力・チームにデータなし');
+    expect(candidateList).not.toHaveTextContent('1位');
+    expect(candidateList).not.toHaveTextContent('2位');
+    expect(candidateList.querySelector('.compat-badge')).toBeNull();
+    expect(panel).toHaveTextContent('人事・採用・配属の判断には使いません');
+
+    const recommendRequests = fetchMock.mock.calls
+      .filter(([path]) => path === '/api/admin/compat-recommend')
+      .map(([, options]) => JSON.parse(options.body));
+    expect(recommendRequests).toEqual([
+      expect.objectContaining({ action: 'search', consent: true }),
+      expect.objectContaining({ action: 'show_names', consent: true }),
+    ]);
   });
 });
