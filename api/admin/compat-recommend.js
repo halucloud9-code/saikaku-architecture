@@ -1,7 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebaseAdmin.js';
 import { buildCompatRecommendation } from '../lib/compatRecommend.js';
-import { normalizeInternalProfile, parsePublicShareUrl } from '../lib/compatProfiles.js';
+import { normalizeInternalProfile } from '../lib/compatProfiles.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
 const INTERNAL_ID_RE = /^[^/]{1,128}$/u;
@@ -20,29 +20,26 @@ function validateBody(body) {
     throw invalid('選択メンバーは2〜10名で指定してください');
   }
   if (body.consent !== true) throw invalid('対象者の同意確認が必要です', 'CONSENT_REQUIRED');
+  if (body.members.some((member) => member?.source !== 'internal')) {
+    throw invalid('受講者さがしは内部メンバーのみで実行できます');
+  }
 
   const seen = new Set();
   for (const member of body.members) {
-    if (!member || !['internal', 'public'].includes(member.source)) throw invalid('選択メンバーの形式が不正です');
-    const identity = member.source === 'internal' ? member.id : member.shareUrl;
-    if (typeof identity !== 'string' || !identity || seen.has(`${member.source}:${identity}`)) {
+    const identity = member.id;
+    if (typeof identity !== 'string' || !identity || seen.has(`internal:${identity}`)) {
       throw invalid('選択メンバーが重複または不正です');
     }
-    if (member.source === 'internal' && !INTERNAL_ID_RE.test(identity)) {
+    if (!INTERNAL_ID_RE.test(identity)) {
       throw invalid('内部プロフィールIDが不正です');
     }
-    if (member.source === 'public' && !parsePublicShareUrl(identity)) {
-      throw invalid('公開プロフィールURLが不正です');
-    }
-    seen.add(`${member.source}:${identity}`);
+    seen.add(`internal:${identity}`);
   }
 
   return {
     action: body.action,
     members: body.members,
-    selectedProfileIds: body.members
-      .filter((member) => member.source === 'internal')
-      .map((member) => member.id),
+    selectedProfileIds: body.members.map((member) => member.id),
   };
 }
 
@@ -97,7 +94,7 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({
       stage: 'names',
-      candidates: recommendation.candidates,
+      candidates: recommendation.candidates.map(({ profileId: _profileId, ...candidate }) => candidate),
     });
   } catch (error) {
     if (error?.status) return res.status(error.status).json({ code: error.code, error: error.message });

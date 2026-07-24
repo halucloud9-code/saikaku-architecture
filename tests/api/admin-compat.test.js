@@ -381,6 +381,23 @@ describe('admin compat recommendation', () => {
     }
   });
 
+  it('rejects a mixed internal/public member set before recommendation matching', async () => {
+    const response = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({
+        action: 'show_names',
+        members: [
+          selectedMembers[0],
+          { source: 'public', shareUrl: 'https://app.saikaku-architecture.com/share/11111111-1111-4111-8111-111111111111' },
+        ],
+        consent: true,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('受講者さがしは内部メンバーのみで実行できます');
+    expect((await db.collection('compat_audits').get()).empty).toBe(true);
+  });
+
   it('separates aggregate facts from names, sorts display names, and audits both events', async () => {
     await Promise.all([
       seedParent('results', UID_C, resultFixture(UID_C, { name: 'いとう' })),
@@ -434,6 +451,7 @@ describe('admin compat recommendation', () => {
     expect(namesResponse.status).toBe(200);
     expect(namesResponse.body).not.toHaveProperty('shortages');
     expect(namesResponse.body.candidates.map((candidate) => candidate.displayName)).toEqual(['あべ', 'いとう']);
+    expect(namesResponse.body.candidates.every((candidate) => !Object.hasOwn(candidate, 'profileId'))).toBe(true);
     expect(namesResponse.body.candidates[1].matchedAxes.map((axis) => axis.axisKey)).toEqual(['logical']);
 
     const audits = (await db.collection('compat_audits').get()).docs.map((doc) => doc.data());

@@ -25,6 +25,27 @@ describe('compat recommendation facts', () => {
     expect(shortages.some((axis) => axis.axisKey === 'mindfulness')).toBe(false);
   });
 
+  it('uses the same integer normalization at the 12 and 16 point boundaries', () => {
+    const shortages = findCompatShortages([
+      profile('selected', '選択中', { meaning: 11.6, logical: 11.4 }),
+    ]);
+
+    expect(shortages.some((axis) => axis.axisKey === 'meaning')).toBe(false);
+    expect(shortages).toContainEqual({
+      axisKey: 'logical',
+      axisLabel: '論理力',
+      missing: true,
+      noData: false,
+    });
+
+    const candidates = findCompatCandidates([
+      profile('selected', '選択中', { logical: 11.4 }),
+      profile('rounds-up', '切り上がる候補', { logical: 15.6 }),
+      profile('stays-below', '境界未満', { logical: 15.4 }),
+    ], ['selected'], shortages);
+    expect(candidates.map((candidate) => candidate.profileId)).toEqual(['rounds-up']);
+  });
+
   it('matches 16 or above while excluding a UAAM-less profile and selected profiles', () => {
     const shortages = [{
       axisKey: 'meaning',

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getZone, UAAM_ZONE_THRESHOLDS, zAlpha } from '../../src/lib/uaamZones.js';
+import {
+  getZone,
+  normalizeUaamZoneScore,
+  UAAM_ZONE_THRESHOLDS,
+  zAlpha,
+} from '../../src/lib/uaamZones.js';
 
 function legacyGetZone(sA, sB) {
   const sum = sA + sB;
@@ -21,6 +26,15 @@ function legacyZAlpha(zone, sA, sB) {
 }
 
 describe('UAAM zone extraction', () => {
+  it('normalizes absolute-threshold inputs to bounded 0-20 integers', () => {
+    expect(normalizeUaamZoneScore(11.6)).toBe(12);
+    expect(normalizeUaamZoneScore(11.4)).toBe(11);
+    expect(normalizeUaamZoneScore(15.6)).toBe(16);
+    expect(normalizeUaamZoneScore(-0.1)).toBeNull();
+    expect(normalizeUaamZoneScore(20.1)).toBeNull();
+    expect(normalizeUaamZoneScore('12')).toBeNull();
+  });
+
   it('keeps the existing zone and opacity behavior over the full 21 x 21 score domain', () => {
     for (let scoreA = 0; scoreA <= 20; scoreA += 1) {
       for (let scoreB = 0; scoreB <= 20; scoreB += 1) {

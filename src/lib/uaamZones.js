@@ -9,6 +9,11 @@ export const UAAM_ZONE_THRESHOLDS = Object.freeze({
   potentialSumMin: 22,
 });
 
+export function normalizeUaamZoneScore(value) {
+  if (!Number.isFinite(value) || value < 0 || value > UAAM_ZONE_THRESHOLDS.scoreMax) return null;
+  return Math.round(value);
+}
+
 export function getZone(sA, sB) {
   const sum = sA + sB;
   if (sA === UAAM_ZONE_THRESHOLDS.scoreMax && sB === UAAM_ZONE_THRESHOLDS.scoreMax) return 'natural';

@@ -154,7 +154,7 @@ describe('compat evidence layer', () => {
     const evidence = buildCompatEvidence([
       internal('a', '観察', '構造化', {
         scores: {
-          mindset: { subs: { meaning: 12.4 } },
+          mindset: { subs: { meaning: 11.6 } },
           literacy: { subs: { logical: 19, rogue: 20 } },
         },
       }),

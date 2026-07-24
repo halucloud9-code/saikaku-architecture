@@ -247,13 +247,17 @@ export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = 
     const filtered = filterKey && !activeZones.has(filterKey);
     const cellTitle = titleFor(cell);
     if (cell.kind === 'diagonal') {
+      const accessibleLabel = `${cell.axis.label} × ${cell.axis.label}・${
+        cell.dataStatus === 'no-data' ? ZONE_META['no-data'].label : '単軸のチーム最高値'
+      }・担い手${cell.carrierAliases.length}人。${cellTitle.replaceAll('\n', '。')}`;
       return (
-        <button
-          type="button"
+        <div
+          role="img"
           className={`compat-matrix-cell diagonal ${cell.dataStatus === 'no-data' ? 'no-data' : ''} ${filtered ? 'filtered' : ''}`}
           style={{ '--matrix-group-color': GROUP_COLORS[cell.axis.groupIndex] }}
           title={cellTitle}
-          aria-label={cellTitle.replaceAll('\n', '。')}
+          aria-label={accessibleLabel}
+          aria-hidden={filtered ? 'true' : undefined}
         >
           <strong>{cell.highestScore ?? '—'}</strong>
           {cell.carrierAliases.length > 0 ? (
@@ -264,25 +268,27 @@ export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = 
               {cell.carrierAliases.length > 3 ? <i>+{cell.carrierAliases.length - 3}</i> : null}
             </span>
           ) : null}
-        </button>
+        </div>
       );
     }
     const zoneKey = cell.dataStatus === 'no-data' ? 'no-data' : cell.zone;
+    const accessibleLabel = `${cell.axisA.label} × ${cell.axisB.label}・${ZONE_META[zoneKey].label}・担い手${cell.carrierCount}人。${cellTitle.replaceAll('\n', '。')}`;
     return (
-      <button
-        type="button"
+      <div
+        role="img"
         className={`compat-matrix-cell pair ${zoneKey} ${filtered ? 'filtered' : ''}`}
         style={{ '--matrix-zone-color': ZONE_META[zoneKey].color }}
         title={cellTitle}
-        aria-label={cellTitle.replaceAll('\n', '。')}
+        aria-label={accessibleLabel}
+        aria-hidden={filtered ? 'true' : undefined}
         data-row={rowIndex}
         data-column={colIndex}
         data-zone={zoneKey}
       >
         {cell.dataStatus === 'no-data' ? <span aria-hidden="true">—</span> : (
-          <span className="compat-matrix-carriers" aria-label={`担い手${cell.carrierCount}人`}>{cell.carrierCount}</span>
+          <span className="compat-matrix-carriers" aria-hidden="true">{cell.carrierCount}</span>
         )}
-      </button>
+      </div>
     );
   };
 
@@ -316,7 +322,7 @@ export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = 
             <tr>
               <th aria-hidden="true" />
               {COMPAT_MATRIX_AXES.map((axis) => (
-                <th key={axis.key} scope="col" title={`${axis.group}・${axis.label}`}>
+                <th key={axis.key} scope="col" title={`${axis.group}・${axis.label}`} aria-label={`${axis.group}・${axis.label}`}>
                   <span>{axis.group}</span>{axis.label.slice(0, 2)}
                 </th>
               ))}

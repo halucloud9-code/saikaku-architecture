@@ -176,7 +176,7 @@
 .compat-matrix-heading > p:last-child { margin: 0; color: var(--compat-muted); line-height: 1.75; }
 .compat-matrix-filters { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .compat-matrix-filters button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--matrix-zone-color); border-radius: 999px; padding: 6px 10px; background: color-mix(in srgb, var(--matrix-zone-color) 12%, var(--compat-card)); color: var(--compat-ink); cursor: pointer; font-size: .76rem; font-weight: 700; }
-.compat-matrix-filters button[aria-pressed="false"] { border-color: var(--compat-line); background: transparent; color: var(--compat-muted); opacity: .62; }
+.compat-matrix-filters button[aria-pressed="false"] { border-color: var(--compat-line); background: transparent; color: var(--compat-ink); opacity: 1; }
 .compat-matrix-filters button span { width: 10px; height: 10px; border-radius: 3px; background: var(--matrix-zone-color); }
 .compat-matrix-filters small { margin-left: 4px; color: var(--compat-muted); line-height: 1.5; }
 .compat-matrix-scroll { max-width: 100%; overflow: auto; padding: 0 0 8px; }
@@ -209,7 +209,7 @@
 .compat-matrix-top-pairs { display: grid; gap: 9px; margin: 14px 0 0; padding-left: 1.6rem; }
 .compat-matrix-top-pairs li { padding-left: 3px; }
 .compat-matrix-top-pairs li > div { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-.compat-matrix-top-pairs li span { flex: 0 0 auto; border: 1px solid var(--matrix-zone-color); border-radius: 999px; padding: 2px 7px; color: var(--matrix-zone-color); font-size: .66rem; font-weight: 800; }
+.compat-matrix-top-pairs li span { flex: 0 0 auto; border: 1px solid var(--matrix-zone-color); border-radius: 999px; padding: 2px 7px; color: var(--compat-ink); font-size: .66rem; font-weight: 800; }
 .compat-matrix-top-pairs small { display: block; margin-top: 3px; color: var(--compat-muted); overflow-wrap: anywhere; }
 .compat-matrix-summary-grid details summary { cursor: pointer; font-weight: 800; }
 .compat-matrix-dormant-list { display: flex; gap: 6px; flex-wrap: wrap; max-height: 230px; overflow: auto; margin-top: 12px; }
@@ -218,7 +218,7 @@
 .compat-matrix-coverage > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .compat-matrix-coverage article { min-width: 0; }
 .compat-matrix-coverage article header { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
-.compat-matrix-coverage article header strong { color: var(--matrix-group-color); font-size: 1.15rem; }
+.compat-matrix-coverage article header strong { color: var(--compat-ink); font-size: 1.15rem; }
 .compat-matrix-coverage article header span, .compat-matrix-coverage small { color: var(--compat-muted); font-size: .72rem; }
 .compat-matrix-coverage-track { height: 10px; overflow: hidden; border-radius: 999px; background: var(--compat-card); border: 1px solid var(--compat-line); }
 .compat-matrix-coverage-track span { display: block; height: 100%; background: var(--matrix-group-color); }
@@ -249,6 +249,7 @@
 .compat-recommend h2 { margin: 5px 0 10px; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 500; }
 .compat-recommend-rule { margin: 0; color: var(--compat-muted); line-height: 1.75; }
 .compat-recommend-ethics { border-left: 4px solid var(--compat-gold); border-radius: 9px; background: var(--compat-surface-2); padding: 12px 14px; color: var(--compat-ink); font-weight: 700; line-height: 1.7; }
+.compat-recommend-status { min-height: 1.6em; margin-top: 14px; color: var(--compat-muted); line-height: 1.6; }
 .compat-recommend-summary { margin-top: 22px; border-top: 1px solid var(--compat-line); padding-top: 18px; }
 .compat-recommend-summary h3 { margin: 0 0 10px; font-size: 1rem; }
 .compat-recommend-summary ul { margin: 0; padding-left: 1.3rem; }

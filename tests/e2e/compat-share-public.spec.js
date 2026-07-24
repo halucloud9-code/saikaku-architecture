@@ -116,8 +116,8 @@ test('public v1 share fetches and renders without visual-only matched-term guida
   await page.getByText('根拠となったデータを詳しく見る').click();
   await expect(page.getByText('A', { exact: true })).toBeVisible();
   await expect(page.getByText('B', { exact: true })).toBeVisible();
-  await expect(page.getByText('旧A氏', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('旧B氏', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('旧A氏', { exact: true })).toBeVisible();
+  await expect(page.getByText('旧B氏', { exact: true })).toBeVisible();
   await expect(page.getByText(/人事評価・採用評価には流用しません/)).toBeVisible();
 });
 

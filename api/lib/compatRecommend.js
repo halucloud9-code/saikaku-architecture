@@ -1,15 +1,11 @@
-import { UAAM_ZONE_THRESHOLDS } from '../../src/lib/uaamZones.js';
+import { normalizeUaamZoneScore, UAAM_ZONE_THRESHOLDS } from '../../src/lib/uaamZones.js';
 import { COMPAT_VISUAL_UAAM_AXES } from './compatEvidence.js';
-
-function validAxisValue(value) {
-  return Number.isFinite(value) && value >= 0 && value <= 20;
-}
 
 export function findCompatShortages(selectedProfiles) {
   return COMPAT_VISUAL_UAAM_AXES.flatMap((axis) => {
     const measured = selectedProfiles
-      .map((profile) => profile?.uaam?.[axis.key])
-      .filter(validAxisValue);
+      .map((profile) => normalizeUaamZoneScore(profile?.uaam?.[axis.key]))
+      .filter((value) => value !== null);
     if (measured.length === 0) {
       return [{
         axisKey: axis.key,
@@ -38,8 +34,8 @@ export function findCompatCandidates(profiles, selectedProfileIds, shortages) {
       profileId: profile.id,
       displayName: profile.displayName,
       matchedAxes: shortages.filter((shortage) => (
-        validAxisValue(profile.uaam[shortage.axisKey])
-        && profile.uaam[shortage.axisKey] >= UAAM_ZONE_THRESHOLDS.proAxisMin
+        (normalizeUaamZoneScore(profile.uaam[shortage.axisKey]) ?? -1)
+          >= UAAM_ZONE_THRESHOLDS.proAxisMin
       )),
     }))
     .filter((candidate) => candidate.matchedAxes.length > 0)

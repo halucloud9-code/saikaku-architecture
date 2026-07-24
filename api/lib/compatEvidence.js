@@ -1,4 +1,5 @@
 import { COMPAT_CATEGORIES, profileAvailability } from './compatProfiles.js';
+import { normalizeUaamZoneScore } from '../../src/lib/uaamZones.js';
 
 const SOURCE_KINDS = ['user_top5', 'generated_axis'];
 const UAAM_MIN_COHORT = 30;
@@ -278,8 +279,8 @@ export function buildCompatUaamMatrix(profiles) {
     if (!profile.uaam) continue;
     const scores = {};
     for (const [key] of UAAM_VISUAL_AXES) {
-      const value = profile.uaam[key];
-      if (Number.isFinite(value) && value >= 0 && value <= 20) scores[key] = Math.round(value);
+      const value = normalizeUaamZoneScore(profile.uaam[key]);
+      if (value !== null) scores[key] = value;
     }
     if (Object.keys(scores).length > 0) memberScores[profile.alias] = scores;
   }

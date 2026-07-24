@@ -54,8 +54,8 @@ describe('CompatShareScreen', () => {
     );
     expect(screen.getByText('A')).toBeInTheDocument();
     expect(screen.getByText('B')).toBeInTheDocument();
-    expect(screen.queryByText('Aさん')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bさん')).not.toBeInTheDocument();
+    expect(screen.getByText('Aさん')).toBeInTheDocument();
+    expect(screen.getByText('Bさん')).toBeInTheDocument();
     expect(screen.getByText(/対象者本人への限定共有/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '相性マンダラ' })).not.toBeInTheDocument();
     expect(screen.queryByText(/本人が入力した言葉はAIには送られません/)).not.toBeInTheDocument();
@@ -86,8 +86,8 @@ describe('CompatShareScreen', () => {
 
     expect(await screen.findByRole('heading', { name: '相性マンダラ' })).toBeInTheDocument();
     expect(screen.getByText(/本人が入力した言葉はAIには送られません。診断で見つかった軸の名前は、氏名を除いたプロフィールの一部としてAIに渡ります。/)).toBeInTheDocument();
-    expect(screen.queryByText('Aさん')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bさん')).not.toBeInTheDocument();
+    expect(screen.getByText('Aさん')).toBeInTheDocument();
+    expect(screen.getByText('Bさん')).toBeInTheDocument();
   });
 
   it('replaces M aliases with stored member labels throughout a shared report', async () => {

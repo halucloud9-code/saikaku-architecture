@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import CompatMatrix, { buildCompatMatrixModel } from '../../src/compat/CompatMatrix.jsx';
 
@@ -98,5 +98,28 @@ describe('CompatMatrix', () => {
     const pairCell = document.querySelector('[data-row="0"][data-column="1"]');
     expect(pairCell).toHaveAttribute('title', expect.stringContaining('つかさ: 基軸力 16点 / 認知力 16点'));
     expect(pairCell).toHaveAttribute('title', expect.stringContaining('野田健一: 基軸力 データなし'));
+  });
+
+  it('renders all 256 data cells as non-buttons with descriptive accessible labels', () => {
+    const { container } = render(
+      <CompatMatrix
+        uaamMatrix={{ memberScores: { M1: { meaning: 16, mindfulness: 16 } } }}
+        members={[{ alias: 'M1' }]}
+        memberLabels={['つかさ']}
+      />,
+    );
+
+    const cells = [...container.querySelectorAll('.compat-matrix-cell')];
+    expect(cells).toHaveLength(256);
+    expect(cells.every((cell) => cell.tagName !== 'BUTTON')).toBe(true);
+    expect(cells.every((cell) => cell.getAttribute('role') === 'img')).toBe(true);
+
+    const pairCell = container.querySelector('[data-row="0"][data-column="1"]');
+    expect(pairCell).toHaveAccessibleName(expect.stringContaining('基軸力 × 認知力・高い水準・担い手1人'));
+    expect(screen.getByRole('columnheader', { name: '志・基軸力' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '高水準' }));
+    expect(pairCell).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByRole('img', { name: /基軸力 × 認知力・高い水準・担い手1人/u })).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import CompatMandala from './CompatMandala';
 import CompatMatrix from './CompatMatrix';
-import { memberNameForAlias, replaceMemberAliases } from './memberNames';
+import { replaceMemberAliases } from './memberNames';
 import './compat.css';
 
 const STATUS_LABELS = {
@@ -60,7 +60,11 @@ function EvidenceFold({ result, memberLabels }) {
           <h3>メンバーごとに利用できるデータ</h3>
           <div className="compat-availability-list">
             {members.map((member) => {
-              const displayName = memberNameForAlias(member.alias, members, memberLabels);
+              const memberIndex = members.findIndex((candidate) => candidate.alias === member.alias);
+              const savedLabel = memberIndex >= 0 && typeof memberLabels[memberIndex] === 'string'
+                ? memberLabels[memberIndex].trim()
+                : '';
+              const displayName = savedLabel || member.alias;
               return (
                 <div key={member.alias} className="compat-availability-row">
                   <strong>

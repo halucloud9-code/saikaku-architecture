@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import CompatReport, { Availability } from './CompatReport';
 
 async function apiFetch(user, path, options = {}) {
@@ -11,7 +11,13 @@ async function apiFetch(user, path, options = {}) {
       ...options.headers,
     },
   });
-  const data = await response.json().catch(() => ({}));
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    if (response.ok) throw new Error('通信の応答を読み取れませんでした');
+    throw new Error('通信に失敗しました');
+  }
   if (!response.ok) throw new Error(data.error || '通信に失敗しました');
   return data;
 }
@@ -46,12 +52,14 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   const [shareError, setShareError] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [resultSnapshot, setResultSnapshot] = useState(null);
   const [recommendSummary, setRecommendSummary] = useState(null);
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [recommendNamesConsent, setRecommendNamesConsent] = useState(false);
   const [recommendNamesLoading, setRecommendNamesLoading] = useState(false);
   const [recommendCandidates, setRecommendCandidates] = useState(null);
   const [recommendError, setRecommendError] = useState('');
+  const analysisGenerationRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -72,7 +80,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     && consent
     && (mode === 'pair' ? selected.length === 2 : selected.length >= 3)
     && (mode !== 'team' || goal.trim().length > 0);
-  const reportLabels = selected.map((member) => member.displayName.trim());
+  const reportLabels = resultSnapshot?.memberLabels || [];
   const hasMatchedTerms = result?.visual?.schemaVersion === 2
     && Array.isArray(result.visual.matches)
     && result.visual.matches.length > 0;
@@ -91,12 +99,21 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setRecommendError('');
   };
 
+  const invalidateAnalysisResult = () => {
+    analysisGenerationRef.current += 1;
+    setAnalyzing(false);
+    setSharing(false);
+    setResult(null);
+    setResultSnapshot(null);
+  };
+
   const recommendationMembers = (members) => members.map(({ source, id, shareUrl: url }) => ({
     source,
     ...(source === 'internal' ? { id } : { shareUrl: url }),
   }));
 
-  const loadRecommendationSummary = async (members) => {
+  const loadRecommendationSummary = async (members, generation) => {
+    if (analysisGenerationRef.current !== generation) return;
     setRecommendLoading(true);
     setRecommendError('');
     try {
@@ -108,18 +125,20 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           consent: true,
         }),
       });
+      if (analysisGenerationRef.current !== generation) return;
       setRecommendSummary(Array.isArray(data.shortages) ? data.shortages : []);
     } catch (cause) {
+      if (analysisGenerationRef.current !== generation) return;
       setRecommendError(cause.message);
     } finally {
-      setRecommendLoading(false);
+      if (analysisGenerationRef.current === generation) setRecommendLoading(false);
     }
   };
 
   const switchMode = (nextMode) => {
+    invalidateAnalysisResult();
     setMode(nextMode);
     setSelected([]);
-    setResult(null);
     setError('');
     setConsent(false);
     setShareConsent(false);
@@ -131,12 +150,12 @@ export default function CompatScreen({ user, onBack, onLogout }) {
 
   const toggleProfile = (profile) => {
     const key = `internal:${profile.id}`;
+    invalidateAnalysisResult();
     setSelected((current) => {
       if (selectedKeys.has(key)) return current.filter((member) => !(member.source === 'internal' && member.id === profile.id));
       if (current.length >= maxMembers) return current;
       return [...current, { source: 'internal', id: profile.id, profileVersion: profile.profileVersion, displayName: profile.displayName, availability: profile.availability }];
     });
-    setResult(null);
     setShareConsent(false);
     setShare(null);
     setCopied(false);
@@ -145,8 +164,8 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   };
 
   const removeMember = (member) => {
+    invalidateAnalysisResult();
     setSelected((current) => current.filter((item) => item !== member));
-    setResult(null);
     setShareConsent(false);
     setShare(null);
     setCopied(false);
@@ -173,7 +192,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         return [...current, member];
       });
       setShareUrl('');
-      setResult(null);
+      invalidateAnalysisResult();
       setShareConsent(false);
       setShare(null);
       setCopied(false);
@@ -187,9 +206,20 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   };
 
   const analyze = async () => {
+    const generation = analysisGenerationRef.current + 1;
+    analysisGenerationRef.current = generation;
+    const snapshot = {
+      generation,
+      mode,
+      goal: mode === 'team' ? goal.trim() : '',
+      members: selected.map((member) => ({ ...member })),
+      memberLabels: selected.map((member) => member.displayName.trim()),
+    };
     setAnalyzing(true);
+    setSharing(false);
     setError('');
     setResult(null);
+    setResultSnapshot(null);
     setShareConsent(false);
     setShare(null);
     setCopied(false);
@@ -199,18 +229,22 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       const data = await apiFetch(user, '/api/admin/compat-analyze', {
         method: 'POST',
         body: JSON.stringify({
-          mode,
-          members: selected.map(({ source, id, shareUrl: url, profileVersion }) => ({ source, ...(source === 'internal' ? { id } : { shareUrl: url }), profileVersion })),
-          goal: mode === 'team' ? goal.trim() : '',
+          mode: snapshot.mode,
+          members: snapshot.members.map(({ source, id, shareUrl: url, profileVersion }) => ({ source, ...(source === 'internal' ? { id } : { shareUrl: url }), profileVersion })),
+          goal: snapshot.goal,
           consent,
         }),
       });
+      if (analysisGenerationRef.current !== generation) return;
       setResult(data);
-      await loadRecommendationSummary(selected);
+      setResultSnapshot(snapshot);
+      setAnalyzing(false);
+      void loadRecommendationSummary(snapshot.members, generation);
     } catch (cause) {
+      if (analysisGenerationRef.current !== generation) return;
       setError(cause.message);
     } finally {
-      setAnalyzing(false);
+      if (analysisGenerationRef.current === generation) setAnalyzing(false);
     }
   };
 
@@ -220,26 +254,32 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setRecommendError('');
     if (!checked) return;
 
+    const snapshot = resultSnapshot;
+    if (!snapshot || analysisGenerationRef.current !== snapshot.generation) return;
     setRecommendNamesLoading(true);
     try {
       const data = await apiFetch(user, '/api/admin/compat-recommend', {
         method: 'POST',
         body: JSON.stringify({
           action: 'show_names',
-          members: recommendationMembers(selected),
+          members: recommendationMembers(snapshot.members),
           consent: true,
         }),
       });
+      if (analysisGenerationRef.current !== snapshot.generation) return;
       setRecommendCandidates(Array.isArray(data.candidates) ? data.candidates : []);
     } catch (cause) {
+      if (analysisGenerationRef.current !== snapshot.generation) return;
       setRecommendNamesConsent(false);
       setRecommendError(cause.message);
     } finally {
-      setRecommendNamesLoading(false);
+      if (analysisGenerationRef.current === snapshot.generation) setRecommendNamesLoading(false);
     }
   };
 
   const issueShare = async () => {
+    const snapshot = resultSnapshot;
+    if (!snapshot || analysisGenerationRef.current !== snapshot.generation) return;
     setSharing(true);
     setShareError('');
     setCopied(false);
@@ -248,17 +288,19 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         method: 'POST',
         body: JSON.stringify({
           report: reportForCompatShare(result),
-          mode,
-          goal: mode === 'team' ? goal.trim() : '',
-          memberLabels: reportLabels,
+          mode: snapshot.mode,
+          goal: snapshot.goal,
+          memberLabels: snapshot.memberLabels,
           consentConfirmed: shareConsent,
         }),
       });
+      if (analysisGenerationRef.current !== snapshot.generation) return;
       setShare({ ...issued, revoked: false });
     } catch (cause) {
+      if (analysisGenerationRef.current !== snapshot.generation) return;
       setShareError(cause.message);
     } finally {
-      setSharing(false);
+      if (analysisGenerationRef.current === snapshot.generation) setSharing(false);
     }
   };
 
@@ -312,8 +354,8 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           <label className="compat-field">
             <span>チームの目的 <b>必須</b></span>
             <textarea value={goal} onChange={(event) => {
+              invalidateAnalysisResult();
               setGoal(event.target.value);
-              setResult(null);
               setShareConsent(false);
               setShare(null);
               setCopied(false);
@@ -397,7 +439,17 @@ export default function CompatScreen({ user, onBack, onLogout }) {
             この機能は相互理解のための対話相手を探す補助です。人事・採用・配属の判断には使いません。
           </p>
 
-          {recommendLoading && <p role="status">該当人数を集計しています…</p>}
+          <div className="compat-recommend-status" role="status" aria-live="polite" aria-atomic="true">
+            {recommendLoading
+              ? '該当人数を集計しています…'
+              : recommendNamesLoading
+                ? '氏名を読み込んでいます…'
+                : recommendNamesConsent && Array.isArray(recommendCandidates)
+                  ? '氏名の読み込みが完了しました。'
+                  : Array.isArray(recommendSummary)
+                    ? '該当人数の集計が完了しました。'
+                    : ''}
+          </div>
           {recommendError && <p className="compat-error" role="alert">{recommendError}</p>}
           {Array.isArray(recommendSummary) && recommendSummary.length === 0 && (
             <p>現在の選択メンバーには、この基準に該当する不足軸はありません。</p>
@@ -430,14 +482,13 @@ export default function CompatScreen({ user, onBack, onLogout }) {
               </span>
             </label>
           )}
-          {recommendNamesLoading && <p role="status">氏名を読み込んでいます…</p>}
           {recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length === 0 && (
             <p>この基準に該当する受講者はいません。</p>
           )}
           {recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length > 0 && (
             <div className="compat-recommend-candidates" aria-label="氏名を表示した該当者一覧">
-              {recommendCandidates.map((candidate) => (
-                <article key={candidate.profileId}>
+              {recommendCandidates.map((candidate, index) => (
+                <article key={index}>
                   <h3>{candidate.displayName}</h3>
                   <div className="compat-recommend-axis-chips" aria-label={`${candidate.displayName}の該当軸`}>
                     {candidate.matchedAxes.map((axis) => (

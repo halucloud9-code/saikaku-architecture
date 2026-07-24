@@ -190,6 +190,9 @@ describe('CompatScreen', () => {
 
     const issueButton = await screen.findByRole('button', { name: '共有URLを発行' });
     expect(screen.getByRole('heading', { name: 'チームの中にある力の地図' })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'M1 レポート表示名' }), { target: { value: '分析後に入力した別人名' } });
+    expect(screen.getAllByText('つかさ').length).toBeGreaterThan(0);
+    expect(screen.queryByText('分析後に入力した別人名')).not.toBeInTheDocument();
     expect(issueButton).toBeDisabled();
     fireEvent.click(screen.getByText(/本人が入力した言葉はAIには送られません/).closest('label').querySelector('input'));
     expect(issueButton).toBeEnabled();
@@ -208,6 +211,100 @@ describe('CompatScreen', () => {
     expect(issueBody.memberLabels).toEqual(['つかさ', '野田健一']);
     expect(issueBody.report).not.toHaveProperty('uaamMatrix');
     expect(issueBody.report.visual.uaam).not.toHaveProperty('memberScores');
+  });
+
+  it('discards an analysis response after the selected members have changed', async () => {
+    let resolveAnalyze;
+    const analyzeResponse = new Promise((resolve) => { resolveAnalyze = resolve; });
+    const fetchMock = vi.fn(async (path) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') return analyzeResponse;
+      if (path === '/api/admin/compat-recommend') {
+        return { ok: true, json: async () => ({ stage: 'summary', shortages: [] }) };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/admin/compat-analyze', expect.any(Object)));
+
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[2]);
+    resolveAnalyze({ ok: true, json: async () => reportFixture });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '相性を分析する' })).toBeEnabled());
+    expect(screen.queryByLabelText('相性分析結果')).toBeNull();
+    expect(fetchMock.mock.calls.filter(([path]) => path === '/api/admin/compat-recommend')).toHaveLength(0);
+  });
+
+  it('releases analyzing as soon as the report arrives while recommendation keeps its own loading state', async () => {
+    let resolveRecommendation;
+    const recommendationResponse = new Promise((resolve) => { resolveRecommendation = resolve; });
+    const fetchMock = vi.fn(async (path) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return { ok: true, json: async () => reportFixture };
+      }
+      if (path === '/api/admin/compat-recommend') return recommendationResponse;
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+
+    expect(await screen.findByLabelText('相性分析結果')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '相性を分析する' })).toBeEnabled();
+    expect(screen.getByRole('status')).toHaveTextContent('該当人数を集計しています…');
+
+    resolveRecommendation({
+      ok: true,
+      json: async () => ({ stage: 'summary', shortages: [] }),
+    });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('該当人数の集計が完了しました。'));
+  });
+
+  it('shows an error when a successful analysis response contains invalid JSON', async () => {
+    const fetchMock = vi.fn(async (path) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return {
+          ok: true,
+          json: async () => { throw new SyntaxError('broken JSON'); },
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('通信の応答を読み取れませんでした');
+    expect(screen.queryByLabelText('相性分析結果')).toBeNull();
   });
 
   it('shows aggregate facts first and reveals name-sorted cards only after the dedicated consent', async () => {
@@ -238,12 +335,10 @@ describe('CompatScreen', () => {
             stage: 'names',
             candidates: [
               {
-                profileId: 'candidate-a',
                 displayName: 'あべ',
                 matchedAxes: [{ axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false }],
               },
               {
-                profileId: 'candidate-b',
                 displayName: 'いとう',
                 matchedAxes: [{ axisKey: 'logical', axisLabel: '論理力', missing: false, noData: true }],
               },
@@ -270,6 +365,7 @@ describe('CompatScreen', () => {
     expect(screen.getByText(/論理力（チームにデータなし）を16点以上で持つ受講者が 1人 います/)).toBeInTheDocument();
     expect(screen.queryByText('あべ')).not.toBeInTheDocument();
     expect(screen.queryByText('いとう')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('該当人数の集計が完了しました。');
 
     const namesConsent = screen.getByText(/表示される候補者それぞれについて/).closest('label').querySelector('input');
     fireEvent.click(namesConsent);
@@ -283,6 +379,7 @@ describe('CompatScreen', () => {
     expect(candidateList).not.toHaveTextContent('2位');
     expect(candidateList.querySelector('.compat-badge')).toBeNull();
     expect(panel).toHaveTextContent('人事・採用・配属の判断には使いません');
+    expect(screen.getByRole('status')).toHaveTextContent('氏名の読み込みが完了しました。');
 
     const recommendRequests = fetchMock.mock.calls
       .filter(([path]) => path === '/api/admin/compat-recommend')
