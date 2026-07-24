@@ -1,5 +1,22 @@
+import { createHash } from 'node:crypto';
 import { normalizeUaamZoneScore, UAAM_ZONE_THRESHOLDS } from '../../src/lib/uaamZones.js';
 import { COMPAT_VISUAL_UAAM_AXES } from './compatEvidence.js';
+
+function stableJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(',')}]`;
+  const entries = Object.keys(value)
+    .filter((key) => value[key] !== undefined)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`);
+  return `{${entries.join(',')}}`;
+}
+
+export function createCompatRecommendationSnapshot(recommendation) {
+  return createHash('sha256')
+    .update(stableJson(recommendation), 'utf8')
+    .digest('hex');
+}
 
 export function findCompatShortages(selectedProfiles) {
   return COMPAT_VISUAL_UAAM_AXES.flatMap((axis) => {

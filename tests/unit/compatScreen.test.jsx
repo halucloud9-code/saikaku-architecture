@@ -18,6 +18,7 @@ const profiles = ['Aさん', 'Bさん', 'Cさん'].map((displayName, index) => (
     uaam: false,
   },
 }));
+const recommendationSnapshot = 'a'.repeat(64);
 
 function mockProfiles() {
   vi.stubGlobal('fetch', vi.fn(async () => ({
@@ -160,7 +161,7 @@ describe('CompatScreen', () => {
         return { ok: true, json: async () => reportFixture };
       }
       if (path === '/api/admin/compat-recommend') {
-        return { ok: true, json: async () => ({ stage: 'summary', shortages: [] }) };
+        return { ok: true, json: async () => ({ stage: 'summary', shortages: [], snapshot: recommendationSnapshot }) };
       }
       if (path === '/api/admin/compat-share') {
         const body = JSON.parse(options.body);
@@ -213,6 +214,64 @@ describe('CompatScreen', () => {
     expect(issueBody.report.visual.uaam).not.toHaveProperty('memberScores');
   });
 
+  it('revokes an issued share without showing its URL when the response becomes stale', async () => {
+    let resolveIssue;
+    const issueResponse = new Promise((resolve) => { resolveIssue = resolve; });
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return { ok: true, json: async () => reportFixture };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        return { ok: true, json: async () => ({ stage: 'summary', shortages: [], snapshot: recommendationSnapshot }) };
+      }
+      if (path === '/api/admin/compat-share') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'revoke') {
+          return { ok: true, json: async () => ({ shareId: body.shareId, revoked: true }) };
+        }
+        return issueResponse;
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    const profileCheckboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(profileCheckboxes[0]);
+    fireEvent.click(profileCheckboxes[1]);
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+
+    const issueButton = await screen.findByRole('button', { name: '共有URLを発行' });
+    fireEvent.click(screen.getByText(/本人が入力した言葉はAIには送られません/).closest('label').querySelector('input'));
+    fireEvent.click(issueButton);
+    await waitFor(() => expect(fetchMock.mock.calls.some(([path, options]) => (
+      path === '/api/admin/compat-share'
+      && JSON.parse(options.body).consentConfirmed === true
+    ))).toBe(true));
+
+    fireEvent.click(profileCheckboxes[1]);
+    resolveIssue({
+      ok: true,
+      json: async () => ({
+        shareId: '11111111-1111-4111-8111-111111111111',
+        url: 'https://example.com/compat/share/11111111-1111-4111-8111-111111111111',
+      }),
+    });
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([path, options]) => {
+      if (path !== '/api/admin/compat-share') return false;
+      const body = JSON.parse(options.body);
+      return body.action === 'revoke'
+        && body.shareId === '11111111-1111-4111-8111-111111111111';
+    })).toBe(true));
+    expect(screen.queryByDisplayValue(/\/compat\/share\/11111111-/)).not.toBeInTheDocument();
+  });
+
   it('discards an analysis response after the selected members have changed', async () => {
     let resolveAnalyze;
     const analyzeResponse = new Promise((resolve) => { resolveAnalyze = resolve; });
@@ -222,7 +281,7 @@ describe('CompatScreen', () => {
       }
       if (path === '/api/admin/compat-analyze') return analyzeResponse;
       if (path === '/api/admin/compat-recommend') {
-        return { ok: true, json: async () => ({ stage: 'summary', shortages: [] }) };
+        return { ok: true, json: async () => ({ stage: 'summary', shortages: [], snapshot: recommendationSnapshot }) };
       }
       throw new Error(`unexpected fetch: ${path}`);
     });
@@ -275,7 +334,7 @@ describe('CompatScreen', () => {
 
     resolveRecommendation({
       ok: true,
-      json: async () => ({ stage: 'summary', shortages: [] }),
+      json: async () => ({ stage: 'summary', shortages: [], snapshot: recommendationSnapshot }),
     });
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('該当人数の集計が完了しました。'));
   });
@@ -322,6 +381,7 @@ describe('CompatScreen', () => {
             ok: true,
             json: async () => ({
               stage: 'summary',
+              snapshot: recommendationSnapshot,
               shortages: [
                 { axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false, candidateCount: 2 },
                 { axisKey: 'logical', axisLabel: '論理力', missing: false, noData: true, candidateCount: 1 },
@@ -386,7 +446,76 @@ describe('CompatScreen', () => {
       .map(([, options]) => JSON.parse(options.body));
     expect(recommendRequests).toEqual([
       expect.objectContaining({ action: 'search', consent: true }),
-      expect.objectContaining({ action: 'show_names', consent: true }),
+      expect.objectContaining({ action: 'show_names', consent: true, snapshot: recommendationSnapshot }),
+    ]);
+  });
+
+  it('refreshes the aggregate and unchecks name consent after a stale snapshot response', async () => {
+    let searchCount = 0;
+    const refreshedSnapshot = 'b'.repeat(64);
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return { ok: true, json: async () => reportFixture };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          searchCount += 1;
+          return {
+            ok: true,
+            json: async () => ({
+              stage: 'summary',
+              snapshot: searchCount === 1 ? recommendationSnapshot : refreshedSnapshot,
+              shortages: [{
+                axisKey: 'meaning',
+                axisLabel: '基軸力',
+                missing: true,
+                noData: false,
+                candidateCount: searchCount === 1 ? 1 : 2,
+              }],
+            }),
+          };
+        }
+        return {
+          ok: false,
+          status: 409,
+          json: async () => ({
+            code: 'RECOMMENDATION_SNAPSHOT_STALE',
+            error: 'データが更新されました。もう一度検索してください',
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    const profileCheckboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(profileCheckboxes[0]);
+    fireEvent.click(profileCheckboxes[1]);
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+
+    expect(await screen.findByText(/基軸力（チームで12点未満）を16点以上で持つ受講者が 1人 います/)).toBeInTheDocument();
+    const namesConsent = screen.getByText(/表示される候補者それぞれについて/).closest('label').querySelector('input');
+    fireEvent.click(namesConsent);
+
+    expect(await screen.findByText(/基軸力（チームで12点未満）を16点以上で持つ受講者が 2人 います/)).toBeInTheDocument();
+    const refreshedNamesConsent = screen.getByText(/表示される候補者それぞれについて/).closest('label').querySelector('input');
+    expect(refreshedNamesConsent).not.toBeChecked();
+    expect(screen.getByRole('alert')).toHaveTextContent('データが更新されました。もう一度検索してください');
+
+    const requests = fetchMock.mock.calls
+      .filter(([path]) => path === '/api/admin/compat-recommend')
+      .map(([, options]) => JSON.parse(options.body));
+    expect(requests).toEqual([
+      expect.objectContaining({ action: 'search' }),
+      expect.objectContaining({ action: 'show_names', snapshot: recommendationSnapshot }),
+      expect.objectContaining({ action: 'search' }),
     ]);
   });
 });

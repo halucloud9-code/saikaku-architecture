@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildCompatRecommendation,
+  createCompatRecommendationSnapshot,
   findCompatCandidates,
   findCompatShortages,
 } from '../../api/lib/compatRecommend.js';
@@ -10,6 +11,31 @@ function profile(id, displayName, uaam = null) {
 }
 
 describe('compat recommendation facts', () => {
+  it('creates the same deterministic snapshot regardless of profile input order', () => {
+    const profiles = [
+      profile('selected', '選択中', { meaning: 11 }),
+      profile('candidate-b', 'いとう', { meaning: 17 }),
+      profile('candidate-a', 'あべ', { meaning: 16 }),
+    ];
+    const first = createCompatRecommendationSnapshot(
+      buildCompatRecommendation(profiles, ['selected']),
+    );
+    const reordered = createCompatRecommendationSnapshot(
+      buildCompatRecommendation([...profiles].reverse(), ['selected']),
+    );
+    const changed = createCompatRecommendationSnapshot(
+      buildCompatRecommendation([
+        profiles[0],
+        profile('candidate-b', 'いとう', { meaning: 15 }),
+        profiles[2],
+      ], ['selected']),
+    );
+
+    expect(first).toMatch(/^[a-f0-9]{64}$/u);
+    expect(reordered).toBe(first);
+    expect(changed).not.toBe(first);
+  });
+
   it('keeps tied holders below 12 as missing and treats exactly 12 as present', () => {
     const shortages = findCompatShortages([
       profile('a', 'A', { meaning: 11, mindfulness: 12 }),

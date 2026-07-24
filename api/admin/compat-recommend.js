@@ -1,10 +1,14 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebaseAdmin.js';
-import { buildCompatRecommendation } from '../lib/compatRecommend.js';
+import {
+  buildCompatRecommendation,
+  createCompatRecommendationSnapshot,
+} from '../lib/compatRecommend.js';
 import { normalizeInternalProfile } from '../lib/compatProfiles.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
 const INTERNAL_ID_RE = /^[^/]{1,128}$/u;
+const SNAPSHOT_RE = /^[a-f0-9]{64}$/u;
 const ACTIONS = new Set(['search', 'show_names']);
 
 function invalid(message, code = 'INVALID_REQUEST') {
@@ -35,11 +39,16 @@ function validateBody(body) {
     }
     seen.add(`internal:${identity}`);
   }
+  if (body.action === 'show_names'
+    && (typeof body.snapshot !== 'string' || !SNAPSHOT_RE.test(body.snapshot))) {
+    throw invalid('検索結果のスナップショットが必要です', 'SNAPSHOT_REQUIRED');
+  }
 
   return {
     action: body.action,
     members: body.members,
     selectedProfileIds: body.members.map((member) => member.id),
+    snapshot: body.action === 'show_names' ? body.snapshot : null,
   };
 }
 
@@ -83,6 +92,13 @@ export default async function handler(req, res) {
     const input = validateBody(req.body);
     const profiles = await loadInternalProfiles(input.selectedProfileIds);
     const recommendation = buildCompatRecommendation(profiles, input.selectedProfileIds);
+    const snapshot = createCompatRecommendationSnapshot(recommendation);
+    if (input.action === 'show_names' && input.snapshot !== snapshot) {
+      const error = new Error('データが更新されました。もう一度検索してください');
+      error.code = 'RECOMMENDATION_SNAPSHOT_STALE';
+      error.status = 409;
+      throw error;
+    }
     const auditAction = input.action === 'search' ? 'recommend_search' : 'recommend_names_shown';
     await writeAudit(admin, auditAction, input.members.length, recommendation.candidates.length);
 
@@ -90,6 +106,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         stage: 'summary',
         shortages: recommendation.summary,
+        snapshot,
       });
     }
     return res.status(200).json({

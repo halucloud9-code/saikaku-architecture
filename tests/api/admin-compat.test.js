@@ -381,6 +381,16 @@ describe('admin compat recommendation', () => {
     }
   });
 
+  it('requires a snapshot when names are requested', async () => {
+    const response = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'show_names', members: selectedMembers, consent: true });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('SNAPSHOT_REQUIRED');
+    expect((await db.collection('compat_audits').get()).empty).toBe(true);
+  });
+
   it('rejects a mixed internal/public member set before recommendation matching', async () => {
     const response = await api.post('/api/admin/compat-recommend')
       .set('Authorization', 'Bearer admin-token')
@@ -433,6 +443,7 @@ describe('admin compat recommendation', () => {
 
     expect(summaryResponse.status).toBe(200);
     expect(summaryResponse.body.stage).toBe('summary');
+    expect(summaryResponse.body.snapshot).toMatch(/^[a-f0-9]{64}$/u);
     expect(summaryResponse.body).not.toHaveProperty('candidates');
     expect(JSON.stringify(summaryResponse.body)).not.toContain('あべ');
     expect(JSON.stringify(summaryResponse.body)).not.toContain('いとう');
@@ -446,7 +457,12 @@ describe('admin compat recommendation', () => {
 
     const namesResponse = await api.post('/api/admin/compat-recommend')
       .set('Authorization', 'Bearer admin-token')
-      .send({ action: 'show_names', members: selectedMembers, consent: true });
+      .send({
+        action: 'show_names',
+        members: selectedMembers,
+        consent: true,
+        snapshot: summaryResponse.body.snapshot,
+      });
 
     expect(namesResponse.status).toBe(200);
     expect(namesResponse.body).not.toHaveProperty('shortages');
@@ -470,6 +486,45 @@ describe('admin compat recommendation', () => {
       }),
     ]));
     expect(getMockCallCount('compat')).toBe(0);
+  });
+
+  it('returns 409 without a names audit when a profile changes after search', async () => {
+    await Promise.all([
+      seedParent('uaam_results', UID_A, {
+        scores: { literacy: { subs: { logical: 11 } } },
+      }),
+      seedParent('uaam_results', UID_B, {
+        scores: { literacy: { subs: { logical: 11 } } },
+      }),
+      seedParent('uaam_results', UID_C, {
+        scores: { literacy: { subs: { logical: 16 } } },
+      }),
+    ]);
+
+    const summaryResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'search', members: selectedMembers, consent: true });
+    expect(summaryResponse.status).toBe(200);
+
+    await seedParent('uaam_results', UID_C, {
+      scores: { literacy: { subs: { logical: 15 } } },
+    });
+    const namesResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({
+        action: 'show_names',
+        members: selectedMembers,
+        consent: true,
+        snapshot: summaryResponse.body.snapshot,
+      });
+
+    expect(namesResponse.status).toBe(409);
+    expect(namesResponse.body).toEqual({
+      code: 'RECOMMENDATION_SNAPSHOT_STALE',
+      error: 'データが更新されました。もう一度検索してください',
+    });
+    const audits = (await db.collection('compat_audits').get()).docs.map((doc) => doc.data().action);
+    expect(audits).toEqual(['recommend_search']);
   });
 });
 

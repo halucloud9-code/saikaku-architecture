@@ -15,10 +15,16 @@ async function apiFetch(user, path, options = {}) {
   try {
     data = await response.json();
   } catch {
-    if (response.ok) throw new Error('通信の応答を読み取れませんでした');
-    throw new Error('通信に失敗しました');
+    const cause = new Error(response.ok ? '通信の応答を読み取れませんでした' : '通信に失敗しました');
+    cause.status = response.status;
+    throw cause;
   }
-  if (!response.ok) throw new Error(data.error || '通信に失敗しました');
+  if (!response.ok) {
+    const cause = new Error(data.error || '通信に失敗しました');
+    cause.status = response.status;
+    cause.code = data.code;
+    throw cause;
+  }
   return data;
 }
 
@@ -54,6 +60,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   const [result, setResult] = useState(null);
   const [resultSnapshot, setResultSnapshot] = useState(null);
   const [recommendSummary, setRecommendSummary] = useState(null);
+  const [recommendSnapshot, setRecommendSnapshot] = useState(null);
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [recommendNamesConsent, setRecommendNamesConsent] = useState(false);
   const [recommendNamesLoading, setRecommendNamesLoading] = useState(false);
@@ -92,6 +99,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
 
   const resetRecommendation = () => {
     setRecommendSummary(null);
+    setRecommendSnapshot(null);
     setRecommendLoading(false);
     setRecommendNamesConsent(false);
     setRecommendNamesLoading(false);
@@ -112,10 +120,12 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     ...(source === 'internal' ? { id } : { shareUrl: url }),
   }));
 
-  const loadRecommendationSummary = async (members, generation) => {
+  const loadRecommendationSummary = async (members, generation, { preserveError = false } = {}) => {
     if (analysisGenerationRef.current !== generation) return;
     setRecommendLoading(true);
-    setRecommendError('');
+    setRecommendSummary(null);
+    setRecommendSnapshot(null);
+    if (!preserveError) setRecommendError('');
     try {
       const data = await apiFetch(user, '/api/admin/compat-recommend', {
         method: 'POST',
@@ -126,7 +136,11 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         }),
       });
       if (analysisGenerationRef.current !== generation) return;
+      if (typeof data.snapshot !== 'string' || !data.snapshot) {
+        throw new Error('受講者の検索結果を読み取れませんでした');
+      }
       setRecommendSummary(Array.isArray(data.shortages) ? data.shortages : []);
+      setRecommendSnapshot(data.snapshot);
     } catch (cause) {
       if (analysisGenerationRef.current !== generation) return;
       setRecommendError(cause.message);
@@ -264,6 +278,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           action: 'show_names',
           members: recommendationMembers(snapshot.members),
           consent: true,
+          snapshot: recommendSnapshot,
         }),
       });
       if (analysisGenerationRef.current !== snapshot.generation) return;
@@ -272,6 +287,10 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       if (analysisGenerationRef.current !== snapshot.generation) return;
       setRecommendNamesConsent(false);
       setRecommendError(cause.message);
+      if (cause.status === 409) {
+        setRecommendNamesLoading(false);
+        await loadRecommendationSummary(snapshot.members, snapshot.generation, { preserveError: true });
+      }
     } finally {
       if (analysisGenerationRef.current === snapshot.generation) setRecommendNamesLoading(false);
     }
@@ -294,7 +313,15 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           consentConfirmed: shareConsent,
         }),
       });
-      if (analysisGenerationRef.current !== snapshot.generation) return;
+      if (analysisGenerationRef.current !== snapshot.generation) {
+        if (typeof issued?.shareId === 'string' && issued.shareId) {
+          void apiFetch(user, '/api/admin/compat-share', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'revoke', shareId: issued.shareId }),
+          }).catch(() => {});
+        }
+        return;
+      }
       setShare({ ...issued, revoked: false });
     } catch (cause) {
       if (analysisGenerationRef.current !== snapshot.generation) return;
@@ -474,7 +501,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
               <input
                 type="checkbox"
                 checked={recommendNamesConsent}
-                disabled={recommendNamesLoading}
+                disabled={recommendNamesLoading || recommendLoading || !recommendSnapshot}
                 onChange={(event) => toggleRecommendationNames(event.target.checked)}
               />
               <span>
