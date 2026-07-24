@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildCompatEvidence, buildCompatVisual, COMPAT_VISUAL_UAAM_AXES } from '../../api/lib/compatEvidence.js';
+import {
+  buildCompatEvidence,
+  buildCompatUaamMatrix,
+  buildCompatVisual,
+  COMPAT_VISUAL_UAAM_AXES,
+} from '../../api/lib/compatEvidence.js';
 import { normalizeInternalProfile, normalizePublicProfile, splitUserTop5 } from '../../api/lib/compatProfiles.js';
 
 function internal(id, top5, axisName = '構造化', uaamData = null) {
@@ -122,6 +127,24 @@ describe('compat evidence layer', () => {
     expect(visual.uaam.axes.map((axis) => axis.key)).toEqual(COMPAT_VISUAL_UAAM_AXES.map((axis) => axis.key));
     expect(visual.uaam.axes).toHaveLength(16);
     expect(JSON.stringify(evidence.promptEvidence)).not.toContain(secret);
+  });
+
+  it('projects integer UAAM member scores by alias without changing the visual contract', () => {
+    const evidence = buildCompatEvidence([
+      internal('a', '観察', '構造化', {
+        scores: {
+          mindset: { subs: { meaning: 12.4 } },
+          literacy: { subs: { logical: 19, rogue: 20 } },
+        },
+      }),
+      internal('b', '対話'),
+    ], [], 'pair');
+
+    expect(buildCompatUaamMatrix(evidence.profiles)).toEqual({
+      memberScores: {
+        A: { meaning: 12, logical: 19 },
+      },
+    });
   });
 
   it('caps same-category visual matches at 100 unique terms and truncates each term to 80 characters', () => {

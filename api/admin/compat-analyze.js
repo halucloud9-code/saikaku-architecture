@@ -1,6 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebaseAdmin.js';
-import { buildCompatEvidence, buildCompatVisual } from '../lib/compatEvidence.js';
+import { buildCompatEvidence, buildCompatUaamMatrix, buildCompatVisual } from '../lib/compatEvidence.js';
 import { normalizeInternalProfile } from '../lib/compatProfiles.js';
 import { COMPAT_MODEL, generateCompatOutput } from '../lib/compatPrompt.js';
 import {
@@ -156,6 +156,7 @@ export default async function handler(req, res) {
       ethicsNotice: COMPAT_ETHICS_NOTICE,
       model: COMPAT_MODEL,
       visual,
+      uaamMatrix: buildCompatUaamMatrix(evidence.profiles),
     };
     await writeAudit(admin, input, 'completed');
     return res.status(200).json(result);

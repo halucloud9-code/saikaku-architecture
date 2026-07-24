@@ -1,4 +1,5 @@
 import CompatMandala from './CompatMandala';
+import CompatMatrix from './CompatMatrix';
 import './compat.css';
 
 const STATUS_LABELS = {
@@ -83,7 +84,7 @@ function EvidenceFold({ result, memberLabels }) {
   );
 }
 
-export default function CompatReport({ result, memberLabels = [] }) {
+export default function CompatReport({ result, memberLabels = [], uaamMatrix = null }) {
   if (!result) return null;
   return (
     <section className="compat-report" aria-label="相性分析結果">
@@ -96,6 +97,13 @@ export default function CompatReport({ result, memberLabels = [] }) {
       </div>
 
       <CompatMandala visual={result.visual} memberLabels={memberLabels} />
+      {uaamMatrix ? (
+        <CompatMatrix
+          uaamMatrix={uaamMatrix}
+          members={result.dataSufficiency.memberAvailability || []}
+          memberLabels={memberLabels}
+        />
+      ) : null}
 
       <div className="compat-claims-grid">
         {result.lenses.map((lens) => (

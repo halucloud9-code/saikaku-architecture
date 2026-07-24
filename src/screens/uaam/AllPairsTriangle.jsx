@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { getZone, zAlpha } from '../../lib/uaamZones';
 
 /**
  * AllPairsTriangle — 才覚発動領域 / Activation Matrix
@@ -336,37 +337,6 @@ const toRgba = (hex, a) => {
   const b = parseInt(hex.slice(5,7),16);
   return `rgba(${r},${g},${b},${(+a).toFixed(2)})`;
 };
-
-function getZone(sA, sB) {
-  const sum = sA + sB;
-  if (sA === 20 && sB === 20)                                         return 'natural';
-  if ((sA >= 16 && sB >= 16) || (sA >= 15 && sB >= 15 && sum >= 32)) return 'pro';
-  if (sA >= 12 && sB >= 12 && sum <= 31)                             return 'active';
-  if (sA >= 10 && sB >= 10 && sum >= 22 && !(sA >= 12 && sB >= 12)) return 'potential'; // 片方12未満のみ
-  return 'dormant';
-}
-
-function zAlpha(z, sA, sB) {
-  if (z === 'natural') return 1.0; // 20×20 — 最大発動
-
-  const sum = sA + sB;
-  // リニアスケール: 1点差でも目に見える変化を確保
-  const linear = (val, min, max) => Math.max(0, Math.min(1, (val - min) / (max - min)));
-
-  if (z === 'pro') {
-    // 合計32（最小）→ 合計40（最大）: 0.18〜1.0（1点差≈0.10変化）
-    return 0.18 + linear(sum, 32, 40) * 0.82;
-  }
-  if (z === 'active') {
-    // 合計24=12+12（最小）→ 合計31（最大）: 0.10〜0.88（1点差≈0.11変化）
-    return 0.10 + linear(sum, 24, 31) * 0.78;
-  }
-  if (z === 'potential') {
-    // 合計22（最小）→ 合計30（最大）: 0.05〜0.55（1点差≈0.06変化）
-    return 0.05 + linear(sum, 22, 30) * 0.50;
-  }
-  return 0.06;
-}
 
 export function getBlock(kA, kB) {
   const gA = CODE_GRP[kA], gB = CODE_GRP[kB];

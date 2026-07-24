@@ -270,6 +270,20 @@ export function buildCompatVisual({ profiles, ledger, uaamDocs, uaamEligible }) 
   };
 }
 
+export function buildCompatUaamMatrix(profiles) {
+  const memberScores = {};
+  for (const profile of profiles) {
+    if (!profile.uaam) continue;
+    const scores = {};
+    for (const [key] of UAAM_VISUAL_AXES) {
+      const value = profile.uaam[key];
+      if (Number.isFinite(value) && value >= 0 && value <= 20) scores[key] = Math.round(value);
+    }
+    if (Object.keys(scores).length > 0) memberScores[profile.alias] = scores;
+  }
+  return { memberScores };
+}
+
 export const COMPAT_EVIDENCE_THRESHOLDS = {
   uaamMinCohort: UAAM_MIN_COHORT,
   uaamSimilarMaxGap: UAAM_SIMILAR_MAX_GAP,

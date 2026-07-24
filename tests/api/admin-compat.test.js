@@ -158,6 +158,12 @@ describe('admin compat analysis', () => {
     expect(response.body.dataSufficiency.uaam.eligible).toBe(false);
     expect(response.body.dataSufficiency.limitations.join(' ')).toContain('くわしい診断（UAAM）の数字での比較は');
     expect(response.body.visual.uaam.axes.every((axis) => axis.points.length === 0)).toBe(true);
+    expect(response.body.uaamMatrix).toEqual({
+      memberScores: {
+        A: { meaning: 12, mindfulness: 13, mindshift: 14, mastery: 15 },
+      },
+    });
+    expect(response.body.visual.uaam).not.toHaveProperty('memberScores');
     expect(response.body).not.toHaveProperty('score');
 
     const audits = await db.collection('compat_audits').get();
@@ -474,8 +480,36 @@ describe('compat report sharing', () => {
     expect((await db.collection('compat_shares').get()).empty).toBe(true);
   });
 
+  it('strips admin-only UAAM scores before validation and never stores them', async () => {
+    await Promise.all([
+      seedParent('uaam_results', UID_A, {
+        scores: { mindset: { subs: { meaning: 20, mindfulness: 20 } } },
+      }),
+      seedParent('uaam_results', UID_B, {
+        scores: { mindset: { subs: { meaning: 16, mindfulness: 16 } } },
+      }),
+    ]);
+    const report = await analyzePairReport();
+    report.visual.uaam.memberScores = structuredClone(report.uaamMatrix.memberScores);
+
+    const issued = await api.post('/api/admin/compat-share')
+      .set('Authorization', 'Bearer admin-token')
+      .send(shareIssueBody(report));
+
+    expect(issued.status).toBe(201);
+    const stored = await db.collection('compat_shares').doc(issued.body.shareId).get();
+    expect(stored.exists).toBe(true);
+    expect(stored.data().report).not.toHaveProperty('uaamMatrix');
+    expect(stored.data().report.visual.uaam).not.toHaveProperty('memberScores');
+    expect(JSON.stringify(stored.data())).not.toContain('"memberScores"');
+    expect(report).toHaveProperty('uaamMatrix.memberScores.A.meaning', 20);
+    expect(report).toHaveProperty('visual.uaam.memberScores.A.meaning', 20);
+  });
+
   it('issues, serves, audits, revokes, and hides expired/revoked/unknown shares uniformly', async () => {
     const report = await analyzePairReport();
+    const sharedReport = structuredClone(report);
+    delete sharedReport.uaamMatrix;
     const issued = await api.post('/api/admin/compat-share')
       .set('Authorization', 'Bearer admin-token')
       .set('Origin', 'http://localhost:5173')
@@ -487,7 +521,7 @@ describe('compat report sharing', () => {
     const stored = await db.collection('compat_shares').doc(issued.body.shareId).get();
     expect(stored.exists).toBe(true);
     expect(stored.data()).toMatchObject({
-      report,
+      report: sharedReport,
       memberLabels: ['Member A', 'Member B'],
       mode: 'pair',
       goalProvided: false,
@@ -503,10 +537,10 @@ describe('compat report sharing', () => {
     expect(visible.headers['cache-control']).toContain('no-store');
     expect(visible.headers['referrer-policy']).toBe('no-referrer');
     expect(visible.headers['x-robots-tag']).toContain('noindex');
-    expect(visible.body).toEqual({ report, memberLabels: ['Member A', 'Member B'], mode: 'pair', goalProvided: false });
+    expect(visible.body).toEqual({ report: sharedReport, memberLabels: ['Member A', 'Member B'], mode: 'pair', goalProvided: false });
 
     const v1ShareId = '33333333-3333-4333-8333-333333333333';
-    const v1Report = structuredClone(report);
+    const v1Report = structuredClone(sharedReport);
     delete v1Report.visual;
     delete v1Report.unmetFunctionCandidate;
     await db.collection('compat_shares').doc(v1ShareId).set({

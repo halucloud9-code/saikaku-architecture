@@ -84,4 +84,28 @@ describe('CompatShareScreen', () => {
     expect(await screen.findByRole('heading', { name: '相性マンダラ' })).toBeInTheDocument();
     expect(screen.getByText(/本人が入力したトップ5の言葉はAI（LLM）には送られません。診断でみつけた軸の名前は、名前をふせたプロフィールの一部としてAIに渡ります。/)).toBeInTheDocument();
   });
+
+  it('never renders the admin-only matrix even if member scores are injected into a report', async () => {
+    const injectedFixture = structuredClone(responseFixture);
+    injectedFixture.report.uaamMatrix = { memberScores: { A: { meaning: 20, mindfulness: 20 } } };
+    injectedFixture.report.visual = {
+      schemaVersion: 2,
+      members: [
+        { alias: 'A', axes: { talent: [], value: [], passion: [] } },
+        { alias: 'B', axes: { talent: [], value: [], passion: [] } },
+      ],
+      matches: [],
+      uaam: {
+        eligible: false,
+        axes: [],
+        memberScores: { A: { meaning: 20, mindfulness: 20 } },
+      },
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => injectedFixture })));
+
+    renderShare();
+
+    expect(await screen.findByText('共有範囲')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'チームの中にある力の地図' })).not.toBeInTheDocument();
+  });
 });

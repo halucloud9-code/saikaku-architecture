@@ -56,8 +56,13 @@ const reportFixture = {
       { alias: 'B', axes: { talent: ['対話'], value: [], passion: [] } },
     ],
     matches: [{ aliases: ['A', 'B'], category: 'talent', sourceKind: 'user_top5', terms: ['観察'] }],
-    uaam: { eligible: false, axes: [] },
+    uaam: {
+      eligible: false,
+      axes: [],
+      memberScores: { A: { meaning: 20, mindfulness: 20 } },
+    },
   },
+  uaamMatrix: { memberScores: { A: { meaning: 20, mindfulness: 20 } } },
 };
 
 afterEach(() => {
@@ -140,6 +145,7 @@ describe('CompatScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
 
     const issueButton = await screen.findByRole('button', { name: '共有URLを発行' });
+    expect(screen.getByRole('heading', { name: 'チームの中にある力の地図' })).toBeInTheDocument();
     expect(issueButton).toBeDisabled();
     fireEvent.click(screen.getByText(/本人が入力したTop5の語はLLMに送信されない/).closest('label').querySelector('input'));
     expect(issueButton).toBeEnabled();
@@ -154,6 +160,9 @@ describe('CompatScreen', () => {
       path === '/api/admin/compat-share' && JSON.parse(options.body).consentConfirmed === true
     ));
     expect(issueRequest).toBeTruthy();
-    expect(JSON.parse(issueRequest[1].body).memberLabels).toEqual(['つかさ', '野田健一']);
+    const issueBody = JSON.parse(issueRequest[1].body);
+    expect(issueBody.memberLabels).toEqual(['つかさ', '野田健一']);
+    expect(issueBody.report).not.toHaveProperty('uaamMatrix');
+    expect(issueBody.report.visual.uaam).not.toHaveProperty('memberScores');
   });
 });

@@ -16,6 +16,17 @@ async function apiFetch(user, path, options = {}) {
   return data;
 }
 
+export function reportForCompatShare(result) {
+  const report = structuredClone(result);
+  if (report && typeof report === 'object') {
+    delete report.uaamMatrix;
+    if (report.visual?.uaam && typeof report.visual.uaam === 'object') {
+      delete report.visual.uaam.memberScores;
+    }
+  }
+  return report;
+}
+
 export default function CompatScreen({ user, onBack, onLogout }) {
   const [mode, setMode] = useState('pair');
   const [profiles, setProfiles] = useState([]);
@@ -163,7 +174,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       const issued = await apiFetch(user, '/api/admin/compat-share', {
         method: 'POST',
         body: JSON.stringify({
-          report: result,
+          report: reportForCompatShare(result),
           mode,
           goal: mode === 'team' ? goal.trim() : '',
           memberLabels: reportLabels,
@@ -299,7 +310,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         </button>
       </section>
 
-      <CompatReport result={result} memberLabels={reportLabels} />
+      <CompatReport result={result} memberLabels={reportLabels} uaamMatrix={result?.uaamMatrix} />
 
       {result && (
         <section className="compat-share-controls" aria-label="分析結果の共有">
