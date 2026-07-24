@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import CompatMatrix, { buildCompatMatrixModel } from '../../src/compat/CompatMatrix.jsx';
+import { buildCompatSharedMatrix } from '../../api/lib/compatShare.js';
 
 function pair(model, axisA, axisB) {
   return model.cells.find((_row, index) => model.diagonal[index].axis.key === axisA)
@@ -83,7 +84,7 @@ describe('compat UAAM matrix model', () => {
 });
 
 describe('CompatMatrix', () => {
-  it('renders real names in cell details, missing-member notes, and distinct no-data axes', () => {
+  it('shows real names, pair definitions, zones, and admin-only member scores in its rich tooltip', () => {
     render(
       <CompatMatrix
         uaamMatrix={{ memberScores: { M1: { meaning: 16, mindfulness: 16 } } }}
@@ -92,12 +93,19 @@ describe('CompatMatrix', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'チームの中にある力の地図' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'チーム発動領域Matrix' })).toBeInTheDocument();
     expect(screen.getByText(/この図に入っていない人/).closest('p')).toHaveTextContent('野田健一');
     expect(screen.getByText(/データなしの軸/).closest('p')).toHaveTextContent('転換力');
     const pairCell = document.querySelector('[data-row="0"][data-column="1"]');
-    expect(pairCell).toHaveAttribute('title', expect.stringContaining('つかさ: 基軸力 16点 / 認知力 16点'));
-    expect(pairCell).toHaveAttribute('title', expect.stringContaining('野田健一: 基軸力 データなし'));
+    expect(pairCell).toHaveTextContent('');
+    fireEvent.mouseEnter(pairCell, { clientX: 100, clientY: 100 });
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toHaveTextContent('基認力');
+    expect(tooltip).toHaveTextContent('軸が定まっているから、どんな価値観も受け入れられる力');
+    expect(tooltip).toHaveTextContent('PRO');
+    expect(tooltip).toHaveTextContent('担い手つかさ');
+    expect(tooltip).toHaveTextContent('つかさ基軸力 16点 / 認知力 16点PRO');
+    expect(tooltip).toHaveTextContent('野田健一基軸力 データなし / 認知力 データなし判定できません');
   });
 
   it('renders all 256 data cells as non-buttons with descriptive accessible labels', () => {
@@ -115,11 +123,43 @@ describe('CompatMatrix', () => {
     expect(cells.every((cell) => cell.getAttribute('role') === 'img')).toBe(true);
 
     const pairCell = container.querySelector('[data-row="0"][data-column="1"]');
-    expect(pairCell).toHaveAccessibleName(expect.stringContaining('基軸力 × 認知力・高い水準・担い手1人'));
+    expect(pairCell).toHaveAccessibleName(expect.stringContaining('基軸力 × 認知力。高い水準。担い手 つかさ'));
     expect(screen.getByRole('columnheader', { name: '志・基軸力' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '高水準' }));
+    fireEvent.click(screen.getByRole('button', { name: 'PRO' }));
     expect(pairCell).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.queryByRole('img', { name: /基軸力 × 認知力・高い水準・担い手1人/u })).toBeNull();
+    expect(screen.queryByRole('img', { name: /基軸力 × 認知力。高い水準。担い手 つかさ/u })).toBeNull();
+  });
+
+  it('renders shared derived data with carrier names but no score details or diagonal carriers', () => {
+    const sharedMatrix = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 16, mindfulness: 16 },
+        M2: { meaning: 12, mindfulness: 12 },
+      },
+    }, ['M1', 'M2']);
+    const { container } = render(
+      <CompatMatrix
+        mode="share"
+        sharedMatrix={sharedMatrix}
+        members={[{ alias: 'M1' }, { alias: 'M2' }]}
+        memberLabels={['つかさ', '野田健一']}
+      />,
+    );
+
+    const pairCell = container.querySelector('[data-row="0"][data-column="1"]');
+    expect(pairCell).toHaveTextContent('');
+    expect(pairCell).toHaveAccessibleName(expect.stringContaining('担い手 つかさ'));
+    expect(pairCell.getAttribute('aria-label')).not.toMatch(/\d+点/u);
+    fireEvent.mouseEnter(pairCell, { clientX: 100, clientY: 100 });
+    expect(screen.getByRole('tooltip')).toHaveTextContent('担い手つかさ');
+    expect(screen.getByRole('tooltip')).not.toHaveTextContent(/16点|12点/u);
+
+    fireEvent.mouseLeave(pairCell);
+    const diagonal = container.querySelector('[data-row="0"][data-column="0"]');
+    expect(diagonal).toHaveAccessibleName('基軸力・データあり・共有版では対角の担い手なし');
+    fireEvent.mouseEnter(diagonal, { clientX: 100, clientY: 100 });
+    expect(screen.getByRole('tooltip')).toHaveTextContent('共有版では点数と対角の担い手を表示しません');
+    expect(screen.getByRole('tooltip')).not.toHaveTextContent('つかさ');
   });
 });

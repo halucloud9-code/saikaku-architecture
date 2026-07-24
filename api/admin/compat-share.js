@@ -2,10 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { db } from '../lib/firebaseAdmin.js';
 import {
+  buildCompatSharedMatrix,
   COMPAT_SHARE_TTL_MS,
   isCompatShareId,
   setCompatShareNoStoreHeaders,
+  validateCompatSharedMatrix,
   validateCompatShareIssueInput,
+  validateCompatShareUaamMatrix,
 } from '../lib/compatShare.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
@@ -47,6 +50,8 @@ function requestOrigin(req) {
 
 async function issueShare(req, res, admin) {
   const shareInput = structuredClone(req.body);
+  const uaamMatrix = shareInput?.uaamMatrix;
+  if (shareInput && typeof shareInput === 'object') delete shareInput.uaamMatrix;
   if (shareInput?.report && typeof shareInput.report === 'object') {
     delete shareInput.report.uaamMatrix;
     if (shareInput.report.visual?.uaam && typeof shareInput.report.visual.uaam === 'object') {
@@ -55,6 +60,17 @@ async function issueShare(req, res, admin) {
   }
   const validation = validateCompatShareIssueInput(shareInput);
   if (!validation.ok) return errorResponse(res, validation.status, validation.code, validation.error);
+  const memberAliases = validation.value.report.dataSufficiency.memberAvailability
+    .map((member) => member.alias);
+  const uaamValidation = validateCompatShareUaamMatrix(uaamMatrix, memberAliases);
+  if (!uaamValidation.ok) {
+    return errorResponse(res, 422, 'UAAM_MATRIX_INVALID', '共有する地図データの安全性を確認できませんでした');
+  }
+  const sharedMatrix = buildCompatSharedMatrix(uaamValidation.value, memberAliases);
+  const sharedMatrixValidation = validateCompatSharedMatrix(sharedMatrix, memberAliases);
+  if (!sharedMatrixValidation.ok) {
+    return errorResponse(res, 422, 'SHARED_MATRIX_INVALID', '共有する地図データの安全性を確認できませんでした');
+  }
 
   const shareId = randomUUID();
   const url = `${requestOrigin(req)}/compat/share/${shareId}`;
@@ -64,6 +80,7 @@ async function issueShare(req, res, admin) {
   const batch = db.batch();
   batch.create(shareRef, {
     ...validation.value,
+    sharedMatrix: sharedMatrixValidation.value,
     actorUid: admin.uid,
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Timestamp.fromMillis(nowMs + COMPAT_SHARE_TTL_MS),
