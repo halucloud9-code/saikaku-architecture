@@ -69,7 +69,7 @@ describe('compat evidence layer', () => {
     const matches = evidence.ledger.filter((item) => item.kind === 'exact_nfkc_match');
     expect(matches.length).toBeGreaterThan(0);
     expect(matches.every((item) => item.details.sourceKind === 'generated_axis')).toBe(true);
-    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('公開アプリから追加したメンバーは');
+    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('公開アプリから追加したメンバーについては');
   });
 
   it('uses the public-compatible surface for every pair in a mixed team', () => {
@@ -88,7 +88,8 @@ describe('compat evidence layer', () => {
       internal('b', '対話'),
     ], cohort, 'pair');
     expect(evidence.dataSufficiency.uaam.eligible).toBe(false);
-    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('くわしい診断（UAAM）の数字での比較は');
+    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('パーセンタイル比較は、今回はデータが不足');
+    expect(evidence.dataSufficiency.limitations.join(' ')).toContain('16×16の力の地図とは別');
 
     const visual = buildCompatVisual({
       profiles: evidence.profiles,
@@ -122,7 +123,7 @@ describe('compat evidence layer', () => {
     });
 
     expect(visual.schemaVersion).toBe(2);
-    expect(visual.members.map((member) => member.alias)).toEqual(['A', 'B']);
+    expect(visual.members.map((member) => member.alias)).toEqual(['M1', 'M2']);
     expect(visual.matches.some((match) => match.terms.includes(secret))).toBe(true);
     expect(visual.uaam.axes.map((axis) => axis.key)).toEqual(COMPAT_VISUAL_UAAM_AXES.map((axis) => axis.key));
     expect(visual.uaam.axes).toHaveLength(16);
@@ -142,7 +143,7 @@ describe('compat evidence layer', () => {
 
     expect(buildCompatUaamMatrix(evidence.profiles)).toEqual({
       memberScores: {
-        A: { meaning: 12, logical: 19 },
+        M1: { meaning: 12, logical: 19 },
       },
     });
   });

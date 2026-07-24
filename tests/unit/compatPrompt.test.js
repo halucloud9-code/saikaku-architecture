@@ -12,6 +12,10 @@ describe('compat prompt response parsing', () => {
     expect(params.system).toContain('"evidenceIds":["E-001"]');
     expect(params.system).toContain('中立な別解を識別できる問い');
     expect(params.system).toContain('「欠員」という語は禁止');
+    expect(params.system).toContain('自然で読みやすい日本語');
+    expect(params.system).toContain('M1の才能のデータ');
+    expect(params.system).not.toContain('小学5年生');
+    expect(params.system).not.toContain('"Aの才能');
     expect(params.messages[0].content).toContain('目的あり: 証拠が十分な場合だけ最大1件');
   });
 

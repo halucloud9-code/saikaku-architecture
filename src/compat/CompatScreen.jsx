@@ -292,9 +292,9 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     <main className="compat-page">
       <header className="compat-header">
         <div>
-          <p className="compat-kicker">ADMIN / COMPATIBILITY</p>
+          <p className="compat-kicker">管理者向け・相性診断</p>
           <h1>相性診断</h1>
-          <p>点数はつけません。「にているところ」と「ちがうから助け合えるところ」を見つけて、話すきっかけにします。</p>
+          <p>点数はつけません。「似ているところ」と「違いで補い合えるところ」を見つけ、対話のきっかけにします。</p>
         </div>
         <div className="compat-header-actions">
           <button type="button" className="compat-button secondary" onClick={onBack}>管理画面へ</button>
@@ -345,7 +345,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           {publicImport.enabled && (
             <div className="compat-import-row">
               <input aria-label="公開アプリ共有URL" type="url" value={shareUrl} onChange={(event) => setShareUrl(event.target.value)} placeholder="https://app.saikaku-architecture.com/share/..." />
-              <button type="button" className="compat-button secondary" onClick={importProfile} disabled={importing || !shareUrl.trim() || selected.length >= maxMembers}>{importing ? '取込中…' : '追加'}</button>
+              <button type="button" className="compat-button secondary" onClick={importProfile} disabled={importing || !shareUrl.trim() || selected.length >= maxMembers}>{importing ? '取り込み中…' : '追加'}</button>
             </div>
           )}
         </div>
@@ -356,9 +356,9 @@ export default function CompatScreen({ user, onBack, onLogout }) {
             {selected.map((member, index) => (
               <div className="compat-selected-row" key={member.source === 'internal' ? member.id : member.shareUrl}>
                 <label className="compat-display-name">
-                  <span><b>{mode === 'pair' ? (index === 0 ? 'A' : 'B') : `M${index + 1}`}</b> レポート表示名</span>
+                  <span><b>{`M${index + 1}`}</b> レポート表示名</span>
                   <input
-                    aria-label={`${mode === 'pair' ? (index === 0 ? 'A' : 'B') : `M${index + 1}`} レポート表示名`}
+                    aria-label={`M${index + 1} レポート表示名`}
                     type="text"
                     value={member.displayName}
                     maxLength={80}
@@ -369,7 +369,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
                 <button type="button" onClick={() => removeMember(member)}>外す</button>
               </div>
             ))}
-            <p className="compat-selected-note">表示名は分析用データやLLMには送られず、レポートと共有ページにだけ使われます。</p>
+            <p className="compat-selected-note">表示名は分析用データやAIには送られず、レポートと共有ページの表示にだけ使われます。</p>
           </div>
         )}
 
@@ -387,9 +387,9 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       <CompatReport result={result} memberLabels={reportLabels} uaamMatrix={result?.uaamMatrix} />
 
       {result && (
-        <section className="compat-recommend" aria-label="チームにない力を持つ受講者さがし">
-          <p className="compat-kicker">FIND A PARTICIPANT</p>
-          <h2>チームにない力を持つ受講者さがし</h2>
+        <section className="compat-recommend" aria-label="チームにない力を持つ受講者を探す">
+          <p className="compat-kicker">受講者を探す</p>
+          <h2>チームにない力を持つ受講者を探す</h2>
           <p className="compat-recommend-rule">
             チームで12点（発動の目安）未満、またはデータのない軸を、16点以上で持っている人を、名前の順で表示します。
           </p>
@@ -404,7 +404,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           )}
           {Array.isArray(recommendSummary) && recommendSummary.length > 0 && (
             <div className="compat-recommend-summary">
-              <h3>実名を開く前の集計</h3>
+              <h3>氏名を表示する前の集計</h3>
               <ul>
                 {recommendSummary.map((axis) => (
                   <li key={axis.axisKey}>
@@ -430,12 +430,12 @@ export default function CompatScreen({ user, onBack, onLogout }) {
               </span>
             </label>
           )}
-          {recommendNamesLoading && <p role="status">実名を読み込んでいます…</p>}
+          {recommendNamesLoading && <p role="status">氏名を読み込んでいます…</p>}
           {recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length === 0 && (
             <p>この基準に該当する受講者はいません。</p>
           )}
           {recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length > 0 && (
-            <div className="compat-recommend-candidates" aria-label="実名の該当者一覧">
+            <div className="compat-recommend-candidates" aria-label="氏名を表示した該当者一覧">
               {recommendCandidates.map((candidate) => (
                 <article key={candidate.profileId}>
                   <h3>{candidate.displayName}</h3>
@@ -455,14 +455,14 @@ export default function CompatScreen({ user, onBack, onLogout }) {
 
       {result && (
         <section className="compat-share-controls" aria-label="分析結果の共有">
-          <p className="compat-kicker">SHARE</p>
+          <p className="compat-kicker">結果を共有する</p>
           <h2>対象者へ結果を共有</h2>
           <p>URLを知る人が閲覧できます。有効期間は発行から30日で、いつでも失効できます。</p>
           <label className="compat-consent">
             <input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} disabled={!!share} />
             <span>
               本結果の共有について、対象者全員の同意を確認しました
-              {hasMatchedTerms && '（完全一致語が対象者間に表示されます。本人が入力したTop5の語はLLMに送信されない。生成軸名は別名化プロフィールの一部としてLLMに渡る）'}
+              {hasMatchedTerms && '（表記が完全に一致した言葉が対象者間に表示されます。本人が入力した言葉はAIには送られません。診断で見つかった軸の名前は、氏名を除いたプロフィールの一部としてAIに渡ります）'}
             </span>
           </label>
           {shareError && <p className="compat-error" role="alert">{shareError}</p>}

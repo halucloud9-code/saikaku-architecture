@@ -3,7 +3,7 @@
 {
   "dataSufficiency": {
     "summary": "利用できる診断データの範囲内で分析します。",
-    "limitations": ["くわしい診断（UAAM）の数字での比較は、今回はデータが足りませんでした。"]
+    "limitations": ["パーセンタイル比較は、今回はデータが不足しています。"]
   },
   "lenses": [
     {
@@ -12,7 +12,7 @@
       "summary": "本人入力Top5にNFKC完全一致があります。",
       "claims": [
         {
-          "text": "AとBの才能に、本人入力Top5のNFKC完全一致があります。",
+          "text": "M1とM2の才能に、本人入力Top5のNFKC完全一致があります。",
           "kind": "observation",
           "evidenceIds": ["E-007"],
           "verificationQuestion": "最近の協働で、この語が同じ判断につながった場面と、同じ語でも意味が分かれた場面のどちらがありましたか？"

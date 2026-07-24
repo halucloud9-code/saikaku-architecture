@@ -26,15 +26,15 @@ const SYSTEM_PROMPT = `あなたは、相互理解のための相性分析を支
 - 相性スコア、適合率、ランキング、人事評価、採用評価、査定、配属判断は禁止です。
 
 文体契約（上の出力契約を変えずに、文章の書き方だけを決めます）:
-- summary、text、verificationQuestion、limitations のすべての文章を、小学5年生が読めるやさしい日本語（です・ます調）で書きます。
-- 専門語（同質性、補完性、生成軸、充足度、示唆など）をそのまま使いません。必要な場合は、直後にやさしい言い換えを添えます。
-- talent・value・passion は「才能」「価値観」「情熱」と書きます。user_top5 は「本人がえらんだトップ5」、generated_axis は「診断でみつけた軸」と書きます。
-- statusがdetectedのレンズのsummaryには、学校・部活・料理・スポーツ・ゲームなど日常の例え話をちょうど1つ入れます。例えは人物への断定ラベルにせず、「〜みたいな組み合わせ」の形にします。
-- verificationQuestionは、上の識別要件（一推論につき一問・最近の具体的な場面・別解との識別）を守ったまま、親しみやすく話しかける口調で書きます。
-- やさしい表現にしても、事実（observation）と推測（hypothesis）の区別、証拠IDの引用、スコア・ランキング・人事評価語の禁止はそのまま守ります。
+- summary、text、verificationQuestion、limitations のすべての文章を、自然で読みやすい日本語（です・ます調）で書きます。ふりがな的なひらがな書きや子ども向けの言い回しは使いません。
+- 英語やカタカナの専門用語は避けます。どうしても必要な場合は、直後にわかりやすい言い換えを添えます。
+- talent・value・passion は「才能」「価値観」「情熱」と書きます。user_top5 は「本人が選んだ言葉」、generated_axis は「診断で見つかった軸」と書きます。
+- 例え話は、理解の助けになる場合にだけ、レポート全体で1つまで使えます（義務ではありません）。例えは人物への断定にせず、「〜のような組み合わせ」の形にします。
+- verificationQuestion は、識別要件（一推論につき一問・最近の具体的な場面・別解との識別）を守ったまま、丁寧で親しみやすい口調で書きます。
+- 読みやすくしても、事実（observation）と推測（hypothesis）の区別、証拠IDの引用、スコア・順位付け・人事評価の表現の禁止はそのまま守ります。
 
 形だけを示す有効例:
-{"dataSufficiency":{"summary":"今回のデータでわかる範囲だけを見ます。","limitations":[]},"lenses":[{"id":"similarity","status":"detected","summary":"ふたりには、にているところが見つかりました。同じ部活で同じポジションを選ぶみたいな組み合わせです。","claims":[{"text":"Aの才能のデータに、診断でみつけた軸があります。","kind":"observation","evidenceIds":["E-001"],"verificationQuestion":"最近いっしょに作業したとき、この軸で判断がそろった場面と、同じ軸なのに判断が分かれた場面、どちらがありましたか？"}]},{"id":"complementarity","status":"not_detected","summary":"今回のデータでは、ちがいで助け合うところは見つかりませんでした。","claims":[]}],"unmetFunctionCandidate":null}`;
+{"dataSufficiency":{"summary":"今回のデータで確認できる範囲を示します。","limitations":[]},"lenses":[{"id":"similarity","status":"detected","summary":"二人には、似ているところが見つかりました。","claims":[{"text":"M1の才能のデータに、診断で見つかった軸があります。","kind":"observation","evidenceIds":["E-001"],"verificationQuestion":"最近一緒に作業した場面で、この軸が同じ判断につながったときと、同じ軸があっても判断が分かれたときのどちらがありましたか？"}]},{"id":"complementarity","status":"not_detected","summary":"今回のデータでは、違いで補い合えるところは見つかりませんでした。","claims":[]}],"unmetFunctionCandidate":null}`;
 
 function safeGoal(goal) {
   if (typeof goal !== 'string') return '';

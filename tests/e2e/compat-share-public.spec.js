@@ -23,8 +23,8 @@ function sharedReport() {
     report: {
       dataSufficiency: {
         summary: '共有された診断データの範囲です。',
-        memberAvailability: [availability('A'), availability('B')],
-        limitations: ['くわしい診断（UAAM）の数字での比較は、今回はデータが足りませんでした。'],
+        memberAvailability: [availability('M1'), availability('M2')],
+        limitations: ['パーセンタイル比較は、今回はデータが不足しています。'],
         uaam: { eligible: true, availableProfiles: 2, requiredProfiles: 2, minimumCohort: 30 },
       },
       lenses: [
@@ -38,10 +38,10 @@ function sharedReport() {
       visual: {
         schemaVersion: 2,
         members: [
-          { alias: 'A', axes: { value: ['透明性'], talent: ['構造化'], passion: ['AI'] } },
-          { alias: 'B', axes: { value: ['共創'], talent: ['集中力'], passion: ['AI'] } },
+          { alias: 'M1', axes: { value: ['透明性'], talent: ['構造化'], passion: ['AI'] } },
+          { alias: 'M2', axes: { value: ['共創'], talent: ['集中力'], passion: ['AI'] } },
         ],
-        matches: [{ aliases: ['A', 'B'], category: 'passion', sourceKind: 'user_top5', terms: ['AI'] }],
+        matches: [{ aliases: ['M1', 'M2'], category: 'passion', sourceKind: 'user_top5', terms: ['AI'] }],
         uaam: {
           eligible: true,
           axes: uaamAxes.map(([key, label]) => ({
@@ -49,7 +49,7 @@ function sharedReport() {
             label,
             cohortSize: 51,
             signal: 'similarity',
-            points: [{ alias: 'A', percentile: 11 }, { alias: 'B', percentile: 11 }],
+            points: [{ alias: 'M1', percentile: 11 }, { alias: 'M2', percentile: 11 }],
           })),
         },
       },
@@ -64,6 +64,11 @@ function v1SharedReport() {
   const response = sharedReport();
   delete response.report.visual;
   delete response.report.unmetFunctionCandidate;
+  response.report.dataSufficiency.memberAvailability = [
+    { ...response.report.dataSufficiency.memberAvailability[0], alias: 'A' },
+    { ...response.report.dataSufficiency.memberAvailability[1], alias: 'B' },
+  ];
+  response.memberLabels = ['旧A氏', '旧B氏'];
   return response;
 }
 
@@ -107,7 +112,12 @@ test('public v1 share fetches and renders without visual-only matched-term guida
 
   await expect(page.getByText('共有された診断データの範囲です。')).toBeVisible();
   await expect(page.getByRole('heading', { name: '相性マンダラ' })).toHaveCount(0);
-  await expect(page.getByText(/本人が入力したトップ5の言葉はAI（LLM）には送られません/)).toHaveCount(0);
+  await expect(page.getByText(/本人が入力した言葉はAIには送られません/)).toHaveCount(0);
+  await page.getByText('根拠となったデータを詳しく見る').click();
+  await expect(page.getByText('A', { exact: true })).toBeVisible();
+  await expect(page.getByText('B', { exact: true })).toBeVisible();
+  await expect(page.getByText('旧A氏', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('旧B氏', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/人事評価・採用評価には流用しません/)).toBeVisible();
 });
 
@@ -125,6 +135,6 @@ test('public compat mandala uses the simplified layout at 375px without horizont
   await expect(page.getByRole('heading', { name: '相性マンダラ' })).toBeVisible();
   await expect(page.locator('.compat-mandala-mobile-network')).toBeVisible();
   await expect(page.locator('.compat-mandala-network')).toBeHidden();
-  await expect(page.getByText(/本人が入力したトップ5の言葉はAI（LLM）には送られません/)).toBeVisible();
+  await expect(page.getByText(/本人が入力した言葉はAIには送られません/)).toBeVisible();
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

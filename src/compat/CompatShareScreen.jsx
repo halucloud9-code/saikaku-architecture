@@ -69,9 +69,9 @@ export default function CompatShareScreen() {
     <main className="compat-page compat-share-page">
       <header className="compat-header">
         <div>
-          <p className="compat-kicker">SHARED / COMPATIBILITY</p>
+          <p className="compat-kicker">共有された相性診断</p>
           <h1>相性診断</h1>
-          <p>この結果は発行者により共有されたものです（期限付き）。</p>
+          <p>この結果は、発行者から期限付きで共有されたものです。</p>
         </div>
       </header>
 
@@ -82,7 +82,7 @@ export default function CompatShareScreen() {
           <section className="compat-share-guidance" aria-label="共有時の注意">
             <p>このURLは対象者本人への限定共有です。本人全員の同意なく再共有しないでください。</p>
             {hasMatchedTerms && (
-              <p>「まったく同じだった言葉」は、メンバー全員が共有に同意したうえで表示されています。本人が入力したトップ5の言葉はAI（LLM）には送られません。診断でみつけた軸の名前は、名前をふせたプロフィールの一部としてAIに渡ります。</p>
+              <p>「表記が完全に一致した言葉」は、メンバー全員が共有に同意したうえで表示されています。本人が入力した言葉はAIには送られません。診断で見つかった軸の名前は、氏名を除いたプロフィールの一部としてAIに渡ります。</p>
             )}
             <p>内容の訂正または共有停止を希望する場合は、URLを送った発行者へ連絡してください。</p>
           </section>
