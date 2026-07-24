@@ -307,6 +307,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         method: 'POST',
         body: JSON.stringify({
           report: reportForCompatShare(result),
+          uaamMatrix: result?.uaamMatrix,
           mode: snapshot.mode,
           goal: snapshot.goal,
           memberLabels: snapshot.memberLabels,
@@ -541,6 +542,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
             <span>
               本結果の共有について、対象者全員の同意を確認しました
               {hasMatchedTerms && '（表記が完全に一致した言葉が対象者間に表示されます。本人が入力した言葉はAIには送られません。診断で見つかった軸の名前は、氏名を除いたプロフィールの一部としてAIに渡ります）'}
+              。16×16の地図（各組み合わせの発動ゾーン・強弱と担い手の名前）も共有されます。点数そのものは含まれません
             </span>
           </label>
           {shareError && <p className="compat-error" role="alert">{shareError}</p>}

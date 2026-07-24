@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import CompatShareScreen from '../../src/compat/CompatShareScreen.jsx';
+import { buildCompatSharedMatrix } from '../../api/lib/compatShare.js';
 
 const responseFixture = {
   report: {
@@ -109,6 +110,31 @@ describe('CompatShareScreen', () => {
     expect(screen.getByText('つかさと野田健一には似ているところがあります。')).toBeInTheDocument();
   });
 
+  it('renders a shared matrix from derived data without exposing member scores', async () => {
+    const matrixFixture = structuredClone(responseFixture);
+    matrixFixture.report.dataSufficiency.memberAvailability = [
+      { alias: 'M1', source: 'internal', categories: {}, uaam: true },
+      { alias: 'M2', source: 'internal', categories: {}, uaam: true },
+    ];
+    matrixFixture.memberLabels = ['つかさ', '野田健一'];
+    matrixFixture.sharedMatrix = buildCompatSharedMatrix({
+      memberScores: {
+        M1: { meaning: 16, mindfulness: 16 },
+        M2: { meaning: 12, mindfulness: 12 },
+      },
+    }, ['M1', 'M2']);
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => matrixFixture })));
+
+    const { container } = renderShare();
+
+    expect(await screen.findByRole('heading', { name: 'チーム発動領域Matrix' })).toBeInTheDocument();
+    expect(container.querySelectorAll('.compat-matrix-cell')).toHaveLength(256);
+    expect(container.querySelector('[data-row="0"][data-column="1"]')).toHaveAccessibleName(
+      expect.stringContaining('担い手 つかさ'),
+    );
+    expect(container.querySelector('.compat-matrix')).not.toHaveTextContent(/16点|12点/u);
+  });
+
   it('never renders the admin-only matrix even if member scores are injected into a report', async () => {
     const injectedFixture = structuredClone(responseFixture);
     injectedFixture.report.uaamMatrix = { memberScores: { A: { meaning: 20, mindfulness: 20 } } };
@@ -130,6 +156,6 @@ describe('CompatShareScreen', () => {
     renderShare();
 
     expect(await screen.findByText('共有範囲')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'チームの中にある力の地図' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'チーム発動領域Matrix' })).not.toBeInTheDocument();
   });
 });

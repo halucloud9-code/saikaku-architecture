@@ -1,5 +1,11 @@
 import { validateCompatForbiddenLanguage, validateCompatOutput } from './validateCompatOutput.js';
 import { COMPAT_EVIDENCE_THRESHOLDS, COMPAT_VISUAL_UAAM_AXES } from './compatEvidence.js';
+import { getZone, UAAM_ZONE_THRESHOLDS } from '../../src/lib/uaamZones.js';
+import {
+  compareCompatTeamAverageStrength,
+  getCompatTeamAverageZone,
+  isCompatCarrierZone,
+} from '../../src/lib/compatTeamZones.js';
 
 export const COMPAT_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 export const COMPAT_ETHICS_NOTICE = '本結果は相互理解のための対話素材です。人事評価・採用評価には流用しません。';
@@ -15,6 +21,15 @@ const CATEGORY_KEYS = ['talent', 'value', 'passion'];
 const EVIDENCE_LENSES = ['both', 'similarity', 'complementarity'];
 const EVIDENCE_KINDS = ['generated_axis', 'exact_nfkc_match', 'uaam_percentile_similarity', 'uaam_percentile_complement'];
 const VISUAL_SIGNALS = ['similarity', 'complementarity', 'neutral', 'insufficient'];
+const SHARED_MATRIX_ZONES = ['natural', 'pro', 'active', 'potential', 'dormant', 'no-data'];
+const SHARED_MATRIX_DATA_STATUSES = ['measured', 'no-data'];
+const SHARED_MATRIX_ZONE_ORDER = ['dormant', 'potential', 'active', 'pro', 'natural'];
+const SHARED_MATRIX_ZONE_RANK = Object.fromEntries(
+  SHARED_MATRIX_ZONE_ORDER.map((zone, index) => [zone, index]),
+);
+const SHARED_MATRIX_MAX_BYTES = 64 * 1_024;
+
+export const COMPAT_SHARED_MATRIX_AXES = COMPAT_VISUAL_UAAM_AXES.map(({ key }) => key);
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -23,6 +38,259 @@ function isPlainObject(value) {
 function hasExactKeys(value, expected) {
   return isPlainObject(value)
     && Object.keys(value).sort().join('|') === [...expected].sort().join('|');
+}
+
+function jsonByteLength(value) {
+  return Buffer.byteLength(JSON.stringify(value), 'utf8');
+}
+
+function containsSharedMatrixForbiddenShape(value) {
+  if (Array.isArray(value)) return value.some(containsSharedMatrixForbiddenShape);
+  if (!isPlainObject(value)) {
+    return typeof value === 'number'
+      && Number.isFinite(value)
+      && value >= 0
+      && value <= UAAM_ZONE_THRESHOLDS.scoreMax;
+  }
+  return Object.entries(value).some(([key, child]) => (
+    /(?:score|memberScores|uaamMatrix|carrierCount)/iu.test(key)
+    || containsSharedMatrixForbiddenShape(child)
+  ));
+}
+
+function canonicalSharedMatrixPairs() {
+  const pairs = [];
+  for (let rowIndex = 0; rowIndex < COMPAT_SHARED_MATRIX_AXES.length - 1; rowIndex += 1) {
+    for (let colIndex = rowIndex + 1; colIndex < COMPAT_SHARED_MATRIX_AXES.length; colIndex += 1) {
+      pairs.push([
+        COMPAT_SHARED_MATRIX_AXES[rowIndex],
+        COMPAT_SHARED_MATRIX_AXES[colIndex],
+      ]);
+    }
+  }
+  return pairs;
+}
+
+const COMPAT_SHARED_MATRIX_PAIRS = canonicalSharedMatrixPairs();
+
+export function validateCompatShareUaamMatrix(value, memberAliases) {
+  const errors = [];
+  const aliasSet = new Set(Array.isArray(memberAliases) ? memberAliases : []);
+  if (!hasExactKeys(value, ['memberScores'])) {
+    return { ok: false, errors: ['uaamMatrix: memberScoresだけが必要です'] };
+  }
+  if (!isPlainObject(value.memberScores)
+    || Object.keys(value.memberScores).length > aliasSet.size
+    || Object.keys(value.memberScores).length > 10) {
+    return { ok: false, errors: ['uaamMatrix.memberScores: 対象人数以内のオブジェクトが必要です'] };
+  }
+
+  for (const [alias, scores] of Object.entries(value.memberScores)) {
+    const path = `uaamMatrix.memberScores.${alias}`;
+    if (!aliasSet.has(alias)) {
+      errors.push(`${path}: 対象者aliasと一致しません`);
+      continue;
+    }
+    if (!isPlainObject(scores)
+      || Object.keys(scores).length < 1
+      || Object.keys(scores).length > COMPAT_SHARED_MATRIX_AXES.length) {
+      errors.push(`${path}: 1〜16軸のオブジェクトが必要です`);
+      continue;
+    }
+    for (const [axisKey, score] of Object.entries(scores)) {
+      if (!COMPAT_SHARED_MATRIX_AXES.includes(axisKey)) {
+        errors.push(`${path}.${axisKey}: 軸キーが不正です`);
+      } else if (!Number.isInteger(score) || score < 0 || score > UAAM_ZONE_THRESHOLDS.scoreMax) {
+        errors.push(`${path}.${axisKey}: 0〜20の整数が必要です`);
+      }
+    }
+  }
+
+  return errors.length === 0
+    ? { ok: true, value, errors: [] }
+    : { ok: false, errors };
+}
+
+export function buildCompatSharedMatrix(uaamMatrix, memberAliases) {
+  const validation = validateCompatShareUaamMatrix(uaamMatrix, memberAliases);
+  if (!validation.ok) {
+    const error = new TypeError('uaamMatrix is invalid');
+    error.details = validation.errors;
+    throw error;
+  }
+
+  const aliases = (Array.isArray(memberAliases) ? memberAliases : []).filter((alias) => (
+    Object.prototype.hasOwnProperty.call(validation.value.memberScores, alias)
+  ));
+  const memberScores = validation.value.memberScores;
+  const axes = COMPAT_SHARED_MATRIX_AXES.map((key) => ({
+    key,
+    dataStatus: aliases.some((alias) => Number.isInteger(memberScores[alias]?.[key]))
+      ? 'measured'
+      : 'no-data',
+  }));
+  const rankedCells = COMPAT_SHARED_MATRIX_PAIRS.map(([rowKey, colKey], canonicalIndex) => {
+    const details = aliases.map((alias) => {
+      const rowScore = memberScores[alias]?.[rowKey];
+      const colScore = memberScores[alias]?.[colKey];
+      return {
+        alias,
+        rowScore,
+        colScore,
+        zone: Number.isInteger(rowScore) && Number.isInteger(colScore)
+          ? getZone(rowScore, colScore)
+          : null,
+      };
+    });
+    const measuredRow = details.filter(({ rowScore }) => Number.isInteger(rowScore));
+    const measuredCol = details.filter(({ colScore }) => Number.isInteger(colScore));
+    if (measuredRow.length === 0 || measuredCol.length === 0) {
+      return {
+        cell: { rowKey, colKey, zone: 'no-data', carrierAliases: [] },
+        teamAggregate: null,
+        canonicalIndex,
+      };
+    }
+    const teamAggregate = {
+      sumA: measuredRow.reduce((sum, item) => sum + item.rowScore, 0),
+      countA: measuredRow.length,
+      sumB: measuredCol.reduce((sum, item) => sum + item.colScore, 0),
+      countB: measuredCol.length,
+    };
+    const relevantDetails = details.filter(({ rowScore, colScore }) => (
+      Number.isInteger(rowScore) || Number.isInteger(colScore)
+    ));
+    const allMembersNatural = relevantDetails.length > 0 && relevantDetails.every((item) => (
+      item.rowScore === UAAM_ZONE_THRESHOLDS.scoreMax
+      && item.colScore === UAAM_ZONE_THRESHOLDS.scoreMax
+    ));
+    const zone = getCompatTeamAverageZone({ ...teamAggregate, allMembersNatural });
+    return {
+      cell: {
+        rowKey,
+        colKey,
+        zone,
+        carrierAliases: details
+          .filter((item) => isCompatCarrierZone(item.zone))
+          .map((item) => item.alias),
+      },
+      teamAggregate,
+      canonicalIndex,
+    };
+  });
+  const cells = rankedCells.map(({ cell }) => cell);
+  const topPairs = rankedCells
+    .filter(({ cell }) => !['dormant', 'no-data'].includes(cell.zone))
+    .sort((left, right) => (
+      SHARED_MATRIX_ZONE_RANK[right.cell.zone] - SHARED_MATRIX_ZONE_RANK[left.cell.zone]
+      || compareCompatTeamAverageStrength(right.teamAggregate, left.teamAggregate)
+      || left.canonicalIndex - right.canonicalIndex
+    ))
+    .slice(0, 5)
+    .map(({ cell }) => ({ rowKey: cell.rowKey, colKey: cell.colKey }));
+
+  return { axes, cells, topPairs };
+}
+
+export function validateCompatSharedMatrix(value, memberAliases) {
+  const errors = [];
+  const aliases = Array.isArray(memberAliases) ? memberAliases : [];
+  const aliasSet = new Set(aliases);
+  if (!isPlainObject(value)) {
+    return { ok: false, errors: ['sharedMatrix: オブジェクトが必要です'] };
+  }
+  if (jsonByteLength(value) > SHARED_MATRIX_MAX_BYTES) {
+    return { ok: false, errors: ['sharedMatrix: サイズ上限を超えています'] };
+  }
+  if (containsSharedMatrixForbiddenShape(value)) {
+    errors.push('sharedMatrix: 0〜20の生スコア形フィールドを含められません');
+  }
+  const hasTopPairs = Object.prototype.hasOwnProperty.call(value, 'topPairs');
+  const expectedKeys = hasTopPairs ? ['axes', 'cells', 'topPairs'] : ['axes', 'cells'];
+  if (!hasExactKeys(value, expectedKeys)) {
+    errors.push('sharedMatrix: フィールドが契約と一致しません');
+    return { ok: false, errors };
+  }
+
+  if (!Array.isArray(value.axes) || value.axes.length !== COMPAT_SHARED_MATRIX_AXES.length) {
+    errors.push('sharedMatrix.axes: 全16軸が必要です');
+  } else {
+    value.axes.forEach((axis, index) => {
+      const path = `sharedMatrix.axes[${index}]`;
+      if (!hasExactKeys(axis, ['key', 'dataStatus'])) {
+        errors.push(`${path}: フィールドが契約と一致しません`);
+        return;
+      }
+      if (axis.key !== COMPAT_SHARED_MATRIX_AXES[index]) {
+        errors.push(`${path}.key: 軸順が不正です`);
+      }
+      if (!SHARED_MATRIX_DATA_STATUSES.includes(axis.dataStatus)) {
+        errors.push(`${path}.dataStatus: 不正です`);
+      }
+    });
+  }
+
+  if (!Array.isArray(value.cells) || value.cells.length !== COMPAT_SHARED_MATRIX_PAIRS.length) {
+    errors.push('sharedMatrix.cells: 正規120ペアが必要です');
+  } else {
+    value.cells.forEach((cell, index) => {
+      const path = `sharedMatrix.cells[${index}]`;
+      const [expectedRowKey, expectedColKey] = COMPAT_SHARED_MATRIX_PAIRS[index];
+      if (!hasExactKeys(cell, ['rowKey', 'colKey', 'zone', 'carrierAliases'])) {
+        errors.push(`${path}: フィールドが契約と一致しません`);
+        return;
+      }
+      if (cell.rowKey !== expectedRowKey || cell.colKey !== expectedColKey) {
+        errors.push(`${path}: ペアまたは順序が不正です`);
+      }
+      if (!SHARED_MATRIX_ZONES.includes(cell.zone)) {
+        errors.push(`${path}.zone: 不正です`);
+      }
+      if (!Array.isArray(cell.carrierAliases)
+        || cell.carrierAliases.length > aliasSet.size
+        || new Set(cell.carrierAliases).size !== cell.carrierAliases.length
+        || cell.carrierAliases.some((alias) => !aliasSet.has(alias))) {
+        errors.push(`${path}.carrierAliases: 対象者aliasの重複なし配列が必要です`);
+      } else {
+        const canonicalAliases = aliases.filter((alias) => cell.carrierAliases.includes(alias));
+        if (canonicalAliases.some((alias, aliasIndex) => alias !== cell.carrierAliases[aliasIndex])) {
+          errors.push(`${path}.carrierAliases: 対象者と同じ順序が必要です`);
+        }
+        if (cell.zone === 'no-data' && cell.carrierAliases.length !== 0) {
+          errors.push(`${path}.carrierAliases: データなしセルに担い手は保存できません`);
+        }
+      }
+    });
+  }
+
+  if (hasTopPairs) {
+    if (!Array.isArray(value.topPairs) || value.topPairs.length > 5) {
+      errors.push('sharedMatrix.topPairs: 最大5件の配列が必要です');
+    } else {
+      const canonicalPairSet = new Set(
+        COMPAT_SHARED_MATRIX_PAIRS.map(([rowKey, colKey]) => `${rowKey}|${colKey}`),
+      );
+      const seenPairs = new Set();
+      value.topPairs.forEach((pair, index) => {
+        const path = `sharedMatrix.topPairs[${index}]`;
+        if (!hasExactKeys(pair, ['rowKey', 'colKey'])) {
+          errors.push(`${path}: フィールドが契約と一致しません`);
+          return;
+        }
+        const pairKey = `${pair.rowKey}|${pair.colKey}`;
+        if (!canonicalPairSet.has(pairKey)) {
+          errors.push(`${path}: 正規ペアではありません`);
+        } else if (seenPairs.has(pairKey)) {
+          errors.push(`${path}: ペアが重複しています`);
+        }
+        seenPairs.add(pairKey);
+      });
+    }
+  }
+
+  return errors.length === 0
+    ? { ok: true, value, errors: [] }
+    : { ok: false, errors };
 }
 
 function boundedString(value, min, max) {

@@ -103,7 +103,12 @@ function EvidenceFold({ result, memberLabels }) {
   );
 }
 
-export default function CompatReport({ result, memberLabels = [], uaamMatrix = null }) {
+export default function CompatReport({
+  result,
+  memberLabels = [],
+  uaamMatrix = null,
+  sharedMatrix = null,
+}) {
   if (!result) return null;
   const members = result.dataSufficiency.memberAvailability || [];
   const displayText = (value) => replaceMemberAliases(value, members, memberLabels);
@@ -118,9 +123,11 @@ export default function CompatReport({ result, memberLabels = [], uaamMatrix = n
       </div>
 
       <CompatMandala visual={result.visual} memberLabels={memberLabels} />
-      {uaamMatrix ? (
+      {uaamMatrix || sharedMatrix ? (
         <CompatMatrix
+          mode={sharedMatrix ? 'share' : 'admin'}
           uaamMatrix={uaamMatrix}
+          sharedMatrix={sharedMatrix}
           members={result.dataSufficiency.memberAvailability || []}
           memberLabels={memberLabels}
         />

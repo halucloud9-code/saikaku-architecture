@@ -3,6 +3,7 @@ import {
   isCompatShareActive,
   isCompatShareId,
   setCompatShareNoStoreHeaders,
+  validateCompatSharedMatrix,
   validateCompatShareReport,
 } from './lib/compatShare.js';
 
@@ -37,12 +38,21 @@ export default async function handler(req, res) {
     if (!validMetadata) return notFound(res);
     const reportValidation = validateCompatShareReport(data.report, { goalProvided: data.goalProvided });
     if (!reportValidation.ok) return notFound(res);
+    const hasSharedMatrix = Object.prototype.hasOwnProperty.call(data, 'sharedMatrix');
+    const sharedMatrixValidation = hasSharedMatrix
+      ? validateCompatSharedMatrix(
+        data.sharedMatrix,
+        data.report.dataSufficiency.memberAvailability.map((member) => member.alias),
+      )
+      : null;
+    if (hasSharedMatrix && !sharedMatrixValidation.ok) return notFound(res);
 
     return res.status(200).json({
       report: reportValidation.value,
       memberLabels: data.memberLabels,
       mode: data.mode,
       goalProvided: data.goalProvided,
+      ...(hasSharedMatrix ? { sharedMatrix: sharedMatrixValidation.value } : {}),
     });
   } catch (error) {
     console.error('[compat-share-public] failed:', error?.message || error);

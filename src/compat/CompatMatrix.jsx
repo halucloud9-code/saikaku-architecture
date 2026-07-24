@@ -1,36 +1,51 @@
-import { useMemo, useState } from 'react';
-import { getZone, UAAM_ZONE_THRESHOLDS } from '../lib/uaamZones';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  compareCompatTeamAverageStrength,
+  getCompatTeamAverageScores,
+  getCompatTeamAverageZone,
+  isCompatCarrierZone,
+} from '../lib/compatTeamZones';
+import { getZone, UAAM_ZONE_THRESHOLDS, zAlpha } from '../lib/uaamZones';
+import {
+  AXIS_HEX,
+  AXIS_LIGHT,
+  BLOCKS,
+  getBlock,
+  pairDef,
+  pairShort,
+  SUB_JP,
+  toRgba,
+  ZONE_HEX,
+  ZONE_LABEL,
+} from '../screens/uaam/AllPairsTriangle';
 
-export const COMPAT_MATRIX_AXES = [
-  { key: 'meaning', label: '基軸力', group: '志', groupIndex: 0 },
-  { key: 'mindfulness', label: '認知力', group: '志', groupIndex: 0 },
-  { key: 'mindshift', label: '転換力', group: '志', groupIndex: 0 },
-  { key: 'mastery', label: '熟達力', group: '志', groupIndex: 0 },
-  { key: 'learning', label: '謙学力', group: '知', groupIndex: 1 },
-  { key: 'logical', label: '論理力', group: '知', groupIndex: 1 },
-  { key: 'life', label: '活用力', group: '知', groupIndex: 1 },
-  { key: 'leadership', label: '統率力', group: '知', groupIndex: 1 },
-  { key: 'critical', label: '本質力', group: '技', groupIndex: 2 },
-  { key: 'creativity', label: '創造力', group: '技', groupIndex: 2 },
-  { key: 'communication', label: '伝達力', group: '技', groupIndex: 2 },
-  { key: 'collaboration', label: '協働力', group: '技', groupIndex: 2 },
-  { key: 'idea', label: '構想力', group: '衝', groupIndex: 3 },
-  { key: 'innovation', label: '変革力', group: '衝', groupIndex: 3 },
-  { key: 'implementation', label: '実装力', group: '衝', groupIndex: 3 },
-  { key: 'influence', label: '影響力', group: '衝', groupIndex: 3 },
-];
+const GROUP_LABELS = ['志', '知', '技', '衝'];
+
+export const COMPAT_MATRIX_AXES = Object.entries(SUB_JP).map(([key, label], index) => ({
+  key,
+  label,
+  group: GROUP_LABELS[Math.floor(index / 4)],
+  groupIndex: Math.floor(index / 4),
+}));
 
 const ZONE_ORDER = ['natural', 'pro', 'active', 'potential', 'dormant'];
 const ZONE_RANK = Object.fromEntries(ZONE_ORDER.map((zone, index) => [zone, ZONE_ORDER.length - index]));
-const ZONE_META = {
-  natural: { label: '自然に表れる', short: '自然', color: '#7A31B5' },
-  pro: { label: '高い水準', short: '高水準', color: '#175FAE' },
-  active: { label: '発動している', short: '発動', color: '#58891E' },
-  potential: { label: '発動の可能性', short: '可能性', color: '#B25418' },
-  dormant: { label: '担い手が見つからない', short: '見つからない', color: '#526B78' },
-  'no-data': { label: 'データなし', short: 'データなし', color: '#817B72' },
+const ZONE_JP = {
+  natural: '完全に発動',
+  pro: '高い水準',
+  active: '発動している',
+  potential: '発動の可能性',
+  dormant: 'チーム平均が目安未満',
+  'no-data': 'データなし',
 };
-const GROUP_COLORS = ['#2C5F8A', '#1E7A4A', '#A07A18', '#8B3A28'];
+const ZONE_FILTER_LABEL = {
+  ...ZONE_LABEL,
+  'no-data': 'NO DATA',
+};
+const ZONE_COLOR = {
+  ...ZONE_HEX,
+  'no-data': '#6F685E',
+};
 
 function validScore(value) {
   return Number.isInteger(value) && value >= 0 && value <= UAAM_ZONE_THRESHOLDS.scoreMax;
@@ -38,6 +53,13 @@ function validScore(value) {
 
 function unique(values) {
   return [...new Set(values)];
+}
+
+function filterKeyForCell(cell) {
+  if (cell.kind === 'diagonal') {
+    return cell.dataStatus === 'no-data' ? 'no-data' : null;
+  }
+  return cell.dataStatus === 'no-data' ? 'no-data' : cell.zone;
 }
 
 function buildDiagonal(axis, aliases, scoresByAlias) {
@@ -78,8 +100,9 @@ function buildPair(axisA, axisB, rowIndex, colIndex, aliases, scoresByAlias) {
       zone: validScore(scoreA) && validScore(scoreB) ? getZone(scoreA, scoreB) : null,
     };
   });
-  const measured = details.filter((detail) => detail.zone);
-  if (measured.length === 0) {
+  const measuredA = details.filter((detail) => validScore(detail.scoreA));
+  const measuredB = details.filter((detail) => validScore(detail.scoreB));
+  if (measuredA.length === 0 || measuredB.length === 0) {
     return {
       kind: 'pair',
       axisA,
@@ -90,15 +113,31 @@ function buildPair(axisA, axisB, rowIndex, colIndex, aliases, scoresByAlias) {
       zone: null,
       carrierAliases: [],
       carrierCount: 0,
-      strongestSum: null,
+      averageScoreA: null,
+      averageScoreB: null,
+      teamAggregate: null,
+      alpha: null,
       details,
     };
   }
-  const zone = measured.reduce((best, detail) => (
-    ZONE_RANK[detail.zone] > ZONE_RANK[best] ? detail.zone : best
-  ), measured[0].zone);
-  const zoneHolders = measured.filter((detail) => detail.zone === zone);
-  const carrierAliases = zone === 'dormant' ? [] : zoneHolders.map((detail) => detail.alias);
+  const teamAggregate = {
+    sumA: measuredA.reduce((sum, detail) => sum + detail.scoreA, 0),
+    countA: measuredA.length,
+    sumB: measuredB.reduce((sum, detail) => sum + detail.scoreB, 0),
+    countB: measuredB.length,
+  };
+  const relevantDetails = details.filter((detail) => (
+    validScore(detail.scoreA) || validScore(detail.scoreB)
+  ));
+  const allMembersNatural = relevantDetails.length > 0 && relevantDetails.every((detail) => (
+    detail.scoreA === UAAM_ZONE_THRESHOLDS.scoreMax
+    && detail.scoreB === UAAM_ZONE_THRESHOLDS.scoreMax
+  ));
+  const zone = getCompatTeamAverageZone({ ...teamAggregate, allMembersNatural });
+  const averages = getCompatTeamAverageScores(teamAggregate);
+  const carrierAliases = details
+    .filter((detail) => isCompatCarrierZone(detail.zone))
+    .map((detail) => detail.alias);
   return {
     kind: 'pair',
     axisA,
@@ -109,8 +148,54 @@ function buildPair(axisA, axisB, rowIndex, colIndex, aliases, scoresByAlias) {
     zone,
     carrierAliases,
     carrierCount: carrierAliases.length,
-    strongestSum: Math.max(...zoneHolders.map((detail) => detail.scoreA + detail.scoreB)),
+    averageScoreA: averages.scoreA,
+    averageScoreB: averages.scoreB,
+    teamAggregate,
+    alpha: zAlpha(zone, averages.scoreA, averages.scoreB),
     details,
+  };
+}
+
+function summarizeMatrix(cells, diagonal, { includeCoverage }) {
+  const pairs = cells.flatMap((row, rowIndex) => row.filter((cell) => (
+    cell.kind === 'pair' && cell.colIndex > rowIndex
+  )));
+  const topPairs = pairs
+    .filter((pair) => pair.dataStatus === 'measured' && pair.zone !== 'dormant')
+    .sort((left, right) => (
+      ZONE_RANK[right.zone] - ZONE_RANK[left.zone]
+      || (
+        right.teamAggregate && left.teamAggregate
+          ? compareCompatTeamAverageStrength(right.teamAggregate, left.teamAggregate)
+          : 0
+      )
+      || left.rowIndex - right.rowIndex
+      || left.colIndex - right.colIndex
+    ))
+    .slice(0, 5);
+  const groupCoverage = includeCoverage
+    ? GROUP_LABELS.map((group, groupIndex) => {
+      const groupDiagonal = diagonal.filter((cell) => cell.axis.groupIndex === groupIndex);
+      const coveredAxes = groupDiagonal.filter((cell) => (
+        cell.highestScore !== null && cell.highestScore >= UAAM_ZONE_THRESHOLDS.activeAxisMin
+      ));
+      const measuredAxes = groupDiagonal.filter((cell) => cell.highestScore !== null);
+      return {
+        group,
+        groupIndex,
+        coveredCount: coveredAxes.length,
+        measuredCount: measuredAxes.length,
+        totalCount: groupDiagonal.length,
+        percentage: (coveredAxes.length / groupDiagonal.length) * 100,
+      };
+    })
+    : [];
+  return {
+    topPairs,
+    dormantPairs: pairs.filter((pair) => pair.zone === 'dormant'),
+    noDataPairs: pairs.filter((pair) => pair.dataStatus === 'no-data'),
+    noDataAxes: diagonal.filter((cell) => cell.dataStatus === 'no-data').map((cell) => cell.axis),
+    groupCoverage,
   };
 }
 
@@ -141,34 +226,6 @@ export function buildCompatMatrixModel(uaamMatrix, preferredAliasOrder = []) {
         : buildPair(axisA, axisB, rowIndex, colIndex, aliases, scoresByAlias)
     ))
   ));
-  const pairs = cells.flatMap((row, rowIndex) => row.filter((cell) => cell.colIndex > rowIndex));
-  const topPairs = pairs
-    .filter((pair) => pair.dataStatus === 'measured' && pair.zone !== 'dormant')
-    .sort((left, right) => (
-      ZONE_RANK[right.zone] - ZONE_RANK[left.zone]
-      || right.strongestSum - left.strongestSum
-      || left.rowIndex - right.rowIndex
-      || left.colIndex - right.colIndex
-    ))
-    .slice(0, 5);
-  const dormantPairs = pairs.filter((pair) => pair.zone === 'dormant');
-  const noDataPairs = pairs.filter((pair) => pair.dataStatus === 'no-data');
-  const noDataAxes = diagonal.filter((cell) => cell.dataStatus === 'no-data').map((cell) => cell.axis);
-  const groupCoverage = ['志', '知', '技', '衝'].map((group, groupIndex) => {
-    const groupDiagonal = diagonal.filter((cell) => cell.axis.groupIndex === groupIndex);
-    const coveredAxes = groupDiagonal.filter((cell) => (
-      cell.highestScore !== null && cell.highestScore >= UAAM_ZONE_THRESHOLDS.activeAxisMin
-    ));
-    const measuredAxes = groupDiagonal.filter((cell) => cell.highestScore !== null);
-    return {
-      group,
-      groupIndex,
-      coveredCount: coveredAxes.length,
-      measuredCount: measuredAxes.length,
-      totalCount: groupDiagonal.length,
-      percentage: (coveredAxes.length / groupDiagonal.length) * 100,
-    };
-  });
 
   return {
     aliases,
@@ -176,41 +233,313 @@ export function buildCompatMatrixModel(uaamMatrix, preferredAliasOrder = []) {
     scoresByAlias,
     diagonal,
     cells,
-    topPairs,
-    dormantPairs,
-    noDataPairs,
-    noDataAxes,
-    groupCoverage,
+    hasTopPairs: true,
+    ...summarizeMatrix(cells, diagonal, { includeCoverage: true }),
   };
 }
 
-function initialFor(value) {
-  const normalized = typeof value === 'string' ? value.trim() : '';
-  if (!normalized) return '?';
-  const words = normalized.split(/\s+/u).filter(Boolean);
-  if (words.length > 1 && words.every((word) => /^[A-Za-z]/u.test(word))) {
-    return words.slice(0, 2).map((word) => word[0].toUpperCase()).join('');
-  }
-  return Array.from(normalized)[0];
+export function buildSharedCompatMatrixModel(sharedMatrix, preferredAliasOrder = []) {
+  const axisStatus = new Map((sharedMatrix?.axes || []).map((axis) => [axis.key, axis.dataStatus]));
+  const pairCells = new Map((sharedMatrix?.cells || []).map((cell) => (
+    [`${cell.rowKey}|${cell.colKey}`, cell]
+  )));
+  const diagonal = COMPAT_MATRIX_AXES.map((axis) => ({
+    kind: 'diagonal',
+    axis,
+    dataStatus: axisStatus.get(axis.key) === 'measured' ? 'measured' : 'no-data',
+    highestScore: null,
+    carrierAliases: [],
+    details: [],
+  }));
+  const cells = COMPAT_MATRIX_AXES.map((axisA, rowIndex) => (
+    COMPAT_MATRIX_AXES.map((axisB, colIndex) => {
+      if (rowIndex === colIndex) return diagonal[rowIndex];
+      const rowKey = rowIndex < colIndex ? axisA.key : axisB.key;
+      const colKey = rowIndex < colIndex ? axisB.key : axisA.key;
+      const source = pairCells.get(`${rowKey}|${colKey}`);
+      const zone = source?.zone || 'no-data';
+      const canonicalAxisA = COMPAT_MATRIX_AXES[Math.min(rowIndex, colIndex)];
+      const canonicalAxisB = COMPAT_MATRIX_AXES[Math.max(rowIndex, colIndex)];
+      return {
+        kind: 'pair',
+        axisA: canonicalAxisA,
+        axisB: canonicalAxisB,
+        rowIndex,
+        colIndex,
+        dataStatus: zone === 'no-data' ? 'no-data' : 'measured',
+        zone: zone === 'no-data' ? null : zone,
+        carrierAliases: Array.isArray(source?.carrierAliases) ? source.carrierAliases : [],
+        carrierCount: Array.isArray(source?.carrierAliases) ? source.carrierAliases.length : 0,
+        averageScoreA: null,
+        averageScoreB: null,
+        teamAggregate: null,
+        alpha: null,
+        details: [],
+      };
+    })
+  ));
+  const summary = summarizeMatrix(cells, diagonal, { includeCoverage: false });
+  const axisIndex = new Map(COMPAT_MATRIX_AXES.map((axis, index) => [axis.key, index]));
+  const topPairs = Array.isArray(sharedMatrix?.topPairs)
+    ? sharedMatrix.topPairs.flatMap(({ rowKey, colKey }) => {
+      const rowIndex = axisIndex.get(rowKey);
+      const colIndex = axisIndex.get(colKey);
+      const cell = cells[rowIndex]?.[colIndex];
+      return cell?.kind === 'pair' ? [cell] : [];
+    })
+    : [];
+
+  return {
+    aliases: preferredAliasOrder,
+    dataAliases: [],
+    scoresByAlias: {},
+    diagonal,
+    cells,
+    ...summary,
+    hasTopPairs: Array.isArray(sharedMatrix?.topPairs),
+    topPairs,
+  };
 }
 
 function pairName(pair) {
-  return `${pair.axisA.label} × ${pair.axisB.label}`;
+  return pairShort(pair.axisA.key, pair.axisB.key)
+    || `${pair.axisA.label} × ${pair.axisB.label}`;
 }
 
-export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = [] }) {
-  const memberAliases = members.map((member) => member.alias).filter(Boolean);
-  const model = useMemo(
-    () => buildCompatMatrixModel(uaamMatrix, memberAliases),
-    [uaamMatrix, memberAliases.join('|')],
-  );
-  const [activeZones, setActiveZones] = useState(() => new Set([...ZONE_ORDER, 'no-data']));
-  const memberNames = useMemo(() => Object.fromEntries(model.aliases.map((alias) => {
+function memberNameMap(aliases, memberAliases, memberLabels) {
+  return Object.fromEntries(aliases.map((alias) => {
     const memberIndex = memberAliases.indexOf(alias);
     const label = memberIndex >= 0 ? memberLabels[memberIndex]?.trim() : '';
     return [alias, label || alias];
-  })), [model.aliases, memberAliases.join('|'), memberLabels.join('|')]);
-  const missingMembers = memberAliases.filter((alias) => !model.dataAliases.includes(alias));
+  }));
+}
+
+function scoreText(value) {
+  return validScore(value) ? `${value}点` : 'データなし';
+}
+
+function MatrixTooltip({
+  tip,
+  mode,
+  memberNames,
+  tooltipRef,
+  onClose,
+  onEscape,
+}) {
+  if (!tip) return null;
+  const { cell } = tip;
+  const style = {
+    '--matrix-tip-x': `${tip.x + 16}px`,
+    '--matrix-tip-y': `${Math.max(8, tip.y - 48)}px`,
+  };
+  const interactionProps = {
+    ref: tooltipRef,
+    tabIndex: tip.pinned ? -1 : undefined,
+    onKeyDown: (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      onEscape();
+    },
+  };
+  const closeButton = tip.pinned ? (
+    <button
+      type="button"
+      className="compat-matrix-tooltip-close"
+      aria-label="ツールチップを閉じる"
+      onClick={onClose}
+    >
+      <span aria-hidden="true">×</span>
+    </button>
+  ) : null;
+  if (cell.kind === 'diagonal') {
+    return (
+      <aside
+        {...interactionProps}
+        role="tooltip"
+        className={`compat-matrix-tooltip diagonal ${tip.pinned ? 'pinned' : ''}`}
+        style={{ ...style, '--matrix-group-color': AXIS_HEX[cell.axis.groupIndex] }}
+      >
+        {closeButton}
+        <h3>{cell.axis.label}</h3>
+        <span className="compat-matrix-axis-pill">{cell.axis.group} / {BLOCKS[cell.axis.groupIndex]?.name}</span>
+        {mode === 'share' ? (
+          <p>
+            {cell.dataStatus === 'measured' ? 'この軸の自己回答データがあります。' : 'この軸の自己回答データはありません。'}
+            共有版では点数と対角の担い手を表示しません。
+          </p>
+        ) : (
+          <ul className="compat-matrix-member-details">
+            {cell.details.map((detail) => (
+              <li key={detail.alias}>
+                <strong>{memberNames[detail.alias]}</strong>
+                <span>{scoreText(detail.score)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
+    );
+  }
+
+  const zoneKey = cell.dataStatus === 'no-data' ? 'no-data' : cell.zone;
+  const definition = pairDef(cell.axisA.key, cell.axisB.key);
+  const block = getBlock(cell.axisA.key, cell.axisB.key);
+  return (
+    <aside
+      {...interactionProps}
+      role="tooltip"
+      className={`compat-matrix-tooltip pair ${tip.pinned ? 'pinned' : ''}`}
+      style={{ ...style, '--matrix-zone-color': ZONE_COLOR[zoneKey] }}
+    >
+      {closeButton}
+      <h3>{pairName(cell)}</h3>
+      <p className="compat-matrix-tooltip-axes">{cell.axisA.label} × {cell.axisB.label}</p>
+      <div className="compat-matrix-tooltip-meta">
+        <span className="compat-matrix-zone-pill">{ZONE_FILTER_LABEL[zoneKey]}</span>
+        {block ? <span>{block.name} / {block.jp}</span> : null}
+      </div>
+      {definition ? (
+        <div className="compat-matrix-pair-definition">
+          <p>{definition.d1}</p>
+          <p>{definition.d2}</p>
+          <p>「{definition.d3}」</p>
+        </div>
+      ) : null}
+      <div className="compat-matrix-carrier-list">
+        <strong>担い手</strong>
+        <span>
+          {cell.carrierAliases.length > 0
+            ? cell.carrierAliases.map((alias) => memberNames[alias]).join('、')
+            : '今回のデータでは見つかりません'}
+        </span>
+      </div>
+      {mode === 'admin' ? (
+        <ul className="compat-matrix-member-details">
+          {cell.details.map((detail) => (
+            <li key={detail.alias}>
+              <strong>{memberNames[detail.alias]}</strong>
+              <span>{cell.axisA.label} {scoreText(detail.scoreA)} / {cell.axisB.label} {scoreText(detail.scoreB)}</span>
+              <em>{detail.zone ? ZONE_FILTER_LABEL[detail.zone] : '判定できません'}</em>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </aside>
+  );
+}
+
+function PairWindows({ pairs, memberNames }) {
+  const byZone = ZONE_ORDER.reduce((groups, zone) => {
+    const zonePairs = pairs.filter((pair) => pair.zone === zone);
+    if (zonePairs.length > 0) groups.push([zone, zonePairs]);
+    return groups;
+  }, []);
+  return (
+    <div className="compat-matrix-zone-windows">
+      {byZone.map(([zone, zonePairs]) => (
+        <details key={zone} style={{ '--matrix-zone-color': ZONE_COLOR[zone] }}>
+          <summary>
+            <span>{ZONE_FILTER_LABEL[zone]}</span>
+            <b>{zonePairs.length}</b>
+          </summary>
+          <div>
+            {zonePairs.map((pair) => (
+              <article key={`${pair.axisA.key}-${pair.axisB.key}`}>
+                <strong>{pairName(pair)}</strong>
+                <small>{pair.axisA.label} × {pair.axisB.label}</small>
+                <p>
+                  担い手：
+                  {pair.carrierAliases.length > 0
+                    ? pair.carrierAliases.map((alias) => memberNames[alias]).join('、')
+                    : '今回のデータでは見つかりません'}
+                </p>
+              </article>
+            ))}
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+export default function CompatMatrix({
+  mode = 'admin',
+  uaamMatrix = null,
+  sharedMatrix = null,
+  members = [],
+  memberLabels = [],
+}) {
+  const memberAliases = members.map((member) => member.alias).filter(Boolean);
+  const model = useMemo(
+    () => (
+      mode === 'share'
+        ? buildSharedCompatMatrixModel(sharedMatrix, memberAliases)
+        : buildCompatMatrixModel(uaamMatrix, memberAliases)
+    ),
+    [mode, uaamMatrix, sharedMatrix, memberAliases.join('|')],
+  );
+  const [activeZones, setActiveZones] = useState(() => new Set([...ZONE_ORDER, 'no-data']));
+  const [tip, setTip] = useState(null);
+  const [activeCell, setActiveCell] = useState({ rowIndex: 0, colIndex: 0 });
+  const matrixRef = useRef(null);
+  const tooltipRef = useRef(null);
+  const pointerTypeRef = useRef(null);
+  const suppressNextFocusTooltipRef = useRef(false);
+  const memberNames = useMemo(
+    () => memberNameMap(model.aliases, memberAliases, memberLabels),
+    [model.aliases, memberAliases.join('|'), memberLabels.join('|')],
+  );
+  const missingMembers = mode === 'admin'
+    ? memberAliases.filter((alias) => !model.dataAliases.includes(alias))
+    : [];
+
+  const isFiltered = (cell) => {
+    const filterKey = filterKeyForCell(cell);
+    return !!filterKey && !activeZones.has(filterKey);
+  };
+
+  useEffect(() => {
+    const currentCell = model.cells[activeCell.rowIndex]?.[activeCell.colIndex];
+    if (currentCell && !isFiltered(currentCell)) return;
+
+    const nextCell = model.cells.flatMap((row, rowIndex) => (
+      row.map((cell, colIndex) => ({ cell, rowIndex, colIndex }))
+    )).find(({ cell }) => !isFiltered(cell));
+    if (!nextCell) return;
+
+    const activeElement = document.activeElement;
+    const hadCellFocus = matrixRef.current?.contains(activeElement)
+      && activeElement?.classList?.contains('compat-matrix-cell');
+    setActiveCell({ rowIndex: nextCell.rowIndex, colIndex: nextCell.colIndex });
+    if (hadCellFocus) {
+      matrixRef.current
+        ?.querySelector(`[data-row="${nextCell.rowIndex}"][data-column="${nextCell.colIndex}"]`)
+        ?.focus();
+    }
+  }, [activeZones, model, activeCell.rowIndex, activeCell.colIndex]);
+
+  useEffect(() => {
+    if (tip?.pinned) {
+      tooltipRef.current?.focus({ preventScroll: true });
+    }
+  }, [tip]);
+
+  useEffect(() => {
+    if (!tip?.pinned) return undefined;
+
+    const handleOutsidePointerDown = (event) => {
+      if (
+        matrixRef.current?.contains(event.target)
+        || tooltipRef.current?.contains(event.target)
+      ) return;
+      setTip(null);
+    };
+    document.addEventListener('pointerdown', handleOutsidePointerDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsidePointerDown, true);
+    };
+  }, [tip?.pinned]);
 
   const toggleZone = (zone) => {
     setActiveZones((current) => {
@@ -223,107 +552,283 @@ export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = 
 
   const titleFor = (cell) => {
     if (cell.kind === 'diagonal') {
-      const details = cell.details.map((detail) => (
-        `${memberNames[detail.alias]}: ${validScore(detail.score) ? `${detail.score}点` : 'データなし'}`
-      ));
-      return [`${cell.axis.label}のチーム最高値: ${cell.highestScore ?? 'データなし'}`, ...details].join('\n');
+      if (mode === 'share') {
+        return `${cell.axis.label}・${cell.dataStatus === 'measured' ? 'データあり' : 'データなし'}・共有版では対角の担い手なし`;
+      }
+      return [
+        `${cell.axis.label}・${cell.dataStatus === 'measured' ? 'データあり' : 'データなし'}`,
+        ...cell.details.map((detail) => `${memberNames[detail.alias]} ${scoreText(detail.score)}`),
+      ].join('。');
     }
-    const details = cell.details.map((detail) => {
-      const left = validScore(detail.scoreA) ? `${detail.scoreA}点` : 'データなし';
-      const right = validScore(detail.scoreB) ? `${detail.scoreB}点` : 'データなし';
-      const zone = detail.zone ? ZONE_META[detail.zone].label : '判定できません';
-      return `${memberNames[detail.alias]}: ${cell.axisA.label} ${left} / ${cell.axisB.label} ${right} / ${zone}`;
-    });
-    const summary = cell.dataStatus === 'no-data'
-      ? '2軸がそろったメンバーはいません'
-      : `チーム内の最大ゾーン: ${ZONE_META[cell.zone].label}、担い手 ${cell.carrierCount}人`;
-    return [`${pairName(cell)} — ${summary}`, ...details].join('\n');
+    const zoneKey = cell.dataStatus === 'no-data' ? 'no-data' : cell.zone;
+    const carriers = cell.carrierAliases.length > 0
+      ? cell.carrierAliases.map((alias) => memberNames[alias]).join('、')
+      : 'なし';
+    const definition = pairDef(cell.axisA.key, cell.axisB.key);
+    const adminDetails = mode === 'admin'
+      ? cell.details.map((detail) => (
+        `${memberNames[detail.alias]} ${cell.axisA.label}${scoreText(detail.scoreA)} ${cell.axisB.label}${scoreText(detail.scoreB)} ${detail.zone ? ZONE_FILTER_LABEL[detail.zone] : '判定不可'}`
+      )).join('。')
+      : '';
+    return [
+      pairName(cell),
+      `${cell.axisA.label} × ${cell.axisB.label}`,
+      ZONE_JP[zoneKey],
+      `担い手 ${carriers}`,
+      definition?.d1,
+      adminDetails,
+    ].filter(Boolean).join('。');
+  };
+
+  const tooltipFor = (cell, cellKey, element, event, pinned = false) => {
+    const rect = element.getBoundingClientRect();
+    const hasPointerPosition = Number.isFinite(event?.clientX) && Number.isFinite(event?.clientY);
+    return {
+      cell,
+      cellKey,
+      pinned,
+      x: hasPointerPosition ? event.clientX : rect.left + (rect.width / 2),
+      y: hasPointerPosition ? event.clientY : rect.top + (rect.height / 2),
+    };
+  };
+
+  const showTooltip = (cell, cellKey, element, event) => {
+    setTip((current) => (
+      current?.pinned
+        ? current
+        : tooltipFor(cell, cellKey, element, event)
+    ));
+  };
+
+  const togglePinnedTooltip = (cell, cellKey, element, event) => {
+    setTip((current) => (
+      current?.cellKey === cellKey && current.pinned
+        ? null
+        : tooltipFor(cell, cellKey, element, event, true)
+    ));
+  };
+
+  const closeTooltip = (restoreCellKey = null) => {
+    setTip(null);
+    if (!restoreCellKey) return;
+
+    const [rowIndex, colIndex] = restoreCellKey.split('-');
+    const target = matrixRef.current
+      ?.querySelector(`[data-row="${rowIndex}"][data-column="${colIndex}"]`);
+    if (!target || target === document.activeElement) return;
+    suppressNextFocusTooltipRef.current = true;
+    target.focus();
+  };
+
+  const focusCell = (rowIndex, colIndex) => {
+    const target = matrixRef.current
+      ?.querySelector(`[data-row="${rowIndex}"][data-column="${colIndex}"]`);
+    if (!target) return;
+    setActiveCell({ rowIndex, colIndex });
+    target.focus();
+  };
+
+  const handleCellKeyDown = (event, cell, rowIndex, colIndex) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeTooltip();
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      togglePinnedTooltip(cell, `${rowIndex}-${colIndex}`, event.currentTarget, event);
+      return;
+    }
+    const direction = {
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+      ArrowLeft: [0, -1],
+      ArrowRight: [0, 1],
+    }[event.key];
+    if (!direction) return;
+
+    event.preventDefault();
+    let nextRow = rowIndex + direction[0];
+    let nextCol = colIndex + direction[1];
+    while (
+      nextRow >= 0
+      && nextRow < COMPAT_MATRIX_AXES.length
+      && nextCol >= 0
+      && nextCol < COMPAT_MATRIX_AXES.length
+    ) {
+      if (!isFiltered(model.cells[nextRow][nextCol])) {
+        focusCell(nextRow, nextCol);
+        return;
+      }
+      nextRow += direction[0];
+      nextCol += direction[1];
+    }
+
+    const readingIndex = (rowIndex * COMPAT_MATRIX_AXES.length) + colIndex;
+    const visibleCells = model.cells.flatMap((row, visibleRowIndex) => (
+      row.flatMap((visibleCell, visibleColIndex) => (
+        isFiltered(visibleCell)
+          ? []
+          : [{
+            rowIndex: visibleRowIndex,
+            colIndex: visibleColIndex,
+            readingIndex: (visibleRowIndex * COMPAT_MATRIX_AXES.length) + visibleColIndex,
+          }]
+      ))
+    ));
+    const searchForward = direction[0] > 0 || direction[1] > 0;
+    const fallback = searchForward
+      ? visibleCells.find((candidate) => candidate.readingIndex > readingIndex)
+      : [...visibleCells].reverse().find((candidate) => candidate.readingIndex < readingIndex);
+    if (fallback) {
+      focusCell(fallback.rowIndex, fallback.colIndex);
+    }
   };
 
   const renderCell = (cell, rowIndex, colIndex) => {
-    const filterKey = cell.kind === 'diagonal'
-      ? (cell.dataStatus === 'no-data' ? 'no-data' : null)
-      : (cell.dataStatus === 'no-data' ? 'no-data' : cell.zone);
-    const filtered = filterKey && !activeZones.has(filterKey);
-    const cellTitle = titleFor(cell);
+    const filtered = isFiltered(cell);
+    const zoneKey = cell.kind === 'pair'
+      ? (cell.dataStatus === 'no-data' ? 'no-data' : cell.zone)
+      : null;
+    const cellKey = `${rowIndex}-${colIndex}`;
+    const commonProps = {
+      role: 'img',
+      'aria-label': titleFor(cell),
+      'aria-hidden': filtered ? 'true' : undefined,
+      tabIndex: !filtered
+        && activeCell.rowIndex === rowIndex
+        && activeCell.colIndex === colIndex
+        ? 0
+        : -1,
+      onFocus: (event) => {
+        setActiveCell({ rowIndex, colIndex });
+        if (suppressNextFocusTooltipRef.current) {
+          suppressNextFocusTooltipRef.current = false;
+          return;
+        }
+        if (!pointerTypeRef.current) {
+          showTooltip(cell, cellKey, event.currentTarget, event);
+        }
+      },
+      onBlur: () => setTip((current) => (
+        current?.cellKey === cellKey && !current.pinned ? null : current
+      )),
+      onKeyDown: (event) => handleCellKeyDown(event, cell, rowIndex, colIndex),
+      onPointerDown: (event) => {
+        pointerTypeRef.current = event.pointerType || 'unknown';
+      },
+      onPointerCancel: () => {
+        pointerTypeRef.current = null;
+      },
+      onClick: (event) => {
+        const pointerType = pointerTypeRef.current;
+        const target = event.currentTarget;
+        pointerTypeRef.current = null;
+        if (pointerType === 'touch' || pointerType === 'pen') {
+          setTip((current) => (
+            current?.cellKey === cellKey && current.pinned
+              ? null
+              : tooltipFor(cell, cellKey, target, event, true)
+          ));
+          return;
+        }
+        togglePinnedTooltip(cell, cellKey, target, event);
+      },
+      onMouseEnter: (event) => {
+        if (pointerTypeRef.current === 'touch' || pointerTypeRef.current === 'pen') return;
+        showTooltip(cell, cellKey, event.currentTarget, event);
+      },
+      onMouseMove: (event) => {
+        if (pointerTypeRef.current === 'touch' || pointerTypeRef.current === 'pen') return;
+        showTooltip(cell, cellKey, event.currentTarget, event);
+      },
+      onMouseLeave: (event) => {
+        if (document.activeElement !== event.currentTarget) {
+          setTip((current) => (
+            current?.cellKey === cellKey && !current.pinned ? null : current
+          ));
+        }
+      },
+    };
+
     if (cell.kind === 'diagonal') {
-      const accessibleLabel = `${cell.axis.label} × ${cell.axis.label}・${
-        cell.dataStatus === 'no-data' ? ZONE_META['no-data'].label : '単軸のチーム最高値'
-      }・担い手${cell.carrierAliases.length}人。${cellTitle.replaceAll('\n', '。')}`;
+      const strength = mode === 'admin' && validScore(cell.highestScore)
+        ? Math.max(0.35, cell.highestScore / UAAM_ZONE_THRESHOLDS.scoreMax)
+        : 0.72;
       return (
         <div
-          role="img"
+          {...commonProps}
           className={`compat-matrix-cell diagonal ${cell.dataStatus === 'no-data' ? 'no-data' : ''} ${filtered ? 'filtered' : ''}`}
-          style={{ '--matrix-group-color': GROUP_COLORS[cell.axis.groupIndex] }}
-          title={cellTitle}
-          aria-label={accessibleLabel}
-          aria-hidden={filtered ? 'true' : undefined}
+          style={{
+            '--matrix-group-color': AXIS_HEX[cell.axis.groupIndex],
+            '--matrix-axis-light': AXIS_LIGHT[cell.axis.groupIndex],
+            '--matrix-axis-border': `${1 + strength * 2}px`,
+          }}
+          data-row={rowIndex}
+          data-column={colIndex}
+          data-kind="diagonal"
         >
-          <strong>{cell.highestScore ?? '—'}</strong>
-          {cell.carrierAliases.length > 0 ? (
-            <span className="compat-matrix-initials" aria-hidden="true">
-              {cell.carrierAliases.slice(0, 3).map((alias) => (
-                <i key={alias}>{initialFor(memberNames[alias])}</i>
-              ))}
-              {cell.carrierAliases.length > 3 ? <i>+{cell.carrierAliases.length - 3}</i> : null}
-            </span>
-          ) : null}
+          <span aria-hidden="true">{SUB_JP[cell.axis.key].slice(0, 3)}</span>
         </div>
       );
     }
-    const zoneKey = cell.dataStatus === 'no-data' ? 'no-data' : cell.zone;
-    const accessibleLabel = `${cell.axisA.label} × ${cell.axisB.label}・${ZONE_META[zoneKey].label}・担い手${cell.carrierCount}人。${cellTitle.replaceAll('\n', '。')}`;
     return (
       <div
-        role="img"
+        {...commonProps}
         className={`compat-matrix-cell pair ${zoneKey} ${filtered ? 'filtered' : ''}`}
-        style={{ '--matrix-zone-color': ZONE_META[zoneKey].color }}
-        title={cellTitle}
-        aria-label={accessibleLabel}
-        aria-hidden={filtered ? 'true' : undefined}
+        style={{
+          '--matrix-zone-color': ZONE_COLOR[zoneKey],
+          ...(mode === 'admin' && Number.isFinite(cell.alpha)
+            ? { background: toRgba(ZONE_COLOR[zoneKey], cell.alpha) }
+            : {}),
+        }}
         data-row={rowIndex}
         data-column={colIndex}
         data-zone={zoneKey}
-      >
-        {cell.dataStatus === 'no-data' ? <span aria-hidden="true">—</span> : (
-          <span className="compat-matrix-carriers" aria-hidden="true">{cell.carrierCount}</span>
-        )}
-      </div>
+      />
     );
   };
 
   return (
-    <section className="compat-matrix" aria-labelledby="compat-matrix-title">
+    <section className="compat-matrix uaam-chart" aria-labelledby={`compat-matrix-title-${mode}`} data-mode={mode}>
       <header className="compat-matrix-heading">
-        <p className="compat-kicker">UAAM / SELF-REPORTED MAP</p>
-        <h2 id="compat-matrix-title">チームの中にある力の地図</h2>
-        <p>本人の自己回答を、個人の結果画面と同じ絶対的な目安で見ています。全体の中での位置を比べるパーセンタイルとは別の図です。</p>
+        <p className="compat-kicker">ACTIVATION MATRIX / 16 × 16</p>
+        <h2 id={`compat-matrix-title-${mode}`}>チーム発動領域Matrix</h2>
+        <span className="compat-heading-rule" aria-hidden="true" />
+        <p>
+          {mode === 'share'
+            ? '各軸のチーム平均から判定した発動ゾーンと、個人判定でACTIVE以上の担い手を表示しています。点数そのものと、対角セルの担い手は共有されません。'
+            : '色は、各軸のデータがあるメンバーのチーム平均から判定しています。セルに触れると各メンバーの2軸スコアと個人ゾーンを確認できます。'}
+        </p>
       </header>
 
       <div className="compat-matrix-filters" aria-label="表示するゾーン">
-        {[...ZONE_ORDER, 'no-data'].map((zone) => (
-          <button
-            type="button"
-            key={zone}
-            aria-pressed={activeZones.has(zone)}
-            onClick={() => toggleZone(zone)}
-            style={{ '--matrix-zone-color': ZONE_META[zone].color }}
-          >
-            <span aria-hidden="true" />
-            {ZONE_META[zone].short}
-          </button>
-        ))}
-        <small>数字は、その組み合わせを同じ人の中に持つ担い手の人数です。</small>
+        {[...ZONE_ORDER, 'no-data'].map((zone) => {
+          const active = activeZones.has(zone);
+          return (
+            <button
+              type="button"
+              key={zone}
+              aria-pressed={active}
+              onClick={() => toggleZone(zone)}
+              style={{ '--matrix-zone-color': ZONE_COLOR[zone] }}
+            >
+              <span aria-hidden="true">{active ? '✓' : ''}</span>
+              {ZONE_FILTER_LABEL[zone]}
+            </button>
+          );
+        })}
+        <small>— マウス・タッチ、または矢印キーでセル移動／Enterで詳細</small>
       </div>
 
-      <div className="compat-matrix-scroll">
-        <table aria-label="UAAM 16軸のチーム力マップ">
+      <div className="compat-matrix-scroll" ref={matrixRef}>
+        <table aria-label="UAAM 16軸のチーム発動領域マップ">
           <thead>
             <tr>
               <th aria-hidden="true" />
               {COMPAT_MATRIX_AXES.map((axis) => (
-                <th key={axis.key} scope="col" title={`${axis.group}・${axis.label}`} aria-label={`${axis.group}・${axis.label}`}>
-                  <span>{axis.group}</span>{axis.label.slice(0, 2)}
+                <th key={axis.key} scope="col" aria-label={`${axis.group}・${axis.label}`}>
+                  {SUB_JP[axis.key].slice(0, 2)}
                 </th>
               ))}
             </tr>
@@ -331,7 +836,7 @@ export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = 
           <tbody>
             {COMPAT_MATRIX_AXES.map((axis, rowIndex) => (
               <tr key={axis.key}>
-                <th scope="row" title={`${axis.group}・${axis.label}`}><span>{axis.group}</span>{axis.label}</th>
+                <th scope="row" title={`${axis.group}・${axis.label}`}>{SUB_JP[axis.key].slice(0, 3)}</th>
                 {model.cells[rowIndex].map((cell, colIndex) => (
                   <td key={COMPAT_MATRIX_AXES[colIndex].key}>
                     {renderCell(cell, rowIndex, colIndex)}
@@ -343,10 +848,19 @@ export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = 
         </table>
       </div>
 
+      <MatrixTooltip
+        tip={tip}
+        mode={mode}
+        memberNames={memberNames}
+        tooltipRef={tooltipRef}
+        onClose={() => closeTooltip(tip?.cellKey)}
+        onEscape={() => closeTooltip(tip?.cellKey)}
+      />
+
       <div className="compat-matrix-legend">
-        <p><strong>読み方：</strong>色は、各メンバーを一人ずつ判定したときの最も高いゾーンです。別々の人の点数を組み合わせてはいません。</p>
-        <p><strong>大切な注意：</strong>高い人が1人いる＝チームでいつでも発揮できる、ではありません。</p>
-        <p><strong>データなし：</strong>斜線のセルは、その2軸のデータが同じ人にそろっていない状態です。0点や待機状態としては扱いません。</p>
+        <p><strong>読み方：</strong>色はチーム平均での判定です。各軸について、その軸のデータがあるメンバーだけで平均し、2軸の平均をゾーン基準に当てはめています。</p>
+        <p><strong>大切な注意：</strong>平均はチーム全体の水準を見る目安です。個人差や役割分担を表すものではないため、担い手は各メンバーの個人判定がACTIVE以上の場合に別表示します。</p>
+        <p><strong>データなし：</strong>斜線のセルは、どちらかの軸にデータ保有メンバーがいない状態です。欠けたデータを0点や待機状態としては扱いません。</p>
       </div>
 
       {missingMembers.length > 0 ? (
@@ -363,28 +877,21 @@ export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = 
 
       <div className="compat-matrix-summary-grid">
         <section>
-          <h3>厚い組み合わせ TOP 5</h3>
-          <p>ゾーン、同じ人の2軸合計、表の順で並べています。</p>
-          {model.topPairs.length > 0 ? (
-            <ol className="compat-matrix-top-pairs">
-              {model.topPairs.map((pair) => (
-                <li key={`${pair.axisA.key}-${pair.axisB.key}`}>
-                  <div>
-                    <strong>{pairName(pair)}</strong>
-                    <span style={{ '--matrix-zone-color': ZONE_META[pair.zone].color }}>{ZONE_META[pair.zone].label}</span>
-                  </div>
-                  <small>担い手：{pair.carrierAliases.map((alias) => memberNames[alias]).join('、')}</small>
-                </li>
-              ))}
-            </ol>
+          <p className="compat-kicker">GRIFFON CODE</p>
+          <h3>{model.hasTopPairs ? '厚い組み合わせ TOP 5' : '厚い組み合わせ'}</h3>
+          {!model.hasTopPairs ? (
+            <p className="compat-empty-state">この共有結果には、TOP 5の順序データが含まれていません。</p>
+          ) : model.topPairs.length > 0 ? (
+            <PairWindows pairs={model.topPairs} memberNames={memberNames} />
           ) : <p className="compat-empty-state">今回のデータでは、発動の目安に届く組み合わせは見つかりませんでした。</p>}
         </section>
 
         <section>
-          <h3>今回のデータでは担い手が見つからない組み合わせ</h3>
+          <p className="compat-kicker">DORMANT WINDOW</p>
+          <h3>チーム平均が発動の目安に届かない組み合わせ</h3>
           {model.dormantPairs.length > 0 ? (
-            <details>
-              <summary>{model.dormantPairs.length}組あります</summary>
+            <details className="compat-matrix-dormant-window" style={{ '--matrix-zone-color': ZONE_COLOR.dormant }}>
+              <summary><span>{ZONE_LABEL.dormant}</span><b>{model.dormantPairs.length}</b></summary>
               <div className="compat-matrix-dormant-list">
                 {model.dormantPairs.map((pair) => <span key={`${pair.axisA.key}-${pair.axisB.key}`}>{pairName(pair)}</span>)}
               </div>
@@ -394,24 +901,26 @@ export default function CompatMatrix({ uaamMatrix, members = [], memberLabels = 
         </section>
       </div>
 
-      <section className="compat-matrix-coverage" aria-label="4グループのカバレッジ">
-        <h3>志・知・技・衝のカバレッジ</h3>
-        <p>各グループの4軸のうち、チーム内に12点以上の担い手がいる軸の割合です。</p>
-        <div>
-          {model.groupCoverage.map((coverage) => (
-            <article key={coverage.group} style={{ '--matrix-group-color': GROUP_COLORS[coverage.groupIndex] }}>
-              <header>
-                <strong>{coverage.group}</strong>
-                <span>{coverage.coveredCount} / {coverage.totalCount}軸</span>
-              </header>
-              <div className="compat-matrix-coverage-track" aria-label={`${coverage.group}は${coverage.totalCount}軸中${coverage.coveredCount}軸`}>
-                <span style={{ width: `${coverage.percentage}%` }} />
-              </div>
-              {coverage.measuredCount < coverage.totalCount ? <small>データなし {coverage.totalCount - coverage.measuredCount}軸</small> : null}
-            </article>
-          ))}
-        </div>
-      </section>
+      {mode === 'admin' ? (
+        <section className="compat-matrix-coverage" aria-label="4グループのカバレッジ">
+          <h3>志・知・技・衝のカバレッジ</h3>
+          <p>各グループの4軸のうち、チーム内に12点以上の担い手がいる軸の割合です。</p>
+          <div>
+            {model.groupCoverage.map((coverage) => (
+              <article key={coverage.group} style={{ '--matrix-group-color': AXIS_HEX[coverage.groupIndex] }}>
+                <header>
+                  <strong>{coverage.group}</strong>
+                  <span>{coverage.coveredCount} / {coverage.totalCount}軸</span>
+                </header>
+                <div className="compat-matrix-coverage-track" aria-label={`${coverage.group}は${coverage.totalCount}軸中${coverage.coveredCount}軸`}>
+                  <span style={{ width: `${coverage.percentage}%` }} />
+                </div>
+                {coverage.measuredCount < coverage.totalCount ? <small>データなし {coverage.totalCount - coverage.measuredCount}軸</small> : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }
