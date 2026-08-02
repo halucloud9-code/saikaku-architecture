@@ -66,6 +66,53 @@ const reportFixture = {
   uaamMatrix: { memberScores: { M1: { meaning: 20, mindfulness: 20 } } },
 };
 
+const soloSubjectFixture = {
+  displayName: 'Aさん',
+  uaamMatrix: reportFixture.uaamMatrix,
+  generatedAxes: {
+    talent: ['構造化'],
+    value: ['誠実'],
+    passion: ['探究'],
+  },
+  availability: {
+    ...profiles[0].availability,
+    uaam: true,
+  },
+};
+
+function soloSummaryResponse(overrides = {}) {
+  return {
+    stage: 'summary',
+    shortages: [],
+    rankingSummary: {
+      eligible: true,
+      reason: null,
+      matchedCount: 1,
+      excludedForMissingAxes: 0,
+      truncated: 0,
+    },
+    snapshot: recommendationSnapshot,
+    subject: soloSubjectFixture,
+    ...overrides,
+  };
+}
+
+async function runPairAnalysis() {
+  await screen.findByText('Aさん');
+  fireEvent.click(screen.getByText('Aさん').closest('label').querySelector('input'));
+  fireEvent.click(screen.getByText('Bさん').closest('label').querySelector('input'));
+  fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+  fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+}
+
+async function runSoloSearch() {
+  await screen.findByText('Aさん');
+  fireEvent.click(screen.getByRole('button', { name: '1人' }));
+  fireEvent.click(screen.getByText('Aさん').closest('label').querySelector('input'));
+  fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+  fireEvent.click(screen.getByRole('button', { name: '力マップと相性を見る' }));
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -518,5 +565,584 @@ describe('CompatScreen', () => {
       expect.objectContaining({ action: 'show_names', snapshot: recommendationSnapshot }),
       expect.objectContaining({ action: 'search' }),
     ]);
+  });
+
+  it('uses compat-recommend, never compat-analyze, when running 1-person mode', async () => {
+    const fetchMock = vi.fn(async (path) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: true, message: '取込可能' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        return { ok: true, json: async () => soloSummaryResponse() };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runSoloSearch();
+
+    expect(await screen.findByRole('heading', { name: '発動領域Matrix' })).toBeInTheDocument();
+    expect(screen.getByText('構造化')).toBeInTheDocument();
+    expect(screen.queryByText('公開アプリから追加')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([path]) => path === '/api/admin/compat-analyze')).toBe(false);
+    const recommendCalls = fetchMock.mock.calls.filter(([path]) => path === '/api/admin/compat-recommend');
+    expect(recommendCalls).toHaveLength(1);
+    expect(JSON.parse(recommendCalls[0][1].body)).toEqual(expect.objectContaining({
+      action: 'search',
+      consent: true,
+      members: [{ source: 'internal', id: 'member-0' }],
+    }));
+  });
+
+  it('does not render the share URL section in 1-person mode', async () => {
+    const fetchMock = vi.fn(async (path) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        return { ok: true, json: async () => soloSummaryResponse() };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runSoloSearch();
+
+    expect(await screen.findByLabelText('Aさんの診断結果')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: '分析結果の共有' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '共有URLを発行' })).not.toBeInTheDocument();
+  });
+
+  it('removes team-only wording from every rendered recommendation surface in 1-person mode', async () => {
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          return {
+            ok: true,
+            json: async () => soloSummaryResponse({
+              shortages: [
+                { axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false, candidateCount: 1 },
+                { axisKey: 'logical', axisLabel: '論理力', missing: false, noData: true, candidateCount: 1 },
+              ],
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'names',
+            candidates: [{
+              displayName: 'Bさん',
+              matchedAxes: [
+                { axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false },
+                { axisKey: 'logical', axisLabel: '論理力', missing: false, noData: true },
+              ],
+            }],
+            ranking: [{
+              displayName: 'Bさん',
+              combinationLearningIndex: 82,
+              distinctCells: 47,
+              levelGapTenths: 16,
+            }],
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runSoloSearch();
+
+    const panel = await screen.findByRole('region', { name: 'この人にない力を持つ受講者を探す' });
+    fireEvent.click(screen.getByText(/表示される候補者それぞれについて/).closest('label').querySelector('input'));
+    await screen.findByLabelText('氏名を表示した該当者一覧');
+
+    expect(panel).toHaveTextContent('この人が12点（発動の目安）未満');
+    expect(panel).toHaveTextContent('基軸力（12点未満）');
+    expect(panel).toHaveTextContent('論理力（データなし）');
+    expect(panel).not.toHaveTextContent('チームにない');
+    expect(panel).not.toHaveTextContent('チームで12点');
+    expect(panel).not.toHaveTextContent('チームにデータなし');
+  });
+
+  it('preserves team wording across recommendation surfaces for 3-member mode', async () => {
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return { ok: true, json: async () => reportFixture };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          return {
+            ok: true,
+            json: async () => ({
+              stage: 'summary',
+              snapshot: recommendationSnapshot,
+              shortages: [
+                { axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false, candidateCount: 1 },
+                { axisKey: 'logical', axisLabel: '論理力', missing: false, noData: true, candidateCount: 1 },
+              ],
+              rankingSummary: {
+                eligible: true,
+                reason: null,
+                matchedCount: 1,
+                excludedForMissingAxes: 0,
+                truncated: 0,
+              },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'names',
+            candidates: [{
+              displayName: '候補者',
+              matchedAxes: [
+                { axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false },
+                { axisKey: 'logical', axisLabel: '論理力', missing: false, noData: true },
+              ],
+            }],
+            ranking: [],
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    fireEvent.click(screen.getByRole('button', { name: 'チーム（3名以上）' }));
+    profiles.forEach((profile) => {
+      fireEvent.click(screen.getByText(profile.displayName).closest('label').querySelector('input'));
+    });
+    fireEvent.change(screen.getByLabelText(/チームの目的/), { target: { value: '相互理解' } });
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+
+    const panel = await screen.findByRole('region', { name: 'チームにない力を持つ受講者を探す' });
+    fireEvent.click(await screen.findByText(/表示される候補者それぞれについて/).then((node) => node.closest('label').querySelector('input')));
+    await screen.findByLabelText('氏名を表示した該当者一覧');
+
+    expect(panel).toHaveTextContent('チームにない');
+    expect(panel).toHaveTextContent('チームで12点');
+    expect(panel).toHaveTextContent('チームにデータなし');
+  });
+
+  it('reveals ranking index values only after per-candidate consent', async () => {
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return { ok: true, json: async () => reportFixture };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          return {
+            ok: true,
+            json: async () => ({
+              stage: 'summary',
+              shortages: [{
+                axisKey: 'meaning',
+                axisLabel: '基軸力',
+                missing: true,
+                noData: false,
+                candidateCount: 1,
+              }],
+              rankingSummary: {
+                eligible: true,
+                reason: null,
+                matchedCount: 1,
+                excludedForMissingAxes: 0,
+                truncated: 0,
+              },
+              snapshot: recommendationSnapshot,
+              subject: null,
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'names',
+            candidates: [{
+              displayName: 'Cさん',
+              matchedAxes: [{ axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false }],
+            }],
+            ranking: [{
+              displayName: 'Cさん',
+              combinationLearningIndex: 82,
+              distinctCells: 47,
+              levelGapTenths: 16,
+            }],
+            subject: null,
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runPairAnalysis();
+
+    expect(await screen.findByRole('heading', { name: '学び合いやすい組み合わせ' })).toBeInTheDocument();
+    expect(screen.queryByText('82点')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(/表示される候補者それぞれについて/).closest('label').querySelector('input'));
+
+    const ranking = await screen.findByRole('list', { name: '学び合いやすい組み合わせの候補者ランキング' });
+    expect(ranking).toHaveTextContent('Cさん');
+    expect(ranking).toHaveTextContent('この組み合わせの学び合い指標82点');
+    expect(ranking).toHaveTextContent('120マスのうち47マスが、どちらか片方だけ発動');
+    expect(ranking).toHaveTextContent('平均点の差 1.6点');
+    expect(ranking).toHaveTextContent('基軸力・チームで12点未満');
+  });
+
+  it('renders non-zero ranking notices and omits both notices when their counts are zero', async () => {
+    const makeFetchMock = (rankingSummary) => vi.fn(async (path) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return { ok: true, json: async () => reportFixture };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'summary',
+            shortages: [],
+            rankingSummary,
+            snapshot: recommendationSnapshot,
+            subject: null,
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+
+    vi.stubGlobal('fetch', makeFetchMock({
+      eligible: true,
+      reason: null,
+      matchedCount: 13,
+      truncated: 3,
+      excludedForMissingAxes: 2,
+    }));
+    const firstRender = render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runPairAnalysis();
+    expect(await screen.findByText('ほかに3人が条件に合いましたが、上位10人まで表示しています')).toBeInTheDocument();
+    expect(screen.getByText('詳細診断(UAAM)の16項目がそろっていない2人は、比較の対象外です')).toBeInTheDocument();
+    firstRender.unmount();
+
+    vi.stubGlobal('fetch', makeFetchMock({
+      eligible: true,
+      reason: null,
+      matchedCount: 0,
+      truncated: 0,
+      excludedForMissingAxes: 0,
+    }));
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runPairAnalysis();
+    await screen.findByText('現在の選択メンバーと組み合わせて表示できる受講者はいません。');
+    expect(screen.queryByText(/上位10人まで表示しています/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/比較の対象外です/)).not.toBeInTheDocument();
+  });
+
+  it('disables pair preselection when two profiles share the ranking candidate name', async () => {
+    const duplicateProfiles = [
+      profiles[0],
+      { ...profiles[1], id: 'duplicate-1', displayName: '同名さん' },
+      { ...profiles[2], id: 'duplicate-2', displayName: '同名さん' },
+    ];
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles: duplicateProfiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          return { ok: true, json: async () => soloSummaryResponse() };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'names',
+            candidates: [],
+            ranking: [{
+              displayName: '同名さん',
+              combinationLearningIndex: 76,
+              distinctCells: 40,
+              levelGapTenths: 8,
+            }],
+            subject: soloSubjectFixture,
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runSoloSearch();
+    await screen.findByRole('heading', { name: '学び合いやすい組み合わせ' });
+    fireEvent.click(screen.getByText(/表示される候補者それぞれについて/).closest('label').querySelector('input'));
+
+    const pairButton = await screen.findByRole('button', { name: 'この人とペア分析する' });
+    expect(pairButton).toBeDisabled();
+    expect(pairButton).toHaveAttribute('title', '同名の受講者がいるため、一覧から選んでください');
+  });
+
+  it('shows the revised header and recommendation ethics copy verbatim', async () => {
+    const fetchMock = vi.fn(async (path) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        return { ok: true, json: async () => soloSummaryResponse() };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    expect(screen.getByText('人物には点数をつけません。組み合わせにだけ指標を出します。「似ているところ」と「違いで補い合えるところ」を見つけ、対話のきっかけにします。')).toBeInTheDocument();
+    await runSoloSearch();
+    expect(await screen.findByText('この機能は、コミュニティ内のチームづくりと相互理解のためのものです。雇用・人事・採用・査定の判断には使いません。')).toBeInTheDocument();
+  });
+
+  it('renders a deterministic map-only report without lenses or a sufficiency summary', () => {
+    render(<CompatReport
+      result={{ dataSufficiency: { memberAvailability: [{ alias: 'M1', ...soloSubjectFixture.availability }] } }}
+      memberLabels={['Aさん']}
+      uaamMatrix={soloSubjectFixture.uaamMatrix}
+    />);
+
+    expect(screen.getByRole('heading', { name: '発動領域Matrix' })).toBeInTheDocument();
+    expect(screen.queryByText('🔎 はじめに：今回確認できること')).not.toBeInTheDocument();
+  });
+
+  it('omits shortage chips from a ranking entry when loaded profiles share its display name', async () => {
+    const duplicateProfiles = [
+      profiles[0],
+      { ...profiles[1], id: 'duplicate-1', displayName: '同名さん' },
+      { ...profiles[2], id: 'duplicate-2', displayName: '同名さん' },
+    ];
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles: duplicateProfiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          return { ok: true, json: async () => soloSummaryResponse() };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'names',
+            candidates: [{
+              displayName: '同名さん',
+              matchedAxes: [{ axisKey: 'meaning', axisLabel: '基軸力', missing: true, noData: false }],
+            }],
+            ranking: [{
+              displayName: '同名さん',
+              combinationLearningIndex: 76,
+              distinctCells: 40,
+              levelGapTenths: 8,
+            }],
+            subject: soloSubjectFixture,
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runSoloSearch();
+    fireEvent.click((await screen.findByText(/表示される候補者それぞれについて/)).closest('label').querySelector('input'));
+
+    const ranking = await screen.findByRole('list', { name: '学び合いやすい組み合わせの候補者ランキング' });
+    expect(ranking).toHaveTextContent('同名さん');
+    expect(ranking.querySelector('.compat-recommend-axis-chips')).toBeNull();
+  });
+
+  it('renders the pair-analysis shortcut in solo mode but omits it in team mode', async () => {
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-analyze') {
+        return { ok: true, json: async () => reportFixture };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          return { ok: true, json: async () => soloSummaryResponse() };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'names',
+            candidates: [],
+            ranking: [{
+              displayName: 'Bさん',
+              combinationLearningIndex: 76,
+              distinctCells: 40,
+              levelGapTenths: 8,
+            }],
+            subject: soloSubjectFixture,
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const teamRender = render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    fireEvent.click(screen.getByRole('button', { name: 'チーム（3名以上）' }));
+    profiles.forEach((item) => {
+      fireEvent.click(screen.getByText(item.displayName).closest('label').querySelector('input'));
+    });
+    fireEvent.change(screen.getByLabelText(/チームの目的/), { target: { value: '相互理解' } });
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '相性を分析する' }));
+    fireEvent.click((await screen.findByText(/表示される候補者それぞれについて/)).closest('label').querySelector('input'));
+    await screen.findByRole('list', { name: '学び合いやすい組み合わせの候補者ランキング' });
+    expect(screen.queryByRole('button', { name: 'この人とペア分析する' })).not.toBeInTheDocument();
+    teamRender.unmount();
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runSoloSearch();
+    fireEvent.click((await screen.findByText(/表示される候補者それぞれについて/)).closest('label').querySelector('input'));
+    expect(await screen.findByRole('button', { name: 'この人とペア分析する' })).toBeInTheDocument();
+  });
+
+  it('uses the captured solo report label without disclosing the server-side name in the report', async () => {
+    const fetchMock = vi.fn(async (path) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        return { ok: true, json: async () => soloSummaryResponse() };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await screen.findByText('Aさん');
+    fireEvent.click(screen.getByRole('button', { name: '1人' }));
+    fireEvent.click(screen.getByText('Aさん').closest('label').querySelector('input'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'M1 レポート表示名' }), { target: { value: '匿名の対象者' } });
+    fireEvent.click(screen.getByText(/対象者全員から/).closest('label').querySelector('input'));
+    fireEvent.click(screen.getByRole('button', { name: '力マップと相性を見る' }));
+
+    const soloResult = await screen.findByLabelText('匿名の対象者の診断結果');
+    expect(soloResult).toHaveTextContent('匿名の対象者の診断で見つかった軸');
+    expect(soloResult).toHaveTextContent('匿名の対象者');
+    expect(soloResult).not.toHaveTextContent('Aさん');
+  });
+
+  it('refreshes the solo subject after stale name disclosure recovery', async () => {
+    let searchCount = 0;
+    const refreshedSubject = {
+      ...soloSubjectFixture,
+      generatedAxes: {
+        ...soloSubjectFixture.generatedAxes,
+        talent: ['更新後の軸'],
+      },
+    };
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          searchCount += 1;
+          return {
+            ok: true,
+            json: async () => soloSummaryResponse({
+              snapshot: searchCount === 1 ? recommendationSnapshot : 'b'.repeat(64),
+              subject: searchCount === 1 ? soloSubjectFixture : refreshedSubject,
+            }),
+          };
+        }
+        return {
+          ok: false,
+          status: 409,
+          json: async () => ({
+            code: 'RECOMMENDATION_SNAPSHOT_STALE',
+            error: 'データが更新されました。もう一度検索してください',
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runSoloSearch();
+    expect(await screen.findByText('構造化')).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/表示される候補者それぞれについて/).closest('label').querySelector('input'));
+
+    expect(await screen.findByText('更新後の軸')).toBeInTheDocument();
+    const soloResult = screen.getByLabelText('Aさんの診断結果');
+    expect(soloResult).not.toHaveTextContent('構造化');
+    expect(searchCount).toBe(2);
+  });
+
+  it('marks the ranking disclosure and its consent row as non-printable', async () => {
+    const fetchMock = vi.fn(async (path, options = {}) => {
+      if (path === '/api/admin/compat-profiles') {
+        return { ok: true, json: async () => ({ profiles, publicImport: { enabled: false, message: '取込無効' } }) };
+      }
+      if (path === '/api/admin/compat-recommend') {
+        const body = JSON.parse(options.body);
+        if (body.action === 'search') {
+          return { ok: true, json: async () => soloSummaryResponse() };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            stage: 'names',
+            candidates: [],
+            ranking: [{
+              displayName: 'Bさん',
+              combinationLearningIndex: 76,
+              distinctCells: 40,
+              levelGapTenths: 8,
+            }],
+            subject: soloSubjectFixture,
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CompatScreen user={{ getIdToken: async () => 'token' }} onBack={() => {}} onLogout={() => {}} />);
+    await runSoloSearch();
+    const consentRow = (await screen.findByText(/表示される候補者それぞれについて/)).closest('label');
+    expect(consentRow).toHaveClass('no-print');
+    fireEvent.click(consentRow.querySelector('input'));
+
+    const ranking = await screen.findByRole('list', { name: '学び合いやすい組み合わせの候補者ランキング' });
+    expect(ranking).toHaveClass('no-print');
   });
 });

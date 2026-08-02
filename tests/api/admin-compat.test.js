@@ -58,6 +58,18 @@ function resultFixture(uid, overrides = {}) {
   };
 }
 
+function uaamFixture(value) {
+  const score = (key) => (typeof value === 'function' ? value(key) : value);
+  return {
+    scores: {
+      mindset: { subs: Object.fromEntries(['meaning', 'mindfulness', 'mindshift', 'mastery'].map((key) => [key, score(key)])) },
+      literacy: { subs: Object.fromEntries(['learning', 'logical', 'life', 'leadership'].map((key) => [key, score(key)])) },
+      competency: { subs: Object.fromEntries(['critical', 'creativity', 'communication', 'collaboration'].map((key) => [key, score(key)])) },
+      impact: { subs: Object.fromEntries(['idea', 'innovation', 'implementation', 'influence'].map((key) => [key, score(key)])) },
+    },
+  };
+}
+
 function member(id, profileVersion = 'stale-version-is-accepted') {
   return { source: 'internal', id, profileVersion };
 }
@@ -360,6 +372,187 @@ describe('admin compat recommendation', () => {
     { source: 'internal', id: UID_B },
   ];
 
+  it('allows one member and returns the deterministic subject in both disclosure stages', async () => {
+    await seedParent('uaam_results', UID_A, uaamFixture(11));
+
+    const summaryResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'search', members: [member(UID_A)], consent: true });
+
+    expect(summaryResponse.status).toBe(200);
+    expect(summaryResponse.headers['cache-control']).toBe('private, no-store');
+    expect(summaryResponse.body.subject).toMatchObject({
+      displayName: `Member ${UID_A}`,
+      generatedAxes: {
+        talent: ['構造化'],
+        value: ['誠実さ'],
+        passion: ['学び'],
+      },
+      availability: {
+        categories: {
+          talent: { userTop5: true, generatedAxes: true },
+          value: { userTop5: true, generatedAxes: true },
+          passion: { userTop5: true, generatedAxes: true },
+        },
+        uaam: true,
+      },
+    });
+    expect(Object.keys(summaryResponse.body.subject.uaamMatrix.memberScores)).toEqual(['M1']);
+    expect(Object.values(summaryResponse.body.subject.uaamMatrix.memberScores.M1))
+      .toHaveLength(16);
+
+    const namesResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({
+        action: 'show_names',
+        members: [member(UID_A)],
+        consent: true,
+        snapshot: summaryResponse.body.snapshot,
+      });
+
+    expect(namesResponse.status).toBe(200);
+    expect(namesResponse.headers['cache-control']).toBe('private, no-store');
+    expect(namesResponse.body.subject).toEqual(summaryResponse.body.subject);
+  });
+
+  it.each([
+    ['zero', []],
+    ['eleven', Array.from({ length: 11 }, (_, index) => member(`member-${index}`))],
+  ])('rejects %s selected members', async (_label, members) => {
+    const response = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'search', members, consent: true });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('INVALID_REQUEST');
+  });
+
+  it('keeps every seeded identity and ranking value out of a search response', async () => {
+    const response = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'search', members: selectedMembers, consent: true });
+
+    expect(response.status).toBe(200);
+    const serialized = JSON.stringify(response.body);
+    for (const uid of [UID_A, UID_B, UID_C]) {
+      expect(serialized).not.toContain(`Member ${uid}`);
+    }
+    expect(serialized).not.toContain('profileId');
+    expect(serialized).not.toContain('combinationLearningIndex');
+    expect(Object.keys(response.body.rankingSummary).sort()).toEqual([
+      'eligible',
+      'excludedForMissingAxes',
+      'matchedCount',
+      'reason',
+      'truncated',
+    ]);
+  });
+
+  it('returns a profile-id-free ranking of at most ten candidates', async () => {
+    await Promise.all([
+      seedParent('results', UID_D, resultFixture(UID_D)),
+      seedParent('results', UID_E, resultFixture(UID_E)),
+      seedParent('uaam_results', UID_A, uaamFixture(11)),
+      ...[UID_B, UID_C, UID_D, UID_E]
+        .map((uid) => seedParent('uaam_results', uid, uaamFixture(12))),
+    ]);
+
+    const summaryResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'search', members: [member(UID_A)], consent: true });
+    const namesResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({
+        action: 'show_names',
+        members: [member(UID_A)],
+        consent: true,
+        snapshot: summaryResponse.body.snapshot,
+      });
+
+    expect(namesResponse.status).toBe(200);
+    expect(namesResponse.body.ranking.length).toBeGreaterThan(0);
+    expect(namesResponse.body.ranking.length).toBeLessThanOrEqual(10);
+    expect(namesResponse.body.ranking.every((candidate) => !Object.hasOwn(candidate, 'profileId'))).toBe(true);
+    expect(Object.keys(namesResponse.body.ranking[0]).sort()).toEqual([
+      'combinationLearningIndex',
+      'displayName',
+      'distinctCells',
+      'levelGapTenths',
+    ]);
+
+    const audits = (await db.collection('compat_audits').get()).docs.map((doc) => doc.data());
+    expect(audits).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        action: 'recommend_search',
+        algorithmVersion: 'combination-learning-v1',
+        rankingShown: false,
+        displayedCandidateCount: 0,
+      }),
+      expect.objectContaining({
+        action: 'recommend_names_shown',
+        algorithmVersion: 'combination-learning-v1',
+        rankingShown: true,
+        displayedCandidateCount: namesResponse.body.ranking.length,
+      }),
+    ]));
+    const serializedAudits = JSON.stringify(audits);
+    expect(serializedAudits).not.toContain('displayName');
+    expect(serializedAudits).not.toContain('combinationLearningIndex');
+    expect(serializedAudits).not.toContain('memberScores');
+  });
+
+  it('returns a null subject when three members are selected', async () => {
+    const response = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({
+        action: 'search',
+        members: [member(UID_A), member(UID_B), member(UID_C)],
+        consent: true,
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.subject).toBeNull();
+  });
+
+  it('keeps shortage results when a solo reference has no UAAM and returns no ranking', async () => {
+    await seedParent('uaam_results', UID_C, uaamFixture(16));
+
+    const summaryResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'search', members: [member(UID_A)], consent: true });
+
+    expect(summaryResponse.status).toBe(200);
+    expect(summaryResponse.body.rankingSummary).toEqual({
+      eligible: false,
+      reason: '選択したメンバーにUAAMの測定データがありません。',
+      matchedCount: 0,
+      excludedForMissingAxes: 0,
+      truncated: 0,
+    });
+    expect(summaryResponse.body.shortages).toHaveLength(16);
+    expect(summaryResponse.body.shortages.every((shortage) => (
+      shortage.noData === true
+      && shortage.missing === false
+      && shortage.candidateCount >= 1
+    ))).toBe(true);
+    expect(summaryResponse.body.subject.uaamMatrix).toEqual({ memberScores: {} });
+
+    const namesResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({
+        action: 'show_names',
+        members: [member(UID_A)],
+        consent: true,
+        snapshot: summaryResponse.body.snapshot,
+      });
+
+    expect(namesResponse.status).toBe(200);
+    expect(namesResponse.body.ranking).toEqual([]);
+    expect(namesResponse.body.candidates.some((candidate) => (
+      candidate.displayName === `Member ${UID_C}`
+    ))).toBe(true);
+  });
+
   it.each([
     ['missing token', undefined, 401, 'UNAUTHORIZED'],
     ['non-admin', 'user-token', 403, 'FORBIDDEN'],
@@ -510,6 +703,37 @@ describe('admin compat recommendation', () => {
     await seedParent('uaam_results', UID_C, {
       scores: { literacy: { subs: { logical: 15 } } },
     });
+    const namesResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({
+        action: 'show_names',
+        members: selectedMembers,
+        consent: true,
+        snapshot: summaryResponse.body.snapshot,
+      });
+
+    expect(namesResponse.status).toBe(409);
+    expect(namesResponse.body).toEqual({
+      code: 'RECOMMENDATION_SNAPSHOT_STALE',
+      error: 'データが更新されました。もう一度検索してください',
+    });
+    const audits = (await db.collection('compat_audits').get()).docs.map((doc) => doc.data().action);
+    expect(audits).toEqual(['recommend_search']);
+  });
+
+  it('returns 409 without a names audit when only the ranking changes after search', async () => {
+    await Promise.all([
+      seedParent('uaam_results', UID_A, uaamFixture(11)),
+      seedParent('uaam_results', UID_B, uaamFixture(11)),
+      seedParent('uaam_results', UID_C, uaamFixture(12)),
+    ]);
+
+    const summaryResponse = await api.post('/api/admin/compat-recommend')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'search', members: selectedMembers, consent: true });
+    expect(summaryResponse.status).toBe(200);
+
+    await seedParent('uaam_results', UID_C, uaamFixture((key) => (key === 'meaning' ? 13 : 12)));
     const namesResponse = await api.post('/api/admin/compat-recommend')
       .set('Authorization', 'Bearer admin-token')
       .send({

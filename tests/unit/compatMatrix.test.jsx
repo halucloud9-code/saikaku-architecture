@@ -131,6 +131,40 @@ describe('compat UAAM matrix model', () => {
 });
 
 describe('CompatMatrix', () => {
+  it('uses solo copy without team language when exactly one member is shown', () => {
+    const { container } = render(
+      <CompatMatrix
+        uaamMatrix={{ memberScores: { M1: { meaning: 12, mindfulness: 9 } } }}
+        members={[{ alias: 'M1' }]}
+        memberLabels={['つかさ']}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: '発動領域Matrix' })).toBeInTheDocument();
+    expect(screen.getByText('色はこの人の2軸のスコアでの判定です。データのある軸だけを、ゾーンの基準に当てはめています。')).toBeInTheDocument();
+    expect(container).not.toHaveTextContent('チーム');
+  });
+
+  it('keeps the existing team copy when two members are shown', () => {
+    render(
+      <CompatMatrix
+        uaamMatrix={{
+          memberScores: {
+            M1: { meaning: 16, mindfulness: 16 },
+            M2: { meaning: 12, mindfulness: 12 },
+          },
+        }}
+        members={[{ alias: 'M1' }, { alias: 'M2' }]}
+        memberLabels={['つかさ', '野田健一']}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'チーム発動領域Matrix' })).toBeInTheDocument();
+    expect(screen.getByText('色は、各軸のデータがあるメンバーのチーム平均から判定しています。セルに触れると各メンバーの2軸スコアと個人ゾーンを確認できます。')).toBeInTheDocument();
+    expect(screen.getByText('色はチーム平均での判定です。各軸について、その軸のデータがあるメンバーだけで平均し、2軸の平均をゾーン基準に当てはめています。')).toBeInTheDocument();
+    expect(screen.getByText('平均はチーム全体の水準を見る目安です。個人差や役割分担を表すものではないため、担い手は各メンバーの個人判定がACTIVE以上の場合に別表示します。')).toBeInTheDocument();
+  });
+
   it('shows real names, pair definitions, zones, and admin-only member scores in its rich tooltip', () => {
     render(
       <CompatMatrix
