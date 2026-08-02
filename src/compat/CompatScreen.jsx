@@ -111,6 +111,9 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   const noDataLabel = isSoloSelection ? 'データなし' : 'チームにデータなし';
   const belowThresholdLabel = isSoloSelection ? '12点未満' : 'チームで12点未満';
   const soloSubject = soloPayload?.subject || null;
+  const soloDisplayName = soloSnapshot?.members?.[0]?.displayName?.trim()
+    || soloSubject?.displayName
+    || '';
   const soloReport = useMemo(() => (
     soloSubject
       ? {
@@ -173,6 +176,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         ? data.rankingSummary
         : null);
       setRecommendSnapshot(data.snapshot);
+      if (mode === 'solo' && data.subject) setSoloPayload(data);
     } catch (cause) {
       if (analysisGenerationRef.current !== generation) return;
       setRecommendError(cause.message);
@@ -580,10 +584,10 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       <CompatReport result={result} memberLabels={reportLabels} uaamMatrix={result?.uaamMatrix} />
 
       {soloSubject && (
-        <section className="compat-solo-result" aria-label={`${soloSubject.displayName}の診断結果`}>
+        <section className="compat-solo-result" aria-label={`${soloDisplayName}の診断結果`}>
           <div className="compat-solo-axes">
             <p className="compat-kicker">診断プロフィール</p>
-            <h2>{soloSubject.displayName}の診断で見つかった軸</h2>
+            <h2>{soloDisplayName}の診断で見つかった軸</h2>
             <div className="compat-solo-axis-groups">
               {[
                 ['talent', '才能'],
@@ -603,7 +607,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           </div>
           <CompatReport
             result={soloReport}
-            memberLabels={[soloSubject.displayName]}
+            memberLabels={[soloDisplayName]}
             uaamMatrix={soloSubject.uaamMatrix}
           />
         </section>
@@ -668,7 +672,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           </section>
 
           {canRevealRecommendationNames && (
-            <label className="compat-consent compat-recommend-consent">
+            <label className="compat-consent compat-recommend-consent no-print">
               <input
                 type="checkbox"
                 checked={recommendNamesConsent}
@@ -704,14 +708,16 @@ export default function CompatScreen({ user, onBack, onLogout }) {
             && rankingSummary?.eligible === true
             && Array.isArray(recommendRanking)
             && recommendRanking.length > 0 && (
-            <div className="compat-ranking-list" role="list" aria-label="学び合いやすい組み合わせの候補者ランキング">
+            <div className="compat-ranking-list no-print" role="list" aria-label="学び合いやすい組み合わせの候補者ランキング">
               {recommendRanking.map((candidate, index) => {
-                const shortageCandidate = recommendCandidates?.find((item) => (
-                  item.displayName === candidate.displayName
-                ));
                 const matchingProfiles = profiles.filter((profile) => (
                   profile.displayName === candidate.displayName
                 ));
+                const shortageCandidate = matchingProfiles.length === 1
+                  ? recommendCandidates?.find((item) => (
+                    item.displayName === candidate.displayName
+                  ))
+                  : null;
                 const snapshot = mode === 'solo' ? soloSnapshot : resultSnapshot;
                 const subject = snapshot?.members?.find((member) => member.source === 'internal');
                 const ambiguousName = matchingProfiles.length > 1;
@@ -744,15 +750,17 @@ export default function CompatScreen({ user, onBack, onLogout }) {
                         ))}
                       </div>
                     )}
-                    <button
-                      type="button"
-                      className="compat-button secondary compat-ranking-pair-button"
-                      disabled={unavailable}
-                      title={buttonTitle}
-                      onClick={() => selectRankingCandidateForPair(candidate)}
-                    >
-                      この人とペア分析する
-                    </button>
+                    {mode === 'solo' && (
+                      <button
+                        type="button"
+                        className="compat-button secondary compat-ranking-pair-button"
+                        disabled={unavailable}
+                        title={buttonTitle}
+                        onClick={() => selectRankingCandidateForPair(candidate)}
+                      >
+                        この人とペア分析する
+                      </button>
+                    )}
                   </article>
                 );
               })}

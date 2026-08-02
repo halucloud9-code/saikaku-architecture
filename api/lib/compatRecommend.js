@@ -138,7 +138,11 @@ export function buildCompatRanking(profiles, selectedProfileIds) {
   const qualifyingCandidates = [];
 
   for (const candidate of profiles) {
-    if (selectedIds.has(candidate.id) || !candidate.uaam) continue;
+    if (selectedIds.has(candidate.id)) continue;
+    if (!candidate.uaam) {
+      excludedForMissingAxes += 1;
+      continue;
+    }
     const values = COMPAT_VISUAL_UAAM_AXES.map((axis) => (
       normalizeUaamZoneScore(candidate.uaam[axis.key])
     ));
@@ -147,12 +151,13 @@ export function buildCompatRanking(profiles, selectedProfileIds) {
       continue;
     }
 
-    const candidateTotal = values.reduce((total, value) => total + value, 0);
+    const candidateTotal = values.reduce((total, value, axisIndex) => (
+      referenceAxes[axisIndex].count > 0 ? total + value : total
+    ), 0);
     const gapNumerator = Math.abs(
-      (referenceScaledTotal * COMPAT_VISUAL_UAAM_AXES.length)
-      - (candidateTotal * referenceMeanDenominator),
+      referenceScaledTotal - (candidateTotal * TEAM_MEAN_SCALE),
     );
-    const gapDenominator = referenceMeanDenominator * COMPAT_VISUAL_UAAM_AXES.length;
+    const gapDenominator = referenceMeanDenominator;
     const levelNumerator = (4 * gapDenominator) - gapNumerator;
     if (levelNumerator <= 0) continue;
 

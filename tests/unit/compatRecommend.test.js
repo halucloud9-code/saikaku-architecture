@@ -227,4 +227,37 @@ describe('compat candidate ranking', () => {
     // A per-axis max of 14 would activate all target cells and yield zero differences.
     expect(result.candidates[0].distinctCells).toBe(120);
   });
+
+  it('uses only the eight measured reference axes for every candidate level gap', () => {
+    const measuredReference = Object.fromEntries(
+      COMPAT_VISUAL_UAAM_AXES.slice(0, 8).map(({ key }) => [key, 11]),
+    );
+    const result = buildCompatRanking([
+      profile('selected', '選択中', measuredReference),
+      profile('candidate-low-unmeasured', '未測定軸が低い候補', fullUaam((index) => (
+        index < 8 ? 12 : 4
+      ))),
+      profile('candidate-high-unmeasured', '未測定軸が高い候補', fullUaam((index) => (
+        index < 8 ? 12 : 20
+      ))),
+    ], ['selected']);
+
+    expect(result.measuredAxisCount).toBe(8);
+    expect(result.candidates).toHaveLength(2);
+    expect(result.candidates.map((candidate) => candidate.levelGapTenths)).toEqual([10, 10]);
+    expect(result.candidates.every((candidate) => (
+      Object.values(candidate).every((value) => typeof value !== 'number' || Number.isInteger(value))
+    ))).toBe(true);
+  });
+
+  it('counts a candidate with no UAAM as excluded while still skipping selected profiles', () => {
+    const result = buildCompatRanking([
+      profile('selected', '選択中', fullUaam(11)),
+      profile('selected-without-uaam', '選択中・未測定'),
+      profile('candidate-without-uaam', '候補・未測定'),
+    ], ['selected', 'selected-without-uaam']);
+
+    expect(result.excludedForMissingAxes).toBe(1);
+    expect(result.candidates).toEqual([]);
+  });
 });
