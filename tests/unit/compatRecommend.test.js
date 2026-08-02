@@ -216,6 +216,24 @@ describe('compat candidate ranking', () => {
     }]);
   });
 
+  it('keeps complete 16-axis references eligible with the established indices', () => {
+    const result = buildCompatRanking([
+      profile('selected', '選択中', fullUaam(11)),
+      profile('candidate-12', '候補12', fullUaam(12)),
+      profile('candidate-13', '候補13', fullUaam(13)),
+    ], ['selected']);
+
+    expect(result.eligible).toBe(true);
+    expect(result.measuredAxisCount).toBe(16);
+    expect(result.candidates.map((candidate) => ({
+      profileId: candidate.profileId,
+      combinationLearningIndex: candidate.combinationLearningIndex,
+    }))).toEqual([
+      { profileId: 'candidate-12', combinationLearningIndex: 87 },
+      { profileId: 'candidate-13', combinationLearningIndex: 71 },
+    ]);
+  });
+
   it('uses per-axis means rather than maxima for a team reference', () => {
     const result = buildCompatRanking([
       profile('selected-low', '低', fullUaam(8)),
@@ -228,7 +246,10 @@ describe('compat candidate ranking', () => {
     expect(result.candidates[0].distinctCells).toBe(120);
   });
 
+  /*
   it('uses only the eight measured reference axes for every candidate level gap', () => {
+  */
+  it('rejects a reference with only eight measured axes', () => {
     const measuredReference = Object.fromEntries(
       COMPAT_VISUAL_UAAM_AXES.slice(0, 8).map(({ key }) => [key, 11]),
     );
@@ -242,12 +263,36 @@ describe('compat candidate ranking', () => {
       ))),
     ], ['selected']);
 
+    /*
     expect(result.measuredAxisCount).toBe(8);
     expect(result.candidates).toHaveLength(2);
     expect(result.candidates.map((candidate) => candidate.levelGapTenths)).toEqual([10, 10]);
     expect(result.candidates.every((candidate) => (
       Object.values(candidate).every((value) => typeof value !== 'number' || Number.isInteger(value))
     ))).toBe(true);
+    */
+    expect(result.eligible).toBe(false);
+    expect(result.measuredAxisCount).toBe(8);
+    expect(result.candidates).toEqual([]);
+    expect(result.reason).not.toBeNull();
+  });
+
+  it('rejects a reference with exactly one of the 16 axes missing', () => {
+    const measuredReference = fullUaam(11);
+    delete measuredReference.influence;
+    const result = buildCompatRanking([
+      profile('selected', '選択中', measuredReference),
+      profile('candidate', '候補', fullUaam(12)),
+    ], ['selected']);
+
+    expect(result).toEqual({
+      eligible: false,
+      reason: '選択したメンバーの詳細診断（UAAM）は16項目のうち15項目しかそろっていません。16項目そろうと、学び合いやすい組み合わせを表示できます。',
+      measuredAxisCount: 15,
+      excludedForMissingAxes: 0,
+      truncated: 0,
+      candidates: [],
+    });
   });
 
   it('counts a candidate with no UAAM as excluded while still skipping selected profiles', () => {

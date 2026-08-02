@@ -116,11 +116,13 @@ export function buildCompatRanking(profiles, selectedProfileIds) {
   });
   const measuredAxisCount = referenceAxes.filter((axis) => axis.count > 0).length;
 
-  if (measuredAxisCount === 0) {
+  if (measuredAxisCount < COMPAT_VISUAL_UAAM_AXES.length) {
     return {
       eligible: false,
-      reason: '選択したメンバーにUAAMの測定データがありません。',
-      measuredAxisCount: 0,
+      reason: measuredAxisCount === 0
+        ? '選択したメンバーにUAAMの測定データがありません。'
+        : `選択したメンバーの詳細診断（UAAM）は16項目のうち${measuredAxisCount}項目しかそろっていません。16項目そろうと、学び合いやすい組み合わせを表示できます。`,
+      measuredAxisCount,
       excludedForMissingAxes: 0,
       truncated: 0,
       candidates: [],
