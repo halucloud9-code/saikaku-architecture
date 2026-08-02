@@ -1,10 +1,12 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebaseAdmin.js';
 import {
+  buildCompatRanking,
   buildCompatRecommendation,
   createCompatRecommendationSnapshot,
 } from '../lib/compatRecommend.js';
-import { normalizeInternalProfile } from '../lib/compatProfiles.js';
+import { buildCompatUaamMatrix } from '../lib/compatEvidence.js';
+import { normalizeInternalProfile, profileAvailability } from '../lib/compatProfiles.js';
 import { requireAdmin } from '../lib/requireAdmin.js';
 
 const INTERNAL_ID_RE = /^[^/]{1,128}$/u;
@@ -20,8 +22,8 @@ function invalid(message, code = 'INVALID_REQUEST') {
 
 function validateBody(body) {
   if (!ACTIONS.has(body?.action)) throw invalid('操作の種類が不正です');
-  if (!Array.isArray(body.members) || body.members.length < 2 || body.members.length > 10) {
-    throw invalid('選択メンバーは2〜10名で指定してください');
+  if (!Array.isArray(body.members) || body.members.length < 1 || body.members.length > 10) {
+    throw invalid('選択メンバーは1〜10名で指定してください');
   }
   if (body.consent !== true) throw invalid('対象者の同意確認が必要です', 'CONSENT_REQUIRED');
   if (body.members.some((member) => member?.source !== 'internal')) {
@@ -71,12 +73,47 @@ async function loadInternalProfiles(selectedProfileIds) {
   return profiles;
 }
 
-async function writeAudit(admin, action, memberCount, candidateCount) {
+function buildSubject(profiles, selectedProfileIds) {
+  if (selectedProfileIds.length !== 1) return null;
+  const profile = profiles.find((candidate) => candidate.id === selectedProfileIds[0]);
+  const generatedAxes = Object.fromEntries(['talent', 'value', 'passion'].map((category) => [
+    category,
+    profile.categories[category].generated_axis.map((axis) => axis.name).filter(Boolean),
+  ]));
+  return {
+    displayName: profile.displayName,
+    uaamMatrix: buildCompatUaamMatrix([{ ...profile, alias: 'M1' }]),
+    generatedAxes,
+    availability: profileAvailability(profile),
+  };
+}
+
+function buildRankingSummary(ranking) {
+  return {
+    eligible: ranking.eligible,
+    reason: ranking.reason,
+    matchedCount: ranking.candidates.length + ranking.truncated,
+    excludedForMissingAxes: ranking.excludedForMissingAxes,
+    truncated: ranking.truncated,
+  };
+}
+
+async function writeAudit(
+  admin,
+  action,
+  memberCount,
+  candidateCount,
+  rankingShown,
+  displayedCandidateCount,
+) {
   await db.collection('compat_audits').add({
     action,
     actorUid: admin.uid,
     memberCount,
     candidateCount,
+    algorithmVersion: 'combination-learning-v1',
+    rankingShown,
+    displayedCandidateCount,
     createdAt: FieldValue.serverTimestamp(),
   });
 }
@@ -92,7 +129,8 @@ export default async function handler(req, res) {
     const input = validateBody(req.body);
     const profiles = await loadInternalProfiles(input.selectedProfileIds);
     const recommendation = buildCompatRecommendation(profiles, input.selectedProfileIds);
-    const snapshot = createCompatRecommendationSnapshot(recommendation);
+    const ranking = buildCompatRanking(profiles, input.selectedProfileIds);
+    const snapshot = createCompatRecommendationSnapshot({ recommendation, ranking });
     if (input.action === 'show_names' && input.snapshot !== snapshot) {
       const error = new Error('データが更新されました。もう一度検索してください');
       error.code = 'RECOMMENDATION_SNAPSHOT_STALE';
@@ -100,18 +138,32 @@ export default async function handler(req, res) {
       throw error;
     }
     const auditAction = input.action === 'search' ? 'recommend_search' : 'recommend_names_shown';
-    await writeAudit(admin, auditAction, input.members.length, recommendation.candidates.length);
+    const rankingShown = input.action === 'show_names' && ranking.candidates.length > 0;
+    await writeAudit(
+      admin,
+      auditAction,
+      input.members.length,
+      recommendation.candidates.length,
+      rankingShown,
+      rankingShown ? ranking.candidates.length : 0,
+    );
+    const subject = buildSubject(profiles, input.selectedProfileIds);
+    res.setHeader('Cache-Control', 'private, no-store');
 
     if (input.action === 'search') {
       return res.status(200).json({
         stage: 'summary',
         shortages: recommendation.summary,
+        rankingSummary: buildRankingSummary(ranking),
         snapshot,
+        subject,
       });
     }
     return res.status(200).json({
       stage: 'names',
       candidates: recommendation.candidates.map(({ profileId: _profileId, ...candidate }) => candidate),
+      ranking: ranking.candidates.map(({ profileId: _profileId, ...candidate }) => candidate),
+      subject,
     });
   } catch (error) {
     if (error?.status) return res.status(error.status).json({ code: error.code, error: error.message });

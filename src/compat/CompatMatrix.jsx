@@ -493,6 +493,7 @@ export default function CompatMatrix({
   const missingMembers = mode === 'admin'
     ? memberAliases.filter((alias) => !model.dataAliases.includes(alias))
     : [];
+  const isSolo = members.length === 1;
 
   const isFiltered = (cell) => {
     const filterKey = filterKeyForCell(cell);
@@ -573,7 +574,7 @@ export default function CompatMatrix({
     return [
       pairName(cell),
       `${cell.axisA.label} × ${cell.axisB.label}`,
-      ZONE_JP[zoneKey],
+      isSolo && zoneKey === 'dormant' ? '目安未満' : ZONE_JP[zoneKey],
       `担い手 ${carriers}`,
       definition?.d1,
       adminDetails,
@@ -793,12 +794,16 @@ export default function CompatMatrix({
     <section className="compat-matrix uaam-chart" aria-labelledby={`compat-matrix-title-${mode}`} data-mode={mode}>
       <header className="compat-matrix-heading">
         <p className="compat-kicker">ACTIVATION MATRIX / 16 × 16</p>
-        <h2 id={`compat-matrix-title-${mode}`}>チーム発動領域Matrix</h2>
+        <h2 id={`compat-matrix-title-${mode}`}>{isSolo ? '発動領域Matrix' : 'チーム発動領域Matrix'}</h2>
         <span className="compat-heading-rule" aria-hidden="true" />
         <p>
-          {mode === 'share'
-            ? '各軸のチーム平均から判定した発動ゾーンと、個人判定でACTIVE以上の担い手を表示しています。点数そのものと、対角セルの担い手は共有されません。'
-            : '色は、各軸のデータがあるメンバーのチーム平均から判定しています。セルに触れると各メンバーの2軸スコアと個人ゾーンを確認できます。'}
+          {isSolo
+            ? (mode === 'share'
+              ? '2軸のスコアから判定した発動ゾーンと、個人判定でACTIVE以上の担い手を表示しています。点数そのものと、対角セルの担い手は共有されません。'
+              : '色は、この人の2軸のスコアから判定しています。セルに触れると各軸のスコアと発動ゾーンを確認できます。')
+            : (mode === 'share'
+              ? '各軸のチーム平均から判定した発動ゾーンと、個人判定でACTIVE以上の担い手を表示しています。点数そのものと、対角セルの担い手は共有されません。'
+              : '色は、各軸のデータがあるメンバーのチーム平均から判定しています。セルに触れると各メンバーの2軸スコアと個人ゾーンを確認できます。')}
         </p>
       </header>
 
@@ -822,7 +827,7 @@ export default function CompatMatrix({
       </div>
 
       <div className="compat-matrix-scroll" ref={matrixRef}>
-        <table aria-label="UAAM 16軸のチーム発動領域マップ">
+        <table aria-label={isSolo ? 'UAAM 16軸の発動領域マップ' : 'UAAM 16軸のチーム発動領域マップ'}>
           <thead>
             <tr>
               <th aria-hidden="true" />
@@ -858,8 +863,17 @@ export default function CompatMatrix({
       />
 
       <div className="compat-matrix-legend">
-        <p><strong>読み方：</strong>色はチーム平均での判定です。各軸について、その軸のデータがあるメンバーだけで平均し、2軸の平均をゾーン基準に当てはめています。</p>
-        <p><strong>大切な注意：</strong>平均はチーム全体の水準を見る目安です。個人差や役割分担を表すものではないため、担い手は各メンバーの個人判定がACTIVE以上の場合に別表示します。</p>
+        {isSolo ? (
+          <>
+            <p><strong>読み方：</strong>色はこの人の2軸のスコアでの判定です。データのある軸だけを、ゾーンの基準に当てはめています。</p>
+            <p><strong>大切な注意：</strong>この地図は、いまの回答から見える発動の状態です。得意・不得意や優劣を決めるものではありません。</p>
+          </>
+        ) : (
+          <>
+            <p><strong>読み方：</strong>色はチーム平均での判定です。各軸について、その軸のデータがあるメンバーだけで平均し、2軸の平均をゾーン基準に当てはめています。</p>
+            <p><strong>大切な注意：</strong>平均はチーム全体の水準を見る目安です。個人差や役割分担を表すものではないため、担い手は各メンバーの個人判定がACTIVE以上の場合に別表示します。</p>
+          </>
+        )}
         <p><strong>データなし：</strong>斜線のセルは、どちらかの軸にデータ保有メンバーがいない状態です。欠けたデータを0点や待機状態としては扱いません。</p>
       </div>
 
@@ -888,7 +902,7 @@ export default function CompatMatrix({
 
         <section>
           <p className="compat-kicker">DORMANT WINDOW</p>
-          <h3>チーム平均が発動の目安に届かない組み合わせ</h3>
+          <h3>{isSolo ? '発動の目安に届かない組み合わせ' : 'チーム平均が発動の目安に届かない組み合わせ'}</h3>
           {model.dormantPairs.length > 0 ? (
             <details className="compat-matrix-dormant-window" style={{ '--matrix-zone-color': ZONE_COLOR.dormant }}>
               <summary><span>{ZONE_LABEL.dormant}</span><b>{model.dormantPairs.length}</b></summary>
@@ -904,7 +918,7 @@ export default function CompatMatrix({
       {mode === 'admin' ? (
         <section className="compat-matrix-coverage" aria-label="4グループのカバレッジ">
           <h3>志・知・技・衝のカバレッジ</h3>
-          <p>各グループの4軸のうち、チーム内に12点以上の担い手がいる軸の割合です。</p>
+          <p>{isSolo ? '各グループの4軸のうち、12点以上ある軸の割合です。' : '各グループの4軸のうち、チーム内に12点以上の担い手がいる軸の割合です。'}</p>
           <div>
             {model.groupCoverage.map((coverage) => (
               <article key={coverage.group} style={{ '--matrix-group-color': AXIS_HEX[coverage.groupIndex] }}>

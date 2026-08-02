@@ -38,10 +38,11 @@ function Claim({ claim, displayText }) {
 }
 
 function EvidenceFold({ result, memberLabels }) {
-  const members = result.dataSufficiency.memberAvailability || [];
+  const members = result.dataSufficiency?.memberAvailability || [];
+  const lenses = Array.isArray(result.lenses) ? result.lenses : [];
   const displayText = (value) => replaceMemberAliases(value, members, memberLabels);
   const claimRefs = [
-    ...result.lenses.flatMap((lens) => lens.claims.map((claim, index) => ({
+    ...lenses.flatMap((lens) => (lens.claims || []).map((claim, index) => ({
       label: `${lens.id === 'similarity' ? '似ているところ' : '違いで補い合えるところ'}の内容${index + 1}`,
       text: claim.text,
       ids: claim.evidenceIds,
@@ -110,17 +111,26 @@ export default function CompatReport({
   sharedMatrix = null,
 }) {
   if (!result) return null;
-  const members = result.dataSufficiency.memberAvailability || [];
+  const dataSufficiency = result.dataSufficiency || {};
+  const members = dataSufficiency.memberAvailability || [];
+  const hasLenses = Array.isArray(result.lenses);
+  const lenses = hasLenses ? result.lenses : [];
   const displayText = (value) => replaceMemberAliases(value, members, memberLabels);
+  const hasEvidenceDetails = hasLenses
+    || !!result.unmetFunctionCandidate
+    || result.evidence?.length > 0
+    || !!result.model;
   return (
     <section className="compat-report" aria-label="相性分析結果">
-      <div className="compat-sufficiency-summary">
-        <strong>🔎 はじめに：今回確認できること</strong>
-        <span>{displayText(result.dataSufficiency.summary)}</span>
-        {result.dataSufficiency.limitations?.length > 0 && (
-          <ul>{result.dataSufficiency.limitations.map((item) => <li key={item}>{displayText(item)}</li>)}</ul>
-        )}
-      </div>
+      {dataSufficiency.summary && (
+        <div className="compat-sufficiency-summary">
+          <strong>🔎 はじめに：今回確認できること</strong>
+          <span>{displayText(dataSufficiency.summary)}</span>
+          {dataSufficiency.limitations?.length > 0 && (
+            <ul>{dataSufficiency.limitations.map((item) => <li key={item}>{displayText(item)}</li>)}</ul>
+          )}
+        </div>
+      )}
 
       <CompatMandala visual={result.visual} memberLabels={memberLabels} />
       {uaamMatrix || sharedMatrix ? (
@@ -128,23 +138,23 @@ export default function CompatReport({
           mode={sharedMatrix ? 'share' : 'admin'}
           uaamMatrix={uaamMatrix}
           sharedMatrix={sharedMatrix}
-          members={result.dataSufficiency.memberAvailability || []}
+          members={members}
           memberLabels={memberLabels}
         />
       ) : null}
 
-      <div className="compat-claims-grid">
-        {result.lenses.map((lens) => (
+      {hasLenses && <div className="compat-claims-grid">
+        {lenses.map((lens) => (
           <section className="compat-section" key={lens.id}>
             <p className="compat-kicker">{lens.id === 'similarity' ? '🤝 似ているところ' : '🧩 違いで補い合えるところ'}</p>
             <h2>{STATUS_LABELS[lens.status] || lens.status}</h2>
             <p>{displayText(lens.summary)}</p>
-            {lens.claims.map((claim, index) => (
+            {(lens.claims || []).map((claim, index) => (
               <Claim claim={claim} displayText={displayText} key={`${lens.id}-${index}`} />
             ))}
           </section>
         ))}
-      </div>
+      </div>}
 
       {result.unmetFunctionCandidate && (
         <section className="compat-section compat-unmet-function">
@@ -155,8 +165,8 @@ export default function CompatReport({
         </section>
       )}
 
-      <EvidenceFold result={result} memberLabels={memberLabels} />
-      <footer className="compat-ethics">{result.ethicsNotice}</footer>
+      {hasEvidenceDetails && <EvidenceFold result={result} memberLabels={memberLabels} />}
+      {result.ethicsNotice && <footer className="compat-ethics">{result.ethicsNotice}</footer>}
     </section>
   );
 }

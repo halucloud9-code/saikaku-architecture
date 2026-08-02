@@ -59,12 +59,16 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [resultSnapshot, setResultSnapshot] = useState(null);
+  const [soloPayload, setSoloPayload] = useState(null);
+  const [soloSnapshot, setSoloSnapshot] = useState(null);
   const [recommendSummary, setRecommendSummary] = useState(null);
+  const [rankingSummary, setRankingSummary] = useState(null);
   const [recommendSnapshot, setRecommendSnapshot] = useState(null);
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [recommendNamesConsent, setRecommendNamesConsent] = useState(false);
   const [recommendNamesLoading, setRecommendNamesLoading] = useState(false);
   const [recommendCandidates, setRecommendCandidates] = useState(null);
+  const [recommendRanking, setRecommendRanking] = useState(null);
   const [recommendError, setRecommendError] = useState('');
   const analysisGenerationRef = useRef(0);
 
@@ -81,11 +85,11 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     return () => { active = false; };
   }, [user]);
 
-  const maxMembers = mode === 'pair' ? 2 : 10;
+  const maxMembers = mode === 'solo' ? 1 : mode === 'pair' ? 2 : 10;
   const selectedKeys = useMemo(() => new Set(selected.map((member) => member.source === 'internal' ? `internal:${member.id}` : `public:${member.shareUrl}`)), [selected]);
   const canAnalyze = !analyzing
     && consent
-    && (mode === 'pair' ? selected.length === 2 : selected.length >= 3)
+    && (mode === 'solo' ? selected.length === 1 : mode === 'pair' ? selected.length === 2 : selected.length >= 3)
     && (mode !== 'team' || goal.trim().length > 0);
   const reportLabels = resultSnapshot?.memberLabels || [];
   const hasMatchedTerms = result?.visual?.schemaVersion === 2
@@ -96,14 +100,36 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     && reportLabels.every((label) => label.length >= 1 && label.length <= 80);
   const hasRecommendationMatches = Array.isArray(recommendSummary)
     && recommendSummary.some((axis) => axis.candidateCount > 0);
+  const hasRankingMatches = rankingSummary?.eligible === true
+    && Number.isInteger(rankingSummary.matchedCount)
+    && rankingSummary.matchedCount > 0;
+  const canRevealRecommendationNames = hasRecommendationMatches || hasRankingMatches;
+  const isSoloSelection = selected.length === 1;
+  const recommendationHeading = isSoloSelection
+    ? 'この人にない力を持つ受講者を探す'
+    : 'チームにない力を持つ受講者を探す';
+  const noDataLabel = isSoloSelection ? 'データなし' : 'チームにデータなし';
+  const belowThresholdLabel = isSoloSelection ? '12点未満' : 'チームで12点未満';
+  const soloSubject = soloPayload?.subject || null;
+  const soloReport = useMemo(() => (
+    soloSubject
+      ? {
+        dataSufficiency: {
+          memberAvailability: [{ alias: 'M1', ...soloSubject.availability }],
+        },
+      }
+      : null
+  ), [soloSubject]);
 
   const resetRecommendation = () => {
     setRecommendSummary(null);
+    setRankingSummary(null);
     setRecommendSnapshot(null);
     setRecommendLoading(false);
     setRecommendNamesConsent(false);
     setRecommendNamesLoading(false);
     setRecommendCandidates(null);
+    setRecommendRanking(null);
     setRecommendError('');
   };
 
@@ -113,6 +139,8 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     setSharing(false);
     setResult(null);
     setResultSnapshot(null);
+    setSoloPayload(null);
+    setSoloSnapshot(null);
   };
 
   const recommendationMembers = (members) => members.map(({ source, id, shareUrl: url }) => ({
@@ -124,6 +152,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     if (analysisGenerationRef.current !== generation) return;
     setRecommendLoading(true);
     setRecommendSummary(null);
+    setRankingSummary(null);
     setRecommendSnapshot(null);
     if (!preserveError) setRecommendError('');
     try {
@@ -140,6 +169,9 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         throw new Error('受講者の検索結果を読み取れませんでした');
       }
       setRecommendSummary(Array.isArray(data.shortages) ? data.shortages : []);
+      setRankingSummary(data.rankingSummary && typeof data.rankingSummary === 'object'
+        ? data.rankingSummary
+        : null);
       setRecommendSnapshot(data.snapshot);
     } catch (cause) {
       if (analysisGenerationRef.current !== generation) return;
@@ -219,6 +251,58 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     }
   };
 
+  const analyzeSolo = async () => {
+    const generation = analysisGenerationRef.current + 1;
+    analysisGenerationRef.current = generation;
+    const snapshot = {
+      generation,
+      mode: 'solo',
+      members: selected.map((member) => ({ ...member })),
+    };
+    setAnalyzing(true);
+    setSharing(false);
+    setError('');
+    setResult(null);
+    setResultSnapshot(null);
+    setSoloPayload(null);
+    setSoloSnapshot(null);
+    setShareConsent(false);
+    setShare(null);
+    setCopied(false);
+    setShareError('');
+    resetRecommendation();
+    setRecommendLoading(true);
+    try {
+      const data = await apiFetch(user, '/api/admin/compat-recommend', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'search',
+          members: recommendationMembers(snapshot.members),
+          consent: true,
+        }),
+      });
+      if (analysisGenerationRef.current !== generation) return;
+      if (typeof data.snapshot !== 'string' || !data.snapshot || !data.subject) {
+        throw new Error('1人分の力マップを読み取れませんでした');
+      }
+      setRecommendSummary(Array.isArray(data.shortages) ? data.shortages : []);
+      setRankingSummary(data.rankingSummary && typeof data.rankingSummary === 'object'
+        ? data.rankingSummary
+        : null);
+      setRecommendSnapshot(data.snapshot);
+      setSoloPayload(data);
+      setSoloSnapshot(snapshot);
+    } catch (cause) {
+      if (analysisGenerationRef.current !== generation) return;
+      setError(cause.message);
+    } finally {
+      if (analysisGenerationRef.current === generation) {
+        setAnalyzing(false);
+        setRecommendLoading(false);
+      }
+    }
+  };
+
   const analyze = async () => {
     const generation = analysisGenerationRef.current + 1;
     analysisGenerationRef.current = generation;
@@ -265,10 +349,11 @@ export default function CompatScreen({ user, onBack, onLogout }) {
   const toggleRecommendationNames = async (checked) => {
     setRecommendNamesConsent(checked);
     setRecommendCandidates(null);
+    setRecommendRanking(null);
     setRecommendError('');
     if (!checked) return;
 
-    const snapshot = resultSnapshot;
+    const snapshot = mode === 'solo' ? soloSnapshot : resultSnapshot;
     if (!snapshot || analysisGenerationRef.current !== snapshot.generation) return;
     setRecommendNamesLoading(true);
     try {
@@ -283,6 +368,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
       });
       if (analysisGenerationRef.current !== snapshot.generation) return;
       setRecommendCandidates(Array.isArray(data.candidates) ? data.candidates : []);
+      setRecommendRanking(Array.isArray(data.ranking) ? data.ranking : []);
     } catch (cause) {
       if (analysisGenerationRef.current !== snapshot.generation) return;
       setRecommendNamesConsent(false);
@@ -296,7 +382,39 @@ export default function CompatScreen({ user, onBack, onLogout }) {
     }
   };
 
+  const selectRankingCandidateForPair = (candidate) => {
+    const matchingProfiles = profiles.filter((profile) => (
+      profile.displayName === candidate.displayName
+    ));
+    const snapshot = mode === 'solo' ? soloSnapshot : resultSnapshot;
+    const subject = snapshot?.members?.find((member) => member.source === 'internal');
+    if (matchingProfiles.length !== 1 || !subject) return;
+    const candidateProfile = matchingProfiles[0];
+    if (candidateProfile.id === subject.id) return;
+
+    invalidateAnalysisResult();
+    setMode('pair');
+    setSelected([
+      { ...subject },
+      {
+        source: 'internal',
+        id: candidateProfile.id,
+        profileVersion: candidateProfile.profileVersion,
+        displayName: candidateProfile.displayName,
+        availability: candidateProfile.availability,
+      },
+    ]);
+    setError('');
+    setConsent(false);
+    setShareConsent(false);
+    setShare(null);
+    setCopied(false);
+    setShareError('');
+    resetRecommendation();
+  };
+
   const issueShare = async () => {
+    if (mode === 'solo' || !result) return;
     const snapshot = resultSnapshot;
     if (!snapshot || analysisGenerationRef.current !== snapshot.generation) return;
     setSharing(true);
@@ -364,7 +482,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         <div>
           <p className="compat-kicker">管理者向け・相性診断</p>
           <h1>相性診断</h1>
-          <p>点数はつけません。「似ているところ」と「違いで補い合えるところ」を見つけ、対話のきっかけにします。</p>
+          <p>人物には点数をつけません。組み合わせにだけ指標を出します。「似ているところ」と「違いで補い合えるところ」を見つけ、対話のきっかけにします。</p>
         </div>
         <div className="compat-header-actions">
           <button type="button" className="compat-button secondary" onClick={onBack}>管理画面へ</button>
@@ -376,6 +494,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         <div className="compat-mode" role="group" aria-label="分析モード">
           <button type="button" aria-pressed={mode === 'pair'} onClick={() => switchMode('pair')}>ペア（2名）</button>
           <button type="button" aria-pressed={mode === 'team'} onClick={() => switchMode('team')}>チーム（3名以上）</button>
+          <button type="button" aria-pressed={mode === 'solo'} onClick={() => switchMode('solo')}>1人</button>
         </div>
 
         {mode === 'team' && (
@@ -409,16 +528,18 @@ export default function CompatScreen({ user, onBack, onLogout }) {
           </div>
         )}
 
-        <div className="compat-import">
-          <h2>公開アプリから追加</h2>
-          <p>{publicImport.message}</p>
-          {publicImport.enabled && (
-            <div className="compat-import-row">
-              <input aria-label="公開アプリ共有URL" type="url" value={shareUrl} onChange={(event) => setShareUrl(event.target.value)} placeholder="https://app.saikaku-architecture.com/share/..." />
-              <button type="button" className="compat-button secondary" onClick={importProfile} disabled={importing || !shareUrl.trim() || selected.length >= maxMembers}>{importing ? '取り込み中…' : '追加'}</button>
-            </div>
-          )}
-        </div>
+        {mode !== 'solo' && (
+          <div className="compat-import">
+            <h2>公開アプリから追加</h2>
+            <p>{publicImport.message}</p>
+            {publicImport.enabled && (
+              <div className="compat-import-row">
+                <input aria-label="公開アプリ共有URL" type="url" value={shareUrl} onChange={(event) => setShareUrl(event.target.value)} placeholder="https://app.saikaku-architecture.com/share/..." />
+                <button type="button" className="compat-button secondary" onClick={importProfile} disabled={importing || !shareUrl.trim() || selected.length >= maxMembers}>{importing ? '取り込み中…' : '追加'}</button>
+              </div>
+            )}
+          </div>
+        )}
 
         {selected.length > 0 && (
           <div className="compat-selected">
@@ -449,22 +570,56 @@ export default function CompatScreen({ user, onBack, onLogout }) {
         </label>
 
         {error && <p className="compat-error" role="alert">{error}</p>}
-        <button type="button" className="compat-button primary" onClick={analyze} disabled={!canAnalyze}>
-          {analyzing ? '分析しています…' : '相性を分析する'}
+        <button type="button" className="compat-button primary" onClick={mode === 'solo' ? analyzeSolo : analyze} disabled={!canAnalyze}>
+          {analyzing
+            ? mode === 'solo' ? '力マップを読み込んでいます…' : '分析しています…'
+            : mode === 'solo' ? '力マップと相性を見る' : '相性を分析する'}
         </button>
       </section>
 
       <CompatReport result={result} memberLabels={reportLabels} uaamMatrix={result?.uaamMatrix} />
 
-      {result && (
-        <section className="compat-recommend" aria-label="チームにない力を持つ受講者を探す">
+      {soloSubject && (
+        <section className="compat-solo-result" aria-label={`${soloSubject.displayName}の診断結果`}>
+          <div className="compat-solo-axes">
+            <p className="compat-kicker">診断プロフィール</p>
+            <h2>{soloSubject.displayName}の診断で見つかった軸</h2>
+            <div className="compat-solo-axis-groups">
+              {[
+                ['talent', '才能'],
+                ['value', '価値観'],
+                ['passion', '情熱'],
+              ].map(([category, label]) => (
+                <section key={category}>
+                  <h3>{label}</h3>
+                  <div className="compat-solo-axis-chips" aria-label={`${label}の診断で見つかった軸`}>
+                    {soloSubject.generatedAxes?.[category]?.length > 0
+                      ? soloSubject.generatedAxes[category].map((axis) => <span key={axis}>{axis}</span>)
+                      : <span className="muted">データなし</span>}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+          <CompatReport
+            result={soloReport}
+            memberLabels={[soloSubject.displayName]}
+            uaamMatrix={soloSubject.uaamMatrix}
+          />
+        </section>
+      )}
+
+      {(result || soloPayload || (mode === 'solo' && analyzing)) && (
+        <section className="compat-recommend" aria-label={recommendationHeading}>
           <p className="compat-kicker">受講者を探す</p>
-          <h2>チームにない力を持つ受講者を探す</h2>
+          <h2>{recommendationHeading}</h2>
           <p className="compat-recommend-rule">
-            チームで12点（発動の目安）未満、またはデータのない軸を、16点以上で持っている人を、名前の順で表示します。
+            {isSoloSelection
+              ? 'この人が12点（発動の目安）未満、またはデータのない軸を、16点以上で持っている人を、名前の順で表示します。'
+              : 'チームで12点（発動の目安）未満、またはデータのない軸を、16点以上で持っている人を、名前の順で表示します。'}
           </p>
           <p className="compat-recommend-ethics">
-            この機能は相互理解のための対話相手を探す補助です。人事・採用・配属の判断には使いません。
+            この機能は、コミュニティ内のチームづくりと相互理解のためのものです。雇用・人事・採用・査定の判断には使いません。
           </p>
 
           <div className="compat-recommend-status" role="status" aria-live="polite" aria-atomic="true">
@@ -488,16 +643,31 @@ export default function CompatScreen({ user, onBack, onLogout }) {
               <ul>
                 {recommendSummary.map((axis) => (
                   <li key={axis.axisKey}>
-                    {axis.axisLabel}
-                    {axis.noData ? '（チームにデータなし）' : '（チームで12点未満）'}
-                    を16点以上で持つ受講者が {axis.candidateCount}人 います
+                    {`${axis.axisLabel}（${axis.noData ? noDataLabel : belowThresholdLabel}）を16点以上で持つ受講者が ${axis.candidateCount}人 います`}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {hasRecommendationMatches && (
+          <section className="compat-ranking-summary" aria-labelledby="compat-ranking-heading">
+            <h3 id="compat-ranking-heading">学び合いやすい組み合わせ</h3>
+            <p className="compat-ranking-rule">
+              この指標は「その組み合わせでどれだけ学び合えそうか」を表します。人物の能力や優劣の点数ではありません。相手が変われば値も変わります。
+            </p>
+            {rankingSummary?.eligible === false && <p>{rankingSummary.reason}</p>}
+            {rankingSummary?.eligible === true && rankingSummary.matchedCount === 0 && (
+              <p>現在の選択メンバーと組み合わせて表示できる受講者はいません。</p>
+            )}
+            {rankingSummary?.truncated > 0 && (
+              <p>ほかに{rankingSummary.truncated}人が条件に合いましたが、上位10人まで表示しています</p>
+            )}
+            {rankingSummary?.excludedForMissingAxes > 0 && (
+              <p>詳細診断(UAAM)の16項目がそろっていない{rankingSummary.excludedForMissingAxes}人は、比較の対象外です</p>
+            )}
+          </section>
+
+          {canRevealRecommendationNames && (
             <label className="compat-consent compat-recommend-consent">
               <input
                 type="checkbox"
@@ -510,7 +680,7 @@ export default function CompatScreen({ user, onBack, onLogout }) {
               </span>
             </label>
           )}
-          {recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length === 0 && (
+          {hasRecommendationMatches && recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length === 0 && (
             <p>この基準に該当する受講者はいません。</p>
           )}
           {recommendNamesConsent && Array.isArray(recommendCandidates) && recommendCandidates.length > 0 && (
@@ -519,9 +689,9 @@ export default function CompatScreen({ user, onBack, onLogout }) {
                 <article key={index}>
                   <h3>{candidate.displayName}</h3>
                   <div className="compat-recommend-axis-chips" aria-label={`${candidate.displayName}の該当軸`}>
-                    {candidate.matchedAxes.map((axis) => (
+                    {(candidate.matchedAxes || []).map((axis) => (
                       <span key={axis.axisKey}>
-                        {axis.axisLabel}・{axis.noData ? 'チームにデータなし' : 'チームで12点未満'}
+                        {axis.axisLabel}・{axis.noData ? noDataLabel : belowThresholdLabel}
                       </span>
                     ))}
                   </div>
@@ -529,10 +699,69 @@ export default function CompatScreen({ user, onBack, onLogout }) {
               ))}
             </div>
           )}
+
+          {recommendNamesConsent
+            && rankingSummary?.eligible === true
+            && Array.isArray(recommendRanking)
+            && recommendRanking.length > 0 && (
+            <div className="compat-ranking-list" role="list" aria-label="学び合いやすい組み合わせの候補者ランキング">
+              {recommendRanking.map((candidate, index) => {
+                const shortageCandidate = recommendCandidates?.find((item) => (
+                  item.displayName === candidate.displayName
+                ));
+                const matchingProfiles = profiles.filter((profile) => (
+                  profile.displayName === candidate.displayName
+                ));
+                const snapshot = mode === 'solo' ? soloSnapshot : resultSnapshot;
+                const subject = snapshot?.members?.find((member) => member.source === 'internal');
+                const ambiguousName = matchingProfiles.length > 1;
+                const unavailable = matchingProfiles.length !== 1
+                  || !subject
+                  || matchingProfiles[0]?.id === subject.id;
+                const buttonTitle = ambiguousName
+                  ? '同名の受講者がいるため、一覧から選んでください'
+                  : unavailable
+                    ? '受講者一覧から選んでください'
+                    : undefined;
+                return (
+                  <article key={index} role="listitem">
+                    <h4>{candidate.displayName}</h4>
+                    <p className="compat-ranking-index">
+                      <span>この組み合わせの学び合い指標</span>
+                      <strong>{candidate.combinationLearningIndex}点</strong>
+                    </p>
+                    <p className="compat-ranking-breakdown">
+                      120マスのうち{candidate.distinctCells}マスが、どちらか片方だけ発動
+                      <br />
+                      平均点の差 {(candidate.levelGapTenths / 10).toFixed(1)}点
+                    </p>
+                    {shortageCandidate?.matchedAxes?.length > 0 && (
+                      <div className="compat-recommend-axis-chips" aria-label={`${candidate.displayName}の該当軸`}>
+                        {shortageCandidate.matchedAxes.map((axis) => (
+                          <span key={axis.axisKey}>
+                            {axis.axisLabel}・{axis.noData ? noDataLabel : belowThresholdLabel}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="compat-button secondary compat-ranking-pair-button"
+                      disabled={unavailable}
+                      title={buttonTitle}
+                      onClick={() => selectRankingCandidateForPair(candidate)}
+                    >
+                      この人とペア分析する
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
-      {result && (
+      {result && mode !== 'solo' && (
         <section className="compat-share-controls" aria-label="分析結果の共有">
           <p className="compat-kicker">結果を共有する</p>
           <h2>対象者へ結果を共有</h2>
