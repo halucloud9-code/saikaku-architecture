@@ -28,3 +28,6 @@ logs/
 # Playwright generated artifacts (traces, attachments)
 test-results/
 playwright-report/
+
+# PII: Firestore full export (2026-08-03 追加)
+firestore_export.json
