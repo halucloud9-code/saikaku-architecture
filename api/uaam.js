@@ -490,7 +490,7 @@ ${Object.entries(scores.impact.subs).map(([k, v]) => `  ${k}: ${v}/20`).join('\n
       try {
         const message = await createMessage({
           fixtureKey: 'uaam',
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 4096,
           system: UAAM_SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userMsg }],
