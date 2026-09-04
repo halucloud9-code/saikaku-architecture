@@ -16,6 +16,7 @@ const uaamHandler = await import('./uaam.js');
 const integrateHandler = await import('./integrate.js');
 const sendVerificationEmailHandler = await import('./send-verification-email.js');
 const compatShareHandler = await import('./compat-share.js');
+const nsAcademyLookupHandler = await import('./integrations/ns-academy-lookup.js');
 
 let adminHandlers = {};
 let meHandlers = {};
@@ -90,6 +91,11 @@ app.all('/api/send-verification-email', (req, res) => {
 
 app.all('/api/compat-share', (req, res) => {
   const handler = compatShareHandler.default || compatShareHandler;
+  return handler(req, res);
+});
+
+app.all('/api/integrations/ns-academy-lookup', (req, res) => {
+  const handler = nsAcademyLookupHandler.default || nsAcademyLookupHandler;
   return handler(req, res);
 });
 
